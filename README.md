@@ -145,7 +145,39 @@ unsafe operations, or genuine ambiguity.
 possible. The model should call deterministic checks instead of spending tokens
 re-inspecting behavior by hand.
 
-## Install
+## Recommended Install
+
+Default to personal/global installs. They keep active project repos clean and
+avoid skill drift between copies.
+
+GitHub Copilot personal install:
+
+```powershell
+$src = 'E:\working-skill-repo'
+$skills = "$env:USERPROFILE\.copilot\skills"
+$agents = "$env:USERPROFILE\.copilot\agents"
+Copy-Item "$src\.github\skills\*" $skills -Recurse -Force
+Copy-Item "$src\.github\agents\*" $agents -Force
+```
+
+Shared agent-skills standard install:
+
+```powershell
+$src = 'E:\working-skill-repo\.github\skills'
+$dst = "$env:USERPROFILE\.agents\skills"
+Copy-Item "$src\*" $dst -Recurse -Force
+```
+
+Codex personal install:
+
+```powershell
+$src = 'E:\working-skill-repo\.github\skills'
+$dst = "$env:USERPROFILE\.codex\skills"
+Copy-Item "$src\*" $dst -Recurse -Force
+```
+
+Use repo-local installs only when a project needs pinned/project-specific
+overrides or when the skills should be versioned with that codebase.
 
 Repo-local GitHub Copilot install:
 
@@ -157,19 +189,6 @@ Copy-Item "$src\.github\agents" "$dst\.github\agents" -Recurse -Force
 Copy-Item "$src\AGENTS.md" "$dst\AGENTS.md" -Force
 Copy-Item "$src\.github\copilot-instructions.md" "$dst\.github\copilot-instructions.md" -Force
 ```
-
-Global Codex install:
-
-```powershell
-$src = 'E:\working-skill-repo\.github\skills'
-$dst = "$env:USERPROFILE\.codex\skills"
-Get-ChildItem $src -Directory | ForEach-Object {
-  Copy-Item $_.FullName (Join-Path $dst $_.Name) -Recurse -Force
-}
-```
-
-Prefer repo-local installs for active projects. They keep the workflow visible to
-GitHub Copilot and make project-specific skill changes reviewable in Git.
 
 ## Skill Quality Bar
 
