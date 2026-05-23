@@ -1,13 +1,60 @@
-# working-skill-repo
+# Working Skill Repo
 
-Working repository for the minimal shared KB skill set.
+Minimal, voice-friendly KB workflow skills for GitHub Copilot and Codex.
 
-## Included Skills
+This repo is the portable skill bundle I use when I want an agent to walk into a
+project, recover local project memory, choose the right workflow, execute work in
+vertical slices, test its own changes, review the result, and leave durable
+handoff/context files behind.
 
-The repo intentionally carries only the skills needed for the KB pipeline and
-its direct skill-to-skill dependencies.
+KB means **Kanban-Based**. The underlying workflow still uses boards, manifests,
+vertical slices, and done archives, but user-facing commands use the shorter
+`kb-` prefix because it works better with voice input.
 
-Core KB workflow:
+## What This Repo Is
+
+This is not the full ATV StarterKit. It is the smaller working set that should be
+safe to copy into active projects without dragging in every experiment or
+historical workflow.
+
+It includes:
+
+- repo-local GitHub Copilot skills in `.github/skills/`
+- repo-local Copilot agents in `.github/agents/`
+- root agent guidance in `AGENTS.md`
+- Copilot guidance in `.github/copilot-instructions.md`
+- a deterministic check helper at `.github/skills/kb-check/scripts/kb-check.ps1`
+
+The default entry point is `kb-route`. In normal use, ask for work in plain
+language and let `kb-route` choose the ceremony.
+
+## Quick Use
+
+Use these when you know the route:
+
+| Command | Use When |
+| --- | --- |
+| `kb-route` | Fresh session, ambiguous ask, or "figure out the right workflow" |
+| `kb-fix` | Narrow bug, failing test, or small contained change |
+| `kb-brainstorm` | Product or technical framing is still unclear |
+| `kb-plan` | Requirements exist and need vertical slices |
+| `kb-work` | A manifest exists and should be executed |
+| `kb-complete` | Work is done and needs review, learning, cleanup |
+| `kb-ship` | Release, PR, deploy, or final readiness check |
+| `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
+| `klfg` | Fully hands-off route: brainstorm -> plan -> work -> complete |
+
+Standalone phase skills stop at their artifact boundary:
+
+- `kb-brainstorm` writes/reviews requirements and recommends `kb-plan`.
+- `kb-plan` writes the manifest and slice plans and recommends `kb-work`.
+- `kb-work` executes all runnable slices and calls `kb-complete` only when every
+  slice is done or intentionally skipped.
+- `klfg` is the full auto-chain.
+
+## Installed Skills
+
+Core workflow:
 
 - `kb-route`
 - `kb-map`
@@ -29,137 +76,132 @@ Core KB workflow:
 - `kb-ship`
 - `klfg`
 
-You should not have to pick these manually. In normal use, ask for the work in
-plain language and let `kb-route` choose the lane:
+Direct dependencies:
 
-- Small bug or narrow fix -> `kb-fix`
-- Bounded feature/refactor -> `kb-brainstorm` or `kb-plan`
-- Large initiative, migration, or rewrite -> `kb-epic`
-- Existing manifest -> `kb-work`
-- Finished work -> `kb-complete`
-- Release/PR/deploy readiness -> `kb-ship`
+- `document-review`
+- `tdd`
+- `ce-review`
+- `ce-compound`
+- `ce-compound-refresh`
+- `learn`
+- `evolve`
+- `todo-create`
+- `todo-triage`
 
-Standalone phase skills stop at their artifact boundary:
+## Not Bundled
 
-- `kb-brainstorm` writes/reviews requirements, then recommends `kb-plan`.
-- `kb-plan` writes the manifest and slice plans, then recommends `kb-work`.
-- `kb-work` executes the manifest, then automatically runs `kb-complete` after all slices are done or intentionally skipped.
-- `klfg` is the only default auto-chain from idea to done.
+These are intentionally left out of the minimal working bundle:
 
-Required dependencies:
+- upstream `deepen-*` passes; use `kb-research` and proportional research
+- one-shot LFG/SLFG style workflows; use `klfg` only when you actually want the
+  whole pipeline
+- `land`; shipping remains a deliberate separate decision
+- browser tools such as `agent-browser`; skills can call them when installed, but
+  this repo does not vendor them
 
-- `document-review` - called by `kb-brainstorm`
-- `tdd` - used by `kb-plan` / `kb-work` verification modes
-- `ce-review` - called by `kb-complete`
-- `ce-compound` - called by `kb-complete`
-- `learn` - called by `kb-complete`
-- `evolve` - called by `kb-complete`
-- `todo-create` - called by `ce-review` when residual review work is externalized
-- `todo-triage` - called by `todo-create` for interactive approval
-- `ce-compound-refresh` - conditionally called by `ce-compound` when new learnings make older docs stale
+## Project Memory
 
-## Intentionally Not Bundled
+The workflow keeps memory in files so sessions can stay short.
 
-These are mentioned by the copied docs but are not required for the normal KB
-pipeline:
+Required project memory files:
 
-- Upstream `deepen-*` enhancement passes are not bundled; this repo uses `kb-research` and proportional planning instead.
-- `ce-ideate` is an upstream input option for brainstorming.
-- `land` is a separate deliberate shipping step.
-- `todo-resolve` is a follow-up implementation workflow after todo triage.
-- `agent-browser` is a CLI/browser tool option referenced by `kb-qa`, not a skill dependency.
+- `todo.md` - active work, blockers, parked work, and handoff pointers
+- `todo-done.md` - compact archive of completed work
+- `docs/context/PROJECT.md` - project route map for fresh sessions
+- `docs/context/architecture/` - concise architecture notes by domain
+- `docs/context/research/` - reusable research findings
+- `docs/context/decisions/` - durable decisions and tradeoffs
+- `docs/handoffs/active/` - resumable work
+- `docs/handoffs/parked/` - valuable work that is not currently runnable
+- `docs/handoffs/done/` - completed or superseded handoffs
 
-## Repository Instructions
+Fresh-session preflight:
 
-This repo includes both `AGENTS.md` and `.github/copilot-instructions.md`.
-They are intentionally short: route KB work to `kb-route`, point fresh sessions at
-local memory files, and enforce the "every token must pay rent" rule without
-installing a bulky persona.
+- If `todo.md` or `docs/context/PROJECT.md` is missing, run `kb-map-bootstrap`.
+- If the context or handoff folders are partially missing, run `kb-map refresh`.
+- Do not ask before bootstrapping unless a non-empty user file would be
+  overwritten.
 
-## Layout
+This replaces older `docs/kanban.md`, `docs/kanban-done.md`, `kb.md`,
+`kb-done.md`, and ad-hoc handoff naming for the KB workflow.
 
-Skills live under `.github/skills/` so a repo-local agent can discover them
-using the standard project skill location.
+## Execution Model
 
-Agent roles live under `.github/agents/`. They are bundled because the KB and CE
-flows depend on parallel research, security, adversarial, and review personas.
-They are lazy-loaded by the host agent system; normal startup should still begin
-with `kb-route`, not with every agent file.
+The pipeline is designed around three task sizes:
 
-Reusable scripts live inside their owning skills. `kb-check` uses
-`.github/skills/kb-check/scripts/kb-check.ps1` to discover common
-lint/test/build commands so agents can run deterministic checks instead of
-spending tokens on manual inspection.
+- **Small:** use `kb-fix`. Write or identify a failing check, make the smallest
+  fix, run deterministic verification, and stop if the fix loop stalls.
+- **Medium:** use `kb-brainstorm` -> `kb-plan` -> `kb-work`. Produce vertical
+  slices with expected files, verification, dependencies, and HITL flags.
+- **Large:** use `kb-epic`. Break the initiative into multiple brainstorms or
+  manifests before execution.
 
-## Skill Quality Standard
+`kb-gate` owns P0/P1/P2/P3 handling. P0/P1 findings block progression, but they
+do not automatically require a human. The agent should fix actionable P0/P1
+issues itself and ask for human help only for product decisions, credentials,
+unsafe operations, or genuine ambiguity.
+
+`kb-check` and `kb-functional-test` push verification into code whenever
+possible. The model should call deterministic checks instead of spending tokens
+re-inspecting behavior by hand.
+
+## Install
+
+Repo-local GitHub Copilot install:
+
+```powershell
+$src = 'E:\working-skill-repo'
+$dst = 'E:\path\to\your\project'
+Copy-Item "$src\.github\skills" "$dst\.github\skills" -Recurse -Force
+Copy-Item "$src\.github\agents" "$dst\.github\agents" -Recurse -Force
+Copy-Item "$src\AGENTS.md" "$dst\AGENTS.md" -Force
+Copy-Item "$src\.github\copilot-instructions.md" "$dst\.github\copilot-instructions.md" -Force
+```
+
+Global Codex install:
+
+```powershell
+$src = 'E:\working-skill-repo\.github\skills'
+$dst = "$env:USERPROFILE\.codex\skills"
+Get-ChildItem $src -Directory | ForEach-Object {
+  Copy-Item $_.FullName (Join-Path $dst $_.Name) -Recurse -Force
+}
+```
+
+Prefer repo-local installs for active projects. They keep the workflow visible to
+GitHub Copilot and make project-specific skill changes reviewable in Git.
+
+## Skill Quality Bar
 
 KB skills should be structured, not brain dumps:
 
-- Frontmatter says when to use the skill.
-- The body starts with the job and the non-goals.
-- Workflows are split into sections with clear gates.
-- Required outputs and file locations are explicit.
-- Questions are blocking-decision driven, not quota driven.
-- Tool names stay generic unless the tool is bundled or guaranteed.
-- Long shared doctrine lives in one skill or instruction file, then other skills reference it.
+- frontmatter says exactly when to use the skill
+- the body states the job, non-goals, and output contract
+- workflows are split into phases with hard gates
+- file paths, commands, and artifact locations are explicit
+- questions are driven by blocking decisions, not a quota
+- shared doctrine lives once and is referenced elsewhere
+- long research, agent prompts, and scripts are lazy-loaded when needed
 
-## Modern Model Assumptions
-
-These skills assume current frontier models are competent. Do not spend tokens on
-basic programming explanations, generic motivational text, repeated reminders to
-be careful, or long examples for obvious patterns. Keep:
-
-- trigger rules;
-- file contracts;
-- hard gates;
-- escalation thresholds;
-- exact commands and paths;
-- output formats;
-- failure handling;
-- review/test criteria that prevent real mistakes.
-
-Everything else should either move to a lazily loaded agent/reference/script or
-be cut by `kb-compact`.
+Every token must pay rent. Keep contracts, gates, paths, commands, error
+handling, verification criteria, and escalation thresholds. Cut generic
+programming advice, motivational text, repeated warnings, and long examples that
+modern models do not need.
 
 ## Credits
 
 This repo is primarily based on the ATV / All The Vibes skill set and its
-Compound Engineering workflow. It also borrows useful ideas from
-[Matt Pocock's skills](https://github.com/mattpocock/skills), especially small
-composable skills and vertical slicing, and from
-[G-Stack](https://github.com/garrytan/gstack), especially persistent workflow
-memory, QA ownership, and operating-system-style orchestration. The compactness
-rules are also informed by
-[kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot), especially
-Copilot-first instruction surfaces and measured terse-output modes.
+Compound Engineering workflow.
 
-## KB Project Memory Files
+It also borrows useful ideas from:
 
-The KB workflow uses repo-root markdown files for local memory instead of
-keeping long-running chat sessions alive:
+- [Matt Pocock's skills](https://github.com/mattpocock/skills), especially small
+  composable workflow skills and vertical slicing
+- [G-Stack](https://github.com/garrytan/gstack), especially persistent workflow
+  memory, QA ownership, and operating-system-style orchestration
+- [kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot), especially
+  terse Copilot-first instruction surfaces
 
-- `todo.md` - live execution board for active work, blockers, parked work, and handoff pointers
-- `todo-done.md` - compact archive of completed work with links to details
-- `docs/handoffs/active/` - resumable handoff files
-- `docs/handoffs/parked/` - valuable but not currently runnable handoffs
-- `docs/handoffs/done/` - completed or superseded handoffs
-- `docs/context/PROJECT.md` - project route map for fresh sessions
-
-This naming replaces older `docs/kanban.md`, `docs/kanban-done.md`,
-`kb.md`, `kb-done.md`, and ad-hoc `*handoff.md` usage in the KB workflow.
-
-## Memory Lifecycle
-
-Fresh sessions should not need a project tour.
-
-`kb-route`, `AGENTS.md`, and `.github/copilot-instructions.md` all enforce the
-same preflight:
-
-- Missing `todo.md` or `docs/context/PROJECT.md` means run `kb-map-bootstrap`.
-- Missing context or handoff directories means run `kb-map refresh`.
-- Do not ask first unless a non-empty user file would be overwritten.
-
-During execution, `kb-work` classifies each slice as `memory-impact: none`,
-`operational`, or `durable`. Durable changes refresh `docs/context/*` before
-the work is treated as complete. `kb-complete` has the same refresh gate as a
-backstop after review fixes.
+The goal is not to copy any one system. The goal is to keep the pieces that make
+agents more reliable, cheaper to run, easier to resume, and harder to let off
+the hook.
