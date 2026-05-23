@@ -61,6 +61,22 @@ Before running a handoff, brainstorm, plan, or parked todo older than 72 hours, 
 
 Do not run stale work blindly.
 
+## Handoff Routing Rule
+
+Handoffs are restart packets, not automatically executable plans.
+
+Before resuming any `docs/handoffs/active/*` file, classify it:
+
+| Handoff Shape | Route |
+|---|---|
+| Contains or links a `docs/plans/*-kb-*-manifest.md` with slice plans | `kb-work <manifest>` |
+| Contains vertical slices with `expected_files`, verification, blockers, and status | `kb-plan` to normalize into a manifest, then `kb-work` |
+| Contains phases, workstreams, bullets, open decisions, or broad next steps | `kb-plan` |
+| Contains unclear product/technical intent | `kb-brainstorm` |
+| Contains multiple child initiatives or a migration/rewrite scale objective | `kb-epic` |
+
+Do not route a phase-shaped handoff directly to `kb-work`. `kb-work` requires a manifest and per-slice plans with `expected_files`.
+
 ## Route Table
 
 Use plain task classes first, then map to skills:
@@ -72,6 +88,8 @@ Use plain task classes first, then map to skills:
 | Project memory badly stale | `kb-map-bootstrap` |
 | Memory/docs/responses are too verbose | `kb-compact` |
 | Need to find app/subsystem context | `kb-map lookup` |
+| Active handoff has only phases/workstreams/next steps | `kb-plan` |
+| Active handoff links a valid KB manifest | `kb-work` |
 | Recent work changed project memory | `kb-map refresh` |
 | Small known bug or narrow fix | `kb-fix` |
 | External/prior-art research needed | `kb-research` |

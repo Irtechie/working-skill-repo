@@ -24,14 +24,17 @@ Run all vertical slices from a `kb-plan` manifest in dependency order. Keep each
 
 **If input is a path:** Read the manifest at that path.
 
+**If input is a handoff:** Do not execute the handoff directly. If it links a `docs/plans/*-kb-*-manifest.md`, use that manifest. If it contains only phases, workstreams, bullets, or broad next steps, stop and invoke `kb-plan` to create vertical slices first.
+
 ## Pre-Flight
 
 1. **Read the manifest** - parse the YAML frontmatter to get the ordered slice list.
 2. **Validate DAG** - confirm no cycles in blockers, all referenced slice IDs exist, and all slice files exist.
-3. **Check status** - skip any slices already marked `done`. Resume from the first runnable `pending` slice.
-4. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
-5. **Sync with board** - read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
-6. **Confirm with user:** "Ready to execute N remaining slices in order. Proceed?"
+3. **Validate slice contracts** - each slice plan must have `expected_files`, `verification`, `blockers`, `status`, and acceptance criteria. If these are missing, stop and route to `kb-plan`; do not infer a manifest from a phase list.
+4. **Check status** - skip any slices already marked `done`. Resume from the first runnable `pending` slice.
+5. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
+6. **Sync with board** - read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
+7. **Confirm with user:** "Ready to execute N remaining slices in order. Proceed?"
 
 Treat statuses as:
 

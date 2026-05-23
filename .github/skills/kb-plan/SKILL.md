@@ -332,6 +332,8 @@ Refresh before execution if older than 72 hours.
 ## Completion Criteria
 ```
 
+Use `Suggested route: kb-work` only when the handoff links the generated KB manifest. If a handoff is created before slice planning exists, set `Suggested route: kb-plan` and state that execution must wait for a manifest.
+
 **Board status markers** (superset of manifest statuses):
 
 | Marker | Meaning |
