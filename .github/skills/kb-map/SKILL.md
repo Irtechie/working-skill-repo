@@ -20,7 +20,7 @@ Anchor every lookup to the active project root before reading memory.
    - Prefer the current working directory's Git root: `git rev-parse --show-toplevel`.
    - If Git is unavailable, use the current working directory only when it is clearly a project directory.
    - Treat drive roots such as `E:\`, home directories such as `~`/`%USERPROFILE%`, `.copilot`, `.codex`, and `.agents` as invalid project roots unless the user explicitly chose them.
-   - If the resolved root is invalid or not the user's intended project, ask for the project path before searching.
+   - If the resolved root is invalid or not the user's intended project, ask the user to change into the project directory or provide the project path before searching.
 2. Read memory only from that root:
    - `<repo>/todo.md`
    - `<repo>/docs/context/PROJECT.md`
@@ -51,7 +51,9 @@ Exact-path example on Windows:
 
 ```powershell
 $root = git rev-parse --show-toplevel
-if (-not $root -or $root -match '^[A-Za-z]:\\?$') { throw "Project root required" }
+if (-not $root -or -not (Test-Path $root) -or $root -match '^[A-Za-z]:\\?$') {
+  throw "Project root required"
+}
 Test-Path (Join-Path $root 'todo.md')
 Test-Path (Join-Path $root 'docs/context/PROJECT.md')
 Get-ChildItem (Join-Path $root 'docs/handoffs') -Recurse -File -ErrorAction SilentlyContinue

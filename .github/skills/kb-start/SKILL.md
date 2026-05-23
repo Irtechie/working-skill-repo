@@ -19,7 +19,7 @@ On every fresh session or ambiguous work request:
 3. After `kb-map` returns project context, classify the user request and route it.
 4. If `kb-map` reports stale work or missing memory, honor that before executing work.
 
-If `kb-map` cannot identify a valid active project root, ask for the project path before routing. Drive roots such as `E:\`, home directories, and global skill/config folders are not valid project roots unless the user explicitly chose them. Do not route from global handoffs or home-directory memory when the user is working in a repo.
+If `kb-map` cannot identify a valid active project root, ask the user to change into the project directory or provide the project path before routing. Drive roots such as `E:\`, home directories, and global skill/config folders are not valid project roots unless the user explicitly chose them. Do not route from global handoffs or home-directory memory when the user is working in a repo.
 
 ## Read Order
 
