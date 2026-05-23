@@ -1,6 +1,6 @@
 ---
 name: kb-gate
-description: Shared phase-gate policy for KB workflows. Use before moving from brainstorm to plan, plan to work, work to complete, or complete to ship when P0/P1/P2/P3 findings, review issues, ambiguity, weak tests, or unresolved risks exist.
+description: Shared phase-gate policy for KB workflows. Use before moving from brainstorm to plan, plan to work, work to complete, or complete to ship when P0/P1/P2/P3/P4 findings, review issues, ambiguity, weak tests, or unresolved risks exist.
 argument-hint: "[phase, artifact path, or finding list]"
 ---
 
@@ -16,10 +16,13 @@ Do not let known issues drift silently into the next phase.
 | P1 | Important ambiguity, missing verification, serious design/test gap, or likely rework | Block |
 | P2 | Non-blocking but fixable quality, clarity, edge-case, or maintainability issue | Offer rectify-all |
 | P3 | Minor polish, wording, naming, or cleanup issue | Offer rectify-all when cheap |
+| P4 | Tiny wording, formatting, traceability, or optional cleanup note | Defer or fix only when already touching the artifact |
 
 ## Who Fixes
 
-P0/P1 block the next phase, but they do not automatically require human input.
+Severity is not the same as human-in-loop. Findings are expected. Stop only when an unresolved finding would make the next phase wrong, risky, or dependent on a human-only decision.
+
+P0/P1 block the next phase while unresolved, but they do not automatically require human input.
 
 The agent should rectify P0/P1 without asking when the fix is safe and evidence-backed:
 
@@ -46,6 +49,8 @@ Ask the human only when resolution requires:
 - **Work -> complete:** block on failing deterministic checks, failed functional flows, scope violations, unresolved durable memory refresh, or blocked slices not explicitly parked.
 - **Complete -> ship:** block on unresolved P0/P1 review findings, failed checks, release risk, or unrecorded human-only blockers.
 
+P2/P3/P4 do not block by severity alone. Before moving on, fix the cheap/actionable ones that improve the artifact. Defer only when the finding is genuinely non-blocking and logging it will not cause avoidable rework.
+
 ## Rectify Prompt
 
 When findings exist, first classify them:
@@ -57,17 +62,17 @@ When findings exist, first classify them:
 Fix `auto_rectify` items before asking. Then ask only for remaining human/judgment decisions:
 
 ```text
-I found <count> issues before <next phase>: P0=<n>, P1=<n>, P2=<n>, P3=<n>.
+I found <count> issues before <next phase>: P0=<n>, P1=<n>, P2=<n>, P3=<n>, P4=<n>.
 I can rectify <auto_count> safely now. <human_count> need your decision.
-Do you want me to rectify all safe/actionable issues before moving on?
+I will rectify safe/actionable issues now and ask only for the decisions I cannot make.
 ```
 
-If the user says yes, fix all safe/actionable issues, rerun the relevant review/check, and then continue.
+After fixing safe/actionable issues, rerun the relevant review/check, then continue if the remaining findings are deferred or non-blocking.
 
-If the user says no:
+If the user asks not to fix findings:
 
 - P0/P1 still block unless resolved, reclassified with evidence, or converted into a scoped parked item outside this work.
-- P2/P3 may be logged in the artifact, `todo.md`, or `todo-done.md` with owner/status.
+- P2/P3/P4 may be logged in the artifact, `todo.md`, or `todo-done.md` with owner/status.
 
 ## Output
 

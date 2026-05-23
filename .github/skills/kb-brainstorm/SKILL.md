@@ -382,23 +382,25 @@ If the document contains outstanding questions:
 
 When a requirements document was created or updated, run the `document-review` skill on it before presenting handoff options. Pass the document path as the argument.
 
-If document-review returns findings that were auto-applied, note them briefly when presenting handoff options. If residual P0/P1 findings were surfaced, mention them so the user can decide whether to address them before proceeding.
+If document-review returns findings that were auto-applied, note them briefly when presenting handoff options. If residual P0-P4 findings were surfaced, classify them through `kb-gate` before proceeding.
 
 When document-review returns "Review complete", proceed to Phase 10.
 
-Run `kb-gate` before Phase 10 when document-review or your own checks surfaced P0/P1/P2/P3 issues. P0/P1 block planning, but the agent should rectify safe/actionable blockers before asking the user. For P2/P3, ask whether to rectify all fixable issues before moving on.
+Run `kb-gate` before Phase 10 when document-review or your own checks surfaced P0/P1/P2/P3/P4 issues. Severity is not human-in-loop:
+
+- Fix `auto_rectify` findings yourself before asking the user.
+- Ask only for `needs_human` findings: product intent, scope acceptance, credentials/access, risky/destructive operations, or choosing between multiple reasonable architecture/product paths.
+- P0/P1 block planning while unresolved.
+- P2/P3/P4 do not block by severity alone, but fix cheap/actionable findings before planning when they improve requirements clarity.
+- Do not stop just because findings existed. Stop only when unresolved findings would make `/kb-plan` invent behavior, accept risk blindly, or encode a decision the agent should not make.
 
 ### Phase 10: Handoff
 
 #### 10.1 Phase Boundary
 
-`kb-brainstorm` stops after the requirements artifact is complete. It does not automatically run `kb-plan`, `kb-work`, or `kb-complete`.
+`kb-brainstorm` is complete when the requirements artifact is reviewed, gate-clean, and ready to become slices. The default next phase is `kb-plan`.
 
-Only continue to planning when:
-
-- the user explicitly asked to continue into planning;
-- the user invoked `klfg`;
-- the current caller is another orchestrator that explicitly requested auto-continue.
+Do not jump from brainstorm directly to `kb-work` or `kb-complete`.
 
 If `Resolve Before Planning` contains any items:
 
@@ -409,16 +411,24 @@ If `Resolve Before Planning` contains any items:
 
 If no blocking questions remain:
 
-- Default: print the closing summary and stop.
-- Recommended next step: `kb-plan <requirements-doc>`.
-- If explicit auto-continue is active, run `kb-plan <requirements-doc>` and skip the closing summary.
+- Default: run `kb-plan <requirements-doc>` and skip the closing summary.
+- If the user explicitly asked to stop after brainstorm, print the closing summary instead.
 - If additional research is needed before planning, route to `kb-research`, update the requirements doc, then stop or return to the orchestrator.
 
 #### 10.2 Handle the Selected Option
 
-**Default:** Stop after the closing summary.
+**Default:** Start `/kb-plan <requirements-doc>` after the requirements artifact is gate-clean.
 
-**Auto-continue exception:** Run `/kb-plan` only when explicitly requested by the user or orchestrator. Never jump directly from brainstorm to `kb-work`.
+**Stop conditions:** Pause instead of planning only when:
+
+- unresolved `Resolve Before Planning` items remain;
+- unresolved P0/P1 findings remain;
+- unresolved P2/P3/P4 findings would change scope, acceptance criteria, risk, verification, or architecture direction;
+- a human-only decision is required;
+- targeted research must happen before planning;
+- the user explicitly said to stop after brainstorm.
+
+Never jump directly from brainstorm to `kb-work`.
 
 **More Q&A:** Return to Phase 6 only when the user asks for more questions or the doc still lacks behavior, scope, acceptance criteria, or verification inputs.
 
@@ -426,7 +436,7 @@ When the user is satisfied with the additional Q&A, **do not jump straight back 
 
 #### 10.3 Closing Summary
 
-Use the closing summary when this brainstorm run is ending or handing off.
+Use the closing summary only when this brainstorm run is ending, pausing, or handing off without immediately invoking `kb-plan`.
 
 When complete and ready for planning, display:
 
@@ -446,7 +456,7 @@ Key decisions:
 Slice candidates: [count]
 Confidence: [High/Medium/Low]
 
-Recommended next step: `/kb-plan`
+Next step: `/kb-plan`  # run now unless stopped by a condition above
 ```
 
 If the user pauses with `Resolve Before Planning` still populated, display:
@@ -473,12 +483,13 @@ Resume with `/kb-brainstorm` when ready to resolve these before planning.
 - [ ] Confidence level in the research summary is honest about gaps.
 - [ ] No implementation details leaked into the requirements doc (unless inherently technical).
 - [ ] Document-review pass completed.
+- [ ] All P0-P4 findings are resolved, deferred with rationale, or classified as human-only blockers before planning.
 
 ## Integration with Other Skills
 
 - **Input from:** `/ce-ideate` (idea exploration), or a fresh feature description from the user.
-- **Default next step:** stop and recommend `/kb-plan` for vertical-slice decomposition.
-- **Auto-continue:** only under `klfg` or explicit user/orchestrator instruction.
+- **Default next step:** invoke `/kb-plan <requirements-doc>` for vertical-slice decomposition once the brainstorm is gate-clean.
+- **Stop instead:** only for unresolved blockers, required human decisions, required research, or explicit user instruction.
 - **Optional follow-up:** `kb-research` for another targeted research pass that should become reusable local memory.
 - **Document review:** Always run `document-review` before handoff (Phase 9).
 - **Peer skill:** `/kb-research` — reusable research notes when the research itself should survive beyond this brainstorm.

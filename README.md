@@ -63,9 +63,12 @@ Use these when you know the route:
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
 | `klfg` | Fully hands-off route: brainstorm -> plan -> work -> complete |
 
-Standalone phase skills stop at their artifact boundary:
+Phase boundaries:
 
-- `kb-brainstorm` writes/reviews requirements and recommends `kb-plan`.
+- `kb-brainstorm` writes/reviews requirements, resolves safe/actionable P0-P4
+  findings, and invokes `kb-plan` when the brainstorm is gate-clean. It pauses
+  only for unresolved blockers, required human decisions, required research, or
+  an explicit user stop.
 - `kb-plan` writes the manifest and slice plans and recommends `kb-work`.
 - `kb-work` executes all runnable slices and calls `kb-complete` only when every
   slice is done or intentionally skipped.
@@ -177,10 +180,11 @@ The pipeline is designed around three task sizes:
 - **Large:** use `kb-epic`. Break the initiative into multiple brainstorms or
   manifests before execution.
 
-`kb-gate` owns P0/P1/P2/P3 handling. P0/P1 findings block progression, but they
-do not automatically require a human. The agent should fix actionable P0/P1
-issues itself and ask for human help only for product decisions, credentials,
-unsafe operations, or genuine ambiguity.
+`kb-gate` owns P0/P1/P2/P3/P4 handling. Findings are expected; human-in-loop is
+based on who can safely decide, not severity alone. The agent should fix
+safe/actionable findings itself and ask for human help only for product
+decisions, credentials/access, unsafe operations, competing reasonable paths, or
+genuine ambiguity.
 
 `kb-check` and `kb-functional-test` push verification into code whenever
 possible. The model should call deterministic checks instead of spending tokens
