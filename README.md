@@ -52,6 +52,17 @@ Standalone phase skills stop at their artifact boundary:
   slice is done or intentionally skipped.
 - `klfg` is the full auto-chain.
 
+Handoff routing is deliberately conservative:
+
+- Handoffs are restart packets, not automatically executable plans.
+- A handoff that links a valid `docs/plans/*-kb-*-manifest.md` can route to
+  `kb-work`.
+- A handoff with phases, workstreams, bullets, or broad next steps must route to
+  `kb-plan` first so it becomes vertical slices with `expected_files` and
+  verification.
+- A handoff with unclear intent routes to `kb-brainstorm`; a multi-initiative
+  handoff routes to `kb-epic`.
+
 ## Installed Skills
 
 Core workflow:
