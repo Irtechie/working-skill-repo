@@ -35,6 +35,20 @@ Phase boundary: `kb-plan` produces a manifest and slice plans. It does not autom
 
 **If input is a brainstorm path:** Read it thoroughly. This is the source of truth for what to build. Carry forward all decisions, scope boundaries, and requirements.
 
+**If input is a handoff path:** Do source discovery before planning:
+
+1. Read the handoff.
+2. Check the handoff for explicit `Brainstorm:`, `Requirements:`, `Source:`, `Manifest:`, or `Plan:` pointers.
+3. Check `todo.md` for a source pointer tied to that handoff or feature.
+4. Look for matching existing source artifacts under project-root paths only:
+   - `docs/brainstorms/*<topic>*`
+   - `docs/requirements/*<topic>*` if that folder exists
+   - `docs/plans/*<topic>*`
+5. If a matching brainstorm or requirements doc exists, read it and use it as the planning source of truth. The handoff becomes restart context, not the primary source.
+6. If a matching manifest already exists, ask whether to resume with `kb-work` instead of creating a duplicate plan.
+7. If no source exists and the handoff is concrete enough, plan from the handoff and record `source: handoff`.
+8. If no source exists and the handoff leaves material product or architecture decisions open, stop and route to `kb-brainstorm`.
+
 **If input is a feature description:** Proceed directly to decomposition.
 
 ## Core Rules

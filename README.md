@@ -79,6 +79,9 @@ Handoff routing is deliberately conservative:
 - A handoff with phases, workstreams, bullets, or broad next steps must route to
   `kb-plan` first so it becomes vertical slices with `expected_files` and
   verification.
+- Before planning from a handoff, `kb-plan` checks for existing brainstorm,
+  requirements, manifest, or plan files and uses the best existing source of
+  truth instead of duplicating work.
 - A handoff with unclear intent routes to `kb-brainstorm`; a multi-initiative
   handoff routes to `kb-epic`.
 
