@@ -1,6 +1,6 @@
 ---
 name: kb-map
-description: Cheap project-memory lookup and refresh skill for KB workflows. Use when starting in a mapped repo, when another KB skill needs the right architecture docs without broad repo crawling, or when the user says "map", "project context", "where is this", or "what should I read". If memory is missing or badly stale, route to kb-map-bootstrap.
+description: Project-memory setup, lookup, and refresh skill for KB workflows. Use when starting in a repo, when another KB skill needs the right architecture docs without broad repo crawling, or when the user says "map", "project context", "where is this", "what should I read", "setup memory", or "bootstrap context". If memory is missing or badly stale, invokes kb-map-bootstrap.
 argument-hint: "[lookup|refresh] [optional task or subsystem]"
 ---
 
@@ -8,7 +8,9 @@ argument-hint: "[lookup|refresh] [optional task or subsystem]"
 
 Use local project memory so fresh sessions do not need the user to reteach the app.
 
-Keep this skill cheap. Deep indexing belongs in `kb-map-bootstrap`.
+This skill owns the project-memory preflight. `kb-route` and other skills should call `kb-map` instead of checking bootstrap rules themselves.
+
+Keep normal lookup cheap. Deep indexing belongs in `kb-map-bootstrap`.
 
 ## Contract Check
 
@@ -17,13 +19,16 @@ Before lookup or refresh, check the standard layout.
 - If `todo.md` or `docs/context/PROJECT.md` is missing, invoke `kb-map-bootstrap`.
 - If only directories are missing, create them during `refresh`.
 - Never overwrite non-empty user docs without reading and merging.
+- After bootstrap or refresh, continue the original lookup so the caller receives route-ready context.
 
 ## Modes
 
 | Mode | Use When | Cost |
 |---|---|---|
+| `preflight` | Another skill needs memory verified before routing | low to high only if bootstrap is needed |
 | `lookup` | Memory exists; find the right context for the current request | low |
 | `refresh` | Recent work changed project memory or route pointers | medium |
+| `setup` | User explicitly wants memory initialized | high; delegates to `kb-map-bootstrap` |
 
 Default to `lookup`.
 
@@ -71,11 +76,15 @@ Stop reading once you can answer:
 
 Report route, docs loaded, and any stale-work refresh needed. Do not bulk-load all context docs.
 
-## Missing Memory
+## Missing Memory and Setup
 
-If `todo.md` or `docs/context/PROJECT.md` is missing, route to `kb-map-bootstrap`.
+If `todo.md` or `docs/context/PROJECT.md` is missing, invoke `kb-map-bootstrap`.
 
 If handoff directories are missing but the project map exists, create or recommend the missing directories during `refresh`; do not deep-crawl the repo.
+
+Use `setup` when the user explicitly wants to initialize KB memory. It always delegates to `kb-map-bootstrap` unless the standard layout already exists, in which case run `refresh`.
+
+`kb-map-bootstrap` is the expensive first-pass mapper. `kb-map` is the durable entry point that decides whether bootstrap is needed.
 
 ## Refresh Mode
 

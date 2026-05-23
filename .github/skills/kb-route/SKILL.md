@@ -1,54 +1,37 @@
 ---
 name: kb-route
-description: Default KB entrypoint and lightweight project-memory router. Use when the user says "kb", gives an ambiguous work request, starts a fresh session, asks what to do next, or wants the workflow to choose the right lane without making the user pick ceremony.
+description: Default KB request router. Use when the user says "kb", gives an idea or ambiguous work request, starts a fresh session, asks what to do next, or wants the workflow to choose the right lane without making the user pick ceremony. Delegates project-memory setup and lookup to kb-map before choosing a lane.
 argument-hint: "[user request or blank for session startup]"
 ---
 
 # KB Route
 
-Pick the right KB lane with the least context needed. The user should be able to ask normally; do not make them choose ceremony.
+Pick the right KB lane for the user's idea/request. The user should be able to ask normally; do not make them choose ceremony.
 
-## Required Memory Contract
+`kb-route` is not the memory bootstrapper. `kb-map` owns project-memory setup, lookup, and refresh.
 
-A KB-enabled repo must have:
-
-```text
-todo.md
-todo-done.md
-docs/context/PROJECT.md
-docs/context/architecture/
-docs/context/research/
-docs/context/decisions/
-docs/context/operations/
-docs/handoffs/active/
-docs/handoffs/parked/
-docs/handoffs/done/
-```
+## Map First
 
 On every fresh session or ambiguous work request:
 
-1. Check whether `todo.md` and `docs/context/PROJECT.md` exist.
-2. If either is missing, immediately invoke `kb-map-bootstrap`. Do not ask first unless a non-empty user file would be overwritten.
-3. If the core files exist but context or handoff directories are missing, invoke `kb-map refresh`.
-4. After bootstrap or refresh, return to this router and continue with the user's request.
+1. Invoke `kb-map lookup <user request>`.
+2. Let `kb-map` decide whether lookup, refresh, or bootstrap is required.
+3. After `kb-map` returns project context, classify the user request and route it.
+4. If `kb-map` reports stale work or missing memory, honor that before executing work.
 
 ## Read Order
 
-Read only what is needed:
+Read only what `kb-map` points to, then only what is needed to route:
 
-1. `AGENTS.md` if present.
-2. `todo.md`.
-3. `docs/context/PROJECT.md`.
-4. Relevant active handoff files linked from `todo.md`.
-5. Specific subsystem, research, brainstorm, or plan files pointed to by the above.
-
-If the required memory contract is missing, follow the automatic preflight above before routing.
+1. `kb-map` result.
+2. Relevant active handoff files or manifest paths named by `kb-map`.
+3. Specific subsystem, research, brainstorm, or plan files pointed to by `kb-map`.
 
 ## Current Truth
 
 `todo.md` may hold short-lived operational truth: current focus, active manifest, parked slices, blockers, and handoff pointers.
 
-Durable app truth belongs in `docs/context/architecture/*`. If an operational fact becomes durable architecture knowledge, route to `kb-map refresh`.
+Durable app truth belongs in `docs/context/architecture/*`. If an operational fact becomes durable architecture knowledge, ask `kb-map refresh` to update it.
 
 ## Stale Work Rule
 
@@ -83,9 +66,7 @@ Use plain task classes first, then map to skills:
 
 | Request Shape | Route |
 |---|---|
-| `todo.md` or `docs/context/PROJECT.md` missing | `kb-map-bootstrap` immediately |
-| Context or handoff directories missing | `kb-map refresh` |
-| Project memory badly stale | `kb-map-bootstrap` |
+| Project memory missing, partial, or stale | `kb-map` decides lookup/refresh/bootstrap |
 | Memory/docs/responses are too verbose | `kb-compact` |
 | Need to find app/subsystem context | `kb-map lookup` |
 | Active handoff has only phases/workstreams/next steps | `kb-plan` |
@@ -135,6 +116,7 @@ Do not compact away exact commands, paths, dates, IDs, acceptance criteria, bloc
 
 Report briefly:
 
+- Map status.
 - Route chosen.
 - Why that route fits.
 - Any stale-work refresh needed.

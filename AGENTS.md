@@ -2,10 +2,11 @@
 
 For KB workflow requests, start with `kb-route`.
 
-On every fresh session or ambiguous work request, perform the KB memory preflight:
+On every fresh session or ambiguous work request, let `kb-map` perform the KB memory preflight:
 
-- If `todo.md` or `docs/context/PROJECT.md` is missing, run `kb-map-bootstrap` immediately.
-- If `docs/context/architecture/`, `docs/handoffs/active/`, `docs/handoffs/parked/`, or `docs/handoffs/done/` is missing, run `kb-map refresh`.
+- Run `kb-map lookup <request>` before routing work.
+- If `todo.md` or `docs/context/PROJECT.md` is missing, `kb-map` invokes `kb-map-bootstrap`.
+- If context or handoff folders are partial, `kb-map` refreshes or creates the missing structure.
 - Do not ask the user to confirm bootstrap or refresh unless the operation would overwrite non-empty user files.
 
 Every token must pay rent. Be concise by default:
@@ -25,4 +26,4 @@ Use these project memory files:
 
 Do not treat these files as skills. Skills live under `.github/skills/`.
 
-When local memory is missing or badly stale, use `kb-map-bootstrap`. For normal startup, use `kb-map` or `kb-route`.
+When local memory is missing or badly stale, use `kb-map`; it decides whether lookup, refresh, or bootstrap is required. For normal startup, use `kb-route`.

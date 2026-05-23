@@ -28,6 +28,10 @@ It includes:
 The default entry point is `kb-route`. In normal use, ask for work in plain
 language and let `kb-route` choose the ceremony.
 
+`kb-route` delegates project-memory setup to `kb-map`. Route decides what the
+user's idea/request needs; map decides whether local memory needs lookup,
+refresh, or first-time bootstrap.
+
 ## Quick Use
 
 Use these when you know the route:
@@ -35,6 +39,7 @@ Use these when you know the route:
 | Command | Use When |
 | --- | --- |
 | `kb-route` | Fresh session, ambiguous ask, or "figure out the right workflow" |
+| `kb-map` | Setup, lookup, or refresh project memory before other work |
 | `kb-fix` | Narrow bug, failing test, or small contained change |
 | `kb-brainstorm` | Product or technical framing is still unclear |
 | `kb-plan` | Requirements exist and need vertical slices |
@@ -128,8 +133,12 @@ Required project memory files:
 
 Fresh-session preflight:
 
-- If `todo.md` or `docs/context/PROJECT.md` is missing, run `kb-map-bootstrap`.
-- If the context or handoff folders are partially missing, run `kb-map refresh`.
+- Start with `kb-route` for work requests.
+- `kb-route` calls `kb-map lookup <request>` before choosing the lane.
+- If `todo.md` or `docs/context/PROJECT.md` is missing, `kb-map` invokes
+  `kb-map-bootstrap`.
+- If the context or handoff folders are partially missing, `kb-map` refreshes or
+  creates the missing structure.
 - Do not ask before bootstrapping unless a non-empty user file would be
   overwritten.
 

@@ -6,8 +6,9 @@ For ambiguous KB/workflow requests, start with `kb-route`. Skills live under `.g
 
 Fresh-session preflight:
 
-- If `todo.md` or `docs/context/PROJECT.md` is missing, run `kb-map-bootstrap` immediately.
-- If the context folders or handoff folders are partially missing, run `kb-map refresh`.
+- Run `kb-map lookup <request>` before routing work.
+- If `todo.md` or `docs/context/PROJECT.md` is missing, `kb-map` invokes `kb-map-bootstrap`.
+- If context or handoff folders are partial, `kb-map` refreshes or creates the missing structure.
 - Do not ask for confirmation unless a non-empty user file would be overwritten.
 
 Every token must pay rent:
@@ -26,4 +27,4 @@ Project memory:
 - `docs/context/PROJECT.md` is the project route map.
 - `docs/handoffs/active/`, `docs/handoffs/parked/`, and `docs/handoffs/done/` hold resumable handoffs.
 
-If local memory is missing or stale, use `kb-map-bootstrap`. For normal startup, use `kb-map` or `kb-route`.
+If local memory is missing or stale, use `kb-map`; it decides whether lookup, refresh, or bootstrap is required. For normal startup, use `kb-route`.
