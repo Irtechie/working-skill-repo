@@ -5,6 +5,7 @@ For KB workflow requests, start with `kb-start`.
 On every fresh session or ambiguous work request, let `kb-map` perform the KB memory preflight:
 
 - Run `kb-map lookup <request>` before routing work.
+- `kb-map` must resolve the active project root first and read memory from that repo only.
 - If `todo.md` or `docs/context/PROJECT.md` is missing, `kb-map` invokes `kb-map-bootstrap`.
 - If context or handoff folders are partial, `kb-map` refreshes or creates the missing structure.
 - Do not ask the user to confirm bootstrap or refresh unless the operation would overwrite non-empty user files.

@@ -36,6 +36,10 @@ refresh, or first-time bootstrap.
 door pattern, but the new name matches how you use it: start a session, map the
 project, then choose the right lane.
 
+`kb-map` is project-root anchored. It must resolve the active repo first and read
+memory from that repo only; it should not search `~`, `.copilot/handoffs`, the
+whole drive, or sibling repos unless you explicitly ask for cross-repo lookup.
+
 ## Quick Use
 
 Use these when you know the route:

@@ -14,6 +14,8 @@ Use `kb-map` for normal startup. Use this only for missing or badly stale memory
 
 When `kb-map`, `AGENTS.md`, or `.github/copilot-instructions.md` detects missing `todo.md` or `docs/context/PROJECT.md`, run this skill immediately. Do not ask the user first unless a non-empty user file would be overwritten or moved.
 
+Run bootstrap in the active project root only. Prefer `git rev-parse --show-toplevel`; otherwise use the current working directory. Never bootstrap `~`, `%USERPROFILE%`, `.copilot`, the whole drive, or a sibling repo unless the user explicitly chose that path.
+
 ## Create Layout
 
 ```text

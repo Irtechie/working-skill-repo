@@ -8,9 +8,26 @@ argument-hint: "[lookup|refresh] [optional task or subsystem]"
 
 Use local project memory so fresh sessions do not need the user to reteach the app.
 
-This skill owns the project-memory preflight. `kb-route` and other skills should call `kb-map` instead of checking bootstrap rules themselves.
+This skill owns the project-memory preflight. `kb-start` and other skills should call `kb-map` instead of checking bootstrap rules themselves.
 
 Keep normal lookup cheap. Deep indexing belongs in `kb-map-bootstrap`.
+
+## Project Root Rule
+
+Anchor every lookup to the active project root before reading memory.
+
+1. Determine the project root:
+   - Prefer the current working directory's Git root: `git rev-parse --show-toplevel`.
+   - If Git is unavailable, use the current working directory.
+   - If the session is not inside the user's intended project, ask for the project path before searching.
+2. Read memory only from that root:
+   - `<repo>/todo.md`
+   - `<repo>/docs/context/PROJECT.md`
+   - `<repo>/docs/handoffs/**`
+3. Do not search `~`, `%USERPROFILE%`, `.copilot/handoffs`, the whole drive, or sibling repos for KB memory unless the user explicitly asks for cross-repo/global lookup.
+4. If the project root has no KB memory, invoke `kb-map-bootstrap` in that project root. Do not silently substitute a global or unrelated handoff.
+
+This prevents the agent from picking up stale personal handoffs when the user is working inside a specific repo.
 
 ## Contract Check
 

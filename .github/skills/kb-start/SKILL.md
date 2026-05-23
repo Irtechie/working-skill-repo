@@ -19,6 +19,8 @@ On every fresh session or ambiguous work request:
 3. After `kb-map` returns project context, classify the user request and route it.
 4. If `kb-map` reports stale work or missing memory, honor that before executing work.
 
+If `kb-map` cannot identify the active project root, ask for the project path before routing. Do not route from global handoffs or home-directory memory when the user is working in a repo.
+
 ## Read Order
 
 Read only what `kb-map` points to, then only what is needed to route:

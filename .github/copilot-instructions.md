@@ -7,6 +7,7 @@ For ambiguous KB/workflow requests, start with `kb-start`. Skills live under `.g
 Fresh-session preflight:
 
 - Run `kb-map lookup <request>` before routing work.
+- `kb-map` must resolve the active project root first and read memory from that repo only.
 - If `todo.md` or `docs/context/PROJECT.md` is missing, `kb-map` invokes `kb-map-bootstrap`.
 - If context or handoff folders are partial, `kb-map` refreshes or creates the missing structure.
 - Do not ask for confirmation unless a non-empty user file would be overwritten.
