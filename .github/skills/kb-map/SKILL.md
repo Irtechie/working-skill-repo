@@ -18,8 +18,9 @@ Anchor every lookup to the active project root before reading memory.
 
 1. Determine the project root:
    - Prefer the current working directory's Git root: `git rev-parse --show-toplevel`.
-   - If Git is unavailable, use the current working directory.
-   - If the session is not inside the user's intended project, ask for the project path before searching.
+   - If Git is unavailable, use the current working directory only when it is clearly a project directory.
+   - Treat drive roots such as `E:\`, home directories such as `~`/`%USERPROFILE%`, `.copilot`, `.codex`, and `.agents` as invalid project roots unless the user explicitly chose them.
+   - If the resolved root is invalid or not the user's intended project, ask for the project path before searching.
 2. Read memory only from that root:
    - `<repo>/todo.md`
    - `<repo>/docs/context/PROJECT.md`
@@ -28,6 +29,8 @@ Anchor every lookup to the active project root before reading memory.
 4. If the project root has no KB memory, invoke `kb-map-bootstrap` in that project root. Do not silently substitute a global or unrelated handoff.
 
 This prevents the agent from picking up stale personal handoffs when the user is working inside a specific repo.
+
+Forbidden fallback: do not use glob/search to find `todo.md`, `PROJECT.md`, or handoffs when the project root is unresolved. Resolve the root first or ask the user.
 
 ## Contract Check
 
@@ -43,6 +46,16 @@ Before lookup or refresh, check the standard layout.
 - If only directories are missing, create them during `refresh`.
 - Never overwrite non-empty user docs without reading and merging.
 - After bootstrap or refresh, continue the original lookup so the caller receives route-ready context.
+
+Exact-path example on Windows:
+
+```powershell
+$root = git rev-parse --show-toplevel
+if (-not $root -or $root -match '^[A-Za-z]:\\?$') { throw "Project root required" }
+Test-Path (Join-Path $root 'todo.md')
+Test-Path (Join-Path $root 'docs/context/PROJECT.md')
+Get-ChildItem (Join-Path $root 'docs/handoffs') -Recurse -File -ErrorAction SilentlyContinue
+```
 
 ## Modes
 

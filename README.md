@@ -42,6 +42,10 @@ whole drive, or sibling repos unless you explicitly ask for cross-repo lookup.
 It checks standard memory files by exact path under the repo root, not by
 grep/glob.
 
+Drive roots such as `E:\` are not valid project roots unless explicitly chosen.
+If the repo root cannot be resolved, `kb-map` should ask for the project path
+instead of searching the drive.
+
 ## Quick Use
 
 Use these when you know the route:
