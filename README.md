@@ -169,6 +169,11 @@ Fresh-session preflight:
 This replaces older `docs/kanban.md`, `docs/kanban-done.md`, `kb.md`,
 `kb-done.md`, and ad-hoc handoff naming for the KB workflow.
 
+`todo.md` is not a history file. Keep board rules at the top of `todo.md`, not
+in a separate `todo-rules.md`. When a feature, slice group, handoff, or fix is
+complete, move the compact summary to `todo-done.md` and remove the completed
+entry plus routine completion logs from `todo.md`.
+
 ## Execution Model
 
 The pipeline is designed around three task sizes:

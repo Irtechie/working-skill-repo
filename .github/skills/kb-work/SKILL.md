@@ -59,7 +59,7 @@ Treat statuses as:
 | Slice completes | Set status to ✅ done |
 | Slice blocked | Set status to 🔒 blocked + reason in notes |
 | Slice skipped | Set status to ⊘ skipped |
-| All slices done | Move summary to `todo-done.md` |
+| All slices done | Prepend compact summary to `todo-done.md`, then remove completed feature section and routine completion logs from `todo.md` |
 
 Active handoff files under `docs/handoffs/active/` are restart packets. Create or update one whenever work stops, blocks, or changes the next recommended action. Move completed handoffs to `docs/handoffs/done/`.
 
@@ -68,7 +68,7 @@ Active handoff files under `docs/handoffs/active/` are restart packets. Create o
 - The board is the source of truth — not chat history, not the manifest. If the board says done, it's done.
 - Update the board BEFORE starting work (claim) and AFTER completing work (release). This prevents two agents from working the same slice.
 - Also update the manifest to stay in sync, but if they conflict, the board wins.
-- Append a short entry to the **Work Log** section after each slice: `- YYYY-MM-DD: <slice title> - done (<agent/session>)`
+- Do not use root **Work Log** as a permanent archive. During execution, add notes only when they help a later agent resume: blockers, verification commands, durable memory impacts, or non-obvious decisions. Routine "slice complete" and verification-success notes belong in `todo-done.md` at feature completion, not in `todo.md`.
 
 ## Dependency Ordering
 
@@ -298,10 +298,11 @@ When all slices are `done` or intentionally `skipped`:
 
 1. Update manifest `status: completed`.
 2. Run final verification.
-3. Run `kb-gate` if verification, QA, repair, or functional-test checks surfaced P0/P1/P2/P3 issues. P0/P1 block completion, but safe/actionable blockers should be rectified before asking the user. For P2/P3, ask whether to rectify all fixable issues before `kb-complete`.
+3. Run `kb-gate` if verification, QA, repair, or functional-test checks surfaced P0/P1/P2/P3/P4 issues. P0/P1 block completion while unresolved, but safe/actionable blockers should be rectified before asking the user. P2/P3/P4 do not block by severity alone.
 4. **Refresh project memory** — if any slice has `memory-impact: durable` or `refresh=pending`, run `kb-map refresh` before archiving. Update affected architecture, operation, decision, research, `todo.md`, and handoff pointers. Add manifest note: `kb-map-refresh: done` or `kb-map-refresh: skipped - <reason>`.
 5. **Archive to board** — move the feature summary from `todo.md` to `todo-done.md`. Prepend at the top of the archive file with a completion date header.
-6. Report summary:
+6. **Prune active board** — remove the completed feature section from `todo.md`. Also remove routine work-log entries for the completed feature from `todo.md`; keep only still-active, blocked, parked, manual, or handoff-pointer items.
+7. Report summary:
 
 ```text
 KB <name> — all slices complete.
@@ -314,7 +315,7 @@ Verification: <command/result>
 Next: kb-complete runs automatically for review, documentation, and learning.
 ```
 
-7. **Persist scope context** — collect the scope-verified file lists from each slice's `notes` field (the `scope-check:` entries from Step 3.6). Write the combined list to the manifest frontmatter as `scope-verified-files` so `kb-complete` can pass it to ce-review without re-deriving.
+8. **Persist scope context** — collect the scope-verified file lists from each slice's `notes` field (the `scope-check:` entries from Step 3.6). Write the combined list to the manifest frontmatter as `scope-verified-files` so `kb-complete` can pass it to ce-review without re-deriving.
 
 **Post-work steps (ce-review, compound, learn, evolve, cleanup) are handled by `kb-complete`.** After all slices are `done` or intentionally `skipped`, invoke `kb-complete <manifest-path>` automatically unless the user explicitly asked to stop after work execution.
 

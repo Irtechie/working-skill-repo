@@ -157,6 +157,8 @@ Prune ephemeral artifacts. Heavy KB usage generates file sprawl — clean it up 
    cleanup: screenshots pruned, observations trimmed to 90d
    ```
 
+5. **Todo hygiene** — verify `todo.md` contains only active, blocked, parked, manual, or handoff-pointer work. If the completed feature or routine slice completion logs remain there, move a compact summary to `todo-done.md` and remove those entries from `todo.md`. `todo.md` must keep its `## Rules` section at the top; do not depend on a separate `todo-rules.md`.
+
 ## Step 5: Done
 
 Update the manifest `status: reviewed` and report:

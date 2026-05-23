@@ -90,6 +90,7 @@ docs/context/history/
    - `todo.md` for active work and handoff queue pointers.
    - `todo-done.md` for compact completion summaries.
    - `docs/handoffs/active/`, `parked/`, and `done/`.
+   - If `todo-rules.md`, `docs/todo-rules.md`, or another separate todo rules file exists, inline current board rules at the top of `todo.md`. Delete the separate rules file only after moving any unique project content into `todo.md` or `docs/context/*`.
 
 8. **Starter-kit deltas**
    - If the app is based on ATV, another starter kit, or a fork, create/update `docs/context/decisions/starter-kit-deltas.md`.
@@ -112,9 +113,11 @@ docs/context/history/
 ## Rules
 - Keep this file current and small.
 - Active, blocked, parked, and human-required work belongs here.
-- Completed work moves to `todo-done.md`.
+- Completed work does not stay here. When a feature, slice group, handoff, or fix is complete, move the compact completion summary to `todo-done.md` and remove the completed entry from this file.
+- Do not keep routine "slice complete" or verification-success logs here after completion.
 - Handoffs live under `docs/handoffs/`; link them here.
 - Refresh cold or parked work older than 72 hours before execution.
+- These rules live at the top of `todo.md`; do not rely on a separate `todo-rules.md`.
 
 ## Objective
 ## Current Focus

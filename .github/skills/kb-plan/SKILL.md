@@ -272,10 +272,12 @@ Create or update a compact handoff file under `docs/handoffs/active/` only when 
 ## Rules
 - Keep this file current and small.
 - Active, blocked, parked, and human-required work belongs here.
-- Completed work moves to `todo-done.md`.
+- Completed work does not stay here. When a feature, slice group, handoff, or fix is complete, move the compact completion summary to `todo-done.md` and remove the completed entry from this file.
+- Do not keep routine "slice complete" or verification-success logs here after completion.
 - Detailed handoffs live under `docs/handoffs/`; link them here instead of pasting full content.
 - Refresh cold or parked work older than 72 hours before execution.
 - When all active todos are done, check the handoff queue.
+- These rules live at the top of `todo.md`; do not rely on a separate `todo-rules.md`.
 
 ## Objective
 
@@ -312,7 +314,7 @@ Manifest: `docs/plans/<manifest>.md`
 | 1 | <title> | - | tdd | ⬜ pending |
 | 2 | <title> | slice-001 | tdd | ⬜ pending |
 
-Done criteria: All N slices done or skipped with reason. Archive summary to `todo-done.md`.
+Done criteria: All N slices done or skipped with reason. Archive a compact summary to `todo-done.md`, then remove this feature section and routine work-log entries from `todo.md`.
 ```
 
 **If a restart packet is needed**, create `docs/handoffs/active/YYYY-MM-DD-<feature>.md`:
