@@ -81,10 +81,22 @@ For each slice in dependency order:
 If `hitl: true`:
 
 - Present the slice title, description, and the specific question/decision needed.
-- Stop and wait for user input.
+- Classify the HITL item before stopping:
+  - `critical-path` — later slices depend on this decision/access/input.
+  - `parallel-blocker` — this slice is blocked, but unrelated slices can continue.
+  - `final-validation` — human judgment is useful before release, but not needed for development.
+  - `agent-runnable-with-inputs` — human only needs to provide values; the agent can run the check.
+- Stop only the dependent path. If unrelated slices are runnable, mark this slice `blocked` or `manual`, update `kb.md` and the manifest, then continue those slices.
 - Record the user's decision in the slice plan.
 - Update manifest status to `done` for this slice only if the decision completes the slice.
 - Continue to the next runnable slice.
+
+Missing test inputs are not a reason to ask the user to manually test. If `test_inputs` are missing:
+
+- Ask for the specific missing value.
+- Use safe generated or fixture values when acceptable.
+- If the input blocks only this slice, park this slice and continue unrelated runnable slices.
+- Resume the slice after the value is available and run the verification yourself.
 
 ### Step 2: Deepen If Thin
 

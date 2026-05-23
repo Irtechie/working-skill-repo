@@ -274,6 +274,14 @@ Valid human-only QA blockers:
 - Corporate/internal site where no authenticated CDP session is available.
 - User judgment on taste, copy, or business correctness after the agent verifies mechanics.
 
+Invalid human QA blockers:
+
+- "Run this and see if it works" when the agent can run it.
+- "Try the playbook manually" when the agent can run the playbook with provided inputs.
+- "Click through the page" when browser automation can do it.
+- "Verify the UI" when screenshots, DOM checks, console checks, and interaction checks are available.
+- "Test later" as a reason to stop the whole backlog.
+
 When a human-only blocker exists, the agent must:
 
 1. Record it in `kb.md` under `Human Required`.
@@ -281,6 +289,61 @@ When a human-only blocker exists, the agent must:
 3. Explain what the agent already verified before the blocker.
 4. Provide the smallest possible human action needed.
 5. Resume automated verification after the human step is complete.
+
+## HITL Scheduling Policy
+
+Human-in-the-loop must not stop a 50-slice backlog unless the blocked decision is truly on the critical path.
+
+Classify HITL items:
+
+| HITL Type | Meaning | Scheduling |
+|---|---|---|
+| `critical-path` | Later slices depend on this decision/access/input | Stop only the dependent path |
+| `parallel-blocker` | This slice is blocked, but unrelated slices can continue | Park this slice and continue runnable slices |
+| `final-validation` | Human judgment is useful before release, but not needed for development | Defer to `kb-ship` or final review |
+| `agent-runnable-with-inputs` | Human only needs to provide values; agent can run the check | Ask for inputs, then agent runs it |
+
+`kb-work` should continue executing any slice whose blockers are satisfied. A blocked slice should not freeze unrelated work.
+
+When a slice hits HITL:
+
+1. Determine whether the human step blocks only this slice or the whole dependency chain.
+2. If unrelated slices are runnable, mark this slice `blocked` or `manual` and continue.
+3. Update `kb.md`, manifest notes, and `kb-handoff.md`.
+4. Ask for the human input with a minimal, structured prompt.
+5. Resume that slice when the input arrives.
+
+## Test Input Capture Policy
+
+If verification needs realistic input values, capture them before execution whenever possible.
+
+During `kb-brainstorm`, ask for test inputs only when they affect acceptance criteria, demo paths, or external-system verification. During `kb-plan`, each slice should declare any needed test inputs.
+
+Examples:
+
+- Playbook name and sample parameter values.
+- Test account, role, or tenant.
+- Safe customer/deal/project record to use.
+- Feature flag or environment toggle.
+- Expected output for a known input.
+- External service sandbox identifiers.
+
+Slice plans should include:
+
+```yaml
+test_inputs:
+  - name: "<input name>"
+    source: user|fixture|env|generated
+    required_for: "<acceptance criterion or QA step>"
+    value: "<literal value, fixture path, env var name, or TODO-human>"
+```
+
+If an input is missing but the slice is otherwise runnable:
+
+- Ask for the specific missing value.
+- If the missing value is not critical-path, park the check and continue unrelated work.
+- If a safe generated or fixture value is acceptable, create it instead of asking.
+- Never convert missing inputs into "user should manually test this" unless the agent truly cannot run the check after receiving inputs.
 
 Bad final handoff:
 

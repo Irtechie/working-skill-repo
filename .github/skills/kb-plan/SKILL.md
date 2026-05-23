@@ -204,9 +204,22 @@ The plan body should include:
 - Acceptance criteria
 - Expected files (must match `expected_files` in frontmatter — these are the files this slice is allowed to touch)
 - Test scenarios specific enough for TDD or integration verification
+- Test inputs needed to run those scenarios without asking the user to manually test later
 - Scope boundary: what this slice does not include
 - Dependencies and why they are needed
 - HITL question if `hitl: true`
+
+If verification needs realistic input values, include them in frontmatter:
+
+```yaml
+test_inputs:
+  - name: "<input name>"
+    source: user|fixture|env|generated
+    required_for: "<acceptance criterion or QA step>"
+    value: "<literal value, fixture path, env var name, or TODO-human>"
+```
+
+Only mark `hitl: true` when the human step is truly required. Do not use HITL for checks the agent can run with provided inputs.
 
 ### 5. Update the Board
 
