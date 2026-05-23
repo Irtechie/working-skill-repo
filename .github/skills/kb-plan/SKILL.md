@@ -14,21 +14,24 @@ Break work into independently executable **vertical slices** (tracer bullets). E
 
 1. Read the brainstorm, PRD, or feature description.
 2. Draft thin end-to-end slices with dependencies and verification modes.
-3. Confirm the breakdown with the user when the platform supports blocking questions.
+3. Review the breakdown yourself against the source material; ask the user only for blocking decisions.
 4. Write one KB manifest plus one plan file per slice.
-5. Stage or commit only the generated files when the user explicitly asked for a commit.
+5. Stop after writing the manifest unless the user invoked `klfg` or explicitly asked to execute.
+6. Stage or commit only the generated files when the user explicitly asked for a commit.
 
 ## Interaction Method
 
-Use the platform's blocking question tool when available. Ask one question at a time and prefer concise single-select choices. If no blocking question tool exists, ask concise direct questions.
+Default to non-interactive planning when the source material is clear. Use the platform's blocking question tool only when an answer changes behavior, scope, acceptance criteria, risk, or verification.
 
-If the user asked for non-interactive planning, make conservative assumptions and record them in the manifest.
+When assumptions are safe and reversible, record them in the manifest instead of stopping. Ask one concise question only for material uncertainty.
+
+Phase boundary: `kb-plan` produces a manifest and slice plans. It does not automatically invoke `kb-work` unless the user explicitly asked for execution or an orchestrator such as `klfg` called it.
 
 ## Input
 
 <input> #$ARGUMENTS </input>
 
-**If input is empty:** Check `docs/brainstorms/` for recent brainstorm documents. If found, ask which one to use. Otherwise ask: "What feature or work would you like to decompose into vertical slices?"
+**If input is empty:** Check `todo.md` and `docs/brainstorms/` for the active or most recent brainstorm. If exactly one likely source exists, use it and record the assumption. If multiple plausible sources exist, ask which one to use. If none exist, ask: "What feature or work should I slice?"
 
 **If input is a brainstorm path:** Read it thoroughly. This is the source of truth for what to build. Carry forward all decisions, scope boundaries, and requirements.
 
@@ -67,6 +70,7 @@ Some work is legitimately enabling infrastructure: migrations, auth plumbing, sh
 |------|------|------|
 | `tdd` | Behavior changes, business logic | Failing test -> implement -> passes |
 | `integration` | Wiring, cross-boundary, API contracts | Integration test proves path works |
+| `functional` | User-visible workflow, UI/API/CLI journey, escaped bug | Workflow-level check proves the user path |
 | `verification-only` | Config, scaffolding, ops | Builds pass, no regression |
 | `hitl` | UX taste, design judgment | Human confirms acceptable |
 
@@ -85,10 +89,11 @@ Read the brainstorm/PRD/description. Extract:
 
 Run lightweight research to ground slice design in reality:
 
-- Use the **repo-research-analyst** agent to understand existing patterns related to the feature
-- Use the **learnings-researcher** agent to check `docs/solutions/` for relevant institutional knowledge
+- `repo-research-analyst`: similar features, routes, components, tests, commands, conventions.
+- `learnings-researcher`: relevant `docs/solutions/`, prior fixes, and known failures.
+- Local memory check: `docs/context/PROJECT.md`, relevant `docs/context/architecture/*`, and `docs/context/research/*`.
 
-Launch both in parallel. Focus on: similar features, established conventions, documented gotchas.
+Run independent agents/reads/searches in parallel when the platform supports it. If named agents are unavailable, do the same work with native search/read tools.
 
 **Research decision:** Based on findings, decide if external research is needed.
 
@@ -96,10 +101,14 @@ Launch both in parallel. Focus on: similar features, established conventions, do
 - **Strong local patterns exist** → skip external research
 - **Unfamiliar territory** → research externally
 
-**If external research is warranted**, also run in parallel:
+**If external research is warranted**, use `kb-research` and write a reusable research note before finalizing slices.
 
-- Use the **best-practices-researcher** agent for industry patterns
-- Use the **framework-docs-researcher** agent for framework-specific guidance
+Optional specialist checks before finalizing slices:
+
+- `spec-flow-analyzer` when the feature has multi-step user flows or unclear edge cases.
+- `security-sentinel` or `security-reviewer` when auth, permissions, secrets, public endpoints, payments, PII, external callbacks, or user input are involved.
+- `adversarial-reviewer` when the plan is architecture-shaping, high-risk, or large enough that assumption/cascade failures are likely.
+- `architecture-strategist` when subsystem boundaries, framework migration, or long-term architecture direction are being set.
 
 Carry research findings forward into slice plans — each slice should reference relevant patterns, gotchas, and file paths discovered here.
 
@@ -121,17 +130,20 @@ Each entry in `expected_files` should specify:
 
 This prevents agents from regenerating files from the plan spec instead of surgically editing current code.
 
-### 3. Present and Quiz the User
+### 3. Validate the Breakdown
 
-Show the proposed breakdown as a numbered list. Ask:
+Check the proposed breakdown against:
 
-- Does the granularity feel right: too coarse, too fine, or right?
-- Are dependency relationships correct?
-- Should any slices be merged or split?
-- Are verification modes correct?
-- Are any HITL flags wrong?
+- Granularity: each slice is independently executable and reviewable.
+- Dependencies: blockers are necessary, not accidental.
+- Verification: each slice has agent-runnable tests/checks where possible.
+- Functional coverage: user-visible or cross-boundary slices include a narrow functional check unless explicitly justified.
+- HITL: human flags are limited to credentials, external systems, subjective approval, or true decisions.
+- Expected files: each slice declares likely touched files and scope.
 
-Iterate until approved unless the user asked for non-interactive planning.
+Ask the user only when a material decision remains. Otherwise proceed and record assumptions.
+
+Run `kb-gate` before writing final plans when validation surfaces P0/P1/P2/P3 issues. P0/P1 block work, but the agent should rectify safe/actionable blockers before asking the user. For P2/P3, ask whether to rectify all fixable issues before moving on.
 
 ### 4. Generate Plan Files
 
@@ -154,6 +166,12 @@ slices:
     verification: tdd
     hitl: false
     status: pending
+    owner: agent
+    blocked_reason: ""
+    resume_when: ""
+    next_agent_action: ""
+    human_action: ""
+    can_continue_other_slices: true
     notes: ""
   - id: slice-002
     title: "<title>"
@@ -195,6 +213,12 @@ expected_files:
     op: edit
     scope: "what specifically changes"
 status: pending
+owner: agent
+blocked_reason: ""
+resume_when: ""
+next_agent_action: ""
+human_action: ""
+can_continue_other_slices: true
 ---
 ```
 
@@ -221,69 +245,50 @@ test_inputs:
 
 Only mark `hitl: true` when the human step is truly required. Do not use HITL for checks the agent can run with provided inputs.
 
-### 5. Update the Board
+### 5. Update Todo and Handoffs
 
-After generating plan files, update `kb.md` — the human-visible live execution board.
-Also create or update `kb-handoff.md` with the compact restart context for the feature.
+After generating plan files, update `todo.md` — the human-visible live execution board.
+Create or update a compact handoff file under `docs/handoffs/active/` only when a future session needs a restart packet.
 
-**If `kb.md` doesn't exist**, create it with this template:
+**If `todo.md` doesn't exist**, create it with this template:
 
 ```markdown
-# <Project> — KB Board
-
-> The board is the source of truth for active KB work — not chat history.
-> Last updated: <ISO timestamp>
+# Todo
 
 ## Rules
-- Done features → `kb-done.md` immediately. Keep this file lean.
-- One agent per slice. Claim by setting 🔧. Do not work unclaimed slices.
-- Discovered work → Parked / Cold Storage first. Human promotes to active.
-- Human-required items stay visible until a person completes them.
-- Completed slices get a validation note before being archived.
-
-## Purpose
-
-Track the active execution queue for this repo.
+- Keep this file current and small.
+- Active, blocked, parked, and human-required work belongs here.
+- Completed work moves to `todo-done.md`.
+- Detailed handoffs live under `docs/handoffs/`; link them here instead of pasting full content.
+- Refresh cold or parked work older than 72 hours before execution.
+- When all active todos are done, check the handoff queue.
 
 ## Objective
 
-<current objective>
-
 ## Current Focus
-
-<one paragraph>
 
 ## Current Truth
 
-- <facts a new session must know>
+## Active Work
 
-## Active Features
+## Handoff Queue
 
-<!-- KB feature sections go here. -->
+| Handoff | Status | Route | Created | Stale Check | Link |
+|---|---|---|---|---|---|
 
 ## Human Required
 
-<!-- approvals, credentials, logins, external account actions, user decisions -->
-
 ## Parked / Cold Storage
-
-<!-- discovered work that must not execute until a human promotes it -->
 
 ## Blocked
 
-<!-- blocked items with explicit reasons and dependencies -->
-
 ## Work Log
-
-- <YYYY-MM-DD>: <short progress note>
 ```
 
-**Add a feature section** for the new KB workflow:
+**Add an active work section** for the new KB workflow:
 
 ```markdown
----
-
-## 🔧 <Feature Name> (kb-YYYY-MM-DD-name)
+### <Feature Name> (kb-YYYY-MM-DD-name)
 
 Source: `docs/brainstorms/<file>.md`
 Manifest: `docs/plans/<manifest>.md`
@@ -293,39 +298,38 @@ Manifest: `docs/plans/<manifest>.md`
 | 1 | <title> | - | tdd | ⬜ pending |
 | 2 | <title> | slice-001 | tdd | ⬜ pending |
 
-Done criteria: All N slices done or skipped with reason. Archive to `kb-done.md`.
+Done criteria: All N slices done or skipped with reason. Archive summary to `todo-done.md`.
 ```
 
-**If `kb-handoff.md` doesn't exist**, create it as the compact new-session entry point:
+**If a restart packet is needed**, create `docs/handoffs/active/YYYY-MM-DD-<feature>.md`:
 
 ```markdown
-# KB Handoff
+# <Feature Handoff>
 
-Last updated: <ISO timestamp>
+Created: YYYY-MM-DD
+Last refreshed: YYYY-MM-DD
+Status: active
+Suggested route: kb-work
 
-## App / Repo
+## Intent
 
-- What this repo is:
-- How to run it:
-- Current branch:
+## Current State
 
-## Current Focus
+## Next Agent Action
 
-- Active KB feature:
-- Manifest:
-- Board:
+## Human Required
 
-## Resume From Here
+## Pointers
 
-- Next action:
-- Open blockers:
-- Human decisions needed:
+- Project map: docs/context/PROJECT.md
+- Manifest: docs/plans/<manifest>.md
+- Todo: todo.md
 
-## Context Pointers
+## Staleness Check
 
-- Architecture map:
-- Relevant subsystem docs:
-- Important files:
+Refresh before execution if older than 72 hours.
+
+## Completion Criteria
 ```
 
 **Board status markers** (superset of manifest statuses):
@@ -362,7 +366,7 @@ Omit empty sections. These conventions come from `todo_rules.md` and apply here.
 Commit only when the user explicitly asked for it. Stage only the generated manifest and slice plan files, never the whole `docs/plans/` directory:
 
 ```bash
-git add docs/plans/YYYY-MM-DD-000-kb-<name>-manifest.md docs/plans/YYYY-MM-DD-001-<type>-<name>-plan.md kb.md kb-handoff.md
+git add docs/plans/YYYY-MM-DD-000-kb-<name>-manifest.md docs/plans/YYYY-MM-DD-001-<type>-<name>-plan.md todo.md docs/handoffs/active/YYYY-MM-DD-<feature>.md
 git commit -m "kb-plan: decompose <feature> into N vertical slices"
 ```
 
@@ -376,7 +380,7 @@ git commit -m "kb-plan: decompose <feature> into N vertical slices"
 
 ## Integration with Other Skills
 
-- **Input from:** `kb-brainstorm`, `deepen-brainstorm`
-- **Deepening:** Run `deepen-plan` on individual slices, one at a time
-- **Execution:** `kb-work` runs all slices in order, or `kb-work` can pick up one slice at a time
+- **Input from:** `kb-brainstorm` or a clear feature description.
+- **Deepening:** Use `kb-research` only for individual slices with material unresolved uncertainty.
+- **Execution:** `kb-work` runs all slices in order when invoked, or can pick up one slice at a time
 - **Verification:** Each slice uses `tdd` skill principles when verification mode is `tdd`

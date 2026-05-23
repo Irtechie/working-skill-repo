@@ -108,7 +108,7 @@ If a revert was needed, that iteration still counts toward the ceiling.
 
 If stuck or ceiling hit:
 
-1. Log to `kb.md` under the slice:
+1. Log to `todo.md` under the slice:
 
    ```text
    repair: stuck — N iterations, M unresolved failures

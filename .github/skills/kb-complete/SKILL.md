@@ -12,7 +12,7 @@ After `kb-work` finishes executing all slices, this skill runs the quality revie
 
 <input> #$ARGUMENTS </input>
 
-**If input is empty:** Scan `docs/plans/` for the most recent `*-kb-*-manifest.md` file with `status: completed`. If found, use it. For older repos, also accept legacy `*-kanban-*-manifest.md` files. Otherwise ask: "Which KB manifest should I complete?"
+**If input is empty:** Scan `docs/plans/` for the most recent `*-kb-*-manifest.md` file with `status: completed`. If none is found, ask: "Which KB manifest should I complete?"
 
 **If input is a path:** Read the manifest at that path.
 
@@ -20,11 +20,16 @@ After `kb-work` finishes executing all slices, this skill runs the quality revie
 
 1. **Read the manifest** — confirm `status: completed` (all slices done/skipped). If slices are still `pending` or `in_progress`, stop: "This manifest has unfinished slices. Run `kb-work` first."
 2. **Collect scope context** — scan each slice's `notes` field for `scope-check:` entries. Build the combined list of scope-verified files across all slices. This becomes the review scope.
-3. **Identify the branch baseline** — run `git merge-base HEAD main` to establish the diff range.
+3. **Collect memory impact** — scan slice notes for `memory-impact:` and `kb-map-refresh:` entries.
+4. **Identify the branch baseline** — run `git merge-base HEAD main` to establish the diff range.
 
 If the manifest has no scope-check notes (older format), fall back to `git diff --name-only $(git merge-base HEAD main)..HEAD` for the file list.
 
 ## Step 1: Code Review
+
+Before code review, run `kb-check` against the completed manifest scope. If deterministic checks fail, route to `kb-repair` or `kb-fix` before `ce-review`. LLM review does not replace executable verification.
+
+If the manifest contains user-visible, API/CLI, persistence, auth, streaming, or integration changes, run `kb-functional-test` before `ce-review` to confirm the functional coverage is real and not mock-only.
 
 **Invoke `ce-review`** — full multi-agent code review on the feature diff.
 
@@ -48,6 +53,8 @@ Review findings from `ce-review` determine whether completion is allowed:
 | P3 (nit) | Log in manifest `notes`. Do not block. |
 
 This gate is mandatory. The agent MUST NOT proceed to Step 3 while unresolved P0/P1 findings exist.
+
+For any P2/P3 findings, invoke `kb-gate` with the rectify prompt. Do not silently leave fixable P2/P3 issues when the user would prefer a clean finish.
 
 After resolving all P0/P1s, update the manifest notes with a summary:
 `review: P0=0 P1=2(resolved) P2=3(logged) P3=1(logged)`
@@ -78,7 +85,7 @@ After the resolution gate passes, document what this feature taught the system:
    - Record result in manifest notes: `learn: N new instincts, M updated` or `learn: no new patterns`
    - This is automatic — do not ask the user whether to run it
 6. **Check evolution cadence:**
-   - Read `.atv/kanban-completions.txt` (create with `0` if missing)
+   - Read `.atv/kb-completions.txt` (create with `0` if missing)
    - Increment by 1
    - Write the new value back
    - If the new value is divisible by 5:
@@ -86,6 +93,38 @@ After the resolution gate passes, document what this feature taught the system:
      - Log result in manifest notes: `evolve: promoted N instincts` or `evolve: no candidates ready`
    - If not divisible by 5: skip silently
    - Commit the counter file with the manifest update
+
+## Step 3.5: Project Memory Refresh Gate
+
+Before cleanup or final "complete", make sure a fresh session can resume without a lesson from the user.
+
+Run `kb-map refresh` when any of these are true:
+
+- The manifest contains `memory-impact: durable`.
+- `kb-work` left any `refresh=pending` note.
+- Review fixes changed behavior, architecture, run/test commands, integrations, or known sharp edges.
+- `docs/context/PROJECT.md` points to stale subsystem docs after the feature diff.
+
+Skip with a manifest note only when changes are clearly cosmetic, copy-only, formatting-only, lint-only, or isolated tests with no durable behavior change:
+
+```text
+kb-map-refresh: skipped - cosmetic/no durable architecture change
+```
+
+When refresh runs, update affected docs only:
+
+- `docs/context/PROJECT.md` for route-map, command, or subsystem index changes.
+- `docs/context/architecture/*` for durable subsystem behavior.
+- `docs/context/operations/*` for run/test/deploy/QA changes.
+- `docs/context/research/*` for reusable research outcomes.
+- `docs/context/decisions/*` for accepted/rejected approaches.
+- `todo.md` and handoff files for current operational state.
+
+Then add:
+
+```text
+kb-map-refresh: done - <docs updated>
+```
 
 ## Step 4: Cleanup
 
@@ -128,6 +167,7 @@ KB <name> complete.
 - Compound: <written | skipped>
 - Learn: <N new, M updated | no new patterns>
 - Evolve: <promoted N | skipped | no candidates>
+- Project memory: <refreshed | skipped with reason>
 - Cleanup: done
 
 Ready to ship. Run /land when you're ready to push and open a PR.
@@ -148,6 +188,7 @@ Ready to ship. Run /land when you're ready to push and open a PR.
 - **Input from:** `kb-work` (completed manifest)
 - **Review engine:** `ce-review` with scope passthrough
 - **Documentation:** `ce-compound` → `docs/solutions/`
+- **Project memory:** `kb-map refresh` → `docs/context/*`, `todo.md`, handoffs
 - **Learning:** `/learn` → `.atv/instincts/project.yaml`
 - **Evolution:** `/evolve` → `.github/skills/learned-*/`
 - **Shipping:** `/land` (separate, deliberate act — not part of this skill)

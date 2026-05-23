@@ -1,162 +1,150 @@
 ---
 name: kb-map-bootstrap
-description: Token-expensive bootstrap skill that deeply indexes a project and creates the standard KB project memory structure. Use when kb-map reports missing or badly stale memory files, when entering an existing project without kb.md/kb-handoff.md/docs/context/PROJECT.md, or when the user says "bootstrap this project", "deep map this repo", "build project memory", or "index this app".
+description: Token-expensive bootstrap skill that deeply indexes a new or existing project and creates the standard KB memory layout. Use when kb-map reports missing or badly stale memory, when entering an existing project without todo.md/docs/context/PROJECT.md, or when the user says "bootstrap this project", "deep map this repo", "build project memory", or "index this app".
 argument-hint: "[optional project focus or subsystem hints]"
 ---
 
-# KB Map Bootstrap - Deep Project Index
+# KB Map Bootstrap
 
-`kb-map-bootstrap` is the expensive setup pass for projects that do not yet have KB project memory. It creates the pointer tree that future sessions can read cheaply through `kb-map`.
+Build parity: after this runs, a fresh session should use the same files whether the app is new or years old.
 
-Do not use this for ordinary startup. Use `kb-map` first.
+Use `kb-map` for normal startup. Use this only for missing or badly stale memory.
 
-## Goal
+## Automatic Invocation
 
-Build the standard memory layout:
+When `kb-route`, `AGENTS.md`, or `.github/copilot-instructions.md` detects missing `todo.md` or `docs/context/PROJECT.md`, run this skill immediately. Do not ask the user first unless a non-empty user file would be overwritten or moved.
+
+## Create Layout
 
 ```text
-kb.md
-kb-done.md
-kb-handoff.md
+todo.md
+todo-done.md
 docs/context/
   PROJECT.md
   architecture/
     README.md
-    <major-subsystem>.md
-    <major-subsystem>/
-      <child-area>.md
   research/
     README.md
-    <topic>.md
   decisions/
     README.md
-    <YYYY-MM-DD>-<decision>.md
   operations/
     README.md
-    runbooks.md
     testing.md
+docs/brainstorms/
+docs/plans/
+docs/handoffs/
+  active/
+  parked/
+  done/
 ```
 
-## Bootstrap Workflow
+Optional:
+
+```text
+docs/context/decisions/starter-kit-deltas.md
+docs/context/epics/
+docs/context/history/
+```
+
+## Workflow
 
 1. **Inventory the repo**
-   - Top-level files and folders
-   - App entry points
-   - Package/build/test config
-   - Routes, screens, commands, or public interfaces
-   - Services, actions, tools, workers, jobs, integrations
-   - Tests
-   - Existing docs
+   - Top-level structure, entry points, frameworks, package managers.
+   - Build/test/dev commands.
+   - Routes, screens, commands, tools, actions, jobs, integrations.
+   - Tests, docs, existing TODOs, brainstorms, plans, ADRs, and handoffs.
 
-2. **Identify major subsystems**
-   - User-facing workflows
-   - Backend domains
-   - Tool/action layers
-   - Data/storage layers
-   - External integrations
-   - Runtime shells such as Electron, browser automation, mobile, or CLI
+2. **Identify subsystems**
+   - User-facing workflows.
+   - Backend domains.
+   - Tool/action layers.
+   - Data/storage layers.
+   - External integrations.
+   - Runtime shells such as Electron, browser, mobile, or CLI.
 
-3. **Create missing folders and files**
+3. **Create or merge memory files**
    - Preserve existing user docs.
-   - Do not overwrite non-empty memory files without reading and merging them.
-   - Use lowercase kebab-case for docs except `PROJECT.md` and folder `README.md`.
+   - Do not overwrite non-empty files without reading and merging.
+   - Move stale or completed active work out of the active board.
+   - Use lowercase kebab-case except `PROJECT.md` and folder `README.md`.
 
 4. **Write `docs/context/PROJECT.md`**
    - Keep it short.
-   - Make it a pointer map, not an encyclopedia.
-   - Include run/test commands and the subsystem index.
+   - Include run/test commands.
+   - Include subsystem, research, operation, and active-work pointers.
+   - Mark confidence as verified, inferred, or unknown.
 
-5. **Write subsystem docs**
+5. **Write testing operations**
+   - Create/update `docs/context/operations/testing.md`.
+   - Include deterministic commands discovered by `.github/skills/kb-check/scripts/kb-check.ps1 -List` or equivalent manifest inspection.
+   - Note which checks are fast, broad, flaky, external-service dependent, or CI-only.
+
+6. **Write subsystem docs**
    - One concise doc per major subsystem.
-   - Add child docs only when a subsystem is too large for one file.
-   - Parent docs summarize and point to children.
+   - Parent docs summarize and point to child docs.
+   - Include known sharp edges, rejected approaches, and first files to read.
 
-6. **Create KB workflow files when missing**
-   - `kb.md`
-   - `kb-done.md`
-   - `kb-handoff.md`
+7. **Write board and handoff structure**
+   - `todo.md` for active work and handoff queue pointers.
+   - `todo-done.md` for compact completion summaries.
+   - `docs/handoffs/active/`, `parked/`, and `done/`.
 
-7. **Review**
-   - Run `document-review` on `PROJECT.md` and any large architecture docs when available.
-   - Apply obvious auto-fixes.
-   - Keep unresolved findings visible in `kb-handoff.md`.
+8. **Starter-kit deltas**
+   - If the app is based on ATV, another starter kit, or a fork, create/update `docs/context/decisions/starter-kit-deltas.md`.
 
-## Claim Confidence
+9. **Review**
+   - Run `document-review` on `PROJECT.md` and large architecture docs when available.
+   - Record unresolved findings in `todo.md` or an active handoff.
 
-Mark non-obvious claims:
+10. **Route test**
+   - Run a cheap `kb-map lookup` against the new memory.
+   - Confirm a fresh session can answer: what this app is, how to run it, how to test it, what work is active, and which subsystem docs to read first.
 
-- `verified` - confirmed by reading source.
-- `inferred` - likely from naming/structure, but not fully traced.
-- `unknown` - needs follow-up.
+## Templates
 
-Do not overstate confidence. Future agents should know whether a route-map entry is confirmed or inferred.
+### `todo.md`
 
-## PROJECT.md Template
+```markdown
+# Todo
+
+## Rules
+- Keep this file current and small.
+- Active, blocked, parked, and human-required work belongs here.
+- Completed work moves to `todo-done.md`.
+- Handoffs live under `docs/handoffs/`; link them here.
+- Refresh cold or parked work older than 72 hours before execution.
+
+## Objective
+## Current Focus
+## Current Truth
+## Active Work
+## Handoff Queue
+## Human Required
+## Parked / Cold Storage
+## Blocked
+## Work Log
+```
+
+### `PROJECT.md`
 
 ```markdown
 # Project Map
 
-Bootstrap: <date>
+Bootstrap: YYYY-MM-DD
 Bootstrap confidence: verified|mixed|rough
 
 ## What This Is
-
 ## How To Run
-
 ## How To Test
-
 ## Current Architecture
-
 ## Subsystem Index
-
 | Area | Read This | Use When | Confidence |
 |---|---|---|---|
-
 ## Current Work Pointers
-
 ## Known Sharp Edges
-
 ## Research Index
-
-| Topic | Note | Stale When |
-|---|---|---|
-
 ## Do Not Repeat
-
 ## Maintenance Notes
-```
-
-## Subsystem Template
-
-```markdown
-# <Subsystem>
-
-Confidence: verified|inferred|unknown
-
-## What It Is
-
-## Current Shape
-
-## Entry Points
-
-## Files To Read First
-
-## Common Tasks
-
-| Task | Read | Commands / Checks |
-|---|---|---|
-
-## What Works
-
-## What We Tried And Rejected
-
-## What Does Not Work
-
-## Research Worth Keeping
-
-## Child Docs
-
-## Open Questions
 ```
 
 ## Output
@@ -165,5 +153,6 @@ Finish with:
 
 - Files created or updated.
 - Major subsystems discovered.
-- Any uncertain areas.
-- Recommended first `kb-route` test prompt.
+- Uncertain areas.
+- Stale or completed work moved.
+- Result of the `kb-map lookup` route test.

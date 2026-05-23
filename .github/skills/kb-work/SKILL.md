@@ -20,7 +20,7 @@ Run all vertical slices from a `kb-plan` manifest in dependency order. Keep each
 
 <input> #$ARGUMENTS </input>
 
-**If input is empty:** Scan `docs/plans/` for the most recent `*-kb-*-manifest.md` file. If found, use it. For older repos, also accept legacy `*-kanban-*-manifest.md` files. Otherwise ask: "Which KB manifest should I execute?"
+**If input is empty:** Scan `docs/plans/` for the most recent `*-kb-*-manifest.md` file. If found, use it. Otherwise ask: "Which KB manifest should I execute?"
 
 **If input is a path:** Read the manifest at that path.
 
@@ -30,7 +30,7 @@ Run all vertical slices from a `kb-plan` manifest in dependency order. Keep each
 2. **Validate DAG** - confirm no cycles in blockers, all referenced slice IDs exist, and all slice files exist.
 3. **Check status** - skip any slices already marked `done`. Resume from the first runnable `pending` slice.
 4. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
-5. **Sync with board** - read `kb.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
+5. **Sync with board** - read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
 6. **Confirm with user:** "Ready to execute N remaining slices in order. Proceed?"
 
 Treat statuses as:
@@ -40,11 +40,13 @@ Treat statuses as:
 | `pending` | Eligible once blockers are `done` or `skipped` |
 | `done` | Skip |
 | `blocked` | Stop and ask whether to retry, skip, or abort |
+| `manual` | Waiting on human action; continue unrelated runnable slices if possible |
+| `parked` | Intentionally paused; continue unrelated runnable slices |
 | `skipped` | Skip but keep visible in the summary |
 
 ## Board Sync Protocol
 
-`kb.md` is the live multi-agent execution board. Update it at every status transition:
+`todo.md` is the live execution board. Update it at every status transition:
 
 | Event | Board Update |
 |-------|-------------|
@@ -52,16 +54,16 @@ Treat statuses as:
 | Slice completes | Set status to ✅ done |
 | Slice blocked | Set status to 🔒 blocked + reason in notes |
 | Slice skipped | Set status to ⊘ skipped |
-| All slices done | Move entire feature section to `kb-done.md` |
+| All slices done | Move summary to `todo-done.md` |
 
-`kb-handoff.md` is the compact new-session restart file. Update it whenever work stops, blocks, completes a feature, or changes the next recommended action. Keep it short: current focus, manifest path, next action, blockers, human decisions, and context pointers.
+Active handoff files under `docs/handoffs/active/` are restart packets. Create or update one whenever work stops, blocks, or changes the next recommended action. Move completed handoffs to `docs/handoffs/done/`.
 
 **Multi-agent rules:**
-- Before claiming a slice, re-read `kb.md`. If another agent set it to 🔧, do not claim it.
+- Before claiming a slice, re-read `todo.md`. If another agent set it to 🔧, do not claim it.
 - The board is the source of truth — not chat history, not the manifest. If the board says done, it's done.
 - Update the board BEFORE starting work (claim) and AFTER completing work (release). This prevents two agents from working the same slice.
 - Also update the manifest to stay in sync, but if they conflict, the board wins.
-- Append a short entry to the **📝 Work Log** section after each slice: `- YYYY-MM-DD: <slice title> — done (<agent/session>)`
+- Append a short entry to the **Work Log** section after each slice: `- YYYY-MM-DD: <slice title> - done (<agent/session>)`
 
 ## Dependency Ordering
 
@@ -86,7 +88,8 @@ If `hitl: true`:
   - `parallel-blocker` — this slice is blocked, but unrelated slices can continue.
   - `final-validation` — human judgment is useful before release, but not needed for development.
   - `agent-runnable-with-inputs` — human only needs to provide values; the agent can run the check.
-- Stop only the dependent path. If unrelated slices are runnable, mark this slice `blocked` or `manual`, update `kb.md` and the manifest, then continue those slices.
+- Stop only the dependent path. If unrelated slices are runnable, mark this slice `blocked` or `manual`, update `todo.md` and the manifest, then continue those slices.
+- When marking a slice `manual`, `parked`, or `blocked`, persist: `owner`, `blocked_reason`, `resume_when`, `next_agent_action`, `human_action`, `can_continue_other_slices`, and `parked_at`.
 - Record the user's decision in the slice plan.
 - Update manifest status to `done` for this slice only if the decision completes the slice.
 - Continue to the next runnable slice.
@@ -138,40 +141,7 @@ This gate pairs with Step 3.6 (Diff-Scope Verification). Scope Lock prevents out
 
 Use a fresh sub-agent when the platform supports delegated execution and the user has permitted it. Otherwise execute the slice locally while keeping the scope limited to this slice.
 
-The execution prompt or local checklist must include:
-
-```text
-You are executing a single vertical slice. Complete it fully.
-
-KB: <kb_id>
-Slice: <slice_id> - <title>
-Verification mode: <tdd|integration|verification-only>
-
-Plan contents:
-<full slice plan content>
-
-Instructions:
-1. Read the plan completely.
-2. Set up on the current branch.
-3. For files marked `op: edit` in expected_files:
-   - Read the CURRENT file content FIRST — the file as it exists on disk, not as the plan describes it.
-   - Make only the change described in the `scope` field. Do not regenerate or rewrite the file.
-   - Preserve all existing behavior not mentioned in the scope.
-   - If the file has been modified by prior slices or manual edits, those changes are authoritative. The plan spec is not.
-4. For files marked `op: create`: write the file from the plan spec.
-5. Apply the verification mode:
-   - tdd: write one failing test first, confirm it fails for the right reason, implement minimal code to pass, then refactor.
-   - integration: write an integration test proving the path works, then implement the wiring.
-   - verification-only: implement the change, then verify builds pass and no regressions.
-6. Run relevant tests first, then the full test suite when practical.
-7. Stage only files changed for this slice.
-8. Commit only if the user asked for commits, with message: "feat(<slice-id>): <title>"
-
-Do not modify other slices' files unless required for this slice.
-Do not add scope beyond what the plan specifies.
-Do not stage unrelated dirty or untracked files.
-```
-
+Use `references/execution-prompt.md` as the per-slice execution prompt/checklist. Load it only when starting a slice.
 ### Step 3.5: System-Wide Test Check
 
 Before marking a slice done, pause and ask these questions — vertical slices cut through all layers, so side-effects matter:
@@ -209,7 +179,7 @@ After a slice completes, verify that the files actually changed match the slice'
    | Files in `expected_files` that were NOT changed | Flag as potentially incomplete. Ask the user whether the slice is truly done or if work was missed. |
    | Perfect match (including auto-allowed tests) | Proceed. |
 
-4. **Log results** in the kanban manifest under the slice's `notes` field:
+4. **Log results** in the KB manifest under the slice's `notes` field:
 
    ```text
    notes: "scope-check: 5/5 expected files changed, 0 out-of-scope"
@@ -272,18 +242,29 @@ After the slice completes:
 
 1. **Check result**
    - If yes: update manifest `status: done` for this slice and update the body table.
-   - If no: update manifest `status: blocked`, add failure notes, and ask user how to proceed.
+   - If no and repair/progress is still possible: run `kb-repair` or a bounded fix loop, then retry verification.
+   - If no progress remains: update manifest `status: blocked` or `parked`, add failure notes and resume criteria, then continue unrelated runnable slices.
 
-2. **Sync board** — update `kb.md` status for this slice (✅ or 🔒). Append validation note.
+2. **Sync board** — update `todo.md` status for this slice (done or blocked). Append validation note.
 
 3. **Run verification**
-   - Run the relevant test command for the repo.
-   - If a full suite is too expensive or unavailable, explain the narrower verification used.
+   - Invoke `kb-check` for deterministic verification.
+   - Prefer existing scripts, lint, typecheck, tests, browser checks, builds, and CI-equivalent commands over LLM inspection.
+   - If a full suite is too expensive or unavailable, run the narrowest deterministic check that proves the slice and record why.
+   - For `functional` slices or user-visible/cross-boundary changes, invoke `kb-functional-test` to audit whether the test actually proves the workflow.
 
-4. **Optional commit**
+4. **Assess memory impact**
+   - Classify the slice as `memory-impact: none`, `operational`, or `durable`.
+   - `none`: cosmetic, copy, formatting, lint-only, or isolated tests with no behavior/architecture change.
+   - `operational`: active state, blockers, verification commands, or handoff instructions changed. Update `todo.md` or the active handoff.
+   - `durable`: user-visible behavior, API/data/storage/auth/routing/streaming/tool/action/job/integration behavior, run/test commands, subsystem boundaries, sharp edges, or rejected approaches changed.
+   - For durable changes, add a manifest note: `memory-impact: durable; areas=<areas>; docs=<candidate docs>; refresh=pending`.
+   - If the affected doc is obvious and small, update it now. Otherwise leave `refresh=pending` for Step 5.
+
+5. **Optional commit**
    - If the user asked for commits, stage only the manifest file for status updates and commit it separately.
 
-5. Continue to the next runnable slice.
+6. Continue to the next runnable slice.
 
 ### Step 5: Completion
 
@@ -291,8 +272,10 @@ When all slices are `done` or intentionally `skipped`:
 
 1. Update manifest `status: completed`.
 2. Run final verification.
-3. **Archive to board** — move the feature section from `kb.md` to `kb-done.md`. Prepend at the top of the archive file with a completion date header.
-4. Report summary:
+3. Run `kb-gate` if verification, QA, repair, or functional-test checks surfaced P0/P1/P2/P3 issues. P0/P1 block completion, but safe/actionable blockers should be rectified before asking the user. For P2/P3, ask whether to rectify all fixable issues before `kb-complete`.
+4. **Refresh project memory** — if any slice has `memory-impact: durable` or `refresh=pending`, run `kb-map refresh` before archiving. Update affected architecture, operation, decision, research, `todo.md`, and handoff pointers. Add manifest note: `kb-map-refresh: done` or `kb-map-refresh: skipped - <reason>`.
+5. **Archive to board** — move the feature summary from `todo.md` to `todo-done.md`. Prepend at the top of the archive file with a completion date header.
+6. Report summary:
 
 ```text
 KB <name> — all slices complete.
@@ -302,20 +285,22 @@ KB <name> — all slices complete.
 - K files changed
 Verification: <command/result>
 
-Next: run kb-complete for review, documentation, and learning.
+Next: kb-complete runs automatically for review, documentation, and learning.
 ```
 
-5. **Persist scope context** — collect the scope-verified file lists from each slice's `notes` field (the `scope-check:` entries from Step 3.6). Write the combined list to the manifest frontmatter as `scope-verified-files` so `kb-complete` can pass it to ce-review without re-deriving.
+7. **Persist scope context** — collect the scope-verified file lists from each slice's `notes` field (the `scope-check:` entries from Step 3.6). Write the combined list to the manifest frontmatter as `scope-verified-files` so `kb-complete` can pass it to ce-review without re-deriving.
 
-**Post-work steps (ce-review, compound, learn, evolve, cleanup) are handled by `kb-complete`.** If running via `klfg`, the pipeline prompts to continue automatically. If running standalone, invoke `kb-complete <manifest-path>` manually when ready.
+**Post-work steps (ce-review, compound, learn, evolve, cleanup) are handled by `kb-complete`.** After all slices are `done` or intentionally `skipped`, invoke `kb-complete <manifest-path>` automatically unless the user explicitly asked to stop after work execution.
 
 ## Failure Handling
 
 | Situation | Action |
 |-----------|--------|
-| Slice execution fails | Mark blocked, show error, ask user |
-| Test suite fails after a slice | Mark blocked, show which tests broke, ask user |
-| HITL pause | Present context, wait for user, record decision |
+| Slice execution fails with progress possible | Run `kb-repair` or a bounded fix loop, then retry verification |
+| Slice execution fails with no progress | Mark only that slice blocked/parked, write resume packet, continue unrelated runnable slices |
+| Test suite fails after a slice | Run `kb-repair`; if stuck, mark affected slice blocked/parked and continue unrelated runnable slices |
+| HITL critical-path pause | Present context, wait for user, record decision |
+| HITL not on critical path | Park the slice and continue unrelated runnable slices |
 | User says "abort" | Mark remaining slices as `pending`, stop |
 | User says "skip" | Mark slice `skipped`, continue to next runnable slice |
 
@@ -337,7 +322,9 @@ KB work is resumable:
 ## Integration
 
 - **Input from:** `kb-plan`
-- **Deepening:** Optionally runs `deepen-plan` per slice before execution
+- **Deepening:** Use `kb-research` only when a slice has a material unresolved uncertainty before execution.
 - **Execution engine:** Fresh sub-agents when available, local execution otherwise
 - **Verification:** Invokes `tdd` skill principles per slice when verification mode requires it
-- **Post-completion:** Invoke `kb-complete` for review, documentation, and learning
+- **Deterministic checks:** Invokes `kb-check` before a slice is marked done
+- **Functional checks:** Invokes `kb-functional-test` for user-visible and cross-boundary behavior
+- **Post-completion:** Automatically invoke `kb-complete` after all slices are done or intentionally skipped

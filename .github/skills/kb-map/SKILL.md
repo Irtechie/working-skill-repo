@@ -1,165 +1,112 @@
 ---
 name: kb-map
-description: Cheap entry skill for consulting the project memory map used by KB workflows. Use when starting in a repo, when another KB skill needs to find the right architecture docs without the user pointing to files, or when the user says "map", "where is this", "project context", or "what should I read". If project memory is missing or stale, route to kb-map-bootstrap instead of doing a deep repo crawl here.
+description: Cheap project-memory lookup and refresh skill for KB workflows. Use when starting in a mapped repo, when another KB skill needs the right architecture docs without broad repo crawling, or when the user says "map", "project context", "where is this", or "what should I read". If memory is missing or badly stale, route to kb-map-bootstrap.
 argument-hint: "[lookup|refresh] [optional task or subsystem]"
 ---
 
-# KB Map - Project Memory Router
+# KB Map
 
-`kb-map` is the cheap project-memory entry skill. It lets new sessions understand where to look without re-reading the whole repo or relying on chat history.
+Use local project memory so fresh sessions do not need the user to reteach the app.
 
-Keep this skill small. Expensive repo indexing belongs in `kb-map-bootstrap`.
+Keep this skill cheap. Deep indexing belongs in `kb-map-bootstrap`.
+
+## Contract Check
+
+Before lookup or refresh, check the standard layout.
+
+- If `todo.md` or `docs/context/PROJECT.md` is missing, invoke `kb-map-bootstrap`.
+- If only directories are missing, create them during `refresh`.
+- Never overwrite non-empty user docs without reading and merging.
 
 ## Modes
 
-Pick the mode from the argument. If absent, default to `lookup`.
-
 | Mode | Use When | Cost |
 |---|---|---|
-| `lookup` | Project memory exists; find the right docs for the current request | low |
-| `refresh` | Recent work changed architecture or routing; update affected docs | medium |
+| `lookup` | Memory exists; find the right context for the current request | low |
+| `refresh` | Recent work changed project memory or route pointers | medium |
+
+Default to `lookup`.
 
 ## Standard Layout
 
-Every KB-enabled repo uses:
-
 ```text
-kb.md
-kb-done.md
-kb-handoff.md
+todo.md
+todo-done.md
 docs/context/
   PROJECT.md
   architecture/
     README.md
     <major-subsystem>.md
-    <major-subsystem>/
-      <child-area>.md
   research/
     README.md
     <topic>.md
   decisions/
     README.md
-    <YYYY-MM-DD>-<decision>.md
   operations/
     README.md
-    runbooks.md
     testing.md
+docs/handoffs/
+  active/
+  parked/
+  done/
 ```
-
-Use lowercase kebab-case for docs except `PROJECT.md` and folder `README.md` files.
 
 ## Lookup Mode
 
-Read, in order:
+Read in order:
 
-1. `kb-handoff.md`
-2. `kb.md`
-3. `docs/context/PROJECT.md`
-
-Then follow only relevant pointers to subsystem, research, decision, or operations docs.
+1. `todo.md`.
+2. `docs/context/PROJECT.md`.
+3. Active handoff files linked from `todo.md`.
+4. Only the subsystem, research, decision, operation, brainstorm, or plan files needed for the request.
 
 Stop reading once you can answer:
 
 - What app/repo is this?
-- What is the user trying to accomplish?
-- What is active or blocked?
+- What is active, blocked, parked, or queued?
 - Which subsystem is relevant?
 - Which files or commands are likely involved?
-- What has already been tried or researched?
-- Which KB route should handle this request?
+- What was already tried or researched?
+- Which KB route should handle the request?
 
-Report the chosen route and the docs loaded. Do not bulk-load all context docs.
+Report route, docs loaded, and any stale-work refresh needed. Do not bulk-load all context docs.
 
 ## Missing Memory
 
-If any of these are missing:
+If `todo.md` or `docs/context/PROJECT.md` is missing, route to `kb-map-bootstrap`.
 
-- `kb-handoff.md`
-- `kb.md`
-- `docs/context/PROJECT.md`
-
-Do not deep-crawl the repo in this skill. Say that project memory is missing and invoke or recommend `kb-map-bootstrap`.
-
-If the repo is tiny and the user asked for a small fix, you may continue with a targeted scan, but still record that `kb-map-bootstrap` should be run later.
+If handoff directories are missing but the project map exists, create or recommend the missing directories during `refresh`; do not deep-crawl the repo.
 
 ## Refresh Mode
 
-Use after meaningful architecture changes.
+Use after meaningful architecture, workflow, or project-memory changes.
+
+Refresh is required when work changes:
+
+- User-visible behavior, feature boundaries, or major workflows.
+- API contracts, data models, storage, auth, permissions, routing, streaming, tools, actions, jobs, or integrations.
+- Build, run, test, deploy, or QA commands.
+- Subsystem ownership, entry points, or first files a fresh session should read.
+- Known sharp edges, rejected approaches, or "do not repeat" lessons.
+
+Refresh is usually not required for:
+
+- Pure styling, copy, formatting, lint-only changes, dependency lockfile churn, or isolated tests that do not change behavior.
+
+When unsure, write a one-line manifest or `todo.md` note explaining why refresh was skipped or required.
 
 Workflow:
 
 1. Read `docs/context/PROJECT.md`.
-2. Inspect changed files, recent plans/manifests, and relevant work logs.
-3. Update only affected subsystem docs.
-4. Add child docs when a parent doc is getting too large.
-5. Update `kb-handoff.md` if the next-session route changed.
-6. Run `document-review` when changes are substantial.
+2. Inspect changed files, recent manifests, active handoffs, and `todo.md`.
+3. Update only affected subsystem docs and indexes.
+4. Add child docs when a parent doc grows too large.
+5. Update `todo.md` if active state, blockers, or pointers changed.
+6. Update active handoff files if restart instructions changed.
+7. Run `document-review` when changes are substantial.
 
-Do not re-bootstrap the whole repo here. If refresh discovers the map is missing or badly stale, route to `kb-map-bootstrap`.
+Do not re-bootstrap the whole repo here.
 
-## Document Contracts
+## Contracts
 
-### `PROJECT.md`
-
-```markdown
-# Project Map
-
-## What This Is
-
-## How To Run
-
-## How To Test
-
-## Current Architecture
-
-## Subsystem Index
-
-| Area | Read This | Use When |
-|---|---|---|
-
-## Current Work Pointers
-
-## Known Sharp Edges
-
-## Research Index
-
-| Topic | Note | Stale When |
-|---|---|---|
-
-## Do Not Repeat
-
-## Maintenance Notes
-```
-
-### Subsystem Docs
-
-```markdown
-# <Subsystem>
-
-## What It Is
-
-## Current Shape
-
-## Entry Points
-
-## Files To Read First
-
-## Common Tasks
-
-| Task | Read | Commands / Checks |
-|---|---|---|
-
-## What Works
-
-## What We Tried And Rejected
-
-## What Does Not Work
-
-## Research Worth Keeping
-
-## Child Docs
-
-## Open Questions
-```
-
-When a section gets large, split it into a child doc and replace the section with a pointer.
+`PROJECT.md` is a route map, not an encyclopedia. Subsystem docs carry durable app truth. `todo.md` carries current operational truth. Handoff files carry resumable work packets.

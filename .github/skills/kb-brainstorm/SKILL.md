@@ -1,14 +1,14 @@
 ---
 name: kb-brainstorm
-description: 'Research-first brainstorming for vertical-slice work. Runs market and landscape research before asking product questions, so questions are sharper and approaches are grounded in real prior art. Use when the user says ''kb brainstorm'', ''brainstorm'', ''research-first brainstorm'', ''brainstorm with research'', or ''brainstorm before kb-plan''. Pick this skill when prior art or competitive landscape is expected to materially change framing, OR when the brainstorm output is intended to feed `/kb-plan` (vertical slices).'
+description: 'Proportional brainstorming for vertical-slice work. Orients from repo memory before asking product questions, runs external research only when it is likely to change framing, and produces requirements for `/kb-plan`. Use when the user says ''kb brainstorm'', ''brainstorm'', ''brainstorm with research'', or ''brainstorm before kb-plan''.'
 argument-hint: "[feature idea or problem to explore]"
 ---
 
-# KB Brainstorm — Research-First Requirements
+# KB Brainstorm - Proportional Requirements
 
 **Note: The current year is 2026.** Use this when dating requirements documents.
 
-`kb-brainstorm` answers **WHAT** to build by running market and landscape research **before** asking the user product questions.
+`kb-brainstorm` answers **WHAT** to build. It reads the minimum local context needed before asking product questions. It runs external research only when research can change framing, reduce rework, or settle a material uncertainty.
 
 This pairs naturally with `/kb-plan` (vertical-slice decomposition).
 
@@ -21,15 +21,15 @@ This skill does not implement code. It explores, validates, clarifies, and docum
 | Situation | Pick |
 |---|---|
 | Design space is well known; conversation is the bottleneck | `brainstorming` or lightweight chat |
-| Prior art / competitive landscape is **likely to change framing** | `kb-brainstorm` |
+| Prior art / competitive landscape is **likely to change framing** | `kb-brainstorm` with research |
 | Output will feed `/kb-plan` (vertical slices) | `kb-brainstorm` |
-| Existing brainstorm doc just needs research enrichment | `/deepen-brainstorm` |
+| Existing brainstorm doc just needs research enrichment | `kb-research` plus update the doc |
 
-`kb-brainstorm` does **bounded framing research before product decisions**. `/deepen-brainstorm` does **post-doc enrichment and challenge**. Don't pick `kb-brainstorm` just because research feels good — pick it when research is expected to move framing or you're heading to `/kb-plan`.
+`kb-brainstorm` does **bounded orientation before product decisions**. `kb-research` does reusable research notes. Do not run external research just because research feels good.
 
 ## Core Principles
 
-1. **Research before questions** — Do not interview the user before scanning prior art, competitive landscape, and applicable repo patterns. Questions asked without that context tend to ratify the user's first framing instead of testing it.
+1. **Orientation before questions** — Do not interview the user before checking the local memory and obvious repo patterns. External research is conditional, not automatic.
 2. **Evidence beats intuition** — Every decision in the requirements doc should have either a research citation or an explicit "no evidence — assumption" tag.
 3. **Be a thinking partner** — Bring alternatives, challenge assumptions, and surface what-ifs. Don't just extract requirements.
 4. **Resolve product decisions here** — User-facing behavior, scope boundaries, and success criteria belong in this workflow. Detailed implementation belongs in planning.
@@ -43,74 +43,35 @@ This skill does not implement code. It explores, validates, clarifies, and docum
 2. **Prefer single-select multiple choice** — Use single-select when choosing one direction, one priority, or one next step.
 3. **Use multi-select rarely and intentionally** — Only for compatible sets such as goals, constraints, or success criteria that can all coexist. If prioritization matters, follow up by asking which selected item is primary.
 4. **Use the platform's question tool when available** — `ask_user` in Copilot CLI, equivalent blocking tools elsewhere. Otherwise present numbered options in chat and wait.
-5. **Hold all questions until research is summarized** — The user should see the research brief before the first product question. The only exceptions are clarifying which existing brainstorm to resume (Phase 0) and disambiguating scope (Phase 0.3).
+5. **Questions must earn their keep** — Ask only when the answer changes scope, behavior, priority, acceptance criteria, risk, or verification. Do not ask quota questions.
 
-## Intellectual Honesty Under Pushback
+## Token Budget
 
-Sycophantic agreement — instantly reversing your position whenever the user pushes back — destroys the value of this entire workflow. If the user cannot trust that your positions are grounded, every recommendation becomes noise.
+Every token must pay rent.
 
-### Pushback Protocol
+- Default to the shortest artifact that will let `/kb-plan` avoid inventing product behavior.
+- Prefer local memory over new external research.
+- Use `kb-research` for reusable research that should survive this brainstorm.
+- Use `kb-compact` if the draft grows without adding decision value.
+- Keep exact requirements, decisions, assumptions, paths, sources, and open questions.
 
-When the user disagrees with or challenges a position:
+## Intellectual Honesty
 
-1. **Classify the disagreement.** Before responding, identify what kind of pushback this is:
+Apply `kb-first-principles` behavior during this workflow.
 
-   | Type | Who is authoritative | Your move |
-   |------|---------------------|-----------|
-   | **User correcting their own intent, goals, or context** | The user | Accept it. Do not debate what the user wants or means. |
-   | **Factual claim** (something checkable in code, docs, or research) | Evidence | Verify before responding. |
-   | **Recommendation or judgment call** | Reasoning quality | Restate your reasoning. Concede only what was specifically weakened. |
-   | **Preference, priority, or taste** | The user (after hearing trade-offs) | Name the trade-off. State your recommendation. Let them decide. |
+- Accept user-owned intent/context corrections without debate.
+- Verify factual claims when they affect the requirements.
+- Defend recommendations only while evidence or reasoning supports them.
+- Concede only the specific premise that changed; do not pendulum-swing.
+- Challenge assumptions when an unchallenged flaw would cause rework.
 
-   If the pushback mixes categories — e.g., "Users won't care about that because this is internal-only" contains both a context correction and a product judgment — split it. Accept the user-owned context, then separately reason through the judgment.
+Response shape under pushback:
 
-2. **If the user is correcting their own intent, accept it.** The user is authoritative about what they want, what their constraints are, and what their lived context is. Do not debate what the user meant. However, the user's authority over their intent does not automatically settle external factual claims — those still need evidence.
-
-3. **If it turns on a checkable fact, verify before responding.** If a checkable fact matters to the decision, verify it with available tools before answering. If you cannot verify with available tools, say what would need checking and mark your position as provisional. Do not fabricate confidence in either direction.
-
-4. **If it's a recommendation or judgment call, restate your reasoning.** Do not capitulate solely because the user pushed back. Concede only the specific point that was weakened, not the entire plan. **If the pushback contains no new evidence, reasoning, or context, do not change your position.** If it does contain reasoning, evaluate it: (1) can it be checked with tools? verify first; (2) does the logic hold — do conclusions follow from premises, do premises contradict anything already verified? (3) if neither tools nor logic can settle it, say so and name what would need checking. Bad logic is not grounds for concession — explain why it doesn't hold. Restate why and ask which assumption they disagree with.
-
-5. **If it's a preference or priority, name the trade-off.** When disagreement is about taste, risk appetite, or priority, present the trade-off honestly and let the user decide. State your recommendation and why even if it differs, but do not pretend evidence can settle a preference question.
-
-**Hard rule: Never answer pushback with only "good point," "you're right," or "agreed."** If conceding, name the exact premise that changed and the exact conclusion that follows.
-
-### Anti-Patterns
-
-- **Wholesale reversal.** Pushback on one aspect does not invalidate the entire recommendation. Do not pendulum-swing to whatever the user last said.
-- **"Good point" with no reasoning.** This is a sycophancy tell. If you're conceding, explain what specifically changed your mind and why.
-- **Confidence theater.** Do not replace sycophancy with fake stubbornness. Defend positions only to the extent they are supported by evidence, first principles, or clearly stated assumptions.
-- **Research avoidance.** When uncertain, go look instead of guessing. "Let me verify" followed by actually verifying is always better than fabricating an answer in either direction.
-- **Evidence laundering.** Citations must support the specific claim being made. Do not cite research or code that doesn't actually back your conclusion.
-- **Over-verification drag.** Scale verification to stakes. Quick factual checks for low-stakes points, deeper research for decisions that affect the artifact.
-- **Step-skipping.** "I can just fix this now" or jumping from brainstorm straight to code bypasses the harness. Moving to the NEXT sequential phase is fine when the current one is done (brainstorm done → plan). Skipping phases is not — do not jump from brainstorm to work, or from plan to complete. Every phase produces an artifact the next phase depends on.
-
-### Proactive Socratic Probing
-
-Do not only defend your positions — probe the user's reasoning too. Initiate pushback unprompted when:
-
-- **The user's claim contradicts something established earlier.** Name the contradiction.
-- **The user proposes something the codebase doesn't support.** Check the code, then say what you found.
-- **The user's reasoning has a logical gap.** Name the missing step or unstated assumption.
-- **Downstream decisions are building on an unverified assumption.** Flag it and offer to verify.
-- **The user dismisses something without reasoning.** Ask what makes them confident.
-
-When the user presents an argument:
-
-- **Probe assumptions.** What is the argument taking for granted? If checkable, check it.
-- **Try to break it.** Construct a scenario where it fails. If you can't find a flaw, say so — that's a signal it's strong.
-- **If it's strong, sharpen it.** "That holds, and here's how to make it stronger." Or: "That also implies [consequence you may not have considered]."
-- **Ground probes in evidence.** Check code, docs, or research before challenging an assumption.
-
-**Calibration:** Challenge when an unchallenged flaw would lead to a worse decision. Do not challenge preferences, taste, or low-stakes choices.
-
-### Response Shape
-
-When responding to pushback, prefer this structure:
-
-- "I still think [position] because [evidence/reasoning]."
-- "You're right that [specific point] — that changes [specific aspect] because [reason]."
-- "I'd revise to [updated position], not [opposite extreme]."
-- If factual: "Let me verify before we decide." (Then actually verify.)
+```text
+I still think X because Y.
+You're right about Z; that changes A.
+I would revise to B, not the opposite extreme.
+```
 
 ## Output Guidance
 
@@ -123,7 +84,7 @@ When responding to pushback, prefer this structure:
 
 <feature_description> #$ARGUMENTS </feature_description>
 
-**If the feature description above is empty, ask the user:** "What would you like to explore? Please describe the feature, problem, or improvement you're thinking about. I'll do market and landscape research before asking product questions."
+**If the feature description above is empty, ask the user:** "What would you like to explore? Describe the feature, problem, or improvement. I'll orient from local context first, then research only if it changes the decision."
 
 Do not proceed until you have a feature description from the user.
 
@@ -149,9 +110,9 @@ If the user references an existing brainstorm topic or document, or there is an 
 - Constrained, well-defined scope
 - No framing risk — the user clearly knows the right shape and the landscape isn't going to change it
 
-**If all of the above are true:** keep the interaction brief. Do a **minimal research pass** (Phase 3.2 prior art and Phase 3.3 applicable skills only — skip 3.1 landscape and 3.4 risks unless something surfaces) and a short research brief, then go to Phase 8 (capture) → Phase 9 (review) → Phase 10 (handoff). Skip Phases 5–7 (pressure test, full Q&A, approaches).
+**If all of the above are true:** keep the interaction brief. Do local orientation only (Phase 2 plus Phase 3.2 prior art if useful), then go to Phase 8 (capture) -> Phase 9 (review) -> Phase 10 (handoff). Skip external landscape research unless a concrete risk surfaces. Skip Phases 5-7 unless they would prevent rework.
 
-**Do not skip research entirely.** That is what `/kb-brainstorm` is for. The contract of this skill is research-first, even on small scopes.
+Do not skip orientation entirely. Do skip external research when it will not change the decision.
 
 #### 0.3 Assess Scope
 
@@ -161,7 +122,7 @@ Use the feature description plus a **very light pre-scan** (one or two ripgrep q
 - **Standard** — normal feature or bounded refactor with some decisions to make
 - **Deep** — cross-cutting, strategic, or highly ambiguous
 
-Match research depth and Q&A depth to scope. Lightweight scopes get a single research pass with 1–2 questions; deep scopes get full landscape research and a longer dialogue.
+Match research depth and Q&A depth to scope. Lightweight scopes get local orientation and 0-2 questions. Deep scopes may get full landscape research and a longer dialogue.
 
 If the scope is unclear, ask **one topic-identity question** to disambiguate (e.g., "is this about the API or the UI?"), then proceed. Do not ask scope, user, success-criteria, constraint, or prioritization questions yet — those come after research in Phase 6.
 
@@ -193,9 +154,20 @@ Two rules govern technical depth during the scan:
 1. **Verify before claiming** — When the topic touches checkable infrastructure, read the relevant source files. Claims of absence must be verified or labelled as unverified.
 2. **Defer design decisions to planning** — Schemas, migration strategies, endpoint structure, and deployment topology belong in planning unless the brainstorm is itself about a technical decision.
 
-### Phase 3: External Research
+### Phase 3: Research Decision
 
-Run research in parallel where possible. Time-box it: prefer 3–7 targeted questions over exhaustive landscape scanning.
+Decide whether external research is worth the tokens before running it.
+
+Run external research only when at least one is true:
+
+- Prior art can change product framing, protocol, architecture direction, or UX.
+- The user explicitly asks for research.
+- The brainstorm concerns security, auth, streaming, persistence, external APIs, pricing, regulations, or fast-moving libraries.
+- Local memory is stale or thin and the decision has path dependency.
+
+If none are true, record: `External research skipped: low expected decision value.`
+
+When research runs, time-box it. Prefer 3-7 targeted questions over exhaustive landscape scanning.
 
 #### 3.1 Market and Landscape
 
@@ -248,18 +220,18 @@ For the candidate approaches the topic implies, list known failure modes from pr
 
 ### Phase 4: Synthesize Research Brief
 
-Before any product question, produce a short **research brief** — the alignment artifact the user needs to answer questions well. This is conversational scaffolding, not part of the requirements doc.
+Before any product question, produce a short **orientation brief**. If external research ran, include the research findings. This is conversational scaffolding, not part of the requirements doc.
 
 **Distinction:**
-- **Research Brief (Phase 4)** — everything notable found in research, used to align the user before Q&A. Lives in chat.
+- **Orientation Brief (Phase 4)** — local context plus any material research, used to align the user before Q&A. Lives in chat.
 - **Research Summary (Phase 8 doc)** — only the findings that materially affected the requirements or decisions. Lives in the requirements doc.
 
 Do not paste the brief verbatim into the doc later — distill.
 
 ```markdown
-## Research Brief
+## Orientation Brief
 
-**Landscape (3–5 examples):**
+**Landscape (only if researched):**
 - [Tool / approach] — [what they do] — [why notable]
 
 **Established patterns:**
@@ -286,7 +258,7 @@ If the user selects (c), do another targeted research pass on that topic only an
 
 ### Phase 5: Product Pressure Test
 
-Now challenge the request — armed with research, this is sharper than vibes-only critique. Match depth to scope.
+Now challenge the request using local context and any research that was worth running. Match depth to scope.
 
 **Lightweight:**
 
@@ -371,100 +343,9 @@ This document behaves like a lightweight PRD without PRD ceremony. Include what 
 - Alternatives considered (with research citations)
 - Slice candidates — when handing off to `/kb-plan`, list 3–7 candidate **user-visible increments** the research and conversation suggest. Keep these advisory and high-level — describe what each increment delivers, not blockers, ordering, or dependency design. `/kb-plan` owns sequencing.
 
-**Document structure:** Use this template and omit clearly inapplicable optional sections.
+**Document structure:** Use `references/requirements-template.md`. Load it only when writing or updating the requirements document.
 
-```markdown
----
-date: YYYY-MM-DD
-topic: <kebab-case-topic>
-brainstorm_style: kb-brainstorm
----
-
-# <Topic Title>
-
-## Problem Frame
-[Who is affected, what is changing, and why it matters]
-
-## Research Summary
-
-**Findings that shaped requirements:**
-- [Finding] — [which requirements/decisions it affected] — [link or note]
-
-**Confidence:** High / Medium / Low — [one-line justification]
-
-## Requirements
-
-**[Group Header]**
-- R1. [Concrete requirement]
-- R2. [Concrete requirement]
-
-**[Group Header]**
-- R3. [Concrete requirement]
-
-## Success Criteria
-- [How we will know this solved the right problem]
-
-## Scope Boundaries
-- [Deliberate non-goal or exclusion]
-
-## Key Decisions
-- [Decision]: [Rationale] — Evidence: [research citation or "assumption"]
-
-## Dependencies / Assumptions
-- [Only include if material]
-
-## Alternatives Considered
-- [Approach]: [why not chosen] — [research citation]
-
-## Slice Candidates (advisory for /kb-plan)
-- [Increment title] — [what user-visible behavior it delivers]
-- [Increment title] — [what user-visible behavior it delivers]
-<!-- Keep advisory. Do not assign blockers, ordering, or dependencies — that's /kb-plan's job. -->
-
-## Outstanding Questions
-
-### Resolve Before Planning
-- [Affects R1][User decision] [Question that must be answered before planning can proceed]
-
-### Deferred to Planning
-- [Affects R2][Technical] [Question that should be answered during planning]
-- [Affects R2][Needs research] [Question that likely requires deeper research during planning]
-
-## Next Steps
-[If `Resolve Before Planning` is empty: `→ /kb-plan` for vertical-slice decomposition (or `/kb-plan` for phased planning)]
-[If `Resolve Before Planning` is not empty: `→ Resume /kb-brainstorm` to resolve blocking questions before planning]
-```
-
-**Visual communication** — Include a visual aid when the requirements would be significantly easier to understand with one. Visual aids are conditional on content patterns, not depth classification.
-
-**When to include:**
-
-| Requirements describe... | Visual aid | Placement |
-|---|---|---|
-| A multi-step user workflow or process | Mermaid flow diagram or annotated ASCII flow | After Problem Frame, or under its own `## User Flow` heading |
-| 3+ behavioral modes, variants, or states | Markdown comparison table | Within the Requirements section |
-| 3+ interacting participants (user roles, components, services) | Mermaid or ASCII relationship diagram | After Problem Frame, or under `## Architecture` |
-| Multiple competing approaches being compared | Comparison table | Within Phase 7 approach exploration |
-| Comparison across landscape examples | Markdown comparison table | Within the Research Summary |
-
-**When to skip:**
-
-- Prose already communicates the concept clearly.
-- The diagram would just restate the requirements in visual form.
-- The visual describes implementation architecture, schemas, or code structure (that belongs in `/kb-plan` or `/kb-plan`).
-- The brainstorm is simple and linear with no multi-step flows or multi-participant interactions.
-
-**Format selection:**
-
-- **Mermaid** (default) for simple flows — 5–15 nodes, no in-box annotations. Use `TB` direction so diagrams stay narrow.
-- **ASCII / box-drawing** for annotated flows that need rich in-box content. 80-column max for code blocks, vertical stacking.
-- **Markdown tables** for mode/variant or approach comparisons.
-- Place inline at the point of relevance.
-- Conceptual level only — user flows, information flows, mode comparisons, component responsibilities.
-- Prose is authoritative: when a visual aid and surrounding prose disagree, the prose governs.
-
-After generating a visual aid, verify it accurately represents the prose requirements.
-
+Use visual aids only when they materially reduce ambiguity. See `references/requirements-template.md` for the visual-aid rules.
 For **Standard** and **Deep** brainstorms, a requirements document is usually warranted.
 
 For **Lightweight** brainstorms, keep the document compact. Skip document creation when only brief alignment is needed and no durable decisions need to be preserved.
@@ -505,80 +386,47 @@ If document-review returns findings that were auto-applied, note them briefly wh
 
 When document-review returns "Review complete", proceed to Phase 10.
 
+Run `kb-gate` before Phase 10 when document-review or your own checks surfaced P0/P1/P2/P3 issues. P0/P1 block planning, but the agent should rectify safe/actionable blockers before asking the user. For P2/P3, ask whether to rectify all fixable issues before moving on.
+
 ### Phase 10: Handoff
 
-#### 10.1 Present Next-Step Options
+#### 10.1 Phase Boundary
 
-Present next steps using the platform's blocking question tool when available. Otherwise present numbered options in chat and end the turn.
+`kb-brainstorm` stops after the requirements artifact is complete. It does not automatically run `kb-plan`, `kb-work`, or `kb-complete`.
+
+Only continue to planning when:
+
+- the user explicitly asked to continue into planning;
+- the user invoked `klfg`;
+- the current caller is another orchestrator that explicitly requested auto-continue.
 
 If `Resolve Before Planning` contains any items:
 
 - Ask the blocking questions now, one at a time, by default.
 - If the user explicitly wants to proceed anyway, first convert each remaining item into an explicit decision, assumption, or `Deferred to Planning` question.
 - If the user chooses to pause instead, present the handoff as paused or blocked rather than complete.
-- Do not offer "Proceed to planning" while `Resolve Before Planning` remains non-empty.
+- Do not proceed to planning while `Resolve Before Planning` remains non-empty.
 
-**Question when no blocking questions remain:** "Brainstorm complete. What would you like to do next?"
+If no blocking questions remain:
 
-**Question when blocking questions remain and user wants to pause:** "Brainstorm paused. Planning is blocked until the remaining questions are resolved. What would you like to do next?"
-
-Present only the options that apply:
-
-- **Proceed to /kb-plan (Recommended)** — Vertical-slice decomposition. Default for this skill because the requirements doc includes slice candidates.
-- **Proceed to /kb-plan** — Phased implementation plan instead of slices. Use when work is sequential rather than independently slice-able.
-- **Proceed directly to /kb-work** — Only offer when scope is lightweight, success criteria are clear, scope boundaries are clear, and no meaningful technical or research questions remain.
-- **Run /deepen-brainstorm** — Run another targeted research pass on specific decisions or open questions.
-- **Run additional document review** — Offer this only when a requirements document exists. Runs another pass for further refinement.
-- **Ask more questions** — Continue clarifying scope, preferences, or edge cases.
-- **Share to Proof** — Offer this only when a requirements document exists.
-- **Done for now** — Return later.
-
-If the direct-to-work gate is not satisfied, omit that option entirely.
+- Default: print the closing summary and stop.
+- Recommended next step: `kb-plan <requirements-doc>`.
+- If explicit auto-continue is active, run `kb-plan <requirements-doc>` and skip the closing summary.
+- If additional research is needed before planning, route to `kb-research`, update the requirements doc, then stop or return to the orchestrator.
 
 #### 10.2 Handle the Selected Option
 
-**If user selects "Proceed to /kb-plan (Recommended)":**
+**Default:** Stop after the closing summary.
 
-Immediately run `/kb-plan` in the current session, passing the requirements document path. Do not print the closing summary first.
+**Auto-continue exception:** Run `/kb-plan` only when explicitly requested by the user or orchestrator. Never jump directly from brainstorm to `kb-work`.
 
-**If user selects "Proceed to /kb-plan":**
-
-Immediately run `/kb-plan` in the current session, passing the requirements document path. Do not print the closing summary first.
-
-**If user selects "Proceed directly to /kb-work":**
-
-Immediately run `/kb-work` in the current session using the finalized brainstorm output as context. If a compact requirements document exists, pass its path. Do not print the closing summary first.
-
-**If user selects "Run /deepen-brainstorm":**
-
-Load `deepen-brainstorm` and apply it to the requirements document for further targeted research. When it returns, present the Phase 10 options again with refreshed state.
-
-**If user selects "Share to Proof":**
-
-```bash
-CONTENT=$(cat docs/brainstorms/YYYY-MM-DD-<topic>-requirements.md)
-TITLE="Requirements: <topic title>"
-RESPONSE=$(curl -s -X POST https://www.proofeditor.ai/share/markdown \
-  -H "Content-Type: application/json" \
-  -d "$(jq -n --arg title "$TITLE" --arg markdown "$CONTENT" --arg by "ai:compound" '{title: $title, markdown: $markdown, by: $by}')")
-PROOF_URL=$(echo "$RESPONSE" | jq -r '.tokenUrl')
-```
-
-Display the URL prominently: `View & collaborate in Proof: <PROOF_URL>`
-
-If the curl fails, skip silently. Then return to the Phase 10 options.
-
-**If user selects "Ask more questions":** Return to Phase 6 (Targeted Q&A) and continue asking the user questions one at a time. Probe deeper into edge cases, constraints, preferences, or areas not yet explored.
+**More Q&A:** Return to Phase 6 only when the user asks for more questions or the doc still lacks behavior, scope, acceptance criteria, or verification inputs.
 
 When the user is satisfied with the additional Q&A, **do not jump straight back to Phase 10**. If the new conversation produced any change to requirements, scope, decisions, or success criteria, re-run Phase 8 (capture / update the requirements doc) → Phase 9 (document review) → Phase 10. Only short-circuit straight back to Phase 10 if the conversation purely confirmed existing decisions and added nothing new to the doc.
 
-**If user selects "Run additional document review":**
-
-Load the `document-review` skill and apply it to the requirements document for another pass. When document-review returns "Review complete", return to the normal Phase 10 options.
-
 #### 10.3 Closing Summary
 
-Use the closing summary only when this run of the workflow is ending or handing off, not when returning to the Phase 10 options.
+Use the closing summary when this brainstorm run is ending or handing off.
 
 When complete and ready for planning, display:
 
@@ -621,7 +469,7 @@ Resume with `/kb-brainstorm` when ready to resolve these before planning.
 - [ ] The research brief was shown to the user before targeted Q&A.
 - [ ] Every requirements claim about absent infrastructure was verified or labelled as an assumption.
 - [ ] Decisions cite either a research source or are explicitly tagged as assumptions.
-- [ ] The Slice Candidates section has 3–7 entries when handing off to `/kb-plan`, or is omitted with reason.
+- [ ] The Slice Candidates section has 3–7 entries when recommending `/kb-plan`, or is omitted with reason.
 - [ ] Confidence level in the research summary is honest about gaps.
 - [ ] No implementation details leaked into the requirements doc (unless inherently technical).
 - [ ] Document-review pass completed.
@@ -629,8 +477,8 @@ Resume with `/kb-brainstorm` when ready to resolve these before planning.
 ## Integration with Other Skills
 
 - **Input from:** `/ce-ideate` (idea exploration), or a fresh feature description from the user.
-- **Default handoff:** `/kb-plan` for vertical-slice decomposition.
-- **Alternate handoff:** `/kb-plan` for phased planning.
-- **Optional follow-up:** `/deepen-brainstorm` for another targeted research pass on the produced doc.
+- **Default next step:** stop and recommend `/kb-plan` for vertical-slice decomposition.
+- **Auto-continue:** only under `klfg` or explicit user/orchestrator instruction.
+- **Optional follow-up:** `kb-research` for another targeted research pass that should become reusable local memory.
 - **Document review:** Always run `document-review` before handoff (Phase 9).
-- **Peer skill:** `/kb-brainstorm` — same depth, but research happens after the conversation. Pick that one when conversation is the bottleneck and the design space is already well known.
+- **Peer skill:** `/kb-research` — reusable research notes when the research itself should survive beyond this brainstorm.
