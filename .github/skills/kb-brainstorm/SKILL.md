@@ -42,8 +42,10 @@ This skill does not implement code. It explores, validates, clarifies, and docum
 1. **Ask one question at a time** — Do not batch several unrelated questions into one message.
 2. **Prefer single-select multiple choice** — Use single-select when choosing one direction, one priority, or one next step.
 3. **Use multi-select rarely and intentionally** — Only for compatible sets such as goals, constraints, or success criteria that can all coexist. If prioritization matters, follow up by asking which selected item is primary.
-4. **Use the platform's question tool when available** — `ask_user` in Copilot CLI, equivalent blocking tools elsewhere. Otherwise present numbered options in chat and wait.
-5. **Questions must earn their keep** — Ask only when the answer changes scope, behavior, priority, acceptance criteria, risk, or verification. Do not ask quota questions.
+4. **Every multiple-choice question needs an escape hatch** — Always include an option such as `Other / let me explain` or `None of these`. The listed choices are suggestions, not a cage. If the user selects the escape hatch, return to the normal conversation and let them answer freely.
+5. **Use the platform's question tool when available** — `ask_user` in Copilot CLI, equivalent blocking tools elsewhere. Otherwise present numbered options in chat and wait.
+6. **Do not trap rich answers in the question UI** — If the answer may need an image, screenshot, file, diagram, long explanation, pasted error, or nuanced correction, ask in the normal conversation instead of the blocking question tool. If a question-tool exchange reveals that richer context is needed, stop asking choices and bring it back to chat.
+7. **Questions must earn their keep** — Ask only when the answer changes scope, behavior, priority, acceptance criteria, risk, or verification. Do not ask quota questions.
 
 ## Token Budget
 
@@ -252,7 +254,7 @@ Do not paste the brief verbatim into the doc later — distill.
 
 Display the brief to the user. Then ask one alignment question:
 
-> "Does any of this change the framing before we go deeper? (a) Yes, here's what shifts; (b) No, my framing still holds; (c) Show me more on [topic]."
+> "Does any of this change the framing before we go deeper? (a) Yes, here's what shifts; (b) No, my framing still holds; (c) Show me more on [topic]; (d) Other / let me explain."
 
 If the user selects (c), do another targeted research pass on that topic only and re-show the relevant section.
 
@@ -291,6 +293,8 @@ Now run the conversation. The questions are sharper because they reference the r
 - Ask questions **one at a time**.
 - Prefer **single-select** when choosing one direction, one priority, or one next step.
 - Use **multi-select** only for compatible sets that can all coexist; if prioritization matters, ask which selected item is primary.
+- Include **Other / let me explain** or **None of these** in every multiple-choice question.
+- Ask in normal chat, not the blocking question tool, when the user may need to attach an image, screenshot, file, diagram, pasted output, or longer explanation.
 - Anchor each question to the research where appropriate: "Tools like X do A, others do B — which fits our users?"
 - Start broad (problem, users, value) then narrow (constraints, exclusions, edge cases).
 - Validate assumptions explicitly: "I'm assuming Y based on research finding Z — is that right?"
