@@ -3,6 +3,11 @@
 Voice-friendly KB workflow skills and required reviewer agents for GitHub
 Copilot and Codex.
 
+Most of this repo is an augmentation layer on top of the ATV StarterKit and CE
+review/learning workflow. KB adds the voice-friendly routing, project-memory
+map, fresh-session handoff loop, proportional planning, and execution gates; it
+still depends on selected ATV skills and reviewer agents.
+
 This repo is the portable skill bundle I use when I want an agent to walk into a
 project, recover local project memory, choose the right workflow, execute work in
 vertical slices, test its own changes, review the result, and leave durable
@@ -63,6 +68,33 @@ grep/glob.
 Drive roots such as `E:\` are not valid project roots unless explicitly chosen.
 If the repo root cannot be resolved, `kb-map` should ask for the project path
 instead of searching the drive.
+
+## Why KB Start Exists
+
+`kb-start` is the workflow router. Its job is to choose the right lane for the
+actual work, not blindly run the ceremony implied by the user's wording.
+
+Every request starts by calling `kb-map lookup <request>` so the session has the
+current project memory before it decides what to do. Then `kb-start` classifies
+the work by task shape, risk, and available artifacts:
+
+- Use `kb-fix` for small, bounded bugs or narrow changes where the likely fix is
+  obvious and verification can prove it.
+- Use `kb-brainstorm` when product behavior, technical framing, success
+  criteria, or tradeoffs are still unclear.
+- Use `kb-plan` when requirements or a handoff already explain the work and the
+  next useful output is vertical slices.
+- Use `kb-work` when a valid manifest and slice plans already exist.
+- Use `kb-epic` when the request is too large for one brainstorm or manifest:
+  migrations, framework rewrites, multi-subsystem initiatives, or long backlogs.
+- Use `kb-research` only when external docs, prior art, framework behavior, or
+  known failure modes could change the decision.
+
+The goal is proportional ceremony. A typo fix should not become a brainstorm. A
+framework migration should not become a quick fix. A clear handoff should not
+rerun discovery just because the user said "brainstorm" casually. The user's
+words are input; the route should be based on the actual task, the repo memory,
+and the cost of being wrong.
 
 ## Why KB Map Exists
 
@@ -167,7 +199,7 @@ Core workflow:
 - `kb-ship`
 - `klfg`
 
-Direct dependencies:
+Direct skill dependencies carried forward from ATV/CE:
 
 - `document-review`
 - `tdd`
@@ -178,6 +210,25 @@ Direct dependencies:
 - `evolve`
 - `todo-create`
 - `todo-triage`
+
+Required ATV agent dependencies:
+
+- Document review agents: `coherence-reviewer`, `feasibility-reviewer`,
+  `product-lens-reviewer`, `design-lens-reviewer`, `security-lens-reviewer`,
+  `scope-guardian-reviewer`, and `adversarial-document-reviewer`.
+- CE/code review agents: `correctness-reviewer`, `testing-reviewer`,
+  `maintainability-reviewer`, `project-standards-reviewer`,
+  `security-reviewer`, `performance-reviewer`, `api-contract-reviewer`,
+  `data-migrations-reviewer`, `reliability-reviewer`,
+  `adversarial-reviewer`, `cli-readiness-reviewer`,
+  `previous-comments-reviewer`, `dhh-rails-reviewer`,
+  `kieran-rails-reviewer`, `kieran-python-reviewer`,
+  `kieran-typescript-reviewer`, `julik-frontend-races-reviewer`,
+  `schema-drift-detector`, `deployment-verification-agent`,
+  `agent-native-reviewer`, and `learnings-researcher`.
+- Supporting specialist agents from ATV, including repo research, design,
+  browser/QA, debugging, pattern, and documentation agents. The full restored
+  runtime surface is `.github/agents/*.agent.md`.
 
 ## Not Bundled
 
