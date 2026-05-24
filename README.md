@@ -49,6 +49,33 @@ Drive roots such as `E:\` are not valid project roots unless explicitly chosen.
 If the repo root cannot be resolved, `kb-map` should ask for the project path
 instead of searching the drive.
 
+## Why KB Map Exists
+
+`kb-map` is the context router for fresh sessions.
+
+The workflow assumes sessions are disposable. Instead of keeping one expensive
+chat open for days, a new session should be able to enter a repo, ask "what am I
+working on?", and get pointed to the exact local memory needed for the current
+handoff, bug, feature, or plan.
+
+`kb-map` makes that possible by resolving the active project root, checking the
+standard memory files, and loading only the relevant pointers:
+
+- `todo.md` for current work, blockers, parked items, and handoff links
+- `docs/context/PROJECT.md` for the app map and subsystem index
+- `docs/context/architecture/*` for the subsystem involved in the current task
+- `docs/context/operations/*` for run, test, QA, and deploy commands
+- `docs/handoffs/*` for resumable work packets
+
+The point is not to load every architecture file or crawl the whole repo. The
+point is to guide the model directly to the slice of project truth that matters
+now, so each token pays for useful orientation instead of rediscovery.
+
+When memory is missing, `kb-map` invokes `kb-map-bootstrap` to build the project
+map once. After that, normal startup should be cheap: `kb-start` calls
+`kb-map lookup <request>`, `kb-map` returns the relevant docs and likely route,
+and the next skill can work without the user reteaching the app.
+
 ## Quick Use
 
 Use these when you know the route:
