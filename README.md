@@ -12,6 +12,21 @@ KB means **Kanban-Based**. The underlying workflow still uses boards, manifests,
 vertical slices, and done archives, but user-facing commands use the shorter
 `kb-` prefix because it works better with voice input.
 
+## Fresh Session Loop
+
+This workflow is meant to make every new task safe to start in a fresh session:
+
+1. Finish or pause the current task with a handoff.
+2. Close the old session.
+3. Start a new session in the project repo.
+4. Run `kb-start <next task or handoff>`.
+
+`kb-start` calls `kb-map`, which reads the local project memory and points the
+new session to the specific files it needs. The handoff tells the model what
+work is being resumed; `docs/context/PROJECT.md` tells it what the app is and
+where the relevant architecture docs live. The goal is to stop carrying days of
+chat history just so the model remembers what the app is.
+
 ## What This Repo Is
 
 This is not the full ATV StarterKit. It is the smaller working set that should be
@@ -66,6 +81,12 @@ standard memory files, and loading only the relevant pointers:
 - `docs/context/architecture/*` for the subsystem involved in the current task
 - `docs/context/operations/*` for run, test, QA, and deploy commands
 - `docs/handoffs/*` for resumable work packets
+
+`docs/context/PROJECT.md` is the entry map. It explains what the app is, how to
+run and test it, what major subsystems exist, and which subsystem documents to
+read next. `docs/context/architecture/*.md` files are the deeper subsystem
+notes. `kb-map` should read `PROJECT.md` first, then follow its pointers to the
+smallest relevant architecture file for the current task.
 
 The point is not to load every architecture file or crawl the whole repo. The
 point is to guide the model directly to the slice of project truth that matters
