@@ -13,6 +13,33 @@ project, recover local project memory, choose the right workflow, execute work i
 vertical slices, test its own changes, review the result, and leave durable
 handoff/context files behind.
 
+## Token-Minimizing Design
+
+The core purpose of this skill set is to reduce wasted context without lowering
+the engineering bar.
+
+It does that in four ways:
+
+- **Fresh sessions by default.** Work is designed to survive session restarts.
+  Handoffs, `todo.md`, `docs/context/PROJECT.md`, plans, and architecture notes
+  let a new session recover the project without carrying three or four days of
+  chat history.
+- **Map once, then load narrowly.** `kb-map` builds or refreshes the project
+  memory, then future sessions use exact pointers instead of crawling the repo
+  or making the user reteach the app.
+- **Choose the smallest correct lane.** `kb-start` routes by actual task shape:
+  `kb-fix` for small bugs, `kb-brainstorm` for unclear ideas, `kb-plan` for
+  slicing known work, `kb-work` for execution, and `kb-epic` only when the work
+  is truly large. The goal is not to turn every request into a ceremony.
+- **Spend tokens where they prevent rework.** Vertical slicing and functional
+  verification cost tokens up front, but they are cheaper than redoing broken or
+  under-tested work later. The target is not the fewest tokens per turn; it is
+  the fewest wasted tokens per finished, verified change.
+
+The tradeoff is intentional: slicing, checks, and review may add overhead, but
+they keep the agent from taking shortcuts, losing context, or making the user
+become QA.
+
 KB means **Kanban-Based**. The underlying workflow still uses boards, manifests,
 vertical slices, and done archives, but user-facing commands use the shorter
 `kb-` prefix because it works better with voice input.
