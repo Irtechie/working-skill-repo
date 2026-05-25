@@ -89,7 +89,7 @@ fixable follow-up work unresolved just because the main implementation passed.
    decision. Parallel resolution is allowed only when file scopes are disjoint.
 5. Record: `follow-up-resolution: resolved N, logged M, blocked K`.
 
-Blocked/manual items stay visible in `todo.md` or the manifest with evidence
+Blocked/human-required items stay visible in `todo.md` or the manifest with evidence
 paths. They must not disappear into chat history.
 
 ## Step 2.6: Proof and Demo Evidence Gate
@@ -290,7 +290,7 @@ Prune ephemeral artifacts. Heavy KB usage generates file sprawl — clean it up 
    cleanup: screenshots pruned, observations trimmed to 90d
    ```
 
-5. **Todo hygiene** — verify `todo.md` contains only active, blocked, parked, manual, or handoff-pointer work. If the completed feature or routine slice completion logs remain there, move a compact summary to `todo-done.md` and remove those entries from `todo.md`. `todo.md` must keep its `## Rules` section at the top; do not depend on a separate `todo-rules.md`.
+5. **Todo hygiene** — verify `todo.md` contains only active, `🔒 blocked`, `🧊 parked`, `🛑 human-required`, or handoff-pointer work. If the completed feature or routine slice completion logs remain there, move a compact summary to `todo-done.md` and remove those entries from `todo.md`. `todo.md` must keep its `## Rules` section at the top; do not depend on `todo_rules.md`, `todo-rules.md`, or any separate rules file.
 
 ## Step 5: Done
 

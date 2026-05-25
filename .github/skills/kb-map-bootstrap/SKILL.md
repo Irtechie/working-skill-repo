@@ -290,7 +290,7 @@ docs/context/history/
    - `todo.md` for active work and handoff queue pointers.
    - `todo-done.md` for compact completion summaries.
    - `docs/handoffs/active/`, `parked/`, and `done/`.
-   - If `todo-rules.md`, `docs/todo-rules.md`, or another separate todo rules file exists, inline current board rules at the top of `todo.md`. Delete the separate rules file only after moving any unique project content into `todo.md` or `docs/context/*`.
+   - If `todo_rules.md`, `todo-rules.md`, `docs/todo-rules.md`, or another separate todo rules file exists, inline current board rules at the top of `todo.md`. Delete the separate rules file only after moving any unique project content into `todo.md` or `docs/context/*`.
 
 8. **Starter-kit deltas**
    - If the app is based on ATV, another starter kit, or a fork, create/update `docs/context/decisions/starter-kit-deltas.md`.
@@ -330,7 +330,11 @@ docs/context/history/
 - Do not keep routine "slice complete" or verification-success logs here after completion.
 - Handoffs live under `docs/handoffs/`; link them here.
 - Refresh cold or parked work older than 72 hours before execution.
-- These rules live at the top of `todo.md`; do not rely on a separate `todo-rules.md`.
+- These rules live at the top of `todo.md`; do not rely on `todo_rules.md`, `todo-rules.md`, or any separate rules file.
+- Status markers: `⬜ pending`, `🔧 in_progress`, `✅ done`, `🔒 blocked`, `⊘ skipped`, `🛑 human-required`, `🧊 parked`.
+- `🔒 blocked` means waiting on a dependency, another agent, a tool failure, or missing input. Resume when the blocker clears.
+- `🧊 Parked / Cold Storage` means intentionally out of bounds today. Only a human promotes it back to active; never auto-execute parked work.
+- `🛑 Human Required` means a person must decide, approve, log in, or provide a value before the agent can continue that path.
 
 ## Objective
 ## Current Focus

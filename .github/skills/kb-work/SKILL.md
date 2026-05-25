@@ -45,8 +45,8 @@ Treat statuses as:
 | `pending` | Eligible once blockers are `done` or `skipped` |
 | `done` | Skip |
 | `blocked` | Stop and ask whether to retry, skip, or abort |
-| `manual` | Waiting on human action; continue unrelated runnable slices if possible |
-| `parked` | Intentionally paused; continue unrelated runnable slices |
+| `human-required` | Waiting on human action; continue unrelated runnable slices if possible |
+| `parked` | Intentionally out of bounds today; only a human promotes back to active |
 | `skipped` | Skip but keep visible in the summary |
 
 ## Board Sync Protocol
@@ -58,6 +58,8 @@ Treat statuses as:
 | Starting a slice | Set status to 🔧 in_progress |
 | Slice completes | Set status to ✅ done |
 | Slice blocked | Set status to 🔒 blocked + reason in notes |
+| Slice needs human action | Set status to 🛑 human-required + exact ask |
+| Slice parked by human | Move to 🧊 Parked / Cold Storage with reason |
 | Slice skipped | Set status to ⊘ skipped |
 | All slices done | Prepend compact summary to `todo-done.md`, then remove completed feature section and routine completion logs from `todo.md` |
 
@@ -69,6 +71,7 @@ Active handoff files under `docs/handoffs/active/` are restart packets. Create o
 - Update the board BEFORE starting work (claim) and AFTER completing work (release). This prevents two agents from working the same slice.
 - Also update the manifest to stay in sync, but if they conflict, the board wins.
 - Do not use root **Work Log** as a permanent archive. During execution, add notes only when they help a later agent resume: blockers, verification commands, durable memory impacts, or non-obvious decisions. Routine "slice complete" and verification-success notes belong in `todo-done.md` at feature completion, not in `todo.md`.
+- Blocked is not parked. Use `🔒 blocked` for dependencies, another-agent waits, tool failures, or missing inputs. Use `🧊 Parked / Cold Storage` only for work a human intentionally deferred out of scope.
 
 ## Dependency Ordering
 
@@ -97,7 +100,7 @@ Do **not** ask "Proceed to execute slice-N?" between slices. Move to the next ru
 Pause only when a real gate requires it:
 
 - HITL decision or missing value that cannot be generated safely;
-- blocked/manual/parked slice with no unrelated runnable work;
+- blocked/human-required/parked slice with no unrelated runnable work;
 - destructive command approval;
 - out-of-scope file edit or diff-scope failure;
 - QA/repair exhaustion or stuck loop;
@@ -114,8 +117,8 @@ If `hitl: true`:
   - `parallel-blocker` — this slice is blocked, but unrelated slices can continue.
   - `final-validation` — human judgment is useful before release, but not needed for development.
   - `agent-runnable-with-inputs` — human only needs to provide values; the agent can run the check.
-- Stop only the dependent path. If unrelated slices are runnable, mark this slice `blocked` or `manual`, update `todo.md` and the manifest, then continue those slices.
-- When marking a slice `manual`, `parked`, or `blocked`, persist: `owner`, `blocked_reason`, `resume_when`, `next_agent_action`, `human_action`, `can_continue_other_slices`, and `parked_at`.
+- Stop only the dependent path. If unrelated slices are runnable, mark this slice `blocked` or `human-required`, update `todo.md` and the manifest, then continue those slices.
+- When marking a slice `human-required`, `parked`, or `blocked`, persist: `owner`, `blocked_reason`, `resume_when`, `next_agent_action`, `human_action`, `can_continue_other_slices`, and `parked_at`.
 - Record the user's decision in the slice plan.
 - Update manifest status to `done` for this slice only if the decision completes the slice.
 - Continue to the next runnable slice.
@@ -124,7 +127,7 @@ Missing test inputs are not a reason to ask the user to manually test. If `test_
 
 - Ask for the specific missing value.
 - Use safe generated or fixture values when acceptable.
-- If the input blocks only this slice, park this slice and continue unrelated runnable slices.
+- If the input blocks only this slice, mark this slice `human-required` or `blocked` and continue unrelated runnable slices.
 - Resume the slice after the value is available and run the verification yourself.
 
 ### Step 2: Deepen If Thin
@@ -315,7 +318,7 @@ When all slices are `done` or intentionally `skipped`:
 3. Run `kb-gate` if verification, QA, repair, or functional-test checks surfaced P0/P1/P2/P3/P4 issues. P0/P1 block completion while unresolved, but safe/actionable blockers should be rectified before asking the user. P2/P3/P4 do not block by severity alone.
 4. **Refresh project memory** — if any slice has `memory-impact: durable` or `refresh=pending`, run `kb-map refresh` before archiving. Update affected architecture, operation, decision, research, `todo.md`, and handoff pointers. Add manifest note: `kb-map-refresh: done` or `kb-map-refresh: skipped - <reason>`.
 5. **Archive to board** — move the feature summary from `todo.md` to `todo-done.md`. Prepend at the top of the archive file with a completion date header.
-6. **Prune active board** — remove the completed feature section from `todo.md`. Also remove routine work-log entries for the completed feature from `todo.md`; keep only still-active, blocked, parked, manual, or handoff-pointer items.
+6. **Prune active board** — remove the completed feature section from `todo.md`. Also remove routine work-log entries for the completed feature from `todo.md`; keep only still-active, `🔒 blocked`, `🧊 parked`, `🛑 human-required`, or handoff-pointer items.
 7. Report summary:
 
 ```text

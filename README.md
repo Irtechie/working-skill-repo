@@ -230,7 +230,7 @@ Phase boundaries:
   skills when useful, and updates the maintenance index. It is recommended by
   thresholds but does not run automatically.
 - Once `kb-work` starts execution, runnable slices continue without per-slice
-  confirmation. It pauses only for HITL, blocked/manual work, destructive
+  confirmation. It pauses only for HITL, blocked/human-required work, destructive
   approval, scope failures, QA/repair exhaustion, dependency deadlock, or an
   explicit user stop.
 - `klfg` is the full auto-chain.
@@ -455,9 +455,16 @@ This replaces older `docs/kanban.md`, `docs/kanban-done.md`, `kb.md`,
 `kb-done.md`, and ad-hoc handoff naming for the KB workflow.
 
 `todo.md` is not a history file. Keep board rules at the top of `todo.md`, not
-in a separate `todo-rules.md`. When a feature, slice group, handoff, or fix is
-complete, move the compact summary to `todo-done.md` and remove the completed
-entry plus routine completion logs from `todo.md`.
+in `todo_rules.md`, `todo-rules.md`, or any separate rules file. When a feature,
+slice group, handoff, or fix is complete, move the compact summary to
+`todo-done.md` and remove the completed entry plus routine completion logs from
+`todo.md`.
+
+Board icons are part of that inline contract: `⬜ pending`, `🔧 in_progress`,
+`✅ done`, `🔒 blocked`, `⊘ skipped`, `🛑 human-required`, and `🧊 parked`.
+Use `🔒 blocked` for dependency/tool/another-agent waits that can resume when
+the blocker clears. Use `🧊 Parked / Cold Storage` only for work intentionally
+out of bounds today; only a human promotes it back to active.
 
 ## Execution Model
 

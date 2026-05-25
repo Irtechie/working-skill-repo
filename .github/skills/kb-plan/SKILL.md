@@ -293,7 +293,10 @@ Create or update a compact handoff file under `docs/handoffs/active/` only when 
 - Detailed handoffs live under `docs/handoffs/`; link them here instead of pasting full content.
 - Refresh cold or parked work older than 72 hours before execution.
 - When all active todos are done, check the handoff queue.
-- These rules live at the top of `todo.md`; do not rely on a separate `todo-rules.md`.
+- These rules live at the top of `todo.md`; do not rely on `todo_rules.md`, `todo-rules.md`, or any separate rules file.
+- `🔒 blocked` means waiting on a dependency, another agent, a tool failure, or missing input. Resume when the blocker clears.
+- `🧊 Parked / Cold Storage` means intentionally out of bounds today. Only a human promotes it back to active; never auto-execute parked work.
+- `🛑 Human Required` means a person must decide, approve, log in, or provide a value before the agent can continue that path.
 
 ## Objective
 
@@ -375,17 +378,18 @@ Use `Suggested route: kb-work` only when the handoff links the generated KB mani
 | ✅ done | Complete and verified |
 | 🔒 blocked | Cannot proceed — reason noted |
 | ⊘ skipped | Intentionally skipped with reason |
-| 🧑 manual | Needs human action (HITL) |
+| 🛑 human-required | Needs human action (HITL) |
+| 🧊 parked | Intentionally out of bounds; human promotion required |
 
 **Standing sections** (add once, keep across features):
 
 - **💡 Feature Ideas** — not yet brainstormed, human promotes to active
 - **📋 Queued Improvements** — approved but not yet planned
-- **🧊 Parked / Cold Storage** — discovered work, do not execute until promoted
+- **🧊 Parked / Cold Storage** — intentionally out of bounds today; only a human promotes back to active
 - **🛑 Human Required** — items only a person can complete (logins, approvals, decisions)
 - **📝 Work Log** — short dated entries for cross-session visibility
 
-Omit empty sections. These conventions come from `todo_rules.md` and apply here.
+Omit empty sections. These conventions are defined inline in the top `## Rules` section of `todo.md`; do not create or depend on `todo_rules.md` or `todo-rules.md`.
 
 ### 6. Validate Output
 

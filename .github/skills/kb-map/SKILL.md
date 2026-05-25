@@ -243,7 +243,7 @@ Workflow:
 4. Add child docs when a parent doc grows too large.
 5. Update `todo.md` if active state, blockers, or pointers changed.
 6. Update active handoff files if restart instructions changed.
-7. If a separate todo rules file exists, inline the rules into the top `## Rules` section of `todo.md`, move any unique durable content to `docs/context/*`, then delete the separate rules file.
+7. If `todo_rules.md`, `todo-rules.md`, or another separate todo rules file exists, inline the rules into the top `## Rules` section of `todo.md`, move any unique durable content to `docs/context/*`, then delete the separate rules file.
 8. Run `document-review` when changes are substantial.
 
 Do not re-bootstrap the whole repo here.
