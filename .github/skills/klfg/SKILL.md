@@ -1,6 +1,6 @@
 ---
 name: klfg
-description: "Full KB pipeline orchestrator. Chains /kb-brainstorm → /kb-plan → /kb-work → kb-complete → DONE. kb-work handles the per-slice gauntlet (scope lock, execution, tests, diff-scope, destructive guard, QA, repair, Figma sync). kb-complete handles post-work quality (ce-review, compound, learn, evolve). Use when the user says 'klfg', 'run the full KB pipeline', 'go from brainstorm to done', or wants the hands-off KB vertical-slice workflow."
+description: "Full KB pipeline orchestrator. Chains /kb-brainstorm → /kb-plan → /kb-work → kb-complete → DONE. kb-work handles the per-slice gauntlet (scope lock, execution, tests, diff-scope, destructive guard, QA, repair, Figma sync). kb-complete handles post-work quality, follow-up resolution, proof/demo evidence, learning, memory refresh, compaction, and alerts. Use when the user says 'klfg', 'run the full KB pipeline', 'go from brainstorm to done', or wants the hands-off KB vertical-slice workflow."
 argument-hint: "[feature description]"
 disable-model-invocation: true
 ---
@@ -63,7 +63,10 @@ Everything else — including kb-plan, kb-work, and kb-complete — proceeds wit
 
    - ce-review — full multi-agent code review with scope passthrough from kb-work's gates
    - Resolution Gate — P0/P1 must be fixed before proceeding
+   - Follow-up Resolution — resolve or record review/TODO fallout
+   - Proof/Demo Evidence — re-run final checks and capture demo evidence when useful
    - Compound + Learn + Evolve — document patterns, extract instincts, promote mature ones
+   - Memory Refresh + Compact + Alerts — keep fresh-session memory usable
    - Cleanup — prune ephemeral artifacts (screenshots, old observations)
 
    GATE: STOP. After `kb-complete` returns, verify the manifest status is `reviewed`. If ce-review found unresolved P0/P1s, `kb-complete` will have stopped — re-run it after fixes.
@@ -73,7 +76,7 @@ Everything else — including kb-plan, kb-work, and kb-complete — proceeds wit
 ## Notes
 
 - **Why no `/unslop`:** intentionally omitted. Risk of flagging parallel agent WIP as false positives. Run manually if needed.
-- **Why a separate `kb-complete`:** the quality/learning pipeline (ce-review, compound, learn, evolve) is a separate skill. `kb-work` invokes it automatically only after all slices are done or intentionally skipped; `klfg` verifies that happened.
+- **Why a separate `kb-complete`:** the finish pipeline (review, follow-up resolution, proof/demo evidence, compound, learn, evolve, memory refresh, compact, cleanup, alerts) is a separate skill. `kb-work` invokes it automatically only after all slices are done or intentionally skipped; `klfg` verifies that happened.
 - **Why no separate `/ce-review`:** kb-complete runs ce-review at Step 1 with full scope context from kb-work's gates. A second pass would be redundant.
 - **Why no separate `/learn` or `/observe`:** kb-complete feeds resolved P0/P1 findings to observations.jsonl (Step 2), runs `/learn` (Step 3), and auto-triggers `/evolve` every 5th KB completion.
 - **Why no separate `/ce-compound`:** kb-complete invokes ce-compound at Step 3 for features with novel patterns. Skips automatically for boilerplate.

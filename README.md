@@ -411,6 +411,15 @@ These are intentionally left out of the minimal working bundle:
 - browser tools such as `agent-browser`; skills can call them when installed, but
   this repo does not vendor them
 
+The useful LFG finish pattern is preserved inside `kb-complete` without
+hard-coding old tool choices: resolve follow-up review/TODO work, rerun proof on
+the final diff, capture demo evidence when useful, then compound, learn, evolve,
+refresh memory, compact, clean up, and alert.
+
+This keeps the intent of old `/resolve_todo_parallel`, `/test-browser`, and
+`/feature-video` without forcing every repo to use the same TODO storage,
+browser transport, or demo-capture tool.
+
 Do not remove `.github/agents/` from this bundle. The agent files are not
 optional docs; they are the personas that the review and planning skills dispatch
 at runtime.

@@ -1,12 +1,12 @@
 ---
 name: kb-complete
-description: "Post-work quality and learning pipeline. Runs ce-review -> resolution gate -> compound -> learn -> evolve -> memory refresh/compact -> cleanup after kb-work finishes all slices. Use when the user says 'kb complete', 'complete the work', 'run review and learning', 'finish the KB pipeline', or after kb-work reports all slices done."
+description: "Post-work quality and learning pipeline. Runs ce-review -> resolution gate -> follow-up resolution -> proof/demo evidence -> compound -> learn -> evolve -> memory refresh/compact -> cleanup after kb-work finishes all slices. Use when the user says 'kb complete', 'complete the work', 'run review and learning', 'finish the KB pipeline', or after kb-work reports all slices done."
 argument-hint: "[path to KB manifest, or blank to find latest]"
 ---
 
 # KB Complete - Post-Work Quality & Learning Pipeline
 
-After `kb-work` finishes executing all slices, this skill runs the quality review, knowledge capture, memory-health, and cleanup steps. Separated from kb-work so the user can choose when to run it — `klfg` prompts automatically, standalone users invoke it manually.
+After `kb-work` finishes executing all slices, this skill runs the quality review, follow-up resolution, proof/demo evidence, knowledge capture, memory-health, and cleanup steps. Separated from kb-work so the user can choose when to run it — `klfg` prompts automatically, standalone users invoke it manually.
 
 ## Input
 
@@ -72,6 +72,47 @@ For each resolved P0/P1 finding, append one line to `.atv/observations.jsonl`:
 This connects the review → learn pipeline. Only P0/P1 findings are worth learning from — P2/P3 are style preferences, not systemic patterns.
 
 Create `.atv/observations.jsonl` if it doesn't exist. Append, never overwrite.
+
+## Step 2.5: Follow-Up Resolution Gate
+
+Mirror the useful part of the original LFG finish pattern: do not leave known,
+fixable follow-up work unresolved just because the main implementation passed.
+
+1. Collect unresolved review findings, TODO files, checklist items, and manifest
+   notes produced by `ce-review`, `kb-gate`, `kb-work`, `kb-qa`, or
+   `kb-functional-test`.
+2. Resolve all safe/actionable P0/P1 findings before continuing.
+3. For P2/P3 and todo-style follow-ups, run the smallest suitable resolver:
+   `kb-gate` rectify prompt, `todo-triage`, `todo-create`, or a repo-local
+   todo/PR-comment resolver if one is installed.
+4. Do not parallelize follow-ups that touch the same files or depend on the same
+   decision. Parallel resolution is allowed only when file scopes are disjoint.
+5. Record: `follow-up-resolution: resolved N, logged M, blocked K`.
+
+Blocked/manual items stay visible in `todo.md` or the manifest with evidence
+paths. They must not disappear into chat history.
+
+## Step 2.6: Proof and Demo Evidence Gate
+
+Run a final evidence pass after review fixes, because review changes can alter
+behavior.
+
+1. Re-run `kb-check` or the narrow deterministic commands affected by review
+   fixes.
+2. If user-visible, API/CLI, browser, persistence, auth, streaming, or
+   integration behavior changed, run `kb-functional-test` again on the final
+   diff. For browser/UI work, use the available browser automation path from the
+   repo or platform; do not require one specific browser tool.
+3. If the change is visual, workflow-heavy, reviewer-facing, or the user/PR
+   expects a demo, capture demo evidence. Use a repo-local `feature-video` or
+   equivalent demo skill if installed; otherwise capture screenshots, logs, or a
+   concise manual demo checklist and add an alert with the missing tool.
+4. Store proof in the manifest notes: commands run, routes/screens/workflows
+   checked, artifacts created, and any skipped proof with reason.
+
+This replaces the old hard-coded `/test-browser` and `/feature-video` steps with
+a generic evidence gate that works across browser, CLI, API, desktop, and service
+projects.
 
 ## Step 3: Compound & Learn
 
@@ -258,6 +299,8 @@ Update the manifest `status: reviewed` and report:
 ```text
 KB <name> complete.
 - Review: P0=N P1=N(resolved) P2=N P3=N
+- Follow-up resolution: <resolved N | logged M | blocked K>
+- Proof/demo evidence: <commands/artifacts | skipped with reason>
 - Compound: <written | skipped>
 - Learn: <N new, M updated | no new patterns>
 - Evolve: <promoted N | skipped | no candidates>
@@ -276,6 +319,7 @@ Ready to ship. Run /land when you're ready to push and open a PR.
 |-----------|--------|
 | ce-review fails to run | Log error, ask user whether to retry or skip review |
 | P0/P1 fix breaks tests | Re-run tests, treat as new failure, fix before proceeding |
+| proof/demo evidence cannot run | Log the missing tool/server/credential and alert user with the closest deterministic proof completed |
 | compound/learn/evolve fails | Log error, continue — these are non-blocking |
 | kb-compact fails | Log error and alert user with the bloated file path; do not block completion |
 | Manifest not found | Ask user for path |
@@ -285,6 +329,8 @@ Ready to ship. Run /land when you're ready to push and open a PR.
 
 - **Input from:** `kb-work` (completed manifest)
 - **Review engine:** `ce-review` with scope passthrough
+- **Follow-up resolution:** `kb-gate`, `todo-triage`, `todo-create`, or repo-local resolvers
+- **Proof/demo evidence:** `kb-check`, `kb-functional-test`, browser/CLI/API probes, optional repo-local demo skills
 - **Documentation:** `ce-compound` → `docs/solutions/`
 - **Project memory:** `kb-map refresh` → `docs/context/*`, `todo.md`, handoffs
 - **Memory maintenance:** `docs/context/memory-maintenance.md` signal index
