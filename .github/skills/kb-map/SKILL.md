@@ -151,6 +151,38 @@ pack/fetch runtime scripts, CI workflows, release assets, and runtime startup
 checks needs its own architecture pointer or child doc. A generic Electron doc
 is not enough if it cannot explain how the installer is built and updated.
 
+## Coverage Audit Mode
+
+Use this when the user says the initial map missed a whole class of things, or
+when one invisible subsystem suggests there may be more.
+
+Do a bounded repo-wide coverage audit:
+
+1. Inventory major surfaces:
+   - routes/screens/UI shells;
+   - commands/CLIs/tools/actions/playbooks/MCP capabilities;
+   - jobs/workflows/integrations;
+   - data/auth/session/storage;
+   - build/test/package/installer/updater/release/deploy flows.
+2. Compare the inventory to:
+   - `docs/context/PROJECT.md`;
+   - `docs/context/architecture/README.md`;
+   - `docs/context/architecture/*.md`;
+   - `docs/context/operations/*.md`;
+   - `docs/context/research/*.md` and `docs/context/decisions/*.md` when relevant.
+3. Produce a gap table:
+
+   ```markdown
+   | Area | Evidence Files | Indexed? | Doc Exists? | Good Enough? | Gap | Priority |
+   |---|---|---:|---:|---:|---|---|
+   ```
+
+4. Fix P0/P1 coverage gaps immediately when they block fresh-session routing.
+   Record lower-priority gaps in `docs/context/memory-maintenance.md`.
+
+This is not a full re-bootstrap unless `PROJECT.md` or the architecture index is
+so wrong that targeted repair would be more expensive than rebuilding.
+
 ## Missing Memory and Setup
 
 If `todo.md` or `docs/context/PROJECT.md` is missing, invoke `kb-map-bootstrap`.

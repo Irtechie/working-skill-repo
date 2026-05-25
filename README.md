@@ -154,6 +154,12 @@ files without broad rediscovery. If it cannot, that is a map coverage gap:
 targeted refresh should create or refine the missing child architecture doc and
 record a memory-maintenance signal.
 
+Bootstrap is responsible for the first coverage pass. It must inventory the
+repo, reconcile discovered systems against `PROJECT.md` and
+`docs/context/architecture/README.md`, and route-test every mapped major area.
+One invisible subsystem is evidence to run a coverage audit, not to keep fixing
+one doc at a time.
+
 The point is not to load every architecture file or crawl the whole repo. The
 point is to guide the model directly to the slice of project truth that matters
 now, so each token pays for useful orientation instead of rediscovery.
