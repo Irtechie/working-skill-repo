@@ -118,6 +118,67 @@ docs/context/history/
    "what must exist on disk after install?", "what may download on first run?",
    and "what is hardcoded vs derived?", keep auditing before route-test passes.
 
+2.6. **Audit tactics for build/install/runtime subsystems**
+   Use these tactical checks when a subsystem builds, ships, downloads, installs,
+   or launches runtime artifacts.
+
+   1. **Cross-reference environment variables**
+      Grep env vars set in build scripts, CI, package config, and installer
+      scripts. Grep runtime process spawns for the same vars and diff resolved
+      paths. Catches bundled assets that runtime ignores and re-downloads.
+
+   2. **Inventory bundled blobs**
+      Build a table: filename, size, source URL/recipe, arch, install
+      destination, update mechanism, owner. Every binary, generated asset,
+      vendored runtime, or external blob must have a row; unowned blobs are
+      removal candidates.
+
+   3. **Map hardcoded versions**
+      Grep build/release/runtime files for literal versions, DLL names, URLs,
+      filenames, and arch labels. Map each literal to its source-of-truth
+      constant; duplicated literals are future silent failures on version bumps.
+
+   4. **Check dependency deadweight**
+      For every production dependency manifest entry, grep shipped runtime code
+      for imports, including lazy imports inside functions. Classify as
+      shipped+used, shipped+unused, or test-only-but-shipped; ignore archives,
+      examples, and tools that are not shipped.
+
+   5. **Audit the architecture matrix**
+      When builds target multiple architectures, grep for
+      `x64|amd64|arm64|x86_64|aarch64`. Classify each match as arch-aware,
+      hardcoded, or should-derive; flag asymmetric handling across files.
+
+   6. **Compare comments to lifecycle code**
+      Grep comments/docstrings near build, install, update, and launch code for
+      `downloads|fetches|installs|bundles|requires|ships`. Verify the adjacent
+      code does that verb now; drifted comments mislead future sessions.
+
+   7. **Require embedded-runtime smoke tests**
+      Any shipped language/runtime embed needs a build-time command proving it
+      can import/load expected packages and binaries. Document the exact command;
+      if none exists, propose one and add a `todo.md` item.
+
+   8. **Write first-clean-clone runbooks**
+      Subsystem docs must include literal clean-machine commands, expected cold
+      and warm durations, cache locations, and network endpoints. A vague
+      "run install/build" instruction fails this check.
+
+   9. **Expire optional, disabled, or legacy code**
+      For each optional/disabled/legacy tag, record what reactivates it, what
+      removes it, and who owns the decision. If any answer is unknown, create a
+      `todo.md` item instead of leaving silent debt.
+
+   10. **Small-model doc test**
+      Feed only the subsystem doc to a small model and ask five operational
+      triage questions about lookup paths, artifact size, arch differences,
+      offline behavior, and version-pin coupling. If it cannot answer from the
+      doc alone, add detail before route-test passes.
+
+   Bugs discovered by these checks should be recorded in a "Confirmed Bugs Found
+   & Fixed" table in the subsystem doc so future sessions know what was audited
+   and do not re-debate resolved findings.
+
 3. **Create or merge memory files**
    - Preserve existing user docs.
    - Do not overwrite non-empty files without reading and merging.
