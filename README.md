@@ -168,6 +168,12 @@ paths, and smoke tests. A subsystem doc is not good enough if a smaller fresh
 session still has to rediscover what must exist on disk or what gets used at
 runtime.
 
+Bootstrap must discover concepts, not just folders. It descends into substantial
+child directories, clusters cross-cutting concerns, mines repo memories and
+AGENTS/README files for subsystem hints, checks route/page and filename-prefix
+patterns, and records known-unknowns. `kb-map` also warns when lookup sees a
+thin map compared with the actual repo shape.
+
 The point is not to load every architecture file or crawl the whole repo. The
 point is to guide the model directly to the slice of project truth that matters
 now, so each token pays for useful orientation instead of rediscovery.

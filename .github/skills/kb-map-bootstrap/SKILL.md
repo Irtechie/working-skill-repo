@@ -179,6 +179,72 @@ docs/context/history/
    & Fixed" table in the subsystem doc so future sessions know what was audited
    and do not re-debate resolved findings.
 
+2.7. **Coverage discovery tactics**
+   Use these checks before declaring the coverage inventory complete. The goal
+   is to map concepts, not merely top-level folders.
+
+   1. **Descend into substantial child directories**
+      If a child directory has more than about 30 source files, inspect it as a
+      candidate subsystem group instead of folding it into its parent. Large
+      child dirs often hide the real architecture below a generic folder name.
+
+   2. **Cluster cross-cutting concepts**
+      Sweep for common concepts such as auth, token, credential, session,
+      storage, telemetry, browser, CDP, IPC, settings, cache, queue, worker,
+      model, tool, and integration. Hits across multiple layers usually need a
+      concept doc even when no single directory owns them.
+
+   3. **Pattern-match filenames**
+      Group files by shared prefixes/suffixes such as `nav_map_*`,
+      `telemetry_*`, `cdp_*`, `m365-*`, or `*_adapter`. Any group with three or
+      more shipped files is a candidate subsystem or shared-pattern doc.
+
+   4. **Mine repo memory and prior docs**
+      Read existing memories, AGENTS files, root READMEs, and project notes for
+      named architecture topics. Diff mentioned topics against architecture docs;
+      a remembered subsystem with no doc is a coverage gap.
+
+   5. **Enumerate user-visible surfaces**
+      For apps with routes, pages, screens, commands, playbooks, or workflows,
+      list each surface and its backend/tool entry point. Missing UI-route maps
+      make small models rediscover the product one page at a time.
+
+   6. **Run hotspot discovery**
+      Produce a top-20 list of largest source files and largest source
+      directories. Files over about 800 lines or directories over about 50 files
+      must be documented or explicitly justified as not architectural.
+
+   7. **Use a must-cover checklist**
+      Check whether the repo has auth, storage, IPC, browser/HTTP, telemetry,
+      settings, build/install, LLM/model, background worker, and integration
+      concerns. If present, each needs a doc, parent pointer, or skip reason.
+
+   8. **Detect cross-process concerns**
+      Search for matching API surfaces across runtime boundaries such as
+      Electron main/renderer, frontend/backend, Python/JS, worker/server, or
+      native/web. Cross-process flows deserve docs because no one file explains
+      them.
+
+   9. **Check coverage ratio**
+      Compare architecture-doc count to source-file count by major section. A
+      rough ratio above 25:1 in a substantial area suggests undermapping unless
+      the parent doc has strong child pointers and skip reasons.
+
+   10. **Test small-model triage by subsystem**
+      Ask whether a small model could triage failures for auth, browser/CDP,
+      telemetry, storage, install, and top user workflows from the KB alone.
+      Any "no" means the map is not done for that subsystem.
+
+   11. **Respect small native glue**
+      Small files touching OS APIs, native embeds, security storage, COM,
+      browser embedding, device APIs, or process injection can be critical even
+      when short. Size alone is not a reason to skip native glue.
+
+   12. **Record known-unknowns**
+      When a meaningful file, command, page, or workflow is found but not
+      documented, add it to `PROJECT.md` or `docs/context/memory-maintenance.md`
+      as a known-unknown with a reason and revisit trigger.
+
 3. **Create or merge memory files**
    - Preserve existing user docs.
    - Do not overwrite non-empty files without reading and merging.

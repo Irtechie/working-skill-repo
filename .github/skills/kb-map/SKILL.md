@@ -183,6 +183,28 @@ Do a bounded repo-wide coverage audit:
 This is not a full re-bootstrap unless `PROJECT.md` or the architecture index is
 so wrong that targeted repair would be more expensive than rebuilding.
 
+## Shallow Map Detection
+
+During lookup, warn and recommend `refresh` or `kb-map-bootstrap` when the KB
+appears much thinner than the repo:
+
+- architecture docs are generic top-level names while substantial child
+  directories, route/page folders, commands, tools, actions, or workflows are
+  missing from the subsystem index;
+- a major source area has a rough source-file to architecture-doc ratio above
+  about 25:1 without child pointers or explicit skip reasons;
+- root `README.md`, `AGENTS.md`, `.github/copilot-instructions.md`, memories, or
+  project notes mention architecture topics absent from `docs/context`;
+- file prefix clusters, large files, large directories, or cross-process flows
+  are visible but undocumented;
+- must-cover concerns such as auth, storage, IPC, browser/HTTP, telemetry,
+  settings, build/install, LLM/model, workers, or integrations exist but have no
+  doc, parent pointer, or known-unknown entry.
+
+If the requested work touches one of these gaps, stop normal routing and run a
+targeted refresh. If many gaps exist, recommend re-bootstrap with coverage
+discovery instead of one-off patching.
+
 ## Missing Memory and Setup
 
 If `todo.md` or `docs/context/PROJECT.md` is missing, invoke `kb-map-bootstrap`.
