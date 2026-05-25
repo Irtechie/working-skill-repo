@@ -90,6 +90,34 @@ docs/context/history/
    runtimes, startup checks, and update delivery. Create a child architecture doc
    when one parent doc would force a fresh session to rediscover those files.
 
+2.5. **Validate dependency and runtime chains**
+   Bootstrap is not only a file crawl. For each high-risk subsystem, connect
+   what is built, installed, downloaded, configured, and used at runtime.
+
+   Build a compact chain table for installer, release, runtime, integration,
+   auth, data, and tool subsystems when they exist:
+
+   ```text
+   dependency/artifact | build source | install location | first-launch need | runtime consumer | version/arch pin | validation
+   ```
+
+   Check these edges before writing the architecture doc:
+   - build-time environment variables vs runtime spawn args and process env;
+   - bundled binaries/assets with size, source URL, arch, update path, and owner;
+   - install-time vs first-launch vs ongoing runtime dependencies;
+   - CI workflow commands vs clean-clone local build commands;
+   - hardcoded version strings, DLL names, URLs, and arch labels;
+   - requirements/dependency manifests vs real imports and lazy imports;
+   - transitional migration code, with sunset criteria or removal trigger;
+   - comments/docs that claim a download/bundle path different from code;
+   - smoke-test commands that prove embedded runtimes can import/load required
+     packages and binaries.
+
+   Flag mismatches in `todo.md` or `docs/context/memory-maintenance.md` instead
+   of documenting the happy path as fact. If the subsystem doc cannot answer
+   "what must exist on disk after install?", "what may download on first run?",
+   and "what is hardcoded vs derived?", keep auditing before route-test passes.
+
 3. **Create or merge memory files**
    - Preserve existing user docs.
    - Do not overwrite non-empty files without reading and merging.
@@ -128,6 +156,8 @@ docs/context/history/
      - generated artifacts and where they come from;
      - manual or CI steps required to populate release assets;
      - common failure modes and what not to assume.
+     - dependency/runtime chain table when artifacts move across build,
+       install, first launch, and runtime.
 
 7. **Write board and handoff structure**
    - `todo.md` for active work and handoff queue pointers.
@@ -151,6 +181,10 @@ docs/context/history/
    - A passing route test means a fresh session can name the exact subsystem doc,
      source-of-truth files, current mode, known sharp edges, and next files to
      read without broad repo search.
+   - For high-risk subsystem docs, ask five small-model-grade questions from the
+     doc alone, such as where a runtime comes from, what happens offline, what
+     differs by architecture, which versions are pinned, and how to validate a
+     clean install. If the answers require rediscovery, refine the doc.
    - If any mapped area fails lookup, write or refine the missing index/doc
      before declaring bootstrap complete. Do not pass bootstrap with known
      invisible subsystems.

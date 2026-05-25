@@ -160,6 +160,14 @@ repo, reconcile discovered systems against `PROJECT.md` and
 One invisible subsystem is evidence to run a coverage audit, not to keep fixing
 one doc at a time.
 
+Bootstrap must also validate chains, not just describe files. For high-risk
+systems like installers, releases, auth, data, integrations, and embedded
+runtimes, it should connect build config, shipped artifacts, install locations,
+first-launch downloads, runtime consumers, version pins, architecture-specific
+paths, and smoke tests. A subsystem doc is not good enough if a smaller fresh
+session still has to rediscover what must exist on disk or what gets used at
+runtime.
+
 The point is not to load every architecture file or crawl the whole repo. The
 point is to guide the model directly to the slice of project truth that matters
 now, so each token pays for useful orientation instead of rediscovery.
