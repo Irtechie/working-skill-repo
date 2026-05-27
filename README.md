@@ -262,6 +262,7 @@ Core workflow:
 - `kb-regression-snapshot`
 - `kb-gate`
 - `kb-fix`
+- `kb-handoff`
 - `kb-research`
 - `kb-brainstorm`
 - `kb-plan`
@@ -279,8 +280,6 @@ Direct skill dependencies carried forward from ATV/CE:
 
 - `document-review`
 - `tdd`
-- `handoff`
-- `ce-work`
 - `ce-review`
 - `ce-compound`
 - `ce-compound-refresh`
