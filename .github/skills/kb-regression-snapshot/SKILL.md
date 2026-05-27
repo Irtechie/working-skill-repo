@@ -1,91 +1,93 @@
 ---
 name: kb-regression-snapshot
-description: Capture and verify deterministic regression snapshots between KB slices. Use after a slice passes all gates to record machine-checkable state, and before future slices start execution to prove previous slice behavior has not regressed.
+description: Capture and replay deterministic regression snapshots between KB slices. Use after a slice passes QA to freeze passing state, and before future slices start to prove earlier slice behavior has not regressed.
 ---
 
 # KB Regression Snapshot
 
-Remember what earlier slices proved without relying on chat history.
+Freeze what passed so later slices cannot quietly break it.
 
-## Modes
+This is not a test-design skill. The LLM defines the smallest useful snapshot spec. The runner executes it mechanically.
 
-| Mode | When | Output |
-|---|---|---|
-| `capture <slice-id>` | After a slice passes `kb-check`, `kb-functional-test`, and `kb-qa` | `.atv/snapshots/<slice-id>.json` |
-| `verify [before-slice-id]` | After `kb-work` Scope Lock and before executing the next slice | pass/fail for all prior snapshots |
+## Runner
 
-Create `.atv/snapshots/` if missing. Never store secrets, cookies, tokens, raw credentials, or private response bodies.
+Use:
 
-## Snapshot Contract
+```powershell
+.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 capture -SliceId <id> -SpecPath <spec.json>
+.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 verify
+```
 
-Each snapshot is JSON:
+Store snapshots at:
+
+```text
+.atv/snapshots/<slice-id>.json
+```
+
+## Snapshot Shape
 
 ```json
 {
-  "slice_id": "slice-001",
-  "created_at": "2026-05-26T12:00:00Z",
-  "git_ref": "<commit-or-worktree-hash>",
+  "slice_id": "JE3",
+  "captured_at": "ISO-8601",
   "checks": [
-    {
-      "kind": "route|api-schema|file-checksum|command|browser-assertion",
-      "target": "<url/path/command/file>",
-      "assertion": "<deterministic condition>",
-      "artifact": "<log/trace/output path>",
-      "status": "pass"
-    }
+    {"type": "dom-element", "url": "/dashboard", "selector": ".margin-value", "expected_text": "42%"},
+    {"type": "route-status", "url": "/api/deals/AIG", "expected_status": 200},
+    {"type": "file-checksum", "path": "src/config.ts", "sha256": "abc123..."}
   ]
 }
 ```
 
-Keep snapshots compact. Store pointers to artifacts rather than large output.
-
 ## Capture
 
-Capture only deterministic state that proves the slice still works:
+After a slice passes `kb-check`, `kb-functional-test`, and `kb-qa`, build a compact spec from what changed:
 
-- Route responses: status codes and required key DOM elements.
-- API endpoint schemas: status, content type, required fields, shape hashes.
-- Key file checksums for generated/config/runtime files the slice owns.
-- CLI/build/test commands: command, exit code, timestamp, log path.
-- Browser assertions: test file or trace path, route, locator/assertion summary.
+| Change | Snapshot checks |
+|---|---|
+| Frontend/UI | route URL, key DOM selector, expected text or text pattern, console error count `0` |
+| API | endpoint URL, expected status, required response fields or schema shape |
+| CLI | command, expected exit code, expected output substring |
+| Files | path and SHA-256 checksum for generated/config/runtime files |
 
-Prefer existing proof from `kb-check`, `kb-functional-test`, and `kb-qa`. Do not rerun expensive checks just to duplicate proof unless no reusable artifact exists.
+Use behavioral checks for UI snapshots. Prefer "the margin value is visible and numeric" over "a div has class X." A class selector is acceptable only as a stable locator, not as the behavior being proven.
+
+Do not store secrets, cookies, tokens, credentials, or large response bodies. Store only deterministic assertions and small metadata.
 
 ## Verify
 
-1. Load all `.atv/snapshots/*.json` older than the current slice.
-2. Re-run each check deterministically.
-3. If any snapshot fails, STOP before new slice execution.
-4. Mark the current slice `🔒 blocked` with:
-   - failing snapshot path;
-   - failing check target;
-   - expected vs observed;
-   - command/log/trace path.
-5. Do not edit implementation files until the regression is resolved or the user explicitly parks/skips the affected work.
+Before the next slice starts execution, run the runner in `verify` mode against all previous snapshots.
 
-Regression failures are not QA nits. They mean the codebase regressed before the next slice began.
+The runner must:
+
+- verify DOM checks with Playwright/CDP or the repo browser transport;
+- verify API/route status with `fetch`, `curl`, or platform equivalent;
+- verify CLI checks by executing the command and checking exit code/output;
+- verify file checksums with SHA-256;
+- exit nonzero on the first failed snapshot.
+
+If any snapshot fails, STOP. Mark the current slice `🔒 blocked` with the failing snapshot path, check type, expected value, observed value, and log/trace path. Do not edit implementation files until the regression is resolved, parked by the human, or explicitly skipped.
 
 ## Output
 
 Capture:
 
 ```text
-snapshot-capture: PASS slice-001 -> .atv/snapshots/slice-001.json
-checks: route=2 api=1 files=3 commands=1 browser=1
+snapshot-capture: PASS JE3 -> .atv/snapshots/JE3.json
 ```
 
 Verify:
 
 ```text
-snapshot-verify: PASS 4/4 snapshots
+snapshot-verify: PASS 7/7 snapshots
 ```
 
 or:
 
 ```text
-snapshot-verify: FAIL .atv/snapshots/slice-001.json
-failed: <target> expected <condition> observed <actual>
-artifact: <log/trace path>
+snapshot-verify: FAIL .atv/snapshots/JE3.json
+failed: dom-element /dashboard .margin-value
+expected: 42%
+observed: <missing>
 ```
 
-Record the result in the manifest notes. Snapshot verification counts as machine-verifiable proof for `kb-complete`.
+Record the result in the manifest notes. Snapshot verification is acceptable machine proof for `kb-complete`.

@@ -512,8 +512,10 @@ the slice is human-required rather than model-verified.
 
 `kb-regression-snapshot` records deterministic state after each passed slice in
 `.atv/snapshots/<slice-id>.json`, then verifies prior snapshots before the next
-slice starts. This gives fresh sessions and later slices machine memory of what
-already worked instead of relying on prose or the model's recollection.
+slice starts. The LLM writes the compact snapshot spec; the bundled runner
+verifies DOM/API/CLI/file checks mechanically so later slices have machine
+memory of what already worked instead of relying on prose or the model's
+recollection.
 
 `kb-complete` fails the proof gate when a slice only has prose proof. Each slice
 needs command/test path, exit code, timestamp, trace/log/API artifact, or

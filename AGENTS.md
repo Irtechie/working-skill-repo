@@ -28,3 +28,15 @@ Use these project memory files:
 Do not treat these files as skills. Skills live under `.github/skills/`.
 
 When local memory is missing or badly stale, use `kb-map`; it decides whether lookup, refresh, or bootstrap is required. For normal startup, use `kb-start`.
+
+## Agent-Owned Verification
+
+Do not ask the user to test normal application behavior when the agent can test it.
+
+For apps with a UI frontend, if a change touches frontend code or user-visible UI behavior, verify it through the rendered UI with Playwright, CDP, or the repo's browser transport. Use real navigation, clicks, inputs, and programmatic DOM assertions. Do not substitute backend calls, source inspection, screenshots alone, or prose claims.
+
+Use unit/integration tests, CLI/API probes, browser automation, screenshots, traces, logs, and DOM assertions as needed. Screenshots are evidence, not the pass/fail oracle.
+
+Only ask the user to test when verification requires something the agent truly cannot access: credentials or MFA/session access not already available, subjective product/design judgment, external hardware or production-only systems, destructive/risky real-world action, or missing test input that cannot be safely generated.
+
+If blocked, state exactly what was attempted, what command/tool failed, and what specific human input is needed.

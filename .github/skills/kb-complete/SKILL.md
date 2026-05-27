@@ -22,6 +22,7 @@ After `kb-work` finishes executing all slices, this skill runs the quality revie
 2. **Collect scope context** — scan each slice's `notes` field for `scope-check:` entries. Build the combined list of scope-verified files across all slices. This becomes the review scope.
 3. **Collect memory impact** — scan slice notes for `memory-impact:` and `kb-map-refresh:` entries.
 4. **Identify the branch baseline** — run `git merge-base HEAD main` to establish the diff range.
+5. **Run final snapshot sweep** — invoke `kb-regression-snapshot verify` for all snapshots under `.atv/snapshots/`. If any snapshot fails, STOP before review; later work regressed earlier passing behavior.
 
 If the manifest has no scope-check notes (older format), fall back to `git diff --name-only $(git merge-base HEAD main)..HEAD` for the file list.
 
@@ -122,7 +123,7 @@ Acceptable proof formats:
 - Playwright/Cypress/CDP trace path or browser assertion artifact;
 - API response log path with status/schema assertion result;
 - CLI output log path with command and exit code;
-- snapshot verification result from `.atv/snapshots/<slice-id>.json`.
+- regression snapshot result from `.atv/snapshots/<slice-id>.json` with all previous snapshots passing.
 
 Not acceptable:
 

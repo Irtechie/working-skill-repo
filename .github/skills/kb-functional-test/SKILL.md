@@ -45,6 +45,24 @@ Also set `test_level: functional-browser` when non-UI files change behavior whos
 
 If Playwright cannot access the target because the route requires an existing authenticated corporate browser session, use the repo/platform's authenticated browser transport (for example CDP) and record why Playwright was not viable. This is still `functional-browser`; it is not backend/API verification.
 
+## Behavioral Assertions
+
+Functional assertions must test behavior the user would verify, not implementation structure.
+
+Behavioral assertions are correct:
+
+- "The margin value is visible and shows a number" -> `locator('.margin-value').toBeVisible()` plus text matching a number pattern.
+- "Clicking submit shows a success state" -> click submit, wait for the success element, assert it is visible.
+- "The deal list shows at least one entry" -> assert `.deal-row` count is greater than 0.
+
+Structural assertions are wrong:
+
+- "There is a div with class `margin-value` containing 42%" -> breaks on harmless CSS or markup refactors.
+- "The form POSTs to `/api/deals/submit`" -> tests implementation, not user behavior.
+- "Component `state.isLoading` becomes false" -> tests internals, not rendered outcome.
+
+Use stable selectors when needed, but make the asserted condition behavioral. Before writing an assertion, ask: "Would a user verify this the same way?" If not, it is structural and should be rewritten.
+
 ## How To Decide
 
 Classify from concrete evidence, not vibes:
