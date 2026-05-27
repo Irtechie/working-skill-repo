@@ -89,6 +89,11 @@ For every visible-behavior acceptance criterion, create an ephemeral assertion f
 await expect(page.locator('.margin-value')).toHaveText('42%')
 ```
 
+When writing ephemeral assertion files, use template literals for selectors and avoid locator strings built through concatenation. If a selector needs dynamic values, parameterize it:
+
+- Wrong: `await page.locator('.deal-row[data-name="' + dealName + '"]').click()`
+- Right: ``await page.locator(`.deal-row[data-name="${dealName}"]`).click()``
+
 Do not pass a criterion by looking at a screenshot and deciding it seems right. Screenshots are evidence for debugging and review, not the pass/fail oracle. The pass/fail oracle is the executed assertion file, its command, exit code, timestamp, and any trace/log artifact.
 
 Delete the ephemeral assertion file after the QA pass unless keeping it as a reusable regression test is clearly valuable. Preserve the command output, trace path, screenshot path, or log path needed for manifest proof.

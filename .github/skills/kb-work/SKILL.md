@@ -206,6 +206,13 @@ This gate pairs with Step 3.6 (Diff-Scope Verification). Scope Lock prevents out
 
 Use a fresh sub-agent when the platform supports delegated execution and the user has permitted it. Otherwise execute the slice locally while keeping the scope limited to this slice.
 
+Quoting sanity rule: when shell commands, file operations, or test assertions involve nested quotes, escaped quotes, or more than one quoting context, write the content to a temp file and execute/read that file instead of constructing the command inline.
+
+- If you are escaping an escape, you are doing it wrong. Write to a file, execute the file.
+- For multi-line JSON, SQL, HTML, scripts, or config blocks, use heredoc syntax or a temp file rather than inline quoting.
+- Do not build JSON strings inside shell commands inside assertion code. Write JSON to a temp file and read it.
+- Do not construct CSS selectors through mixed-quote string concatenation. Use template literals or parameterized locator helpers.
+
 Use `references/execution-prompt.md` as the per-slice execution prompt/checklist. Load it only when starting a slice.
 ### Step 3.5: System-Wide Test Check
 
