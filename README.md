@@ -279,6 +279,8 @@ Direct skill dependencies carried forward from ATV/CE:
 
 - `document-review`
 - `tdd`
+- `handoff`
+- `ce-work`
 - `ce-review`
 - `ce-compound`
 - `ce-compound-refresh`
