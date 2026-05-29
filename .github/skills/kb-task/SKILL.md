@@ -37,6 +37,7 @@ This is a task runner, not a separate implementation lane. It uses `kb-map` for 
    | Task shape | Route |
    |---|---|
    | Narrow known bug, failing test, or obvious contained fix | `kb-fix` |
+   | Broken behavior needs autonomous diagnosis from logs, browser evidence, commands, or unclear symptoms | `kb-troubleshoot` |
    | Clear bounded task that needs slices before implementation | `kb-plan` -> `kb-work` -> `kb-complete` |
    | Unclear product/technical behavior or high path dependency | `kb-brainstorm` -> `kb-plan` -> `kb-work` -> `kb-complete` |
    | User wants full feature from idea to done and Q&A is acceptable | `klfg` |

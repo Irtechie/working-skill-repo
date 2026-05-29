@@ -1,0 +1,4 @@
+interface:
+  display_name: "KB Troubleshoot"
+  short_description: "Autonomous debug and self-correct loop"
+  default_prompt: "Use $kb-troubleshoot to reproduce the failure, inspect logs/browser evidence, fix it, and verify without hand-holding."

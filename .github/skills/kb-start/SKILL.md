@@ -123,6 +123,7 @@ Use plain task classes first, then map to skills:
 | Recent work changed project memory | `kb-map refresh` |
 | User explicitly says `kb-task`, asks for first-principles execution, or wants one bounded task carried until verified/blocked | `kb-task` |
 | User says "go straight to work", "don't ask many questions", "just build it", or similar, but no valid KB manifest exists | `kb-plan` with execution intent, then `kb-work` |
+| User says troubleshoot/debug/self-correct, asks to inspect logs/browser behavior, or wants the agent to iterate until broken behavior is fixed | `kb-troubleshoot` |
 | Small known bug or narrow fix | `kb-fix` |
 | External/prior-art research needed | `kb-research` |
 | Fuzzy idea, product direction, high path dependency | `kb-brainstorm` |

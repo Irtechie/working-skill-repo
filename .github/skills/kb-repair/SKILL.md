@@ -17,7 +17,7 @@ Called by `kb-qa` (Step 8: Failure Handoff) when any check fails. Never invoked 
 Receives from `kb-qa`:
 
 - **Failure report** — which checks failed, expected vs observed, lint errors with file:line
-- **Slice context** — `expected_files`, slice plan path, verification mode
+- **Slice context** — `expected_files` forecast, any `scope-discovery` notes, slice plan path, verification mode
 - **Screenshots** — for any browser failures (paths to `.atv/qa-screenshots/`)
 - **Previous iteration results** — if retrying (empty on first call)
 
@@ -38,7 +38,7 @@ Parse the failure report. For each failed check, identify:
 - Change ONLY the lines causing the failure.
 - Do NOT rewrite components, refactor layouts, or restructure code.
 - Do NOT add new features, improve adjacent code, or make "while I'm here" changes.
-- Respect scope lock — edits MUST be within the slice's `expected_files`. If the fix requires a file outside scope, STOP and escalate to the user.
+- Respect the slice scope ledger. Prefer files in `expected_files`, but if current code proves another file is directly required for the failing check, edit it and record `scope-discovery: <file> - <why required>`. Stop only for product/architecture/dependency/migration/security/destructive expansion, another slice's behavior, or unrelated cleanup.
 - For `op: edit` files, read the current file state first. Do not regenerate.
 
 **What surgical means:**
@@ -129,12 +129,12 @@ If stuck or ceiling hit:
 - Surgical means surgical. The smallest change that addresses the specific failure.
 - Never add scope. Never improve. Only fix what broke.
 - Re-verify everything after each fix — side-effects are real.
-- If a fix needs a file outside `expected_files`, that's a scope problem, not a repair problem. Escalate.
+- If a fix needs a file outside `expected_files`, classify it through the scope ledger. Required-by-evidence files are allowed and recorded; real boundary expansion escalates.
 - Progress is the signal, not iteration count. But even progress has a ceiling.
 
 ## Integration
 
 - **Called from:** `kb-qa` (Step 8, on any failure)
 - **Returns to:** `kb-qa` (pass or stuck)
-- **Scope constraint:** respects `expected_files` from the slice plan
+- **Scope constraint:** respects the slice scope forecast and records justified discoveries
 - **Context:** same agent, no handoff — repair keeps the full execution context

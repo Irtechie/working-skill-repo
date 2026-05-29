@@ -28,9 +28,10 @@ It does that in four ways:
   memory, then future sessions use exact pointers instead of crawling the repo
   or making the user reteach the app.
 - **Choose the smallest correct lane.** `kb-start` routes by actual task shape:
-  `kb-fix` for small bugs, `kb-brainstorm` for unclear ideas, `kb-plan` for
-  slicing known work, `kb-work` for execution, and `kb-epic` only when the work
-  is truly large. The goal is not to turn every request into a ceremony.
+  `kb-fix` for small known bugs, `kb-troubleshoot` for unclear broken behavior,
+  `kb-brainstorm` for unclear ideas, `kb-plan` for slicing known work,
+  `kb-work` for execution, and `kb-epic` only when the work is truly large. The
+  goal is not to turn every request into a ceremony.
 - **Spend tokens where they prevent rework.** Vertical slicing and functional
   verification cost tokens up front, but they are cheaper than redoing broken or
   under-tested work later. The target is not the fewest tokens per turn; it is
@@ -107,6 +108,10 @@ the work by task shape, risk, and available artifacts:
 
 - Use `kb-fix` for small, bounded bugs or narrow changes where the likely fix is
   obvious and verification can prove it.
+- Use `kb-troubleshoot` when broken behavior needs evidence gathering and
+  self-correction. It must inspect local logs/tests/browser behavior and, when
+  framework/tool/dependency behavior may matter, research current external docs,
+  issues, changelogs, or known fixes before editing.
 - Use `kb-brainstorm` when product behavior, technical framing, success
   criteria, or tradeoffs are still unclear.
 - Use `kb-plan` when requirements or a handoff already explain the work and the
@@ -193,6 +198,7 @@ Use these when you know the route:
 | `kb-task` | First-principles task runner that chooses the KB route and continues until verified or blocked |
 | `kb-map` | Setup, lookup, or refresh project memory before other work |
 | `kb-fix` | Narrow bug, failing test, or small contained change |
+| `kb-troubleshoot` | Broken behavior needs autonomous logs/browser/test investigation and self-correction |
 | `kb-brainstorm` | Product or technical framing is still unclear |
 | `kb-plan` | Requirements exist and need vertical slices |
 | `kb-work` | A manifest exists and should be executed |
@@ -276,6 +282,7 @@ Core workflow:
 - `kb-regression-snapshot`
 - `kb-gate`
 - `kb-fix`
+- `kb-troubleshoot`
 - `kb-handoff`
 - `kb-research`
 - `kb-brainstorm`
@@ -397,8 +404,8 @@ Skill quality is measured by behavior, not by line count alone.
 
 Use repeatable prompts against a scratch repo and record:
 
-- correct route selected by `kb-start` (`kb-fix`, `kb-brainstorm`, `kb-plan`,
-  `kb-work`, `kb-epic`, or `kb-research`)
+- correct route selected by `kb-start` (`kb-fix`, `kb-troubleshoot`,
+  `kb-brainstorm`, `kb-plan`, `kb-work`, `kb-epic`, or `kb-research`)
 - whether `kb-map` resolves the active repo root and exact memory files without
   searching the drive
 - number of avoidable user questions
@@ -506,8 +513,12 @@ intentionally out of bounds today; only a human promotes it back to active.
 
 The pipeline is designed around three task sizes:
 
-- **Small:** use `kb-fix`. Write or identify a failing check, make the smallest
-  fix, run deterministic verification, and stop if the fix loop stalls.
+- **Small known bug:** use `kb-fix`. Write or identify a failing check, make the
+  smallest fix, run deterministic verification, and stop if the fix loop stalls.
+- **Broken behavior with unclear cause:** use `kb-troubleshoot`. It owns the
+  observe -> reproduce -> localize -> fix -> verify loop, including logs,
+  Playwright/CDP/Agent Browser checks, console/network inspection, and
+  self-correction until fixed or honestly blocked.
 - **Bounded autonomous task:** use `kb-task`. It maps the repo, reasons from
   first principles, chooses the right KB lane, and continues through verification
   or an explicit blocker.
