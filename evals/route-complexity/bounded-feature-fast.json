@@ -1,0 +1,24 @@
+{
+  "id": "bounded-feature-fast",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Add keyboard shortcut support to the command palette, don't ask many questions, just build it.",
+  "repo_state": "Clear bounded feature, no manifest yet, behavior touches UI and command handling.",
+  "expected": {
+    "route": "kb-plan",
+    "complexity_tier": "standard",
+    "max_user_questions": 1,
+    "artifacts": ["requirements assumptions if needed", "KB manifest", "slice plans"],
+    "proof": ["manifest before kb-work", "functional-browser or functional-cli proof after execution"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 2,
+    "uncertainty": 1,
+    "user_visible": true,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "functional",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 6
+  },
+  "guards": ["skipped-gate"]
+}

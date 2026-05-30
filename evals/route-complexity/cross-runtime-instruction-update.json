@@ -1,0 +1,24 @@
+{
+  "id": "cross-runtime-instruction-update",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Update the skill repo instructions so this works in Codex and GitHub Copilot.",
+  "repo_state": "Instruction behavior differs by runtime and must be validated against both supported surfaces.",
+  "expected": {
+    "route": "kb-plan",
+    "complexity_tier": "standard",
+    "max_user_questions": 1,
+    "artifacts": ["requirements or assumptions", "KB manifest", "compatibility matrix update"],
+    "proof": ["lint/check command", "Codex/GHCP applicability metadata present"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 3,
+    "uncertainty": 2,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": true,
+    "verification_surface": "integration",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 5
+  },
+  "guards": ["under-planning", "skipped-gate"]
+}

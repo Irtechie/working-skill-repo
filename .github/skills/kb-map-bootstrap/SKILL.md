@@ -23,6 +23,7 @@ todo.md
 todo-done.md
 docs/context/
   PROJECT.md
+  eval-map.md
   architecture/
     README.md
   research/
@@ -38,6 +39,7 @@ docs/handoffs/
   active/
   parked/
   done/
+evals/
 ```
 
 Optional:
@@ -117,6 +119,27 @@ docs/context/history/
    of documenting the happy path as fact. If the subsystem doc cannot answer
    "what must exist on disk after install?", "what may download on first run?",
    and "what is hardcoded vs derived?", keep auditing before route-test passes.
+
+2.55. **Map eval surfaces**
+   Invoke `kb-eval-map` after the repo inventory has enough evidence to identify
+   app patterns, public workflows, existing tests, and likely proof surfaces.
+
+   `kb-eval-map` owns:
+   - classifying the repo as website, internal/corporate website, API, CLI,
+     LLM/agent app, skill repo, docs/process repo, mobile/native, or mixed;
+   - detecting existing Playwright/Cypress/pytest/Vitest/Pester/API/CLI/eval
+     harnesses;
+   - creating or updating `docs/context/eval-map.md`;
+   - scaffolding one real smoke eval only when the primary workflow is known and
+     safe to exercise;
+   - documenting eval gaps when credentials, sessions, production-only systems,
+     destructive actions, or unclear product intent block scaffolding;
+   - updating `docs/context/operations/testing.md` with canonical eval commands
+     when they exist.
+
+   Do not let bootstrap invent fake tests. If the primary workflow is unclear,
+   `kb-eval-map` asks the user what the repo is supposed to prove and records a
+   todo if that answer is unavailable.
 
 2.6. **Audit tactics for build/install/runtime subsystems**
    Use these tactical checks when a subsystem builds, ships, downloads, installs,

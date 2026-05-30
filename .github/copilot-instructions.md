@@ -14,6 +14,14 @@ Fresh-session preflight:
 
 This repo is the portable skill bundle. Do not bootstrap consuming-project memory or create project-work handoffs here by accident. If the user is handing off work from another project, switch to that project root or ask for its path. Only create `todo.md`, `docs/context/PROJECT.md`, or `docs/handoffs/*` here when maintaining this skill bundle.
 
+Canonical quality gate for this skill repo:
+
+```powershell
+.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+```
+
+This command is GHCP-compatible because it uses repo files and PowerShell scripts, not Codex-only tools. It runs skill lint, route complexity fixture validation, and the read-only sync drift report configured in `config/skill-quality.json`.
+
 Every token must pay rent:
 
 - No preamble. No closing filler.
@@ -28,6 +36,7 @@ Project memory:
 - `todo.md` holds active work, blockers, parked work, and handoff pointers.
 - `todo-done.md` holds completed-work summaries.
 - `docs/context/PROJECT.md` is the project route map.
+- `docs/context/eval-map.md` maps repo-native eval surfaces and canonical proof commands.
 - `docs/handoffs/active/`, `docs/handoffs/parked/`, and `docs/handoffs/done/` hold resumable handoffs.
 
 If local memory is missing or stale, use `kb-map`; it decides whether lookup, refresh, or bootstrap is required. For normal startup, use `kb-start`.

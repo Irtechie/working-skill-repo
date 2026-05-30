@@ -1,0 +1,24 @@
+{
+  "id": "tiny-typo-fix",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Fix the typo in the settings label.",
+  "repo_state": "Single known copy change, no behavior change, no handoff or manifest.",
+  "expected": {
+    "route": "kb-fix",
+    "complexity_tier": "small",
+    "max_user_questions": 0,
+    "artifacts": ["changed file", "verification note"],
+    "proof": ["git diff --check", "targeted text/render check if UI-visible"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 1,
+    "uncertainty": 0,
+    "user_visible": true,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "none",
+    "rollback_difficulty": 0,
+    "expected_duration_hours": 0.25
+  },
+  "guards": ["over-planning"]
+}

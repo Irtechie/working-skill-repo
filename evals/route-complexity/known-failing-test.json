@@ -1,0 +1,24 @@
+{
+  "id": "known-failing-test",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "This unit test is failing; fix it.",
+  "repo_state": "One failing deterministic test points at a contained behavior bug.",
+  "expected": {
+    "route": "kb-fix",
+    "complexity_tier": "small",
+    "max_user_questions": 0,
+    "artifacts": ["test output", "changed file"],
+    "proof": ["failing test passes", "relevant narrow check exits 0"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 1,
+    "uncertainty": 1,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "unit",
+    "rollback_difficulty": 0,
+    "expected_duration_hours": 1
+  },
+  "guards": ["over-planning"]
+}

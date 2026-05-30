@@ -36,6 +36,14 @@ When changing skills in this repo, treat `E:\working-skill-repo` as the working 
 6. Verify with hashes for copied `SKILL.md` files and `git diff --check` in every touched repo.
 7. Commit and push both repos when requested or when the user asks for the full propagation flow.
 
+Before syncing or propagating skills, run the canonical skill-repo quality gate:
+
+```powershell
+.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+```
+
+This gate is cross-runtime: it validates the shared skill contract for Codex and GitHub Copilot/GHCP using `config/skill-quality.json`, deterministic skill lint, route-complexity fixtures, and a read-only sync drift report. The sync report may warn about optional ATV scaffold/plugin differences, but required targets must stay clean before propagation.
+
 Do not remove `kb-review`, `ce-review`, `ce-compound`, or `ce-compound-refresh` from this bundle unless the skills that invoke them are rewritten first. KB completion uses `kb-review`; `ce-review` remains the generalized CE review skill.
 
 Every token must pay rent. Be concise by default:
@@ -51,6 +59,7 @@ Use these project memory files:
 - `todo.md` for active work, blockers, parked work, and handoff pointers.
 - `todo-done.md` for completed-work summaries.
 - `docs/context/PROJECT.md` for the project route map.
+- `docs/context/eval-map.md` for repo-native eval surfaces and canonical proof commands.
 - `docs/handoffs/active/`, `docs/handoffs/parked/`, and `docs/handoffs/done/` for handoff lifecycle.
 
 Do not treat these files as skills. Skills live under `.github/skills/`.

@@ -40,6 +40,18 @@ if (Test-Path "Makefile") {
   $checks.Add((Add-Check "make-test" "make test" "Makefile detected"))
 }
 
+if ((Test-Path ".github/skills") -and (Test-Path "config/skill-quality.json")) {
+  if (Test-Path "scripts/skill-lint.ps1") {
+    $checks.Add((Add-Check "skill-lint" "powershell -ExecutionPolicy Bypass -File scripts\skill-lint.ps1" "skill quality config detected"))
+  }
+  if (Test-Path "scripts/route-complexity-eval.ps1") {
+    $checks.Add((Add-Check "route-complexity-eval" "powershell -ExecutionPolicy Bypass -File scripts\route-complexity-eval.ps1" "route complexity eval fixtures detected"))
+  }
+  if (Test-Path "scripts/skill-sync-report.ps1") {
+    $checks.Add((Add-Check "skill-sync-report" "powershell -ExecutionPolicy Bypass -File scripts\skill-sync-report.ps1" "skill sync target config detected"))
+  }
+}
+
 if ($List -or -not $All) {
   $checks | Format-Table -AutoSize
   exit 0

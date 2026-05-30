@@ -1,0 +1,24 @@
+{
+  "id": "broad-migration",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Migrate auth, billing, and deployment workflows to the new platform.",
+  "repo_state": "Multi-subsystem initiative with auth, payments, deployment, and unknown external behavior.",
+  "expected": {
+    "route": "kb-epic",
+    "complexity_tier": "large",
+    "max_user_questions": 2,
+    "artifacts": ["epic map", "multiple brainstorms or manifests", "risk register"],
+    "proof": ["separate manifests before execution", "release/rollback proof later"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 5,
+    "uncertainty": 3,
+    "user_visible": true,
+    "data_auth_security_risk": 3,
+    "external_dependency": true,
+    "verification_surface": "full",
+    "rollback_difficulty": 3,
+    "expected_duration_hours": 40
+  },
+  "guards": ["under-planning"]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "stale-handoff",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Resume the old handoff and keep going.",
+  "repo_state": "Handoff is older than 72 hours and contains phases but no valid KB manifest.",
+  "expected": {
+    "route": "kb-plan",
+    "complexity_tier": "standard",
+    "max_user_questions": 1,
+    "artifacts": ["staleness check", "normalized KB manifest"],
+    "proof": ["handoff freshness verified", "phase list not executed directly"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 2,
+    "uncertainty": 2,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "integration",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 3
+  },
+  "guards": ["skipped-gate", "under-planning"]
+}

@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "runtimes": {
+    "codex": {
+      "label": "Codex",
+      "instruction_surfaces": {
+        "AGENTS.md": "supported",
+        ".github/copilot-instructions.md": "warning-only",
+        ".github/instructions/*.instructions.md": "warning-only",
+        ".github/skills/**/SKILL.md": "supported"
+      },
+      "skill_directories": {
+        ".github/skills": "supported",
+        "C:/Users/marowe/.codex/skills": "supported",
+        "C:/Users/marowe/.agents/skills": "supported"
+      },
+      "agents": "supported",
+      "scripts": "supported",
+      "eval_modes": {
+        "static": "supported",
+        "fixture": "supported",
+        "live_model": "simulated"
+      }
+    },
+    "ghcp": {
+      "label": "GitHub Copilot",
+      "instruction_surfaces": {
+        "AGENTS.md": "supported",
+        ".github/copilot-instructions.md": "supported",
+        ".github/instructions/*.instructions.md": "supported",
+        ".github/skills/**/SKILL.md": "supported"
+      },
+      "skill_directories": {
+        ".github/skills": "supported",
+        "C:/Users/marowe/.copilot/skills": "supported",
+        "C:/Users/marowe/.agents/skills": "supported"
+      },
+      "agents": "supported",
+      "scripts": "supported",
+      "eval_modes": {
+        "static": "supported",
+        "fixture": "supported",
+        "live_model": "simulated"
+      }
+    }
+  },
+  "lint": {
+    "skill_root": ".github/skills",
+    "agent_root": ".github/agents",
+    "require_argument_hint": "warning",
+    "required_frontmatter": [
+      "name",
+      "description"
+    ],
+    "scan_extensions": [
+      ".md",
+      ".ps1",
+      ".json",
+      ".yaml",
+      ".yml"
+    ],
+    "hot_path_warning_lines": 250,
+    "hot_path_fail_lines": 450,
+    "allow_long_skills": {
+      "kb-brainstorm": "requirements workflow with Q&A and review gates; planned for later lazy-reference extraction",
+      "kb-plan": "manifest and slice-plan templates live inline today; planned for later lazy-reference extraction",
+      "kb-map-bootstrap": "bootstrap coverage tactics are intentionally detailed",
+      "kb-work": "execution gate contract is intentionally detailed",
+      "ce-compound": "inherited compound-engineering workflow with large output contract"
+    }
+  },
+  "route_complexity": {
+    "fixture_root": "evals/route-complexity",
+    "allowed_platforms": [
+      "codex",
+      "ghcp",
+      "both"
+    ],
+    "allowed_routes": [
+      "kb-fix",
+      "kb-troubleshoot",
+      "kb-brainstorm",
+      "kb-plan",
+      "kb-work",
+      "kb-epic",
+      "kb-ship",
+      "kb-complete",
+      "kb-research"
+    ],
+    "rubric": {
+      "small_max": 4,
+      "standard_max": 13,
+      "large_min": 14
+    }
+  },
+  "sync_targets": [
+    {
+      "id": "working",
+      "label": "working repo",
+      "path": "E:/working-skill-repo/.github/skills",
+      "classification": "source",
+      "required": true
+    },
+    {
+      "id": "codex-global",
+      "label": "Codex global",
+      "path": "C:/Users/marowe/.codex/skills",
+      "classification": "required",
+      "required": true
+    },
+    {
+      "id": "copilot-global",
+      "label": "Copilot global",
+      "path": "C:/Users/marowe/.copilot/skills",
+      "classification": "required",
+      "required": true
+    },
+    {
+      "id": "agents-global",
+      "label": "shared agents global",
+      "path": "C:/Users/marowe/.agents/skills",
+      "classification": "required",
+      "required": true
+    },
+    {
+      "id": "atv-github",
+      "label": "ATV .github skills",
+      "path": "E:/all-the-vibes/.github/skills",
+      "classification": "required",
+      "required": true
+    },
+    {
+      "id": "atv-scaffold",
+      "label": "ATV scaffold template",
+      "path": "E:/all-the-vibes/pkg/scaffold/templates/skills",
+      "classification": "optional",
+      "required": false
+    },
+    {
+      "id": "atv-plugin",
+      "label": "ATV everything plugin",
+      "path": "E:/all-the-vibes/plugins/atv-everything/skills",
+      "classification": "optional",
+      "required": false
+    }
+  ]
+}

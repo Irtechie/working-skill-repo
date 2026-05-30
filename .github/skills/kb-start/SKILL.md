@@ -134,12 +134,14 @@ Use plain task classes first, then map to skills:
 | Release, PR, deploy, final readiness | `kb-ship` |
 | User wants everything from idea to done | `klfg` |
 
-## Task Sizing
+## Route Complexity
 
-- **Small fix**: one bug, obvious scope, low path dependency. Use `kb-fix`.
-- **Feature/refactor**: one bounded feature or refactor that can become one manifest. Use `kb-brainstorm` if behavior is unclear; otherwise `kb-plan`.
-- **Large initiative**: multi-manifest work such as framework migration, major architecture replacement, cross-subsystem rewrite, or a backlog that needs multiple brainstorms/plans. Use `kb-epic`.
+- **Small fix**: one bug, obvious scope, low risk, and low path dependency. Use `kb-fix`.
+- **Feature/refactor**: one bounded behavior change or refactor with enough uncertainty to need a manifest. Use `kb-brainstorm` if behavior is unclear; otherwise `kb-plan`.
+- **Large initiative**: high-complexity work such as framework migration, major architecture replacement, cross-subsystem rewrite, many unknowns, or a backlog that needs multiple brainstorms/plans. Use `kb-epic`.
 - **Release**: packaging, PR, deploy, or final readiness. Use `kb-ship`.
+
+Route by complexity, not by file count or guessed duration. The useful signals are uncertainty, blast radius, coupling, reversibility, verification burden, and user/product path dependency.
 
 When in doubt, prefer the lane that prevents rework. Do not pick a 20-minute shortcut when the decision creates path dependency.
 

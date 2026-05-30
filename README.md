@@ -183,6 +183,13 @@ The point is not to load every architecture file or crawl the whole repo. The
 point is to guide the model directly to the slice of project truth that matters
 now, so each token pays for useful orientation instead of rediscovery.
 
+Bootstrap also runs `kb-eval-map` to decide how the repo should be evaluated.
+That setup is native to the app: browser workflows for websites, command/output
+goldens for CLIs, contract checks for APIs, prompt/trace/claim evals for skill
+or agent repos, and optional dashboard export only when it helps. If the primary
+workflow is unclear, `kb-eval-map` asks what the repo is supposed to prove
+instead of creating fake tests.
+
 When memory is missing, `kb-map` invokes `kb-map-bootstrap` to build the project
 map once. After that, normal startup should be cheap: `kb-start` calls
 `kb-map lookup <request>`, `kb-map` returns the relevant docs and likely route,
@@ -197,6 +204,7 @@ Use these when you know the route:
 | `kb-start` | Fresh session, ambiguous ask, or "figure out the right workflow" |
 | `kb-task` | First-principles task runner that chooses the KB route and continues until verified or blocked |
 | `kb-map` | Setup, lookup, or refresh project memory before other work |
+| `kb-eval-map` | Bootstrap-owned setup for repo-native eval surfaces and proof commands |
 | `kb-fix` | Narrow bug, failing test, or small contained change |
 | `kb-troubleshoot` | Broken behavior needs autonomous logs/browser/test investigation and self-correction |
 | `kb-brainstorm` | Product or technical framing is still unclear |
@@ -276,6 +284,7 @@ Core workflow:
 - `kb-task`
 - `kb-map`
 - `kb-map-bootstrap`
+- `kb-eval-map`
 - `kb-compact`
 - `kb-check`
 - `kb-functional-test`
@@ -421,6 +430,27 @@ Optimize for fewer loaded tokens only when the same prompt still routes,
 executes, verifies, and records state correctly. A shorter skill that drops a
 gate is not an improvement.
 
+## Canonical Quality Gate
+
+Run this before propagating skill changes:
+
+```powershell
+.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+```
+
+For this repo, `kb-check` now discovers the cross-runtime skill quality suite:
+
+- `scripts/skill-lint.ps1` validates `SKILL.md` frontmatter, lazy references,
+  conflict markers, and hot-path size budgets.
+- `scripts/route-complexity-eval.ps1` validates deterministic route-complexity
+  fixtures for Codex and GitHub Copilot/GHCP applicability.
+- `scripts/skill-sync-report.ps1` compares working, global, and ATV skill
+  targets without copying or overwriting anything.
+
+The shared contract lives in `config/skill-quality.json`. Required targets must
+match; optional ATV scaffold/plugin differences are reported as warnings until
+their distribution contract is decided.
+
 ## Portable Repo Hygiene
 
 This repo should contain skills, agents, scripts, templates, and durable
@@ -474,6 +504,7 @@ Required project memory files:
 - `todo.md` - active work, blockers, parked work, and handoff pointers
 - `todo-done.md` - compact archive of completed work
 - `docs/context/PROJECT.md` - project route map for fresh sessions
+- `docs/context/eval-map.md` - repo-native eval surfaces and canonical proof commands
 - `docs/context/architecture/` - concise architecture notes by domain
 - `docs/context/research/` - reusable research findings
 - `docs/context/decisions/` - durable decisions and tradeoffs

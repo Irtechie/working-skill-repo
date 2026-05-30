@@ -1,0 +1,24 @@
+{
+  "id": "unclear-broken-behavior",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "The app sometimes loses draft state; figure out why and fix it.",
+  "repo_state": "Symptom is real but root cause is unknown; logs/browser/tests may be needed before editing.",
+  "expected": {
+    "route": "kb-troubleshoot",
+    "complexity_tier": "standard",
+    "max_user_questions": 1,
+    "artifacts": ["reproduction evidence", "root cause note", "verification proof"],
+    "proof": ["repro fails before fix", "same path passes after fix"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 2,
+    "uncertainty": 3,
+    "user_visible": true,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "functional",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 4
+  },
+  "guards": ["under-planning"]
+}
