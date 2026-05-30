@@ -25,6 +25,7 @@ powershell -ExecutionPolicy Bypass -File scripts\skill-eval.ps1 -ResultPath path
 {
   "id": "run-id",
   "fixture_id": "tiny-typo-fix",
+  "expected_result": "pass",
   "actual": {
     "route": "kb-fix",
     "user_questions": 0,
@@ -39,6 +40,7 @@ powershell -ExecutionPolicy Bypass -File scripts\skill-eval.ps1 -ResultPath path
   "claim_checks": [
     {
       "type": "command_ran",
+      "path": "",
       "contains": "git diff --check",
       "expected": true,
       "claim": "Agent claimed git diff --check was run"
@@ -53,5 +55,27 @@ Supported claim checks:
 - `command_ran`
 - `file_read`
 
-Live Codex/GHCP adapters are future work. They should produce this result shape
-from transcripts/traces, then let this deterministic scorer decide pass/fail.
+Live adapters should produce this result shape from transcripts/traces, then let
+this deterministic scorer decide pass/fail. The Codex adapter exists; GHCP is
+still a planned adapter.
+
+## Codex Adapter
+
+Run the Codex adapter in safe dry-run mode:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\skill-eval-run-codex.ps1 -FixtureId tiny-typo-fix -DryRun
+```
+
+Run one live Codex eval:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\skill-eval-run-codex.ps1 -FixtureId tiny-typo-fix -KeepRun
+```
+
+The live adapter creates a disposable git worktree under `.atv/eval-runs/`, runs
+`codex exec` in read-only mode with a JSON output schema, writes `result.json`,
+then calls `scripts/skill-eval.ps1 -ResultPath <result.json>`.
+
+Dry-run mode is part of `kb-check -All`; live mode is explicit because it calls a
+model.

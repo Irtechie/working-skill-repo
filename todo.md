@@ -39,7 +39,7 @@ Manifest: `docs/plans/2026-05-29-000-kb-cross-runtime-skill-quality-manifest.md`
 - This repo is the working source for portable skills under `.github/skills/`.
 - Personal/global installs currently match this repo for KB skills.
 - ATV scaffold/plugin copies are not fully aligned with the KB skill surface.
-- Deterministic skill lint, route-complexity fixtures, and sync drift checks exist; live prompt/trace/claim evals are still planned.
+- Deterministic skill lint, route-complexity fixtures, sync drift checks, and captured-result scoring exist; Codex has a live route-fixture adapter, while GHCP and broader live corpora remain planned.
 
 ## Active Work
 
@@ -68,7 +68,7 @@ Validation: `git diff --check`; hash/drift probe; web-source scan; repo inventor
 ## Parked / Cold Storage
 
 - Build cross-model benchmark prompts for route selection, complexity, and proof discipline.
-- Build live Codex/GHCP adapters that run route fixtures and emit `evals/skill-eval` result JSON.
+- Build GHCP adapter and broader live Codex/GHCP corpora that run route fixtures and emit `evals/skill-eval` result JSON.
 - Add path-specific `.github/instructions/*.instructions.md` for Copilot if the workflow starts editing multiple file classes with different rules.
 
 ## Blocked
@@ -80,3 +80,4 @@ None.
 - 2026-05-29: Completed cross-runtime skill quality manifest. `kb-check -All` now runs skill lint, route-complexity evals, and read-only sync drift report for Codex and GHCP.
 - 2026-05-30: Completed `kb-eval-map` manifest. Bootstrap now invokes repo-native eval mapping; required Codex/Copilot/agents/ATV skill copies are synced; proof: `kb-check -All` and `git diff --check` passed.
 - 2026-05-30: Added deterministic `skill-eval` scorer for captured skill result JSON. `kb-check -All` now self-tests route/proof/claim failures before sync drift.
+- 2026-05-30: Added Codex live skill eval adapter. `scripts/skill-eval-run-codex.ps1` runs route fixtures through `codex exec`, captures schema JSON, and scores it with `skill-eval`; dry-run is included in `kb-check -All`.

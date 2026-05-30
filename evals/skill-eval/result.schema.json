@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "fixture_id", "expected_result", "actual", "trace", "claim_checks"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "fixture_id": { "type": "string" },
+    "expected_result": { "type": "string", "enum": ["pass", "fail"] },
+    "actual": {
+      "type": "object",
+      "required": ["route", "user_questions", "artifacts", "proof"],
+      "additionalProperties": false,
+      "properties": {
+        "route": { "type": "string" },
+        "user_questions": { "type": "integer", "minimum": 0 },
+        "artifacts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "proof": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "required": ["files_read", "commands", "tools"],
+      "additionalProperties": false,
+      "properties": {
+        "files_read": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "commands": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "claim_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "path", "contains", "expected", "claim"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string", "enum": ["file_exists", "command_ran", "file_read"] },
+          "path": { "type": "string" },
+          "contains": { "type": "string" },
+          "expected": { "type": "boolean" },
+          "claim": { "type": "string" }
+        }
+      }
+    }
+  }
+}

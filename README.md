@@ -447,6 +447,8 @@ For this repo, `kb-check` now discovers the cross-runtime skill quality suite:
   fixtures for Codex and GitHub Copilot/GHCP applicability.
 - `scripts/skill-eval.ps1` scores captured skill result JSON and self-tests
   route/proof/claim failures.
+- `scripts/skill-eval-run-codex.ps1` can run route fixtures through `codex exec`
+  and emits scorer-compatible result JSON; `kb-check -All` runs its dry-run.
 - `scripts/skill-sync-report.ps1` compares working, global, and ATV skill
   targets without copying or overwriting anything.
 

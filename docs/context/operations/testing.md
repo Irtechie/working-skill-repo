@@ -80,6 +80,9 @@ prompt/output datasets are the native proof surface.
 - `scripts/skill-eval.ps1` scores captured skill result JSON against route
   fixtures, trace evidence, and structured claim checks. Its default self-test
   includes intentionally bad route/proof/claim results that must fail.
+- `scripts/skill-eval-run-codex.ps1 -FixtureId tiny-typo-fix -DryRun` validates
+  the Codex live-adapter plumbing without calling a model. Live mode is explicit
+  because it invokes `codex exec`.
 - `scripts/skill-sync-report.ps1` validates required skill-copy hashes across
   the working repo, Codex global, Copilot global, shared agents global, and ATV
   `.github` skills.
@@ -92,7 +95,8 @@ are planned gaps, not current capability:
 - route skills have decision tables and escalation rules;
 - execution skills name deterministic proof requirements;
 - lazy references exist and are linked only when needed;
-- live Codex/GHCP adapters run prompt fixtures and produce captured result JSON;
+- GHCP adapter runs prompt fixtures and produces captured result JSON;
+- broader live Codex corpus covers more than the initial fixture;
 - trace scoring covers forbidden shortcuts and required workflow reads;
 - transcript-derived claim extraction checks final answers against
   git/files/logs/artifacts;

@@ -50,6 +50,9 @@ if ((Test-Path ".github/skills") -and (Test-Path "config/skill-quality.json")) {
   if (Test-Path "scripts/skill-eval.ps1") {
     $checks.Add((Add-Check "skill-eval" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval.ps1" "skill eval selftest fixtures detected"))
   }
+  if (Test-Path "scripts/skill-eval-run-codex.ps1") {
+    $checks.Add((Add-Check "skill-eval-codex-dry-run" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval-run-codex.ps1 -FixtureId tiny-typo-fix -DryRun" "Codex skill eval adapter detected"))
+  }
   if (Test-Path "scripts/skill-sync-report.ps1") {
     $checks.Add((Add-Check "skill-sync-report" "powershell -ExecutionPolicy Bypass -File scripts\skill-sync-report.ps1" "skill sync target config detected"))
   }

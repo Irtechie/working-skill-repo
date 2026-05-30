@@ -15,7 +15,7 @@ Codex/GHCP the same workflow contract.
 | Skill structure remains valid | `.github/skills/**/SKILL.md` | `scripts/skill-lint.ps1` | Warnings remain for inherited older skills | P1 |
 | Route complexity stays calibrated | `evals/route-complexity/*.json` | `scripts/route-complexity-eval.ps1` | Fixtures are deterministic metadata, not live prompt runs | P0 |
 | Required skill copies stay synced | global installs and ATV `.github` skills | `scripts/skill-sync-report.ps1` | ATV scaffold/plugin shipping policy unresolved | P1 |
-| Skill edits do not regress behavior | prompt/trace/claim evals | `scripts/skill-eval.ps1` self-test scorer | Need live Codex/GHCP adapters and broader corpus | P0 |
+| Skill edits do not regress behavior | prompt/trace/claim evals | `scripts/skill-eval.ps1`; `scripts/skill-eval-run-codex.ps1` | Need GHCP adapter and broader corpus | P0 |
 
 ## Existing Harnesses
 
@@ -23,6 +23,7 @@ Codex/GHCP the same workflow contract.
 - `scripts/skill-lint.ps1`
 - `scripts/route-complexity-eval.ps1`
 - `scripts/skill-eval.ps1`
+- `scripts/skill-eval-run-codex.ps1`
 - `scripts/skill-sync-report.ps1`
 - `git diff --check`
 
@@ -49,7 +50,9 @@ cost telemetry.
 The first deterministic scorer now exists at `scripts/skill-eval.ps1`. It scores
 captured agent result JSON against route fixtures and claim checks, and its
 self-test includes intentionally bad route/proof/claim outputs that must fail.
-It does not yet run Codex or GHCP itself.
+The Codex adapter exists at `scripts/skill-eval-run-codex.ps1`; dry-run mode is
+included in `kb-check -All`, and live mode explicitly invokes `codex exec` in a
+disposable read-only worktree.
 
 ## Deterministic vs LLM-Judged
 
@@ -61,16 +64,17 @@ It does not yet run Codex or GHCP itself.
 | sync drift hashes | deterministic |
 | git whitespace/conflict checks | deterministic |
 | output quality scoring | LLM-judged, future |
-| skill prompt routing live run | mixed: model action plus deterministic route/trace scoring |
+| Codex skill prompt routing live run | mixed: model action plus deterministic route/trace scoring |
 | final claim verification | deterministic filesystem/git/log checks |
 
 ## Credentials / Session Requirements
 
 None for current deterministic checks.
 
-Future live Codex/GHCP adapters may require runtime-specific CLI access, trace
-capture, or authenticated platform sessions. The deterministic scorer can run
-without those sessions when given captured result JSON.
+The Codex adapter requires a working `codex` CLI and authenticated Codex session.
+Future GHCP adapters may require runtime-specific CLI access, trace capture, or
+authenticated platform sessions. The deterministic scorer can run without those
+sessions when given captured result JSON.
 
 ## Dashboard / Export Options
 
@@ -80,8 +84,8 @@ are stable.
 
 ## Open Eval Gaps
 
-- Build live prompt-routing adapters for Codex/GHCP that produce
-  `evals/skill-eval` result JSON.
+- Build GHCP adapter that produces `evals/skill-eval` result JSON.
+- Run and grow the live Codex corpus beyond one fixture.
 - Expand trace scoring for forbidden shortcuts and required workflow reads.
 - Expand claim verification from structured claim checks to transcript-derived
   claims against git/files/logs/artifacts.
