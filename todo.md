@@ -28,11 +28,14 @@ Make this the highest-reliability portable skill bundle for the user's workflow:
 
 ## Current Focus
 
+⬜ pending execute live cross-runtime skill eval harness slices.
 ⬜ pending decide ATV scaffold/plugin shipping contract for optional KB skills.
 
 Audit note: `docs/context/research/2026-05-29-skill-repo-gap-audit.md`
 Requirements: `docs/brainstorms/2026-05-29-cross-runtime-skill-quality-requirements.md`
 Manifest: `docs/plans/2026-05-29-000-kb-cross-runtime-skill-quality-manifest.md`
+Live eval requirements: `docs/brainstorms/2026-05-30-live-cross-runtime-skill-eval-harness-requirements.md`
+Live eval manifest: `docs/plans/2026-05-30-000-kb-live-cross-runtime-skill-eval-harness-manifest.md`
 
 ## Current Truth
 
@@ -54,6 +57,7 @@ Validation: `git diff --check`; hash/drift probe; web-source scan; repo inventor
 | Add deterministic skill lint/eval harness | ✅ done | P0 | `docs/context/research/2026-05-29-skill-repo-gap-audit.md` |
 | Add route-complexity rubric/evals to prevent over/under-planning | ✅ done | P0 | `docs/context/research/2026-05-29-skill-repo-gap-audit.md` |
 | Resolve portable-bundle memory exception vs bootstrap requirement | ✅ done | P1 | `docs/context/memory-maintenance.md` |
+| Execute live cross-runtime skill eval harness | ⬜ pending | P0 | `docs/plans/2026-05-30-000-kb-live-cross-runtime-skill-eval-harness-manifest.md` |
 | Decide ATV scaffold/plugin propagation contract for KB skills | ⬜ pending | P1 | `docs/context/memory-maintenance.md` |
 
 ## Handoff Queue
@@ -68,7 +72,6 @@ Validation: `git diff --check`; hash/drift probe; web-source scan; repo inventor
 ## Parked / Cold Storage
 
 - Build cross-model benchmark prompts for route selection, complexity, and proof discipline.
-- Build GHCP adapter and broader live Codex/GHCP corpora that run route fixtures and emit `evals/skill-eval` result JSON.
 - Add path-specific `.github/instructions/*.instructions.md` for Copilot if the workflow starts editing multiple file classes with different rules.
 
 ## Blocked
@@ -81,3 +84,4 @@ None.
 - 2026-05-30: Completed `kb-eval-map` manifest. Bootstrap now invokes repo-native eval mapping; required Codex/Copilot/agents/ATV skill copies are synced; proof: `kb-check -All` and `git diff --check` passed.
 - 2026-05-30: Added deterministic `skill-eval` scorer for captured skill result JSON. `kb-check -All` now self-tests route/proof/claim failures before sync drift.
 - 2026-05-30: Added Codex live skill eval adapter. `scripts/skill-eval-run-codex.ps1` runs route fixtures through `codex exec`, captures schema JSON, and scores it with `skill-eval`; dry-run is included in `kb-check -All`.
+- 2026-05-30: Planned the remaining live cross-runtime eval harness: GHCP adapter, live corpus runner, trace/claim scoring, output quality, cost regression, and eval-map negative validation.
