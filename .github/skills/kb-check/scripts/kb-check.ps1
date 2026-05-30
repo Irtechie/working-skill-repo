@@ -47,6 +47,9 @@ if ((Test-Path ".github/skills") -and (Test-Path "config/skill-quality.json")) {
   if (Test-Path "scripts/route-complexity-eval.ps1") {
     $checks.Add((Add-Check "route-complexity-eval" "powershell -ExecutionPolicy Bypass -File scripts\route-complexity-eval.ps1" "route complexity eval fixtures detected"))
   }
+  if (Test-Path "scripts/skill-eval.ps1") {
+    $checks.Add((Add-Check "skill-eval" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval.ps1" "skill eval selftest fixtures detected"))
+  }
   if (Test-Path "scripts/skill-sync-report.ps1") {
     $checks.Add((Add-Check "skill-sync-report" "powershell -ExecutionPolicy Bypass -File scripts\skill-sync-report.ps1" "skill sync target config detected"))
   }

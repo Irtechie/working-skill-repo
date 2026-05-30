@@ -4,6 +4,7 @@
 
 ## 2026-05-30
 
+- Skill Eval Scorer - added `scripts/skill-eval.ps1`, result schema docs, pass/fail self-test fixtures, and `kb-check -All` wiring. Proof: `skill-eval` catches intentional route/proof/claim failures and full `kb-check -All` passed.
 - KB Eval Map - added `kb-eval-map`, wired bootstrap to create `docs/context/eval-map.md`, refreshed docs, synced required global/ATV skill copies, and verified with `.\.github\skills\kb-check\scripts\kb-check.ps1 -All` plus `git diff --check` in both touched repos.
 
 ## 2026-05-29

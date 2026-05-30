@@ -445,6 +445,8 @@ For this repo, `kb-check` now discovers the cross-runtime skill quality suite:
   conflict markers, and hot-path size budgets.
 - `scripts/route-complexity-eval.ps1` validates deterministic route-complexity
   fixtures for Codex and GitHub Copilot/GHCP applicability.
+- `scripts/skill-eval.ps1` scores captured skill result JSON and self-tests
+  route/proof/claim failures.
 - `scripts/skill-sync-report.ps1` compares working, global, and ATV skill
   targets without copying or overwriting anything.
 

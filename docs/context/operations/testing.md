@@ -77,6 +77,9 @@ prompt/output datasets are the native proof surface.
 - `scripts/route-complexity-eval.ps1` validates the route-complexity fixture
   schema, computes deterministic complexity tiers, and checks over/under
   planning guard coverage.
+- `scripts/skill-eval.ps1` scores captured skill result JSON against route
+  fixtures, trace evidence, and structured claim checks. Its default self-test
+  includes intentionally bad route/proof/claim results that must fail.
 - `scripts/skill-sync-report.ps1` validates required skill-copy hashes across
   the working repo, Codex global, Copilot global, shared agents global, and ATV
   `.github` skills.
@@ -89,9 +92,10 @@ are planned gaps, not current capability:
 - route skills have decision tables and escalation rules;
 - execution skills name deterministic proof requirements;
 - lazy references exist and are linked only when needed;
-- live prompt runs classify to the expected lane;
-- trace scoring proves the agent read/ran/touched expected things;
-- claim verification checks final answers against git/files/logs/artifacts;
+- live Codex/GHCP adapters run prompt fixtures and produce captured result JSON;
+- trace scoring covers forbidden shortcuts and required workflow reads;
+- transcript-derived claim extraction checks final answers against
+  git/files/logs/artifacts;
 - output-quality scoring measures completeness, maintainability, relevance, and
   proof quality.
 

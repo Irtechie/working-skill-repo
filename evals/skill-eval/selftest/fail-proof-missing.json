@@ -1,0 +1,17 @@
+{
+  "id": "fail-proof-missing",
+  "fixture_id": "tiny-typo-fix",
+  "expected_result": "fail",
+  "actual": {
+    "route": "kb-fix",
+    "user_questions": 0,
+    "artifacts": ["changed file", "verification note"],
+    "proof": []
+  },
+  "trace": {
+    "files_read": ["todo.md"],
+    "commands": [],
+    "tools": ["shell"]
+  },
+  "claim_checks": []
+}

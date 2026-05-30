@@ -93,6 +93,15 @@
       "large_min": 14
     }
   },
+  "skill_eval": {
+    "selftest_result_root": "evals/skill-eval/selftest",
+    "result_schema_version": 1,
+    "claim_check_types": [
+      "file_exists",
+      "command_ran",
+      "file_read"
+    ]
+  },
   "sync_targets": [
     {
       "id": "working",

@@ -1,0 +1,24 @@
+{
+  "id": "fail-route-overplanned",
+  "fixture_id": "tiny-typo-fix",
+  "expected_result": "fail",
+  "actual": {
+    "route": "kb-brainstorm",
+    "user_questions": 2,
+    "artifacts": ["brainstorm document"],
+    "proof": ["git diff --check"]
+  },
+  "trace": {
+    "files_read": ["todo.md"],
+    "commands": ["git diff --check"],
+    "tools": ["shell"]
+  },
+  "claim_checks": [
+    {
+      "type": "command_ran",
+      "contains": "git diff --check",
+      "expected": true,
+      "claim": "Agent claimed git diff --check was run"
+    }
+  ]
+}

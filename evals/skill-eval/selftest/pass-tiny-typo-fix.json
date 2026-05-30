@@ -1,0 +1,30 @@
+{
+  "id": "pass-tiny-typo-fix",
+  "fixture_id": "tiny-typo-fix",
+  "expected_result": "pass",
+  "actual": {
+    "route": "kb-fix",
+    "user_questions": 0,
+    "artifacts": ["changed file", "verification note"],
+    "proof": ["git diff --check", "targeted text/render check if UI-visible"]
+  },
+  "trace": {
+    "files_read": ["todo.md", "docs/context/PROJECT.md"],
+    "commands": ["git diff --check"],
+    "tools": ["shell"]
+  },
+  "claim_checks": [
+    {
+      "type": "command_ran",
+      "contains": "git diff --check",
+      "expected": true,
+      "claim": "Agent claimed git diff --check was run"
+    },
+    {
+      "type": "file_exists",
+      "path": "docs/context/eval-map.md",
+      "expected": true,
+      "claim": "Agent referenced the eval map"
+    }
+  ]
+}

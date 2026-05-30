@@ -68,6 +68,7 @@ Validation: `git diff --check`; hash/drift probe; web-source scan; repo inventor
 ## Parked / Cold Storage
 
 - Build cross-model benchmark prompts for route selection, complexity, and proof discipline.
+- Build live Codex/GHCP adapters that run route fixtures and emit `evals/skill-eval` result JSON.
 - Add path-specific `.github/instructions/*.instructions.md` for Copilot if the workflow starts editing multiple file classes with different rules.
 
 ## Blocked
@@ -78,3 +79,4 @@ None.
 
 - 2026-05-29: Completed cross-runtime skill quality manifest. `kb-check -All` now runs skill lint, route-complexity evals, and read-only sync drift report for Codex and GHCP.
 - 2026-05-30: Completed `kb-eval-map` manifest. Bootstrap now invokes repo-native eval mapping; required Codex/Copilot/agents/ATV skill copies are synced; proof: `kb-check -All` and `git diff --check` passed.
+- 2026-05-30: Added deterministic `skill-eval` scorer for captured skill result JSON. `kb-check -All` now self-tests route/proof/claim failures before sync drift.

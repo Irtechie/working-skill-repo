@@ -1,0 +1,24 @@
+{
+  "id": "fail-claim-file-missing",
+  "fixture_id": "tiny-typo-fix",
+  "expected_result": "fail",
+  "actual": {
+    "route": "kb-fix",
+    "user_questions": 0,
+    "artifacts": ["changed file", "verification note"],
+    "proof": ["git diff --check", "targeted text/render check if UI-visible"]
+  },
+  "trace": {
+    "files_read": ["todo.md"],
+    "commands": ["git diff --check"],
+    "tools": ["shell"]
+  },
+  "claim_checks": [
+    {
+      "type": "file_exists",
+      "path": "docs/context/definitely-missing-eval-file.md",
+      "expected": true,
+      "claim": "Agent claimed a missing eval file exists"
+    }
+  ]
+}
