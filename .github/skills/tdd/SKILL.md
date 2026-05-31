@@ -6,113 +6,34 @@ argument-hint: "[feature or behavior to implement test-first]"
 
 # Test-Driven Development
 
-<!-- Adapted from mattpocock/skills — credit: github.com/mattpocock/skills -->
+Compatibility lane for explicit "TDD" or "test first" requests.
 
-## Philosophy
+Normal KB work gets the anti-cheat behavior from `kb-plan`, `kb-work`, and
+`kb-check`: define the oracle before implementation when practical, prove RED
+when possible, protect the oracle with SHA/manifest evidence, implement, then
+rerun the unchanged oracle.
 
-**Core principle**: Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.
+## Keep
 
-**Good tests** are integration-style: they exercise real code paths through public APIs. They describe _what_ the system does, not _how_. A good test reads like a specification — "user can checkout with valid cart" tells you exactly what capability exists. These tests survive refactors because they don't care about internal structure.
+- Test observable behavior through the public interface.
+- Write one vertical slice at a time: one failing check, one implementation,
+  one passing check.
+- Do not bulk-write imagined tests for future behavior.
+- Do not edit the protected oracle after implementation unless the manifest
+  records the reason and verification reruns from the changed oracle.
 
-**Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface). Warning sign: your test breaks when you refactor, but behavior hasn't changed.
+## Route
 
-## Anti-Pattern: Horizontal Slices
+Use this skill only when the user explicitly asks for TDD/test-first flow or a
+slice plan has `verification: tdd`.
 
-**DO NOT write all tests first, then all implementation.** This is "horizontal slicing" — treating RED as "write all tests" and GREEN as "write all code."
+Otherwise:
 
-This produces bad tests:
+- `kb-plan` records the protected oracle fields.
+- `kb-work` preserves the oracle and runs the red/green proof.
+- `kb-check` validates protected file hashes and regression proof.
 
-- Tests written in bulk test _imagined_ behavior, not _actual_ behavior
-- You end up testing the _shape_ of things (data structures, function signatures) rather than user-facing behavior
-- Tests become insensitive to real changes
-- You outrun your headlights, committing to test structure before understanding the implementation
+## Output
 
-**Correct approach**: Vertical slices via tracer bullets. One test → one implementation → repeat. Each test responds to what you learned from the previous cycle.
-
-```
-WRONG (horizontal):
-  RED:   test1, test2, test3, test4, test5
-  GREEN: impl1, impl2, impl3, impl4, impl5
-
-RIGHT (vertical):
-  RED→GREEN: test1→impl1
-  RED→GREEN: test2→impl2
-  RED→GREEN: test3→impl3
-```
-
-## Workflow
-
-### 1. Planning
-
-Before writing any code:
-
-- [ ] Confirm with user what interface changes are needed
-- [ ] Confirm which behaviors to test (prioritize — you can't test everything)
-- [ ] Identify opportunities for deep modules (small interface, significant implementation)
-- [ ] Design interfaces for testability
-- [ ] List the behaviors to test (not implementation steps)
-- [ ] Get user approval on the plan
-
-Ask: "What should the public interface look like? Which behaviors are most important to test?"
-
-### 2. Tracer Bullet
-
-Write ONE test that confirms ONE thing about the system:
-
-```
-RED:   Write test for first behavior → test fails
-GREEN: Write minimal code to pass → test passes
-```
-
-This is your tracer bullet — proves the path works end-to-end.
-
-### 3. Incremental Loop
-
-For each remaining behavior:
-
-```
-RED:   Write next test → fails
-GREEN: Minimal code to pass → passes
-```
-
-Rules:
-
-- One test at a time
-- Only enough code to pass current test
-- Don't anticipate future tests
-- Keep tests focused on observable behavior
-
-### 4. Refactor
-
-After all tests pass, look for refactor opportunities:
-
-- [ ] Extract duplication
-- [ ] Deepen modules (move complexity behind simple interfaces)
-- [ ] Apply SOLID principles where natural
-- [ ] Consider what new code reveals about existing code
-- [ ] Run tests after each refactor step
-
-**Never refactor while RED.** Get to GREEN first.
-
-## Checklist Per Cycle
-
-```
-[ ] Test describes behavior, not implementation
-[ ] Test uses public interface only
-[ ] Test would survive internal refactor
-[ ] Code is minimal for this test
-[ ] No speculative features added
-```
-
-## Verification Strategy Matrix
-
-Not every task needs a failing unit test. Choose the right verification mode:
-
-| Mode | When | Gate |
-|------|------|------|
-| `tdd-required` | Behavior changes, business logic, algorithms | Failing test → implement → passes |
-| `integration-first` | Wiring, cross-boundary, API contracts | Integration test proves path works |
-| `verification-only` | Config, scaffolding, ops changes | File exists, builds pass, no regression |
-| `hitl-required` | UX taste, design judgment | Human confirms acceptable |
-
-When in doubt, default to `tdd-required` for anything that has observable behavior.
+Report the test file or command, RED result, protected-oracle hash/manifest
+path, GREEN result, and final unchanged-oracle verification.

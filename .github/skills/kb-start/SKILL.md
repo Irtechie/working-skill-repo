@@ -76,6 +76,32 @@ Read only what `kb-map` points to, then only what is needed to route:
 2. Relevant active handoff files or manifest paths named by `kb-map`.
 3. Specific subsystem, research, brainstorm, or plan files pointed to by `kb-map`.
 
+## Workflow Shape Check
+
+Before choosing the lane, classify the shape cheaply. This is a routing check,
+not a pipeline builder.
+
+| Shape | Signals | Route Bias |
+|---|---|---|
+| `direct-chat` | explanation, diagnosis, tradeoff discussion, no file changes requested | answer or `kb-first-principles` behavior |
+| `single-skill-edit` | one skill/doc file, no sync/eval/proof-harness implications | `kb-fix` or bounded direct edit plus `kb-check` |
+| `skill-bundle-change` | skill change plus required sync, docs, route fixtures, or standard gate | `kb-plan` |
+| `pipeline-change` | scripts/evals/proof harness plus skills/docs must change together | `kb-epic` or coded pipeline manifest |
+| `multi-stream-epic` | independent streams, blockers, brainstorms, plans, or deletion policy | `kb-epic` through planning complete |
+| `architecture-deepening` | user asks where modules/interfaces should get deeper before implementation | `kb-architecture-deepening` |
+
+Pipeline-worthiness signals:
+
+- multiple owning surfaces: skills plus scripts plus evals plus docs;
+- cross-runtime behavior: Codex, Copilot, agents, ATV scaffold/plugin;
+- proof harness, scorer, fixture, baseline, or protected-oracle changes;
+- propagation/sync rules;
+- several independent workstreams or human checkpoints;
+- loaded-surface or deletion/merge safety measurement.
+
+If none of those signals are present, keep the route small. Do not build a
+pipeline just because the request mentions a skill.
+
 ## Current Truth
 
 `todo.md` may hold short-lived operational truth: current focus, active manifest, parked slices, blockers, and handoff pointers.
@@ -126,6 +152,7 @@ Use plain task classes first, then map to skills:
 | User says troubleshoot/debug/self-correct, asks to inspect logs/browser behavior, or wants the agent to iterate until broken behavior is fixed | `kb-troubleshoot` |
 | Small known bug or narrow fix | `kb-fix` |
 | External/prior-art research needed | `kb-research` |
+| Architecture/module-depth exploration before implementation | `kb-architecture-deepening` |
 | Fuzzy idea, product direction, high path dependency | `kb-brainstorm` |
 | Clear feature needs slices | `kb-plan` |
 | Manifest exists and work should run | `kb-work` |
@@ -142,6 +169,9 @@ Use plain task classes first, then map to skills:
 - **Release**: packaging, PR, deploy, or final readiness. Use `kb-ship`.
 
 Route by complexity, not by file count or guessed duration. The useful signals are uncertainty, blast radius, coupling, reversibility, verification burden, and user/product path dependency.
+
+Record `workflow_shape` in generated manifests when planning follows this
+classifier.
 
 When in doubt, prefer the lane that prevents rework. Do not pick a 20-minute shortcut when the decision creates path dependency.
 

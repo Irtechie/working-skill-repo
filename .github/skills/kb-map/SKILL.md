@@ -24,6 +24,7 @@ Anchor every lookup to the active project root before reading memory.
 2. Read memory only from that root:
    - `<repo>/todo.md`
    - `<repo>/docs/context/PROJECT.md`
+   - `<repo>/docs/context/landmines.md` when it exists
    - `<repo>/docs/handoffs/**`
 3. Do not search `~`, `%USERPROFILE%`, `.copilot/handoffs`, the whole drive, or sibling repos for KB memory unless the user explicitly asks for cross-repo/global lookup.
 4. If the project root has no KB memory, invoke `kb-map-bootstrap` in that project root. Do not silently substitute a global or unrelated handoff.
@@ -100,8 +101,10 @@ Read in order:
 
 1. `todo.md`.
 2. `docs/context/PROJECT.md`.
-3. Active handoff files linked from `todo.md`.
-4. Only the subsystem, research, decision, operation, brainstorm, or plan files needed for the request.
+3. `docs/context/landmines.md` if it exists. Read only `Active Landmines`; do
+   not load resolved/archive entries during startup.
+4. Active handoff files linked from `todo.md`.
+5. Only the subsystem, research, decision, operation, brainstorm, or plan files needed for the request.
 
 Stop reading once you can answer:
 
@@ -111,6 +114,7 @@ Stop reading once you can answer:
 - Which files or commands are likely involved?
 - What was already tried or researched?
 - Which KB lane should handle the request?
+- Are there active repo-specific landmines that apply to this request?
 
 Report route, docs loaded, and any stale-work refresh needed. Do not bulk-load all context docs.
 
@@ -243,8 +247,11 @@ Workflow:
 4. Add child docs when a parent doc grows too large.
 5. Update `todo.md` if active state, blockers, or pointers changed.
 6. Update active handoff files if restart instructions changed.
-7. If `todo_rules.md`, `todo-rules.md`, or another separate todo rules file exists, inline the rules into the top `## Rules` section of `todo.md`, move any unique durable content to `docs/context/*`, then delete the separate rules file.
-8. Run `document-review` when changes are substantial.
+7. If `docs/context/landmines.md` exists, archive resolved landmines whose
+   owner surface was fixed and verification passed. Leave unfixed stale entries
+   active or mark `stale-review`; do not silently delete high-severity traps.
+8. If `todo_rules.md`, `todo-rules.md`, or another separate todo rules file exists, inline the rules into the top `## Rules` section of `todo.md`, move any unique durable content to `docs/context/*`, then delete the separate rules file.
+9. Run `document-review` when changes are substantial.
 
 Do not re-bootstrap the whole repo here.
 

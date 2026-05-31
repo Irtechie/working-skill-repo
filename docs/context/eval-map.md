@@ -13,7 +13,7 @@ Codex/GHCP the same workflow contract.
 | Workflow | Surface | Current Proof | Gap | Priority |
 |---|---|---|---|---|
 | Skill structure remains valid | `.github/skills/**/SKILL.md` | `scripts/skill-lint.ps1` | Warnings remain for inherited older skills | P1 |
-| Route complexity stays calibrated | `evals/route-complexity/*.json` | `scripts/route-complexity-eval.ps1` | Fixtures are deterministic metadata, not live prompt runs | P0 |
+| Route complexity stays calibrated | `evals/route-complexity/*.json` | `scripts/route-complexity-eval.ps1` | Fixtures are deterministic metadata, not live prompt runs; workflow-shape fixtures cover skill edit, skill-bundle, proof pipeline, and multi-stream epic prompts | P0 |
 | Required skill copies stay synced | global installs and ATV `.github` skills | `scripts/skill-sync-report.ps1` | ATV scaffold/plugin shipping policy unresolved | P1 |
 | Skill edits do not regress behavior | prompt/trace/claim evals | `scripts/skill-eval.ps1`; `scripts/skill-eval-run-codex.ps1`; `scripts/skill-eval-run-ghcp.ps1` | Need broader live corpus and richer trace/claim scoring | P0 |
 

@@ -11,6 +11,8 @@ Primary files:
 - `AGENTS.md` - Codex/agent repo contract and sync workflow.
 - `.github/copilot-instructions.md` - Copilot always-on repo instructions.
 - `README.md` - user-facing install, workflow, and design contract.
+- `config/skill-marketplace.json` - private marketplace path, trust model, and
+  promotion policy.
 
 ## Main Workflow Lanes
 
@@ -26,6 +28,16 @@ Primary files:
 | Completion | `kb-complete`, `kb-review`, `ce-compound`, `learn`, `evolve` | Review, memory, learning, and cleanup. |
 | Release | `kb-ship`, `klfg` | Ship readiness or full pipeline orchestration. |
 
+## Private Marketplace
+
+See `docs/context/architecture/private-skill-marketplace.md`.
+
+`E:\agent-marketplace` is the private approved catalog for reusable skills and
+pipelines. New learned skills should prove themselves project-local first, then
+move into the marketplace only after evidence, review, hash pinning, and human
+approval. Public marketplace imports go to quarantine, never directly to global
+skill directories.
+
 ## Distribution Targets
 
 Working source:
@@ -39,6 +51,11 @@ Sync targets:
 - `C:\Users\marowe\.agents\skills\<skill>\`
 - `E:\all-the-vibes\.github\skills\<skill>\`
 - ATV scaffold/plugin copies when the skill is intentionally shipped there.
+
+Approved reusable catalog:
+
+- `E:\agent-marketplace\skills\<skill>\`
+- `E:\agent-marketplace\pipelines\<pipeline>.json`
 
 ## Current Coverage Gaps
 

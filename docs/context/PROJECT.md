@@ -51,6 +51,9 @@ See `docs/context/architecture/README.md`.
 | Skill bundle layout | `docs/context/architecture/README.md` | Locating skills, agents, scripts, and install targets | verified |
 | Eval map | `docs/context/eval-map.md` | Understanding repo-native eval surfaces, canonical commands, and open eval gaps | verified |
 | Testing and verification | `docs/context/operations/testing.md` | Finding current checks, eval-map ownership, and harness gaps | verified |
+| Private skill marketplace | `docs/context/architecture/private-skill-marketplace.md`; `config/skill-marketplace.json` | Deciding when project-local learned skills or pipelines can be promoted into the private reusable catalog | verified |
+| Landmines | `docs/context/landmines.md` | Checking active repo-specific traps with owner/fix/proof fields | verified |
+| Epics | `docs/context/epics/` | Coordinating multi-workstream skill-bundle initiatives | verified |
 | 2026 quality audit | `docs/context/research/2026-05-29-skill-repo-gap-audit.md` | Understanding current gaps and recommended priorities | verified |
 | Agent Skills Git distribution | `docs/context/research/2026-05-30-agent-skills-git-distribution.md` | Deciding canonical source, global installs, ATV policy, and deterministic sync scripts | verified |
 | Drift and propagation | `AGENTS.md`; `README.md`; `docs/context/memory-maintenance.md` | Syncing skills across global installs and ATV copies | mixed |
@@ -58,16 +61,20 @@ See `docs/context/architecture/README.md`.
 ## Current Work Pointers
 
 - Active board: `todo.md`
+- Active landmines: `docs/context/landmines.md`
 - Audit note: `docs/context/research/2026-05-29-skill-repo-gap-audit.md`
 - Maintenance signals: `docs/context/memory-maintenance.md`
 
 ## Known Sharp Edges
 
 - Portable repo hygiene conflicts with the normal KB bootstrap requirement unless this repo's own memory is treated as skill-bundle maintenance.
-- `kb-check` now finds skill-repo checks through `config/skill-quality.json`; optional ATV scaffold/plugin differences remain warnings until their distribution contract is decided.
+- `kb-check` now finds skill-repo checks through `config/skill-quality.json`; optional ATV scaffold/plugin differences are warning-only because those targets are intentionally thinner bundles by default.
 - `kb-eval-map` is now the bootstrap-owned setup skill for repo-native eval surfaces; consuming repos still need their own `docs/context/eval-map.md`.
 - Some skills are long enough to make route-start context expensive; lazy references are used inconsistently.
 - ATV scaffold/plugin copies are partially missing KB skills or contain older inherited skill variants.
+- `E:\agent-marketplace` is a private approved catalog, not a global install.
+  Project-local learned skills and pipelines must prove reuse value before
+  promotion; public imports land in quarantine first.
 
 ## Research Index
 

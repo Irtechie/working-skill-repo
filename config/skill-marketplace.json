@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "marketplace": {
+    "id": "local-agent-marketplace",
+    "local_root": "E:/agent-marketplace",
+    "remote": "https://github.com/Irtechie/agent-marketplace.git",
+    "trust_model": "private-approved-catalog",
+    "directories": {
+      "approved_skills": "skills",
+      "pipelines": "pipelines",
+      "harnesses": "harnesses",
+      "approved_catalog": "catalog/approved-skills.json",
+      "quarantine_catalog": "catalog/quarantined-skills.json",
+      "quarantine": "quarantine",
+      "scripts": "scripts"
+    }
+  },
+  "project_local_paths": {
+    "skills": ".github/skills",
+    "learned_skills": ".github/skills/learned-*",
+    "pipelines": "config/pipelines",
+    "pipeline_runs": ".atv/pipeline-runs",
+    "marketplace_lock": ".agent-marketplace/skill-lock.json",
+    "promotion_notes": "docs/context/marketplace-promotion.md"
+  },
+  "creation_policy": {
+    "project_local_skill_path": ".github/skills/learned-*",
+    "project_local_first": true,
+    "reason": "New skills should prove value in the project that produced them before entering the reusable marketplace.",
+    "minimum_promotion_signals": {
+      "observations": 5,
+      "confidence": 0.85,
+      "recent_within_days": 90,
+      "successful_reuses": 2,
+      "human_approval_required": true
+    }
+  },
+  "promotion_policy": {
+    "allowed_sources": [
+      "project-local .github/skills/learned-*",
+      "working bundle .github/skills/*",
+      "quarantine after review"
+    ],
+    "blocked_sources": [
+      "public marketplace direct-to-global",
+      "unreviewed quarantine",
+      "chat-only instructions without repo evidence"
+    ],
+    "required_artifacts": [
+      "SKILL.md with valid frontmatter",
+      "evidence summary",
+      "source path or upstream URL",
+      "sha256 hash record",
+      "review decision",
+      "proof command or manual review reason"
+    ],
+    "promotion_target": "E:/agent-marketplace/skills/<skill>"
+  },
+  "pipeline_policy": {
+    "project_local_first": true,
+    "project_pipeline_path": "config/pipelines/<pipeline>.json",
+    "marketplace_pipeline_path": "E:/agent-marketplace/pipelines/<pipeline>.json",
+    "marketplace_harness_path": "E:/agent-marketplace/harnesses/<harness>.json",
+    "promote_after": {
+      "successful_project_runs": 2,
+      "proof_artifacts_required": true,
+      "human_approval_required": true
+    }
+  },
+  "global_install_policy": {
+    "globals_are_loaders_not_catalog": true,
+    "allowed_global_surface": [
+      "bootstrap/router skills",
+      "skills intentionally synced by config/skill-quality.json"
+    ],
+    "disallowed_global_surface": [
+      "quarantined skills",
+      "experimental project-local skills",
+      "marketplace skills without explicit pull/install"
+    ]
+  }
+}

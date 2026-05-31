@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["id", "fixture_id", "expected_result", "actual", "trace", "claim_checks"],
+  "required": ["id", "fixture_id", "expected_result", "eval_run_id", "actual", "trace", "claim_checks"],
   "additionalProperties": false,
   "properties": {
     "id": { "type": "string" },
     "fixture_id": { "type": "string" },
     "expected_result": { "type": "string", "enum": ["pass", "fail"] },
+    "eval_run_id": { "type": "string" },
     "actual": {
       "type": "object",
       "required": ["route", "user_questions", "artifacts", "proof"],

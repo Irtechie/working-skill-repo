@@ -34,15 +34,20 @@ If the manifest contains slices with `test_level` of `integration`, `functional-
 
 If the final diff includes `.tsx`, `.jsx`, `.vue`, or `.svelte` files, or any changed behavior primarily reached through the rendered UI, require `functional-browser` evidence before completion. Backend/API/unit-only proof is insufficient for those changes.
 
-**Invoke the `kb-review` skill** — full multi-agent code review on the feature diff.
+**Invoke the `kb-review` skill** — structured code review on the feature diff.
 
 `kb-review` is a skill/orchestrator, not an Agent tool type. Do not call the Agent tool with `agent_type: kb-review`. Load/run the `kb-review` skill, and let that skill spawn valid reviewer agent types such as `code-review`, `correctness-reviewer`, `security-reviewer`, or `adversarial-reviewer`.
 
-This is mandatory. Do not skip, defer, or make it optional.
+This is mandatory. Do not skip, defer, or make it optional. Record the review
+mode from `kb-review`: `review-mode: multi-agent` when reviewer agents actually
+ran, or `review-mode: local-fallback` when the runtime could not or did not
+authorize reviewer subagents. Do not claim multi-agent review happened when
+fallback was used.
 
 - **Pass scope from prior gates:** use the collected scope-verified actual file list from Pre-Flight. Pass this as the scoped file list so kb-review skips its own scope discovery (Stage 1). The scope gates already explained planned and discovered files — no need to re-derive from git diff unless the manifest lacks this data.
 - Pass context: the full `git diff` of the feature branch against baseline, scoped to the verified file list
 - Capture the output: each finding has a severity (P0/P1/P2/P3) and confidence score
+- Capture review mode and any fallback residual risk.
 - Store findings for the resolution gate (Step 2)
 - **Note:** if scope-verified files are unavailable (older manifest, standalone run), let kb-review do its own scope discovery.
 
@@ -154,6 +159,11 @@ After the resolution gate passes, document what this feature taught the system:
    - `/learn` reads: observations.jsonl, recent git history, docs/solutions/, existing instincts
    - Record result in manifest notes: `learn: N new instincts, M updated` or `learn: no new patterns`
    - This is automatic — do not ask the user whether to run it
+   - If the work exposed a repo-specific landmine, record it only with owner
+     surface, concrete evidence, severity, fix condition, and verification.
+     Reject generic "remember to test/read code" lessons.
+   - If the work fixed an active landmine, move it to resolved/archive only
+     after the verification command passes.
 6. **Check evolution cadence:**
    - Read `.atv/kb-completions.txt` (create with `0` if missing)
    - Increment by 1
@@ -186,6 +196,7 @@ When refresh runs, update affected docs only:
 - `docs/context/PROJECT.md` for route-map, command, or subsystem index changes.
 - `docs/context/architecture/*` for durable subsystem behavior.
 - `docs/context/operations/*` for run/test/deploy/QA changes.
+- `docs/context/landmines.md` for active/resolved landmine changes.
 - `docs/context/research/*` for reusable research outcomes.
 - `docs/context/decisions/*` for accepted/rejected approaches.
 - `todo.md` and handoff files for current operational state.

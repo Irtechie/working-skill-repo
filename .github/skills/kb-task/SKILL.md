@@ -1,6 +1,7 @@
 ---
 name: kb-task
 description: "First-principles autonomous KB task runner. Use when the user says /kb-task, asks the app/agent to do a task from first principles, wants the agent to figure out the route and continue until done, or wants one bounded app/workflow change handled end-to-end without choosing between kb-fix, kb-brainstorm, kb-plan, kb-work, klfg, or kb-complete."
+argument-hint: "[bounded task or outcome to complete]"
 ---
 
 # KB Task

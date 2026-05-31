@@ -84,7 +84,7 @@ Some work is legitimately enabling infrastructure: migrations, auth plumbing, sh
 
 | Mode | When | Gate |
 |------|------|------|
-| `tdd` | Behavior changes, business logic | Failing test -> implement -> passes |
+| `tdd` | Behavior changes, business logic | Define protected oracle first when practical -> prove RED -> implement -> unchanged oracle passes |
 | `integration` | Wiring, cross-boundary, API contracts | Integration test proves path works |
 | `functional` | User-visible workflow, UI/API/CLI journey, escaped bug | Workflow-level check proves the user path |
 | `verification-only` | Config, scaffolding, ops | Builds pass, no regression |
@@ -141,7 +141,7 @@ Break the work into thin end-to-end slices. For each slice, determine:
 
 - **Title** - short descriptive name
 - **What it delivers** - end-to-end behavior description
-- **Verification mode** - tdd / integration / verification-only / hitl
+- **Verification mode** - tdd / integration / verification-only / hitl. For `tdd`, record the oracle path/command before implementation whenever practical.
 - **Test level** - none / unit / integration / functional-api / functional-cli / functional-browser / full
 - **Functional risk** - none / narrow / broad / full
 - **Blocked by** - which other slices must complete first, or none
@@ -184,6 +184,7 @@ kb_id: kb-YYYY-MM-DD-<name>
 brainstorm_path: docs/brainstorms/<source-file>.md
 created: YYYY-MM-DD
 status: active
+workflow_shape: "<direct-chat|single-skill-edit|skill-bundle-change|pipeline-change|multi-stream-epic>"
 slices:
   - id: slice-001
     title: "<title>"
@@ -201,6 +202,11 @@ slices:
     human_action: ""
     can_continue_other_slices: true
     notes: ""
+    protected_oracles:
+      - path: "tests/<behavior>.test.<ext>"
+        role: "behavior oracle"
+        sha256: "filled by kb-work after RED/protection"
+        update_policy: "requires explicit plan update"
   - id: slice-002
     title: "<title>"
     path: docs/plans/YYYY-MM-DD-002-<type>-<name>-plan.md
@@ -217,6 +223,10 @@ slices:
 
 ## Origin
 Brainstorm: `<brainstorm_path>`
+
+## Workflow Shape
+
+`<workflow_shape>` - why this shape fits.
 
 ## Slice Overview
 | # | Slice | Blocked By | Verification | HITL | Status |
@@ -244,6 +254,7 @@ expected_files:
   - path: ""
     op: edit
     scope: "what specifically changes"
+protected_oracles: []
 status: pending
 owner: agent
 blocked_reason: ""
@@ -260,6 +271,7 @@ The plan body should include:
 - Acceptance criteria
 - Expected files (must match `expected_files` in frontmatter as the initial forecast; actual touched files may expand during `kb-work` when justified by the acceptance criteria and recorded in the scope ledger)
 - Test scenarios specific enough for TDD or integration verification
+- Protected oracle candidates when expected behavior is known before implementation: tests, fixtures, scorers, snapshots, or contract files that should be written or selected first, proven RED when practical, and protected from mutation with SHA before implementation continues
 - Test inputs needed to run those scenarios without asking the user to manually test later
 - Scope boundary: what this slice does not include
 - Dependencies and why they are needed
@@ -276,6 +288,12 @@ test_inputs:
 ```
 
 Only mark `hitl: true` when the human step is truly required. Do not use HITL for checks the agent can run with provided inputs.
+
+Use `protected_oracles` when a slice has a known behavior target before
+implementation. Each entry should name the oracle file, its role, and the update
+policy. `kb-work` fills or verifies the SHA after RED/protection. If the correct
+oracle cannot be known until implementation reveals the interface, leave
+`protected_oracles: []` and explain the verification strategy in the plan body.
 
 ### 5. Update Todo and Handoffs
 
@@ -455,4 +473,5 @@ git commit -m "kb-plan: decompose <feature> into N vertical slices"
 - **Input from:** `kb-brainstorm` or a clear feature description.
 - **Deepening:** Use `kb-research` only for individual slices with material unresolved uncertainty.
 - **Execution:** `kb-work` runs all slices in order when invoked, or can pick up one slice at a time
-- **Verification:** Each slice uses `tdd` skill principles when verification mode is `tdd`
+- **Verification:** Each `tdd` slice carries protected-oracle proof in the manifest; load the standalone `tdd` skill only for explicit test-first coaching.
+- **Protected oracles:** Known behavior targets can be frozen before implementation so tests, fixtures, scorers, snapshots, or contracts cannot be rewritten silently

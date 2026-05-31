@@ -3,6 +3,10 @@ param(
   [string]$ConfigPath = "config/skill-quality.json",
   [string]$ResultRoot = "",
   [string]$ResultPath = "",
+  [string]$RequiredRunId = "",
+  [string]$ManifestPath = "",
+  [string]$BaselinePath = "",
+  [switch]$UpdateBaseline,
   [switch]$Json
 )
 
@@ -33,12 +37,143 @@ function Add-Issue {
   })
 }
 
+function Get-FileSha256 {
+  param([string]$Path)
+  return (Get-FileHash $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
 function Normalize-Text {
   param([string]$Value)
   if ($null -eq $Value) {
     $Value = ""
   }
   return (($Value -replace "\s+", " ").Trim().ToLowerInvariant())
+}
+
+function Test-RunManifest {
+  param(
+    [string]$RepoRoot,
+    [string]$Path,
+    [string]$RequiredRunId
+  )
+
+  $issues = [System.Collections.Generic.List[object]]::new()
+  if (-not $Path) {
+    return $issues
+  }
+
+  $fullPath = Resolve-RepoPath $RepoRoot $Path
+  if (-not (Test-Path $fullPath)) {
+    Add-Issue $issues "manifest" "ManifestPath does not exist: $Path"
+    return $issues
+  }
+
+  $manifest = Get-Content $fullPath -Raw | ConvertFrom-Json
+  $manifestRunId = if (Has-Property $manifest "run_id") { "$($manifest.run_id)" } else { "" }
+  if ($RequiredRunId -and ($manifestRunId -ne $RequiredRunId)) {
+    Add-Issue $issues "manifest" "Expected manifest run_id '$RequiredRunId' but got '$manifestRunId'."
+  }
+
+  if (-not (Has-Property $manifest "protected_files")) {
+    Add-Issue $issues "manifest" "Manifest is missing protected_files."
+    return $issues
+  }
+
+  foreach ($entry in @($manifest.protected_files)) {
+    $role = if (Has-Property $entry "role") { "$($entry.role)" } else { "<missing-role>" }
+    $pathValue = if (Has-Property $entry "path") { "$($entry.path)" } else { "" }
+    $expectedHash = if (Has-Property $entry "sha256") { "$($entry.sha256)".ToLowerInvariant() } else { "" }
+    if (-not $pathValue) {
+      Add-Issue $issues "manifest" "Protected file entry '$role' is missing path."
+      continue
+    }
+    if (-not $expectedHash) {
+      Add-Issue $issues "manifest" "Protected file '$pathValue' is missing sha256."
+      continue
+    }
+
+    $protectedPath = Resolve-RepoPath $RepoRoot $pathValue
+    if (-not (Test-Path $protectedPath)) {
+      Add-Issue $issues "manifest" "Protected file '$pathValue' is missing."
+      continue
+    }
+
+    $actualHash = Get-FileSha256 $protectedPath
+    if ($actualHash -ne $expectedHash) {
+      Add-Issue $issues "manifest" "Protected file '$pathValue' changed for role '$role': expected $expectedHash but got $actualHash."
+    }
+  }
+
+  return $issues
+}
+
+function New-BaselineRow {
+  param($Row)
+  return [pscustomobject]@{
+    file = "$($Row.file)"
+    fixture_id = "$($Row.fixture_id)"
+    expected_result = "$($Row.expected_result)"
+    actual_result = "$($Row.actual_result)"
+    issue_count = [int]$Row.issue_count
+  }
+}
+
+function New-SkillEvalBaseline {
+  param(
+    [string]$RepoRoot,
+    [string]$ResultRoot,
+    [string]$ResultPath,
+    $Rows
+  )
+
+  return [pscustomobject]@{
+    schema_version = 1
+    generated_at = (Get-Date).ToString("o")
+    result_root = $ResultRoot
+    result_path = $ResultPath
+    result_count = @($Rows).Count
+    rows = @($Rows | ForEach-Object { New-BaselineRow $_ })
+  }
+}
+
+function Compare-SkillEvalBaseline {
+  param(
+    $Baseline,
+    $Rows
+  )
+
+  $issues = [System.Collections.Generic.List[object]]::new()
+  $currentByFile = @{}
+  foreach ($row in @($Rows)) {
+    $currentByFile["$($row.file)"] = $row
+  }
+
+  foreach ($baselineRow in @($Baseline.rows)) {
+    $file = "$($baselineRow.file)"
+    if (-not $currentByFile.ContainsKey($file)) {
+      Add-Issue $issues "baseline" "Baseline row '$file' is missing from current results."
+      continue
+    }
+
+    $current = $currentByFile[$file]
+    if ("$($current.fixture_id)" -ne "$($baselineRow.fixture_id)") {
+      Add-Issue $issues $file "Fixture changed from '$($baselineRow.fixture_id)' to '$($current.fixture_id)'."
+    }
+    if ("$($current.expected_result)" -ne "$($baselineRow.expected_result)") {
+      Add-Issue $issues $file "Expected result changed from '$($baselineRow.expected_result)' to '$($current.expected_result)'."
+    }
+    if ("$($baselineRow.expected_result)" -eq "fail" -and "$($current.actual_result)" -ne "fail") {
+      Add-Issue $issues $file "Negative fixture regressed from fail to '$($current.actual_result)'."
+    }
+    if ("$($baselineRow.actual_result)" -eq "pass" -and "$($current.actual_result)" -ne "pass") {
+      Add-Issue $issues $file "Result regressed from pass to '$($current.actual_result)'."
+    }
+    if ([int]$current.issue_count -gt [int]$baselineRow.issue_count) {
+      Add-Issue $issues $file "Issue count regressed from $($baselineRow.issue_count) to $($current.issue_count)."
+    }
+  }
+
+  return $issues
 }
 
 function Test-ContainsAny {
@@ -160,7 +295,8 @@ function Test-Result {
   param(
     [string]$RepoRoot,
     $Result,
-    $FixtureMap
+    $FixtureMap,
+    [string]$RequiredRunId
   )
 
   $issues = [System.Collections.Generic.List[object]]::new()
@@ -169,6 +305,14 @@ function Test-Result {
   foreach ($field in @("id", "fixture_id", "actual", "trace")) {
     if (-not (Has-Property $Result $field)) {
       Add-Issue $issues $resultId "Missing top-level field '$field'."
+    }
+  }
+
+  if ($RequiredRunId) {
+    if (-not (Has-Property $Result "eval_run_id")) {
+      Add-Issue $issues $resultId "Missing eval_run_id sentinel for required run '$RequiredRunId'."
+    } elseif ("$($Result.eval_run_id)" -ne $RequiredRunId) {
+      Add-Issue $issues $resultId "Expected eval_run_id '$RequiredRunId' but got '$($Result.eval_run_id)'."
     }
   }
 
@@ -265,9 +409,13 @@ $allIssues = [System.Collections.Generic.List[object]]::new()
 $rows = [System.Collections.Generic.List[object]]::new()
 $selfTestMode = -not $ResultPath
 
+foreach ($issue in @(Test-RunManifest $repoRoot $ManifestPath $RequiredRunId)) {
+  $allIssues.Add($issue)
+}
+
 foreach ($file in $resultFiles) {
   $result = Get-Content $file.FullName -Raw | ConvertFrom-Json
-  $issues = @(Test-Result $repoRoot $result $fixtureMap)
+  $issues = @(Test-Result $repoRoot $result $fixtureMap $RequiredRunId)
   $actualPass = ($issues.Count -eq 0)
   $expectedOutcome = if ((Has-Property $result "expected_result") -and $result.expected_result) { "$($result.expected_result)" } else { "pass" }
   $expectedPass = ($expectedOutcome -eq "pass")
@@ -295,11 +443,45 @@ foreach ($file in $resultFiles) {
   })
 }
 
+$baselineFullPath = ""
+$baselineOutput = $null
+$baselineComparisonIssues = [System.Collections.Generic.List[object]]::new()
+if ($BaselinePath) {
+  $baselineFullPath = Resolve-RepoPath $repoRoot $BaselinePath
+  if ($UpdateBaseline) {
+    $baselineOutput = New-SkillEvalBaseline $repoRoot $ResultRoot $ResultPath $rows
+    $baselineDir = Split-Path $baselineFullPath -Parent
+    if ($baselineDir -and -not (Test-Path $baselineDir)) {
+      New-Item -ItemType Directory -Force -Path $baselineDir | Out-Null
+    }
+    $baselineOutput | ConvertTo-Json -Depth 8 | Set-Content -Path $baselineFullPath -Encoding UTF8
+  } else {
+    if (-not (Test-Path $baselineFullPath)) {
+      Add-Issue $baselineComparisonIssues "baseline" "BaselinePath does not exist: $BaselinePath"
+    } else {
+      $baseline = Get-Content $baselineFullPath -Raw | ConvertFrom-Json
+      foreach ($issue in @(Compare-SkillEvalBaseline $baseline $rows)) {
+        $baselineComparisonIssues.Add($issue)
+      }
+    }
+  }
+  foreach ($issue in $baselineComparisonIssues) {
+    $allIssues.Add($issue)
+  }
+}
+
 $output = [pscustomobject]@{
   ok = ($allIssues.Count -eq 0)
   result_count = $resultFiles.Count
   selftest = $selfTestMode
   results = $rows
+  baseline = if ($BaselinePath) {
+    [pscustomobject]@{
+      path = $baselineFullPath
+      updated = [bool]$UpdateBaseline
+      issue_count = $baselineComparisonIssues.Count
+    }
+  } else { $null }
   issues = $allIssues
 }
 
@@ -313,6 +495,13 @@ if ($Json) {
   }
   foreach ($issue in $allIssues) {
     Write-Host "ERROR [$($issue.result)] $($issue.message)"
+  }
+  if ($BaselinePath) {
+    if ($UpdateBaseline) {
+      Write-Host "Baseline updated: $baselineFullPath"
+    } else {
+      Write-Host "Baseline compared: $baselineFullPath issues=$($baselineComparisonIssues.Count)"
+    }
   }
 }
 

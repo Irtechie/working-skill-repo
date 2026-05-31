@@ -1,6 +1,6 @@
 # Testing Operations
 
-Checked: 2026-05-29
+Checked: 2026-05-31
 
 ## Current Commands
 
@@ -21,6 +21,10 @@ It defines:
 - Route/complexity eval locations.
 - Required and optional sync targets.
 
+The private marketplace contract lives in `config/skill-marketplace.json`. It
+records `E:/agent-marketplace` as the approved catalog root and defines the
+project-local-first promotion policy for learned skills and reusable pipelines.
+
 `kb-check.ps1` discovers this repo as a skill repo when `.github/skills` and
 `config/skill-quality.json` exist.
 
@@ -31,7 +35,12 @@ shipping contract is decided.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\skill-sync-report.ps1
+powershell -ExecutionPolicy Bypass -File scripts\skill-sync-report.ps1 -VerboseOptional
 ```
+
+Default output prints required issues in detail and summarizes optional ATV
+scaffold/plugin differences. Use `-VerboseOptional` when reviewing optional
+per-skill drift.
 
 ## Current Result
 
@@ -40,19 +49,42 @@ powershell -ExecutionPolicy Bypass -File scripts\skill-sync-report.ps1
 - `skill-lint`
 - `route-complexity-eval`
 - `skill-eval`
+- `skill-eval-manifest-selftest`
+- `skill-eval-baseline-selftest`
 - `skill-eval-codex-dry-run`
 - `skill-eval-ghcp-dry-run`
 - `skill-eval-quality`
+- `kb-pipeline-selftest`
+- `skill-surface-report`
 - `skill-sync-report`
 
-`kb-check.ps1 -All` runs all three and exits nonzero when a required check fails.
+`kb-check.ps1 -All` runs every discovered check and exits nonzero when a
+required check fails.
 Expected current warnings:
 
-- missing `argument-hint` on inherited/older skills;
 - hot-path skill size warnings;
-- optional ATV scaffold/plugin drift or omissions.
+- summarized optional ATV scaffold/plugin drift or omissions.
 
 Required targets should report zero required sync issues.
+
+Landmine lifecycle changes are verified with the same structural gate:
+
+```powershell
+git diff --check
+.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+```
+
+`docs/context/landmines.md` must contain owner, evidence, fix condition, and
+verification fields for active entries. Generic advice should not be recorded as
+an active landmine.
+
+Generated `learned-*` skills require explicit human approval before they are
+committed or synced from this portable bundle. The default prompt is:
+
+```text
+Promote these generated learned-* skills and allow them to be committed or
+synced from this portable bundle? yes/no
+```
 
 ## Eval Mapping
 
@@ -83,14 +115,25 @@ prompt/output datasets are the native proof surface.
   planning guard coverage.
 - `scripts/skill-eval.ps1` scores captured skill result JSON against route
   fixtures, trace evidence, and structured claim checks. Its default self-test
-  includes intentionally bad route/proof/claim results that must fail.
+  includes intentionally bad route/proof/claim results that must fail. When
+  passed `-ManifestPath`, it also verifies protected verifier-file SHA256 hashes
+  before accepting the result.
+- `scripts/skill-eval-manifest-selftest.ps1` creates a dry-run eval manifest,
+  proves the valid manifest passes, then corrupts the fixture SHA in a copied
+  manifest and requires deterministic scoring to fail.
+- `scripts/skill-eval-baseline-selftest.ps1` creates a temporary baseline from
+  selftest results, proves unchanged comparison passes, removes proof from a
+  copied passing result, and mutates a negative fixture so it incorrectly
+  passes. Both mutations must fail baseline comparison.
 - `scripts/skill-eval-run-codex.ps1 -FixtureId tiny-typo-fix -DryRun` validates
-  the Codex live-adapter plumbing without calling a model. Live mode is explicit
-  because it invokes `codex exec`.
+  the Codex live-adapter plumbing without calling a model and writes a
+  protected-file hash manifest. Live mode is explicit because it invokes
+  `codex exec`.
 - `scripts/skill-eval-run-ghcp.ps1 -FixtureId tiny-typo-fix -DryRun` validates
-  the GHCP live-adapter plumbing without calling a model. Live mode is explicit
-  because it invokes GitHub Copilot CLI and relies on prompt-level JSON
-  constraints plus deterministic parsing.
+  the GHCP live-adapter plumbing without calling a model and writes a
+  protected-file hash manifest. Live mode is explicit because it invokes GitHub
+  Copilot CLI and relies on prompt-level JSON constraints plus deterministic
+  parsing.
 - `scripts/skill-eval-run-live-corpus.ps1 -All -Runtime codex,ghcp -DryRun`
   validates corpus orchestration across both adapters. Live mode is explicit and
   not part of `kb-check -All`.
@@ -103,6 +146,15 @@ prompt/output datasets are the native proof surface.
 - `scripts/skill-eval-regression-report.ps1 -RunRoot .atv/eval-runs`
   summarizes local live-run artifacts and compares them to a selected baseline
   when `-BaselinePath` is provided.
+- `scripts/kb-pipeline.ps1 -Start skill-bundle-proof-spike` creates a
+  non-agent pipeline spike run under `.atv/pipeline-runs/` with selected
+  pipeline metadata, phase prompts, protected-file hashes, and proof command
+  placeholders. `scripts/kb-pipeline.ps1 -Status` reads the latest run back.
+- `scripts/kb-pipeline-selftest.ps1` proves the pipeline spike can start, can
+  read status, writes required run artifacts, and rejects unknown pipeline IDs.
+- `scripts/skill-surface-report.ps1` reports route-level loaded skill surface
+  with line counts, rough token estimates, and content hashes. It can compare
+  against a JSON baseline when `-BaselinePath` is provided.
 - `scripts/skill-sync-report.ps1` validates required skill-copy hashes across
   the working repo, Codex global, Copilot global, shared agents global, and ATV
   `.github` skills.

@@ -1,0 +1,24 @@
+{
+  "id": "multi-stream-skill-minimalism",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Audit the whole KB skill surface, decide what to delete or trim, build proof harness changes, and plan all workstreams before execution.",
+  "repo_state": "The request has independent streams: proof harness, landmines, routing, base/core trims, lazy lanes, todo policy, and propagation policy.",
+  "expected": {
+    "route": "kb-epic",
+    "complexity_tier": "large",
+    "max_user_questions": 3,
+    "artifacts": ["epic map", "brainstorms", "multiple manifests", "todo board"],
+    "proof": ["route fixtures", "loaded-surface report", "sync drift proof"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 6,
+    "uncertainty": 3,
+    "user_visible": false,
+    "data_auth_security_risk": 1,
+    "external_dependency": false,
+    "verification_surface": "full",
+    "rollback_difficulty": 2,
+    "expected_duration_hours": 20
+  },
+  "guards": ["under-planning"]
+}

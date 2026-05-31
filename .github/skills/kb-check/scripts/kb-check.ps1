@@ -50,6 +50,12 @@ if ((Test-Path ".github/skills") -and (Test-Path "config/skill-quality.json")) {
   if (Test-Path "scripts/skill-eval.ps1") {
     $checks.Add((Add-Check "skill-eval" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval.ps1" "skill eval selftest fixtures detected"))
   }
+  if (Test-Path "scripts/skill-eval-manifest-selftest.ps1") {
+    $checks.Add((Add-Check "skill-eval-manifest-selftest" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval-manifest-selftest.ps1" "skill eval protected-file hash selftest detected"))
+  }
+  if (Test-Path "scripts/skill-eval-baseline-selftest.ps1") {
+    $checks.Add((Add-Check "skill-eval-baseline-selftest" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval-baseline-selftest.ps1" "skill eval baseline regression selftest detected"))
+  }
   if (Test-Path "scripts/skill-eval-run-codex.ps1") {
     $checks.Add((Add-Check "skill-eval-codex-dry-run" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval-run-codex.ps1 -FixtureId tiny-typo-fix -DryRun" "Codex skill eval adapter detected"))
   }
@@ -58,6 +64,12 @@ if ((Test-Path ".github/skills") -and (Test-Path "config/skill-quality.json")) {
   }
   if (Test-Path "scripts/skill-eval-quality.ps1") {
     $checks.Add((Add-Check "skill-eval-quality" "powershell -ExecutionPolicy Bypass -File scripts\skill-eval-quality.ps1" "skill output quality rubric fixtures detected"))
+  }
+  if (Test-Path "scripts/kb-pipeline-selftest.ps1") {
+    $checks.Add((Add-Check "kb-pipeline-selftest" "powershell -ExecutionPolicy Bypass -File scripts\kb-pipeline-selftest.ps1" "KB coded pipeline spike selftest detected"))
+  }
+  if (Test-Path "scripts/skill-surface-report.ps1") {
+    $checks.Add((Add-Check "skill-surface-report" "powershell -ExecutionPolicy Bypass -File scripts\skill-surface-report.ps1" "skill loaded-surface report detected"))
   }
   if (Test-Path "scripts/skill-sync-report.ps1") {
     $checks.Add((Add-Check "skill-sync-report" "powershell -ExecutionPolicy Bypass -File scripts\skill-sync-report.ps1" "skill sync target config detected"))

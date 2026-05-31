@@ -36,6 +36,59 @@ function ConvertTo-JsonFile {
   $Object | ConvertTo-Json -Depth $Depth | Set-Content -Path $Path -Encoding UTF8
 }
 
+function Get-FileSha256 {
+  param([string]$Path)
+  return (Get-FileHash $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+function Get-RelativeRepoPath {
+  param([string]$RepoRoot, [string]$Path)
+  $resolved = (Resolve-Path $Path).Path
+  if ($resolved.StartsWith($RepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $resolved.Substring($RepoRoot.Length + 1)
+  }
+  return $resolved
+}
+
+function New-ProtectedFileEntry {
+  param(
+    [string]$RepoRoot,
+    [string]$Role,
+    [string]$Path
+  )
+  return [pscustomobject]@{
+    role = $Role
+    path = Get-RelativeRepoPath $RepoRoot $Path
+    sha256 = Get-FileSha256 $Path
+  }
+}
+
+function New-RunManifest {
+  param(
+    [string]$RepoRoot,
+    [string]$RunId,
+    [string]$AdapterPath,
+    [string]$ConfigPath,
+    [string]$FixtureRoot,
+    [string]$SchemaPath,
+    $Fixture
+  )
+
+  $fixturePath = Join-Path $FixtureRoot "$($Fixture.id).json"
+  return [pscustomobject]@{
+    run_id = $RunId
+    fixture_id = $Fixture.id
+    created_at = (Get-Date).ToString("o")
+    protected_files = @(
+      New-ProtectedFileEntry $RepoRoot "fixture" $fixturePath
+      New-ProtectedFileEntry $RepoRoot "scorer" (Join-Path $RepoRoot "scripts/skill-eval.ps1")
+      New-ProtectedFileEntry $RepoRoot "result_schema" $SchemaPath
+      New-ProtectedFileEntry $RepoRoot "adapter" $AdapterPath
+      New-ProtectedFileEntry $RepoRoot "config" $ConfigPath
+    )
+  }
+}
+
 function Read-JsonObjectFromText {
   param([string]$Text)
   $trimmed = $Text.Trim()
@@ -97,7 +150,7 @@ function Get-Fixtures {
 }
 
 function New-EvalPrompt {
-  param($Fixture)
+  param($Fixture, [string]$RunId)
   $fixtureJson = $Fixture | ConvertTo-Json -Depth 12
   return @"
 You are running a KB skill-routing evaluation.
@@ -107,6 +160,7 @@ Rules:
 - Do not run destructive commands.
 - Decide the smallest correct KB route for the request.
 - Return only JSON matching the provided output schema.
+- Set eval_run_id exactly to "$RunId".
 - Use the route fixture as ground truth input; do not execute the requested work.
 - Fill trace.files_read and trace.commands only with files/commands you actually used.
 - Include proof expectations that the selected route should eventually produce.
@@ -118,6 +172,7 @@ Return a result object with:
 - id: "codex-live-$($Fixture.id)"
 - fixture_id: "$($Fixture.id)"
 - expected_result: "pass"
+- eval_run_id: "$RunId"
 - actual.route
 - actual.user_questions
 - actual.artifacts
@@ -136,6 +191,7 @@ function New-DryRunResult {
     id = $RunId
     fixture_id = $Fixture.id
     expected_result = "pass"
+    eval_run_id = $RunId
     actual = [pscustomobject]@{
       route = $Fixture.expected.route
       user_questions = [int]$Fixture.expected.max_user_questions
@@ -182,7 +238,7 @@ function Invoke-CodexFixture {
   $stdoutPath = Join-Path $RunDir "codex.stdout.jsonl"
   $stderrPath = Join-Path $RunDir "codex.stderr.log"
   $finalPath = Join-Path $RunDir "codex-final.json"
-  New-EvalPrompt $Fixture | Set-Content -Path $promptPath -Encoding UTF8
+  New-EvalPrompt $Fixture $RunId | Set-Content -Path $promptPath -Encoding UTF8
 
   $modelArgs = @()
   if ($Model) {
@@ -287,6 +343,7 @@ $configFullPath = Resolve-RepoPath $repoRoot $ConfigPath
 $config = Get-Content $configFullPath -Raw | ConvertFrom-Json
 $fixtureRoot = Resolve-RepoPath $repoRoot $config.route_complexity.fixture_root
 $schemaPath = Resolve-RepoPath $repoRoot "evals/skill-eval/result.schema.json"
+$adapterPath = Join-Path $repoRoot "scripts/skill-eval-run-codex.ps1"
 $fixtures = Get-Fixtures $fixtureRoot $FixtureId ([bool]$All)
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $runRootFull = Resolve-RepoPath $repoRoot $RunRoot
@@ -304,7 +361,9 @@ foreach ($fixture in $fixtures) {
   New-Item -ItemType Directory -Force -Path $runDir | Out-Null
 
   ConvertTo-JsonFile $fixture (Join-Path $runDir "fixture.json")
-  New-EvalPrompt $fixture | Set-Content -Path (Join-Path $runDir "prompt.txt") -Encoding UTF8
+  New-EvalPrompt $fixture $runId | Set-Content -Path (Join-Path $runDir "prompt.txt") -Encoding UTF8
+  $manifestPath = Join-Path $runDir "manifest.json"
+  ConvertTo-JsonFile (New-RunManifest $repoRoot $runId $adapterPath $configFullPath $fixtureRoot $schemaPath $fixture) $manifestPath
 
   try {
     if ($DryRun) {
@@ -316,7 +375,7 @@ foreach ($fixture in $fixtures) {
 
     $resultPath = Join-Path $runDir "result.json"
     ConvertTo-JsonFile $result $resultPath
-    powershell -ExecutionPolicy Bypass -File (Join-Path $repoRoot "scripts/skill-eval.ps1") -Root $repoRoot -ResultPath $resultPath | Tee-Object -FilePath (Join-Path $runDir "score.log") | Out-Null
+    powershell -ExecutionPolicy Bypass -File (Join-Path $repoRoot "scripts/skill-eval.ps1") -Root $repoRoot -ResultPath $resultPath -RequiredRunId $runId -ManifestPath $manifestPath | Tee-Object -FilePath (Join-Path $runDir "score.log") | Out-Null
     if ($LASTEXITCODE -ne 0) {
       throw "skill-eval scoring failed for $($fixture.id)."
     }
@@ -325,6 +384,7 @@ foreach ($fixture in $fixtures) {
       fixture_id = $fixture.id
       run_id = $runId
       result_path = $resultPath
+      manifest_path = $manifestPath
       mode = if ($DryRun) { "dry-run" } else { "live" }
       ok = $true
     })

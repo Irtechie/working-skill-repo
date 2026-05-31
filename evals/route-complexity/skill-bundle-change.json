@@ -1,0 +1,24 @@
+{
+  "id": "skill-bundle-change",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Update a KB skill and sync the required global copies, with docs and the standard skill repo gate.",
+  "repo_state": "Skill source, required sync targets, and testing docs may change, but the work is one coherent bundle change.",
+  "expected": {
+    "route": "kb-plan",
+    "complexity_tier": "standard",
+    "max_user_questions": 1,
+    "artifacts": ["manifest", "sync proof", "check output"],
+    "proof": ["git diff --check", "kb-check -All", "skill-sync-report"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 2,
+    "uncertainty": 1,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "integration",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 2
+  },
+  "guards": ["skipped-gate"]
+}

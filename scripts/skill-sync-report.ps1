@@ -1,6 +1,7 @@
 param(
   [string]$Root = ".",
   [string]$ConfigPath = "config/skill-quality.json",
+  [switch]$VerboseOptional,
   [switch]$Json
 )
 
@@ -14,13 +15,31 @@ function Resolve-RepoPath {
   return (Join-Path $Base $Path)
 }
 
+function Get-StringSha256 {
+  param([string]$Value)
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    return (($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString("x2") }) -join "")
+  } finally {
+    $sha.Dispose()
+  }
+}
+
 function Get-SkillHash {
   param([string]$SkillRoot, [string]$SkillName)
-  $skillFile = Join-Path (Join-Path $SkillRoot $SkillName) "SKILL.md"
-  if (-not (Test-Path $skillFile)) {
+  $skillDir = Join-Path $SkillRoot $SkillName
+  if (-not (Test-Path $skillDir)) {
     return $null
   }
-  return (Get-FileHash $skillFile -Algorithm SHA256).Hash
+  $lines = Get-ChildItem $skillDir -Recurse -File |
+    Sort-Object FullName |
+    ForEach-Object {
+      $relative = $_.FullName.Substring($skillDir.Length + 1) -replace "\\", "/"
+      $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+      "$relative`t$hash"
+    }
+  return Get-StringSha256 ($lines -join "`n")
 }
 
 $repoRoot = (Resolve-Path $Root).Path
@@ -120,9 +139,19 @@ if ($Json) {
   $optionalIssues = @($rows | Where-Object { -not $_.required -and $_.status -ne "match" })
   if ($optionalIssues.Count -gt 0) {
     Write-Host ""
-    Write-Host "Optional target differences:"
-    foreach ($issue in $optionalIssues) {
-      Write-Host "WARN  [$($issue.target)] $($issue.skill): $($issue.status) source=$($issue.source_hash) target=$($issue.target_hash) :: $($issue.suggestion)"
+    Write-Host "Optional target differences: $($optionalIssues.Count) warning-only differences. Use -VerboseOptional for per-skill rows."
+    $optionalIssues |
+      Group-Object target, status |
+      Sort-Object Name |
+      ForEach-Object {
+        Write-Host "WARN  $($_.Name): $($_.Count)"
+      }
+    if ($VerboseOptional) {
+      Write-Host ""
+      Write-Host "Optional target details:"
+      foreach ($issue in $optionalIssues) {
+        Write-Host "WARN  [$($issue.target)] $($issue.skill): $($issue.status) source=$($issue.source_hash) target=$($issue.target_hash) :: $($issue.suggestion)"
+      }
     }
   }
 }

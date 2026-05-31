@@ -1,6 +1,7 @@
 ---
 name: evolve
 description: Promote mature instincts (confidence > 0.8) into full Copilot skills that get auto-discovered. Clusters related instincts and generates SKILL.md files in .github/skills/.
+argument-hint: "[instinct domain or blank for all mature instincts]"
 ---
 
 # /evolve — Promote Instincts to Skills
@@ -49,7 +50,28 @@ Evolution candidates:
 Proceed with evolution? (Copilot will generate the skills)
 ```
 
-### Step 3: Generate SKILL.md
+### Step 3: Human Approval Gate
+
+Numeric maturity is necessary but not sufficient in this portable bundle.
+Before generating, committing, or syncing any `learned-*` skill, ask:
+
+```
+Promote these generated learned-* skills and allow them to be committed or
+synced from this portable bundle? yes/no
+```
+
+If the answer is not an explicit yes:
+
+- Do not create or modify `.github/skills/learned-*`.
+- Do not archive the source instincts as evolved.
+- Report the candidates as ready but unapproved.
+- Leave the instincts in `.atv/instincts/project.yaml` so evidence can continue
+  accumulating or decay naturally.
+
+If approved, continue. Generated skills are still drafts and must be reviewed
+before commit.
+
+### Step 4: Generate SKILL.md
 
 For each cluster, generate a `SKILL.md` file:
 
@@ -70,7 +92,7 @@ The skill content should:
 
 **Output path:** `.github/skills/learned-<domain>/SKILL.md`
 
-### Step 4: Archive Evolved Instincts
+### Step 5: Archive Evolved Instincts
 
 Move evolved instincts from `project.yaml` to `.atv/instincts/archive/evolved-YYYY-MM-DD.yaml` with metadata:
 ```yaml
@@ -78,7 +100,7 @@ evolved_to: .github/skills/learned-go-error-handling/SKILL.md
 evolved_at: 2026-04-06
 ```
 
-### Step 5: Report
+### Step 6: Report
 
 ```
 Evolution complete!
@@ -99,5 +121,7 @@ Remaining instincts: X active (run /instincts to see)
 
 - Generated skills use `learned-` prefix — easy to spot and edit
 - Always review generated skills before committing — they're a draft
+- In this portable bundle, generated `learned-*` skills require explicit human
+  approval before commit or sync
 - Evolved instincts are archived, not deleted, so history is preserved
 - If a generated skill doesn't feel right, delete it and the instincts will re-accumulate

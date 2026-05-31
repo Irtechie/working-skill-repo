@@ -493,7 +493,7 @@ Resume with `/kb-brainstorm` when ready to resolve these before planning.
 
 ## Integration with Other Skills
 
-- **Input from:** `/ce-ideate` (idea exploration), or a fresh feature description from the user.
+- **Input from:** idea exploration or a fresh feature description from the user.
 - **Default next step:** invoke `/kb-plan <requirements-doc>` for vertical-slice decomposition once the brainstorm is gate-clean.
 - **Stop instead:** only for unresolved blockers, required human decisions, required research, or explicit user instruction.
 - **Optional follow-up:** `kb-research` for another targeted research pass that should become reusable local memory.

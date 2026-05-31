@@ -12,6 +12,12 @@ Prefer executable truth over model judgment. If a script can check it, run the s
 
 LLM review can find risks, but it does not prove behavior. A slice is not verified until deterministic checks pass or a clear reason is recorded.
 
+When a slice declares protected oracles, deterministic proof must include the
+oracle integrity check: the test, fixture, scorer, snapshot, schema, or contract
+file used as the behavior target must still match the recorded SHA unless the
+plan explicitly updated the oracle. This prevents the model from moving the
+target after implementation starts.
+
 ## Check Sources
 
 Discover commands from:
@@ -53,6 +59,10 @@ Headless by default. Do not spawn visible browser windows from multiple workers;
 When the same manual verification would be repeated twice, create a script.
 
 Good scripts accept scope arguments, print concise pass/fail output, exit nonzero on failure, avoid network unless needed, run in CI or from an agent session, and are documented in `docs/context/operations/testing.md`.
+
+For protected-oracle work, prefer reusable SHA/manifest scripts over manual
+inspection. In this repo, `scripts/skill-eval-manifest-selftest.ps1` proves that
+tampering with a protected fixture/scorer manifest fails deterministically.
 
 ## Output
 

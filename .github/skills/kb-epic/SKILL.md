@@ -12,6 +12,19 @@ Coordinate large work without turning it into one huge plan. This is the lane fo
 
 Create an epic map that points to multiple brainstorms, plans, manifests, handoffs, research notes, and subsystem docs. Keep each execution unit small enough for `kb-plan` and `kb-work`.
 
+The default `kb-epic` outcome is planning complete: every workstream has a
+current manifest, is explicitly parked, or is blocked by a named human decision.
+Do not stop after creating brainstorms unless human input is required before
+planning can continue.
+
+Record workflow shape during planning. Use `multi-stream-epic` when independent
+streams, blockers, brainstorms, and manifests exist; use `pipeline-change` when
+skills, scripts, evals, docs, and proof gates must change together.
+
+Assume the user invoked `kb-epic` while available for critical decisions and
+wants the planning blockers surfaced early so they can leave while execution
+runs later.
+
 ## When To Use
 
 Use `kb-epic` when:
@@ -73,6 +86,54 @@ Default to serial execution when workstreams share files, schemas, prompts, auth
 
 Use read-only swarms for research/review. Use coding swarms only when file ownership is declared and non-overlapping.
 
+## Planning Completion Contract
+
+`kb-epic` is the coordinator that gets an initiative to a fully planned state.
+Its job is not done when brainstorms exist. It is done only when the epic map
+shows one of these outcomes for every workstream:
+
+- `planned` or `queued` with a manifest path;
+- `blocked` or `human-required` with the exact question that blocks planning;
+- `parked` with a rationale;
+- `done` with proof or completion notes.
+
+After creating or refreshing brainstorm docs, immediately extract their
+`Resolve Before Planning` items. Convert those items into the smallest possible
+human checkpoint list, ask only the questions that block planning, then continue
+to `kb-plan` for every workstream that is unblocked.
+
+When a question can be handled as an explicit assumption without changing
+safety, architecture, acceptance criteria, or user intent, record the assumption
+and keep planning. Do not stop the epic just because a brainstorm contains nice
+to-have questions.
+
+HITL-first rule:
+
+- Surface planning-blocking questions before generating manifests.
+- Ask the smallest number of questions needed to unblock planning, but collect
+  them across all brainstorm-needed workstreams before asking.
+- Ask brainstorm questions in one ordered batch, grouped by workstream, instead
+  of bouncing between question, answer, plan, question, answer, plan.
+- After the last planning-blocking question is answered, continue until all
+  unblocked workstreams have manifests or explicit parked/blocked status.
+- Complete or update all brainstorm docs with the answers before creating
+  manifests.
+- Then generate plans/slices for every unblocked workstream: both those that
+  came from completed brainstorms and those that were clear enough to skip
+  brainstorming.
+- Once planning is complete, ask:
+
+```text
+Planning is complete. Do you want me to continue until all planned work is
+completed and tested? If yes, I will run kb-work, then kb-complete, across the
+runnable manifests from this epic.
+```
+
+If the user says yes, execute runnable manifests serially unless the epic has
+declared safe parallel ownership. After each manifest, run `kb-complete` or an
+equivalent milestone completion gate before moving on. Do not execute blocked,
+parked, or human-required manifests.
+
 ## Workstream Routing
 
 An epic may have one umbrella brainstorm, but execution should not depend on one
@@ -84,6 +145,17 @@ giant brainstorm. Use the smallest useful artifact per workstream:
 | Behavior is clear enough to slice, but execution shape is not | `kb-plan` for that workstream | `docs/plans/<date>-000-kb-<workstream>-manifest.md` plus slice plans |
 | A valid manifest already exists and is current | `kb-work <manifest>` | executed slices |
 | Workstream is blocked by architecture/research decision | `kb-research` or a small decision note first | research/decision linked from epic |
+
+Default phase order:
+
+- Brainstorm all workstreams whose goals, boundaries, or acceptance criteria are
+  unclear before creating plans for them.
+- Do not create one large plan that embeds unresolved brainstorm questions.
+- After all required brainstorm docs exist, extract their blocking questions
+  together, ask them in workstream/dependency order, then update every affected
+  brainstorm before planning.
+- Batch planning only after brainstorm questions are answered or parked. If
+  some workstreams are blocked, continue planning the unblocked workstreams.
 
 Brainstorm granularity:
 
@@ -138,13 +210,21 @@ to `todo-done.md`.
    - `Status`: `draft`, `planned`, `queued`, `running`, `blocked`, `done`, or
      `parked`.
    - `Notes`: blocker, dependency, human checkpoint, or proof pointer.
-5. Resolve or park any brainstorm `Resolve Before Planning` items before
-   routing that workstream to `kb-plan`.
-6. Route each workstream using the Workstream Routing table above.
-7. Queue each created manifest in `todo.md` using this repo's queue convention.
-8. Use `kb-work` for runnable manifests.
-9. Use `kb-complete` after each manifest or at epic milestones.
-10. Use `kb-map refresh` after durable architecture changes.
-11. Use `kb-ship` when release readiness matters.
+5. Run or refresh required brainstorms.
+6. Extract all `Resolve Before Planning` items from every brainstorm into
+   `Human Checkpoints`, preserving workstream/dependency order.
+7. Ask only planning-blocking human questions as one ordered batch. If a
+   question is not blocking, record an assumption and continue.
+8. Apply the answers to complete or update all brainstorm docs.
+9. Route every unblocked workstream to `kb-plan`, including workstreams that
+   skipped brainstorming.
+10. Record each created manifest in the epic Workstreams table and queue it in
+   `todo.md` using this repo's queue convention.
+11. Continue until every workstream is planned, queued, blocked, parked, or done.
+12. Ask whether to continue into execution for all runnable manifests.
+13. If yes, use `kb-work` for runnable manifests.
+14. Use `kb-complete` after each manifest or at epic milestones.
+15. Use `kb-map refresh` after durable architecture changes.
+16. Use `kb-ship` when release readiness matters.
 
 Refresh cold epic work older than 72 hours before execution.

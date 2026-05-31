@@ -1,0 +1,72 @@
+{
+  "id": "skill-bundle-proof-spike",
+  "description": "Spike pipeline for skill-bundle, proof-harness, and protected-oracle changes.",
+  "version": 1,
+  "triggers": [
+    "skill bundle changes",
+    "eval harness changes",
+    "protected oracle changes",
+    "sync or propagation policy changes"
+  ],
+  "protected_files": [
+    {
+      "role": "pipeline-definition",
+      "path": "config/pipelines/skill-bundle-proof-spike.json"
+    },
+    {
+      "role": "quality-config",
+      "path": "config/skill-quality.json"
+    },
+    {
+      "role": "check-runner",
+      "path": ".github/skills/kb-check/scripts/kb-check.ps1"
+    }
+  ],
+  "proof_commands": [
+    "git diff --check",
+    "powershell -ExecutionPolicy Bypass -File ./.github/skills/kb-check/scripts/kb-check.ps1 -All"
+  ],
+  "phases": [
+    {
+      "id": "map",
+      "fresh_context": false,
+      "skills": [
+        "kb-map"
+      ],
+      "required_outputs": [
+        "selected-pipeline.md"
+      ]
+    },
+    {
+      "id": "plan",
+      "fresh_context": true,
+      "skills": [
+        "kb-plan"
+      ],
+      "required_outputs": [
+        "manifest"
+      ]
+    },
+    {
+      "id": "work",
+      "fresh_context": true,
+      "skills": [
+        "kb-work"
+      ],
+      "required_outputs": [
+        "slice-proof"
+      ]
+    },
+    {
+      "id": "complete",
+      "fresh_context": true,
+      "skills": [
+        "kb-complete"
+      ],
+      "required_outputs": [
+        "review-proof",
+        "memory-refresh"
+      ]
+    }
+  ]
+}

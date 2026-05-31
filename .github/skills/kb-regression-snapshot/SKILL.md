@@ -1,6 +1,7 @@
 ---
 name: kb-regression-snapshot
 description: Capture and replay deterministic regression snapshots between KB slices. Use after a slice passes QA to freeze passing state, and before future slices start to prove earlier slice behavior has not regressed.
+argument-hint: "[capture|verify plus slice id/spec path]"
 ---
 
 # KB Regression Snapshot
@@ -8,6 +9,11 @@ description: Capture and replay deterministic regression snapshots between KB sl
 Freeze what passed so later slices cannot quietly break it.
 
 This is not a test-design skill. The LLM defines the smallest useful snapshot spec. The runner executes it mechanically.
+
+Use this for cross-slice application state snapshots. Use the skill-eval
+baseline path for skill-harness fixture regressions. The two mechanisms solve
+different problems: app/workflow replay between slices versus scorer output
+comparison across eval runs.
 
 ## Runner
 

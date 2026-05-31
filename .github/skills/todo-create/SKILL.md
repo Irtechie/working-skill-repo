@@ -1,109 +1,49 @@
 ---
 name: todo-create
 description: Use when creating durable work items, managing todo lifecycle, or tracking findings across sessions in the file-based todo system
+argument-hint: "[work item, finding, or board update]"
 disable-model-invocation: true
 ---
 
-# File-Based Todo Tracking
+# Todo Create
 
-## Overview
+Create durable KB work items in the repo root `todo.md`.
 
-The `.context/compound-engineering/todos/` directory is a file-based tracking system for code review feedback, technical debt, feature requests, and work items. Each todo is a markdown file with YAML frontmatter.
+Do not introduce `backlog.md` for KB work. Do not create
+`.context/compound-engineering/todos/` unless a legacy CE review flow explicitly
+requires file-per-todo compatibility.
 
-> **Legacy support:** Always check both `.context/compound-engineering/todos/` (canonical) and `todos/` (legacy) when reading. Write new todos only to the canonical path. This directory has a multi-session lifecycle -- do not clean it up as scratch.
+## KB Todo Model
 
-## Directory Paths
+Use root `todo.md` as the active board:
 
-| Purpose | Path |
-|---------|------|
-| **Canonical (write here)** | `.context/compound-engineering/todos/` |
-| **Legacy (read-only)** | `todos/` |
+- active manifests and slices;
+- blockers and human-required items;
+- parked work that should survive sessions;
+- handoff pointers.
 
-## File Naming Convention
+Use `todo-done.md` for completed summaries. Move finished routine history out
+of `todo.md` so the active board stays small.
 
-```
-{issue_id}-{status}-{priority}-{description}.md
-```
+## Create A KB Item
 
-- **issue_id**: Sequential number (001, 002, ...) -- never reused
-- **status**: `pending` | `ready` | `complete`
-- **priority**: `p1` (critical) | `p2` (important) | `p3` (nice-to-have)
-- **description**: kebab-case, brief
+1. Read the existing `todo.md` board contract at the top of the file.
+2. Add the item to the closest existing section.
+3. Include owner/status, manifest or handoff link when available, blocker, and
+   next action.
+4. Prefer one concise row or bullet. Create a new section only when the board has
+   no natural home.
 
-**Example:** `002-ready-p1-fix-n-plus-1.md`
+Create a durable todo when work survives this turn, has dependencies, requires
+prioritization, or must be visible to the next fresh session. Use the platform
+task list for temporary in-turn steps.
 
-## File Structure
+## Legacy CE Compatibility
 
-Each todo has YAML frontmatter and structured sections. Use the todo template included below when creating new todos.
+Older CE review flows may still ask for file-per-todo output under
+`.context/compound-engineering/todos/`. Treat that as non-KB compatibility:
 
-```yaml
----
-status: ready
-priority: p1
-issue_id: "002"
-tags: [rails, performance]
-dependencies: ["001"]     # Issue IDs this is blocked by
----
-```
-
-**Required sections:** Problem Statement, Findings, Proposed Solutions, Recommended Action (filled during triage), Acceptance Criteria, Work Log.
-
-**Optional sections:** Technical Details, Resources, Notes.
-
-## Workflows
-
-> **Tool preference:** Use native file-search/glob and content-search tools instead of shell commands for finding and reading todo files. Shell only for operations with no native equivalent (`mv`, `mkdir -p`).
-
-### Creating a New Todo
-
-1. `mkdir -p .context/compound-engineering/todos/`
-2. Search both paths for `[0-9]*-*.md`, find the highest numeric prefix, increment, zero-pad to 3 digits.
-3. Use the todo template included below, write to canonical path as `{NEXT_ID}-pending-{priority}-{description}.md`.
-4. Fill Problem Statement, Findings, Proposed Solutions, Acceptance Criteria, and initial Work Log entry.
-5. Set status: `pending` (needs triage) or `ready` (pre-approved).
-
-**Create a todo when** the work needs more than ~15 minutes, has dependencies, requires planning, or needs prioritization. **Act immediately instead** when the fix is trivial, obvious, and self-contained.
-
-### Triaging Pending Items
-
-1. Glob `*-pending-*.md` in both paths.
-2. Review each todo's Problem Statement, Findings, and Proposed Solutions.
-3. Approve: rename `pending` -> `ready` in filename and frontmatter, fill Recommended Action.
-4. Defer: leave as `pending`.
-
-Load the `todo-triage` skill for an interactive approval workflow.
-
-### Managing Dependencies
-
-```yaml
-dependencies: ["002", "005"]  # Blocked by these issues
-dependencies: []               # No blockers
-```
-
-To check blockers: search for `{dep_id}-complete-*.md` in both paths. Missing matches = incomplete blockers.
-
-### Completing a Todo
-
-1. Verify all acceptance criteria.
-2. Update Work Log with final session.
-3. Rename `ready` -> `complete` in filename and frontmatter.
-4. Check for unblocked work: search for files containing `dependencies:.*"{issue_id}"`.
-
-## Integration with Workflows
-
-| Trigger | Flow |
-|---------|------|
-| Code review | `/ce-review` -> Findings -> `/todo-triage` -> Todos |
-| Autonomous review | `/ce-review mode:autofix` -> Residual todos -> `/todo-resolve` |
-| Code TODOs | `/todo-resolve` -> Fixes + Complex todos |
-| Planning | Brainstorm -> Create todo -> Work -> Complete |
-
-## Key Distinction
-
-This skill manages **durable, cross-session work items** persisted as markdown files. For temporary in-session step tracking, use platform task tools (`TaskCreate`/`TaskUpdate` in Copilot CLI, `update_plan` in Codex) instead.
-
----
-
-## Todo Template
-
-@./assets/todo-template.md
+- read legacy files when a CE skill explicitly points to them;
+- do not make the legacy directory canonical for KB;
+- prefer converting unresolved CE findings into root `todo.md` entries when
+  continuing through KB workflows.

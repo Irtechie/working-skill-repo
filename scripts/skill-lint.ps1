@@ -53,9 +53,11 @@ $issues = [System.Collections.Generic.List[object]]::new()
 $warnings = [System.Collections.Generic.List[object]]::new()
 
 $skillRoot = Resolve-RepoPath $repoRoot $config.lint.skill_root
+$skillNames = @()
 if (-not (Test-Path $skillRoot)) {
   Add-Issue $issues "error" $config.lint.skill_root "Skill root is missing."
 } else {
+  $skillNames = @(Get-ChildItem $skillRoot -Directory | Sort-Object Name | Select-Object -ExpandProperty Name)
   Get-ChildItem $skillRoot -Directory | Sort-Object Name | ForEach-Object {
     $skillName = $_.Name
     $skillPath = $_.FullName
@@ -112,6 +114,55 @@ if (-not (Test-Path $skillRoot)) {
       }
     } elseif ($lines -gt [int]$config.lint.hot_path_warning_lines) {
       Add-Issue $warnings "warning" $relativeSkillFile "Skill has $lines lines, exceeding warning limit $($config.lint.hot_path_warning_lines)."
+    }
+  }
+}
+
+if ($skillNames.Count -gt 0) {
+  $skillNameSet = @{}
+  foreach ($skillName in $skillNames) {
+    $skillNameSet[$skillName] = $true
+  }
+
+  $knownExternalCommands = @("land", "todo-resolve")
+  foreach ($known in $knownExternalCommands) {
+    $skillNameSet[$known] = $true
+  }
+
+  $referenceFiles = @()
+  foreach ($rootPath in @((Resolve-RepoPath $repoRoot ".github/skills"), (Resolve-RepoPath $repoRoot "evals"))) {
+    if (Test-Path $rootPath) {
+      $referenceFiles += @(Get-ChildItem $rootPath -Recurse -File -Include "*.md", "*.json")
+    }
+  }
+  foreach ($filePath in @("AGENTS.md", "README.md", "config/skill-quality.json")) {
+    $full = Resolve-RepoPath $repoRoot $filePath
+    if (Test-Path $full) {
+      $referenceFiles += @(Get-Item $full)
+    }
+  }
+
+  $referenceToken = '(?:kb|ce)-[a-z0-9-]+|todo-[a-z0-9-]+|document-review|learn|evolve|tdd|klfg'
+  $referencePatterns = @(
+    ('`/?(' + $referenceToken + ')`'),
+    ('(?<![A-Za-z0-9_-])/(' + $referenceToken + ')(?![A-Za-z0-9_-])')
+  )
+  $seenReferences = @{}
+  foreach ($file in ($referenceFiles | Sort-Object FullName -Unique)) {
+    $relative = $file.FullName.Substring($repoRoot.Length + 1)
+    $lineNo = 0
+    Get-Content $file.FullName | ForEach-Object {
+      $lineNo++
+      foreach ($pattern in $referencePatterns) {
+        foreach ($match in [regex]::Matches($_, $pattern)) {
+          $referenced = $match.Groups[1].Value
+          $key = "$relative`:$lineNo`:$referenced"
+          if ((-not $skillNameSet.ContainsKey($referenced)) -and (-not $seenReferences.ContainsKey($key))) {
+            $seenReferences[$key] = $true
+            Add-Issue $warnings "warning" $relative "Unknown skill reference '$referenced' at line $lineNo."
+          }
+        }
+      }
     }
   }
 }

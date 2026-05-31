@@ -1,0 +1,24 @@
+{
+  "id": "ai-residue-cleanup",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Clean up the obvious AI residue in one helper file: dead comments, debug leftovers, and placeholder wording. Do not redesign the module.",
+  "repo_state": "One file has cleanup residue. The user explicitly rejects architecture redesign.",
+  "expected": {
+    "route": "kb-fix",
+    "complexity_tier": "small",
+    "max_user_questions": 0,
+    "artifacts": ["small cleanup diff", "lint output"],
+    "proof": ["git diff --check", "skill lint or repo lint"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 1,
+    "uncertainty": 0,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "unit",
+    "rollback_difficulty": 0,
+    "expected_duration_hours": 0.25
+  },
+  "guards": ["over-planning"]
+}

@@ -28,32 +28,29 @@ Make this the highest-reliability portable skill bundle for the user's workflow:
 
 ## Current Focus
 
-⬜ pending decide ATV scaffold/plugin shipping contract for optional KB skills.
+✅ done warning-quality cleanup completed and reviewed.
 
 Audit note: `docs/context/research/2026-05-29-skill-repo-gap-audit.md`
 Requirements: `docs/brainstorms/2026-05-29-cross-runtime-skill-quality-requirements.md`
 Manifest: `docs/plans/2026-05-29-000-kb-cross-runtime-skill-quality-manifest.md`
 Live eval requirements: `docs/brainstorms/2026-05-30-live-cross-runtime-skill-eval-harness-requirements.md`
 Live eval manifest: `docs/plans/2026-05-30-000-kb-live-cross-runtime-skill-eval-harness-manifest.md`
+Skill minimalism epic: `docs/context/epics/skill-minimalism-and-proof-harness.md`
+Proof/pipeline manifest: `docs/plans/2026-05-31-000-kb-proof-pipeline-spike-manifest.md`
+Learning/landmines manifest: `docs/plans/2026-05-31-010-kb-learning-landmines-manifest.md`
+Routing/trim manifest: `docs/plans/2026-05-31-020-kb-routing-trim-manifest.md`
+Lazy-lane manifest: `docs/plans/2026-05-31-030-kb-lazy-lane-consolidation-manifest.md`
 
 ## Current Truth
 
 - This repo is the working source for portable skills under `.github/skills/`.
 - Personal/global installs currently match this repo for KB skills.
-- ATV scaffold/plugin copies are not fully aligned with the KB skill surface.
+- ATV scaffold/plugin copies are intentionally optional thinner bundles by default.
 - Deterministic skill lint, route-complexity fixtures, captured-result scoring, trace rule scoring, claim verification, output-quality rubric checks, regression reporting, sync drift checks, and Codex/GHCP live adapters exist. Live model calls remain explicit and outside `kb-check -All`.
 
 ## Active Work
 
-### Skill Repo Quality Follow-Up
-
-Task ID: skill-repo-audit-2026-05-29
-Ready: yes
-Validation: `git diff --check`; hash/drift probe; web-source scan; repo inventory.
-
-| Gap | Status | Priority | Link |
-|---|---|---:|---|
-| Decide ATV scaffold/plugin propagation contract for KB skills | ⬜ pending | P1 | `docs/context/memory-maintenance.md` |
+None.
 
 ## Handoff Queue
 
@@ -62,7 +59,7 @@ Validation: `git diff --check`; hash/drift probe; web-source scan; repo inventor
 
 ## Human Required
 
-- Decide whether ATV scaffold/plugin should ship the full KB surface or explicitly remain a thinner compatibility bundle. The new sync report treats those targets as optional until this is decided.
+- None.
 
 ## Parked / Cold Storage
 
@@ -81,3 +78,6 @@ None.
 - 2026-05-30: Added Codex live skill eval adapter. `scripts/skill-eval-run-codex.ps1` runs route fixtures through `codex exec`, captures schema JSON, and scores it with `skill-eval`; dry-run is included in `kb-check -All`.
 - 2026-05-30: Planned the remaining live cross-runtime eval harness: GHCP adapter, live corpus runner, trace/claim scoring, output quality, cost regression, and eval-map negative validation.
 - 2026-05-30: Completed the live cross-runtime eval harness. GHCP adapter, corpus runner, trace/claim scoring, output-quality selftests, regression reports, and eval-map scaffold negative-validation are implemented and documented.
+- 2026-05-31: Planned the skill minimalism/proof harness epic into four manifests: proof pipeline spike, learning landmines, routing trim, and lazy lane consolidation.
+- 2026-05-31: Completed and reviewed the skill minimalism/proof harness epic. Proof: `kb-check -All`, `git diff --check`, and required sync report passed; one baseline-regression review finding was fixed.
+- 2026-05-31: Completed warning-quality cleanup. Missing `argument-hint` warnings were removed, review local fallback was codified, and optional sync drift output was compacted by default.

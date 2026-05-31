@@ -32,6 +32,7 @@ Start from signals and pointers. Do not crawl the whole repo unless the user exp
 2. Read:
    - `todo.md`
    - `docs/context/PROJECT.md`
+   - `docs/context/landmines.md` when present
    - `docs/context/memory-maintenance.md`
 3. If `docs/context/memory-maintenance.md` is missing, create it only if the user asked for memory review. Otherwise recommend running `kb-complete` after normal work so signals accumulate first.
 4. If no signals exist and no explicit broad audit was requested, stop with: `No memory-review signals found. Normal kb-map refresh is enough.`
@@ -57,6 +58,7 @@ For each signal in `docs/context/memory-maintenance.md`, classify the action:
 | `stale-doc` | run `kb-map refresh` or edit affected docs directly |
 | `bloat` | run `kb-compact` on the specific doc/section |
 | `repeated-rediscovery` | promote the fact into `PROJECT.md`, architecture, research, decisions, `docs/solutions/`, or a learned skill candidate |
+| `landmine-stale` | verify whether the owner surface is fixed; archive if verified, otherwise keep active or mark stale-review |
 
 Do not fix by deleting useful context blindly. Preserve exact paths, commands, dates, IDs, decisions, rejected approaches, and verification commands.
 
@@ -77,6 +79,8 @@ Do not fix by deleting useful context blindly. Preserve exact paths, commands, d
    - Operations drift: update `docs/context/operations/*`.
    - Research drift/overlap: update or consolidate `docs/context/research/*`.
    - Decision drift: update or create `docs/context/decisions/*`.
+   - Landmine drift: update `docs/context/landmines.md`; resolved entries need
+     proof, while unfixed stale entries stay visible for future sessions.
    - Solution-learning drift: invoke `ce-compound-refresh` with the narrowest scope.
    - Bloat only: invoke `kb-compact` on the specific artifact.
    - Repeated rediscovery: add one durable pointer where future sessions will actually find it.

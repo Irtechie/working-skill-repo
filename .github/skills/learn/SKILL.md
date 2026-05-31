@@ -1,6 +1,7 @@
 ---
 name: learn
 description: Extract reusable patterns from recent work into instincts. Run after completing features, fixing bugs, or at session end to capture what the project learned.
+argument-hint: "[recent work summary or blank for session observations]"
 ---
 
 # /learn — Extract Patterns into Instincts
@@ -102,6 +103,39 @@ instincts:
 - Contradictory evidence: -0.15
 - No observations for 30 days: -0.1
 - Minimum: 0.1 (below this, remove the instinct)
+
+### Step 3.5: Capture Landmine Candidates
+
+A landmine is not a generic lesson. It is a verified repo-specific trap the
+model is likely to miss without an explicit warning.
+
+Only create a landmine candidate when the evidence shows at least one of:
+
+- the model already made the mistake;
+- the repo convention conflicts with common defaults;
+- a command, sync path, runtime, auth mode, or generated artifact has a specific
+  failure mode;
+- a workflow gate is likely to be skipped;
+- the trap is high-cost, destructive, or hard to notice from code alone.
+
+Landmine candidates must include:
+
+```yaml
+landmine:
+  severity: low|medium|high|critical
+  owner_surface: "<skill, script, doc, generator, fixture, or workflow>"
+  failure_mode: "<specific mistake likely without the warning>"
+  evidence:
+    - "<file, command, review finding, failing test, or observed mistake>"
+  fix_condition: "<what change retires the landmine>"
+  verification: "<command, eval, test, or review check proving the fix>"
+```
+
+Reject candidates that only say to test, read the code, keep things simple, or
+follow normal engineering practice. Those are not landmines.
+
+High-severity landmines may be recorded from one verified observation, but skill
+promotion still belongs to `/evolve` and requires its promotion gate.
 
 **Important constraints:**
 - Maximum 50 active instincts per project

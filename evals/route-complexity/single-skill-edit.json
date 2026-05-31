@@ -1,0 +1,24 @@
+{
+  "id": "single-skill-edit",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Fix the wording typo in one SKILL.md file and run the normal check.",
+  "repo_state": "One skill file needs a narrow text correction. No sync policy, eval harness, or multi-surface behavior changes are requested.",
+  "expected": {
+    "route": "kb-fix",
+    "complexity_tier": "small",
+    "max_user_questions": 0,
+    "artifacts": ["small diff", "check output"],
+    "proof": ["skill lint or kb-check"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 1,
+    "uncertainty": 0,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "unit",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 0.25
+  },
+  "guards": ["over-planning"]
+}

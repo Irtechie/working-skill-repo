@@ -7,64 +7,43 @@ disable-model-invocation: true
 
 # Todo Triage
 
-Interactive workflow for reviewing pending todos one by one and deciding whether to approve, skip, or modify each.
+Review unresolved durable work and decide what belongs on root `todo.md`.
 
-**Do not write code during triage.** This is purely for review and prioritization -- implementation happens in `/todo-resolve`.
+Do not write implementation code during triage. Triage only classifies,
+prioritizes, merges, parks, or removes work items.
 
-- First set the /model to Haiku
-- Read all pending todos from `.context/compound-engineering/todos/` and legacy `todos/` directories
+## Sources
 
-## Workflow
+Read in this order:
 
-### 1. Present Each Finding
+1. Root `todo.md` active board.
+2. Linked manifests, handoffs, or review artifacts.
+3. Legacy `.context/compound-engineering/todos/` only when a CE skill explicitly
+   generated file-per-todo findings.
 
-For each pending todo, present it clearly with severity, category, description, location, problem scenario, proposed solution, and effort estimate. Then ask:
+## Decisions
 
-```
-Do you want to add this to the todo list?
-1. yes - approve and mark ready
-2. next - skip (deletes the todo file)
-3. custom - modify before approving
-```
+For each item, choose one:
 
-Use severity levels: 🔴 P1 (CRITICAL), 🟡 P2 (IMPORTANT), 🔵 P3 (NICE-TO-HAVE).
+| Decision | Action |
+|---|---|
+| ready | keep on `todo.md` with owner/status/next action |
+| blocked | record blocker and resume condition |
+| parked | move under parked/cold-storage section |
+| duplicate | merge into the canonical existing item |
+| delete | remove only if stale, invalid, or already completed |
 
-Include progress tracking in each header: `Progress: 3/10 completed`
+Ask the user only when priority, product intent, risk acceptance, or deletion is
+a real human decision. Otherwise update the board directly.
 
-### 2. Handle Decision
-
-**yes:** Rename file from `pending` -> `ready` in both filename and frontmatter. Fill the Recommended Action section. If creating a new todo (not updating existing), use the naming convention from the `todo-create` skill.
-
-Priority mapping: 🔴 P1 -> `p1`, 🟡 P2 -> `p2`, 🔵 P3 -> `p3`
-
-Confirm: "✅ Approved: `{filename}` (Issue #{issue_id}) - Status: **ready**"
-
-**next:** Delete the todo file. Log as skipped for the final summary.
-
-**custom:** Ask what to modify, update, re-present, ask again.
-
-### 3. Final Summary
-
-After all items processed:
+## Output
 
 ```markdown
-## Triage Complete
+## Todo Triage
 
-**Total Items:** [X] | **Approved (ready):** [Y] | **Skipped:** [Z]
-
-### Approved Todos (Ready for Work):
-- `042-ready-p1-transaction-boundaries.md` - Transaction boundary issue
-
-### Skipped (Deleted):
-- Item #5: [reason]
+| Item | Decision | Reason | Next action |
+|---|---|---|---|
 ```
 
-### 4. Next Steps
-
-```markdown
-What would you like to do next?
-
-1. run /todo-resolve to resolve the todos
-2. commit the todos
-3. nothing, go chill
-```
+If legacy CE todo files were read, report whether they were converted, left in
+legacy storage, or no longer relevant.

@@ -2,6 +2,11 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-05-31
+
+- Warning Quality Cleanup - added missing `argument-hint` frontmatter to older skills, codified `review-mode: local-fallback` for `kb-review`/`kb-complete`, and compacted optional ATV scaffold/plugin sync warnings behind `-VerboseOptional`. Proof: `kb-check -All`, `git diff --check`, and required sync report passed with 0 required sync issues.
+- Skill Minimalism and Proof Harness - completed four manifests covering persisted skill-eval baselines, protected verifier SHA manifests, a coded pipeline spike, repo-local landmines, workflow-shape routing, loaded-surface reporting, `kb-first-principles` trim, architecture-deepening lazy lane, TDD/todo lane consolidation, and optional thin ATV scaffold/plugin policy. Review found and fixed one baseline comparison gap for negative fixtures. Proof: `kb-check -All`, `git diff --check`, and required sync report passed with 0 required sync issues.
+
 ## 2026-05-30
 
 - Live Cross-Runtime Skill Eval Harness - added GHCP live adapter, Codex/GHCP corpus runner, deterministic trace scoring, transcript claim verification, output-quality rubric selftests, regression reporting, and `kb-eval-map` scaffold negative-validation evidence. Proof: `kb-check -All`, working/ATV `git diff --check`, and required skill hash sync passed.

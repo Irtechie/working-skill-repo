@@ -1,6 +1,7 @@
 ---
 name: kb-troubleshoot
 description: "Autonomous troubleshooting and self-correction loop. Use when the user says troubleshoot, debug this, figure out what's broken, self-correct, run the logs, use Playwright/browser, iterate until fixed, or asks the agent to diagnose failing app behavior without hand-holding."
+argument-hint: "[symptom, failing command, URL, log, or broken behavior]"
 ---
 
 # KB Troubleshoot

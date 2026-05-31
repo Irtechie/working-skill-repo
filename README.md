@@ -83,7 +83,7 @@ language and let `kb-start` choose the ceremony.
 user's idea/request needs; map decides whether local memory needs lookup,
 refresh, or first-time bootstrap.
 
-`kb-start` replaces the older `kb-route` name. The behavior is the same front
+`kb-start` replaces the older route name. The behavior is the same front
 door pattern, but the new name matches how you use it: start a session, map the
 project, then choose the right lane.
 
@@ -295,6 +295,7 @@ Core workflow:
 - `kb-troubleshoot`
 - `kb-handoff`
 - `kb-research`
+- `kb-architecture-deepening`
 - `kb-brainstorm`
 - `kb-plan`
 - `kb-work`
@@ -311,7 +312,7 @@ Core workflow:
 Direct skill dependencies carried forward from ATV/CE:
 
 - `document-review`
-- `tdd`
+- `tdd` (lazy compatibility lane; KB protected-oracle behavior lives in plan/work/check)
 - `ce-review` (generalized CE review; KB completion uses `kb-review`)
 - `ce-compound`
 - `ce-compound-refresh`
@@ -473,8 +474,9 @@ The core planned harness is implemented; the remaining growth path is expanding
 the fixture corpus beyond the current route set and adding optional exporters.
 
 The shared contract lives in `config/skill-quality.json`. Required targets must
-match; optional ATV scaffold/plugin differences are reported as warnings until
-their distribution contract is decided.
+match. ATV scaffold/plugin targets are optional thin bundles; their differences
+stay warning-only unless a change explicitly ships that skill through those
+surfaces.
 
 ## Portable Repo Hygiene
 
@@ -491,10 +493,31 @@ handoff is explicitly about maintaining the skill bundle itself.
 Skill changes are propagated from this working bundle to the personal/global
 installs and the ATV fork after diff review. Before overwriting a global copy,
 compare it against this repo and merge any newer useful drift back here first.
-Then sync the approved copy to Codex, Copilot, shared agents, and the
-`E:\all-the-vibes` source/scaffold/plugin copies that ship that skill. Keep the
-repo README and ATV README current when the visible workflow or shipped skill
-surface changes.
+Then sync the approved copy to Codex, Copilot, shared agents, and
+`E:\all-the-vibes\.github\skills`. Sync ATV scaffold/plugin copies only for
+skills intentionally shipped in those thinner bundles. Keep the repo README and
+ATV README current when the visible workflow or shipped skill surface changes.
+
+The private reusable catalog lives at `E:\agent-marketplace` and is configured
+in `config/skill-marketplace.json`. It is not a global install. New
+project-specific skills should start in the consuming project's
+`.github/skills/learned-*` path and stay there until `learn`/`evolve` evidence,
+reuse, review, and human approval justify promotion into the private catalog.
+Reusable pipelines follow the same rule: prove them first as project-local
+`config/pipelines/*.json`, then promote approved copies to
+`E:\agent-marketplace\pipelines`.
+
+The runtime boundary is:
+
+- skills do work;
+- pipelines compose skills for a domain workflow;
+- harnesses prove outputs;
+- project lock files record pinned imports and valid local drift.
+
+Consuming projects should keep app-specific variants under their own
+`.github/skills`, `config/pipelines`, `.atv/pipeline-runs`, and
+`.agent-marketplace/skill-lock.json` paths. Marketplace promotion happens only
+when the local behavior proves reusable.
 
 ## Not Bundled
 

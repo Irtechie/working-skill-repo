@@ -83,8 +83,10 @@
       "kb-plan",
       "kb-work",
       "kb-epic",
+      "kb-architecture-deepening",
       "kb-ship",
       "kb-complete",
+      "kb-review",
       "kb-research"
     ],
     "rubric": {

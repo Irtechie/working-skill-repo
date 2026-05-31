@@ -12,6 +12,10 @@ Functional tests prove the real workflow works. Unit tests prove parts. Both mat
 
 This skill owns the test-level decision for KB work. `kb-plan` records the initial decision, `kb-work` re-checks it before marking a slice done, and `kb-complete` uses it for manifest-level smoke coverage.
 
+This is a lazy helper lane. Do not load it for every slice. Load it when the
+test level is unclear, UI/API/CLI behavior could be faked by low-level tests, or
+the slice touches user-visible behavior.
+
 `verification` describes the workflow mode (`tdd`, `integration`, `functional`, `verification-only`, `hitl`). `test_level` describes the concrete proof required:
 
 | `test_level` | Use When | Minimum Proof |

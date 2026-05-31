@@ -1,11 +1,14 @@
 ---
 name: kb-review
 description: "Structured KB review using tiered persona agents, confidence-gated findings, thermonuclear structural-quality review, and a merge/dedup pipeline. Use when reviewing KB workflow code changes before completion, before creating a PR, or when kb-complete needs its review gate."
+argument-hint: "[diff, branch, manifest, or mode]"
 ---
 
 # KB Review
 
-Reviews code changes using dynamically selected reviewer personas. Spawns parallel sub-agents that return structured JSON, then merges and deduplicates findings into a single report.
+Reviews code changes using reviewer personas. Prefer authorized reviewer
+subagents; otherwise run structured local review and label it
+`review-mode: local-fallback`.
 
 ## When to Use
 
@@ -45,7 +48,7 @@ All tokens are optional. Each one present means one less thing to infer. When ab
 - **Skip all user questions.** Never pause for approval or clarification once scope has been established.
 - **Apply only `safe_auto -> review-fixer` findings.** Leave `gated_auto`, `manual`, `human`, and `release` work unresolved.
 - **Write a run artifact** under `.context/compound-engineering/kb-review/<run-id>/` summarizing findings, applied fixes, residual actionable work, and advisory outputs.
-- **Create durable todo files only for unresolved actionable findings** whose final owner is `downstream-resolver`. Load the `todo-create` skill for the canonical directory path and naming convention.
+- **Create durable root `todo.md` entries only for unresolved actionable findings** whose final owner is `downstream-resolver`. Load `todo-create` for the KB board format.
 - **Never commit, push, or create a PR** from autofix mode. Parent workflows own those decisions.
 
 ### Report-only mode rules
@@ -101,6 +104,13 @@ Routing rules:
 ## Reviewers
 
 17 reviewer personas in layered conditionals, plus shared learning/runtime agents. KB review replaces the standard maintainability reviewer with the thermonuclear code-quality reviewer. Load `references/persona-catalog.md` only when the full catalog is needed.
+
+## Review Mode
+
+Record one mode: `review-mode: multi-agent` only when reviewer agents actually
+ran; otherwise `review-mode: local-fallback` with the reason and local lenses
+used. Local fallback is valid, but must not be described as multi-agent review.
+If fallback coverage is materially weaker, report that as residual risk.
 
 ### Runtime Agent Types
 
@@ -217,7 +227,10 @@ Default rule: apply only `safe_auto -> review-fixer` automatically when the acti
 
 ## Fallback
 
-If the platform doesn't support parallel sub-agents, run reviewers sequentially. Everything else (stages, output format, merge pipeline) stays the same.
+If the platform cannot run reviewer subagents, run a local structured review and
+label the output `review-mode: local-fallback`. If sequential valid reviewer
+agents are available but parallel dispatch is not, sequential agents may still
+count as `review-mode: multi-agent`; local-only review may not.
 
 ---
 

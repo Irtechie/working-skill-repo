@@ -30,7 +30,7 @@ When changing skills in this repo, treat `E:\working-skill-repo` as the working 
    - Copilot global: `C:\Users\marowe\.copilot\skills\<skill>\`
    - shared agents global: `C:\Users\marowe\.agents\skills\<skill>\`
    - ATV fork: `E:\all-the-vibes\.github\skills\<skill>\`
-   - ATV scaffold/plugin copies when that skill is shipped there.
+   - ATV scaffold/plugin copies only when that skill is intentionally shipped there.
 4. Update `README.md` in this repo when the visible workflow, installed-skill list, install commands, or repo hygiene contract changes.
 5. Update `E:\all-the-vibes\README.md` when the ATV-facing workflow, bundled skills, or scaffold/plugin behavior changes.
 6. Verify with hashes for copied `SKILL.md` files and `git diff --check` in every touched repo.
@@ -42,7 +42,7 @@ Before syncing or propagating skills, run the canonical skill-repo quality gate:
 .\.github\skills\kb-check\scripts\kb-check.ps1 -All
 ```
 
-This gate is cross-runtime: it validates the shared skill contract for Codex and GitHub Copilot/GHCP using `config/skill-quality.json`, deterministic skill lint, route-complexity fixtures, and a read-only sync drift report. The sync report may warn about optional ATV scaffold/plugin differences, but required targets must stay clean before propagation.
+This gate is cross-runtime: it validates the shared skill contract for Codex and GitHub Copilot/GHCP using `config/skill-quality.json`, deterministic skill lint, route-complexity fixtures, and a read-only sync drift report. Required targets are Codex global, Copilot global, shared agents global, and `E:\all-the-vibes\.github\skills`. ATV scaffold/plugin targets are optional thin bundles; warnings there are acceptable unless the current change explicitly ships that skill surface.
 
 Do not remove `kb-review`, `ce-review`, `ce-compound`, or `ce-compound-refresh` from this bundle unless the skills that invoke them are rewritten first. KB completion uses `kb-review`; `ce-review` remains the generalized CE review skill.
 

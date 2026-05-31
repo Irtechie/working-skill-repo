@@ -1,0 +1,24 @@
+{
+  "id": "proof-pipeline-change",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Add protected test-first oracle support to the eval harness, runner scripts, skills, and proof gate.",
+  "repo_state": "Multiple surfaces must change together: skills, scripts, eval fixtures, docs, and sync behavior.",
+  "expected": {
+    "route": "kb-epic",
+    "complexity_tier": "large",
+    "max_user_questions": 2,
+    "artifacts": ["epic map", "multiple manifests", "protected-file proof"],
+    "proof": ["baseline regression failure", "protected SHA selftest", "kb-check -All"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 4,
+    "uncertainty": 2,
+    "user_visible": false,
+    "data_auth_security_risk": 1,
+    "external_dependency": false,
+    "verification_surface": "full",
+    "rollback_difficulty": 2,
+    "expected_duration_hours": 8
+  },
+  "guards": ["under-planning", "skipped-gate"]
+}

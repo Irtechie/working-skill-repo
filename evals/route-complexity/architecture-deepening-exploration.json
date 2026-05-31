@@ -1,0 +1,24 @@
+{
+  "id": "architecture-deepening-exploration",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Look at the audiobook generation pipeline and tell me where the modules should get deeper so future changes are easier to test and less scattered.",
+  "repo_state": "The user is asking for architecture exploration before implementation, not a specific bug fix or diff review.",
+  "expected": {
+    "route": "kb-architecture-deepening",
+    "complexity_tier": "standard",
+    "max_user_questions": 1,
+    "artifacts": ["architecture candidates", "deletion-test notes", "first-slice recommendation"],
+    "proof": ["source/docs read", "candidate tradeoff table"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 2,
+    "uncertainty": 2,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "integration",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 2
+  },
+  "guards": ["under-planning"]
+}

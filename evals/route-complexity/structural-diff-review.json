@@ -1,0 +1,24 @@
+{
+  "id": "structural-diff-review",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Review this diff for structural-quality problems before I merge it.",
+  "repo_state": "A specific diff exists and the user wants review, not open-ended architecture exploration.",
+  "expected": {
+    "route": "kb-review",
+    "complexity_tier": "standard",
+    "max_user_questions": 0,
+    "artifacts": ["review findings", "testing gaps"],
+    "proof": ["diff read", "review output schema"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 2,
+    "uncertainty": 1,
+    "user_visible": false,
+    "data_auth_security_risk": 0,
+    "external_dependency": false,
+    "verification_surface": "integration",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 1
+  },
+  "guards": ["skipped-gate"]
+}
