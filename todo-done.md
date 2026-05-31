@@ -4,6 +4,7 @@
 
 ## 2026-05-31
 
+- ATV Security Marketplace Promotion - promoted trusted `atv-security` into `E:/agent-marketplace`, added `dependency-vulnerability-osv`, installed the single approved skill into Codex/Copilot/shared agents globals, and synced ATV shipped copies. Proof: marketplace JSON parse, hash equality across source/ATV/marketplace/globals, firebreak + negative selftest, `kb-check -All`, and `git diff --check` passed. OSV Scanner is now locally installed; target repos still need dependency manifests or lockfiles for live scan proof.
 - Warning Quality Cleanup - added missing `argument-hint` frontmatter to older skills, codified `review-mode: local-fallback` for `kb-review`/`kb-complete`, and compacted optional ATV scaffold/plugin sync warnings behind `-VerboseOptional`. Proof: `kb-check -All`, `git diff --check`, and required sync report passed with 0 required sync issues.
 - Skill Minimalism and Proof Harness - completed four manifests covering persisted skill-eval baselines, protected verifier SHA manifests, a coded pipeline spike, repo-local landmines, workflow-shape routing, loaded-surface reporting, `kb-first-principles` trim, architecture-deepening lazy lane, TDD/todo lane consolidation, and optional thin ATV scaffold/plugin policy. Review found and fixed one baseline comparison gap for negative fixtures. Proof: `kb-check -All`, `git diff --check`, and required sync report passed with 0 required sync issues.
 

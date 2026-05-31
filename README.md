@@ -507,6 +507,22 @@ Reusable pipelines follow the same rule: prove them first as project-local
 `config/pipelines/*.json`, then promote approved copies to
 `E:\agent-marketplace\pipelines`.
 
+`atv-security` is the current approved single-skill exception from ATV. It is
+hash-pinned in `E:\agent-marketplace\catalog\approved-skills.json`, mirrored in
+`E:\agent-marketplace\skills\atv-security`, and installed into the Codex,
+Copilot, and shared agents global skill directories. Do not bulk-install ATV
+skills globally; promote each skill through the marketplace boundary first.
+
+The paired `dependency-vulnerability-osv` harness uses OSV Scanner for
+dependency vulnerability proof:
+
+```powershell
+osv-scanner scan source -r <repo-or-scope-path> --format json --output-file docs/security/osv-YYYY-MM-DD.json
+```
+
+`osv-scanner` is installed locally through the official Go install path and is
+available on PATH from `C:\Users\marowe\go\bin`.
+
 Quarantine is a firebreak, not a category label. `kb-check -All` runs
 `scripts/skill-marketplace-firebreak.ps1`, which fails if any active or
 approved skill root resolves into `E:\agent-marketplace\quarantine`, if an

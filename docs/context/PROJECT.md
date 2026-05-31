@@ -75,6 +75,13 @@ See `docs/context/architecture/README.md`.
 - `E:\agent-marketplace` is a private approved catalog, not a global install.
   Project-local learned skills and pipelines must prove reuse value before
   promotion; public imports land in quarantine first.
+- `atv-security` is approved as the single trusted ATV security skill installed
+  globally and mirrored in `E:\agent-marketplace\skills\atv-security`. Its
+  pinned SHA256 is recorded in
+  `E:\agent-marketplace\catalog\approved-skills.json`.
+- ATV security A06 dependency checks prefer OSV Scanner machine evidence when
+  `osv-scanner` is installed. If unavailable, record `skipped-unavailable`
+  rather than inventing vulnerability findings from version age alone.
 
 ## Research Index
 

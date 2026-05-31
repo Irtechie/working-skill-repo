@@ -29,6 +29,17 @@ active skill roots, approved catalog paths, and loadable skill links must never
 resolve into `E:/agent-marketplace/quarantine`. This is a blocking
 `kb-check -All` gate, not a naming convention.
 
+The approved `atv-security` marketplace skill also has a dependency
+vulnerability proof harness:
+
+```powershell
+osv-scanner scan source -r <repo-or-scope-path> --format json --output-file docs/security/osv-YYYY-MM-DD.json
+```
+
+Run it when dependency manifests or lockfiles are in scope and `osv-scanner` is
+available. If the scanner is not installed, record `skipped-unavailable` and the
+official install command instead of using model judgment as proof.
+
 `kb-check.ps1` discovers this repo as a skill repo when `.github/skills` and
 `config/skill-quality.json` exist.
 

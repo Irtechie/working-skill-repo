@@ -82,6 +82,21 @@ or broad workflow skills still need manual review even when the numbers pass.
 - Valid drift is recorded in `.agent-marketplace/skill-lock.json` with a reason
   instead of being treated as a sync error.
 
+## Approved Security Skill
+
+`atv-security` is approved as a trusted-source exception because it comes from
+the local ATV security plugin maintained by trusted people. It is installed as a
+single global security capability, not as a bulk import of ATV skills.
+
+The approval is pinned in `E:/agent-marketplace/catalog/approved-skills.json`.
+The approved marketplace copy and global Codex, Copilot, and shared agents
+copies must hash-match the trusted ATV source before they are treated as
+current.
+
+The paired `dependency-vulnerability-osv` harness records the OSV Scanner proof
+command for A06 dependency vulnerability checks. Missing `osv-scanner` is a
+tooling skip, not permission to invent vulnerability findings from package age.
+
 ## Skill, Pipeline, Harness Boundary
 
 - Skills perform work.
