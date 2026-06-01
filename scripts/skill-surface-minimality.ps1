@@ -47,6 +47,71 @@ function Test-NamePattern {
   return $false
 }
 
+function Add-EvidenceSource {
+  param(
+    [hashtable]$Map,
+    [string]$Name,
+    [string]$Class,
+    [string]$Path
+  )
+  if (-not $Map.ContainsKey($Name)) {
+    $Map[$Name] = [System.Collections.Generic.List[object]]::new()
+  }
+  $Map[$Name].Add([pscustomobject]@{
+      class = $Class
+      path = $Path
+    })
+}
+
+function Get-EvidenceClass {
+  param([object[]]$Sources)
+  $classes = @($Sources | Select-Object -ExpandProperty class -ErrorAction SilentlyContinue)
+  foreach ($class in @("runtime", "dispatch-static", "example-only", "docs-only")) {
+    if ($classes -contains $class) {
+      return $class
+    }
+  }
+  return "none"
+}
+
+function Get-RelativePath {
+  param([string]$Base, [string]$Path)
+  if ($Path.StartsWith($Base)) {
+    return ($Path.Substring($Base.Length).TrimStart("\", "/") -replace "\\", "/")
+  }
+  return ($Path -replace "\\", "/")
+}
+
+function Get-EvidenceFiles {
+  param(
+    [string[]]$Roots,
+    [string]$Class
+  )
+  $rows = [System.Collections.Generic.List[object]]::new()
+  foreach ($rootPath in $Roots) {
+    if (-not (Test-Path $rootPath)) {
+      continue
+    }
+    $item = Get-Item $rootPath
+    $files = if ($item.PSIsContainer) {
+      @(Get-ChildItem $rootPath -Recurse -File -Include "*.md", "*.json", "*.jsonl", "*.txt", "*.yaml", "*.yml" -ErrorAction SilentlyContinue)
+    } else {
+      @($item)
+    }
+    foreach ($file in $files) {
+      $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
+      if ($content) {
+        $rows.Add([pscustomobject]@{
+            class = $Class
+            path = $file.FullName
+            content = $content
+          })
+      }
+    }
+  }
+  return @($rows)
+}
+
 $repoRoot = (Resolve-Path $Root).Path
 $skillRootFull = Resolve-RepoPath $repoRoot $SkillRoot
 $agentRootFull = Resolve-RepoPath $repoRoot $AgentRoot
@@ -106,9 +171,53 @@ foreach ($agent in $agentFiles) {
   $agentReferences[$agent.name] = @($refs | Sort-Object -Unique)
 }
 
+$allNames = @($skillFiles | Select-Object -ExpandProperty name) + @($agentFiles | Select-Object -ExpandProperty name)
+$evidenceByName = @{}
+
+foreach ($skill in $skillFiles) {
+  foreach ($refName in $skillReferences[$skill.name]) {
+    Add-EvidenceSource $evidenceByName $refName "dispatch-static" (Get-RelativePath $repoRoot $skill.path)
+  }
+}
+
+foreach ($agentName in $agentReferences.Keys) {
+  foreach ($refSkill in $agentReferences[$agentName]) {
+    $skillPath = (@($skillFiles | Where-Object { $_.name -eq $refSkill }) | Select-Object -First 1).path
+    if ($skillPath) {
+      Add-EvidenceSource $evidenceByName $agentName "dispatch-static" (Get-RelativePath $repoRoot $skillPath)
+    }
+  }
+}
+
+$runtimeRoots = @(".atv/observations.jsonl") |
+  ForEach-Object { Resolve-RepoPath $repoRoot $_ } |
+  Where-Object { Test-Path $_ }
+$exampleRoots = @("evals") |
+  ForEach-Object { Resolve-RepoPath $repoRoot $_ } |
+  Where-Object { Test-Path $_ }
+$docsRoots = @("docs", "README.md", "AGENTS.md", "todo.md", "todo-done.md") |
+  ForEach-Object { Resolve-RepoPath $repoRoot $_ } |
+  Where-Object { Test-Path $_ }
+
+$evidenceFiles = @(
+  Get-EvidenceFiles $runtimeRoots "runtime"
+  Get-EvidenceFiles $exampleRoots "example-only"
+  Get-EvidenceFiles $docsRoots "docs-only"
+)
+
+foreach ($name in $allNames) {
+  foreach ($file in $evidenceFiles) {
+    if (Test-TokenReference $file.content $name) {
+      Add-EvidenceSource $evidenceByName $name $file.class (Get-RelativePath $repoRoot $file.path)
+    }
+  }
+}
+
 $skillRows = [System.Collections.Generic.List[object]]::new()
 foreach ($skill in $skillFiles) {
   $referencedBy = @($skillReferences.Keys | Where-Object { @($skillReferences[$_]) -contains $skill.name } | Sort-Object)
+  $evidenceSources = if ($evidenceByName.ContainsKey($skill.name)) { @($evidenceByName[$skill.name]) } else { @() }
+  $evidenceClass = Get-EvidenceClass $evidenceSources
   $classification = "conditional"
   $reason = "referenced by workflow skills or available as an explicit lane"
   if ($ProtectedSkills -contains $skill.name) {
@@ -137,12 +246,16 @@ foreach ($skill in $skillFiles) {
       token_estimate = $skill.token_estimate
       referenced_by = $referencedBy
       references = @($skillReferences[$skill.name])
+      evidence_class = $evidenceClass
+      evidence_sources = @($evidenceSources | Sort-Object class, path -Unique)
     })
 }
 
 $agentRows = [System.Collections.Generic.List[object]]::new()
 foreach ($agent in $agentFiles) {
   $referencedBy = @($agentReferences[$agent.name])
+  $evidenceSources = if ($evidenceByName.ContainsKey($agent.name)) { @($evidenceByName[$agent.name]) } else { @() }
+  $evidenceClass = Get-EvidenceClass $evidenceSources
   $hotRefs = @($referencedBy | Where-Object { $HotPathSkills -contains $_ })
   $classification = "unproven"
   $reason = "no static skill reference found; do not delete without runtime proof"
@@ -169,6 +282,8 @@ foreach ($agent in $agentFiles) {
       token_estimate = $agent.token_estimate
       referenced_by = $referencedBy
       references = @()
+      evidence_class = $evidenceClass
+      evidence_sources = @($evidenceSources | Sort-Object class, path -Unique)
     })
 }
 
@@ -181,6 +296,7 @@ $report = [pscustomobject]@{
   agent_root = $agentRootFull
   static_only = $true
   labels = @("protected", "required", "conditional", "unproven", "unused-candidate", "trim-candidate")
+  evidence_classes = @("runtime", "dispatch-static", "example-only", "docs-only", "none")
   skill_classifications = $skillRows
   agent_classifications = $agentRows
   cold_storage_candidates = $coldStorage
@@ -198,7 +314,7 @@ if ($Json) {
     Write-Host ""
     Write-Host "Cold-storage candidates, not deletion approvals:"
     foreach ($row in $coldStorage) {
-      Write-Host "$($row.classification) [$($row.kind)] $($row.name): $($row.reason)"
+      Write-Host "$($row.classification) [$($row.kind)] $($row.name) evidence=$($row.evidence_class): $($row.reason)"
     }
   }
 }

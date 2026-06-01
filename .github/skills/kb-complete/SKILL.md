@@ -8,6 +8,25 @@ argument-hint: "[path to KB manifest, or blank to find latest]"
 
 After `kb-work` finishes executing all slices, this skill runs the quality review, follow-up resolution, proof/demo evidence, knowledge capture, memory-health, and cleanup steps. Separated from kb-work so the user can choose when to run it — `klfg` prompts automatically, standalone users invoke it manually.
 
+## Terminal Completion Contract
+
+When invoked by `kb-work`, this skill is the terminal half of the execution
+loop. Continue until Step 5 reports Done, or until a real blocker is recorded
+with exact resume criteria.
+
+Do not stop at weaker milestones:
+
+- deterministic checks passed before review;
+- reviewers returned findings;
+- P0/P1 findings were fixed but proof has not rerun;
+- proof passed but memory, learn/evolve cadence, or cleanup is unfinished;
+- a summary was written without the final `KB <name> complete` report.
+
+If a repo has a project-specific `done.md` contract such as "can't stop til its
+done", interpret "done" as this skill's Step 5 terminal report. KB state still
+lives in `todo.md`, `todo-done.md`, manifests, and handoffs unless the repo
+already opted into a `done.md` workflow.
+
 ## Input
 
 <input> #$ARGUMENTS </input>

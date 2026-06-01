@@ -33,12 +33,22 @@ Prefer existing project commands over invented commands.
 
 ## Workflow
 
-1. Run `.github/skills/kb-check/scripts/kb-check.ps1 -List` when present to inspect discovered commands.
+1. Run `go run .\cmd\kbcheck core --list` when present to inspect discovered commands.
 2. Pick the narrowest commands that verify the touched behavior.
 3. Run checks in this order when available: format/lint, typecheck/static analysis, unit tests, integration/e2e/browser checks, build/package, security/dependency audit.
 4. Capture command, exit code, and relevant output.
 5. If a check fails, route to `kb-repair` or `kb-fix`; do not ask the user to test normal app behavior.
 6. If a check is missing, add a small reusable script or test when practical, then document it in `docs/context/operations/testing.md`.
+
+In this portable skill bundle, the canonical local gate is:
+
+```powershell
+go run .\cmd\kbcheck core
+```
+
+`cmd/kbcheck` owns top-level orchestration. Existing PowerShell scripts may
+still be individual validators until their behavior has separate Go parity
+coverage.
 
 ## Functional Checks
 

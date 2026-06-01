@@ -58,6 +58,19 @@ docs/context/history/
    - Routes, screens, commands, tools, actions, jobs, integrations.
    - Tests, docs, existing TODOs, brainstorms, plans, ADRs, and handoffs.
    - Packaging, installer, updater, release, deployment, and CI workflows.
+   - Run the optional code-intel helper when available:
+
+     ```powershell
+     $skillDir = Split-Path -Parent $PSCommandPath
+     pwsh -NoProfile -File (Join-Path $skillDir 'scripts/code-intel.ps1') -Root <project-root> -Json
+     ```
+
+     If executing from a copied prompt where `$PSCommandPath` is unavailable,
+     resolve the helper relative to this `SKILL.md`. The helper is static
+     code-intelligence, not a mandatory LSP dependency: it reports language
+     server availability, symbol samples, likely entry points, largest source
+     files, and file-extension inventory. Use it to seed the coverage inventory;
+     do not block bootstrap if no language server is installed.
 
    This is a repo-wide inventory pass. Do not stop after finding the first
    obvious app surface. The point of bootstrap is to discover what major systems
@@ -208,6 +221,13 @@ docs/context/history/
 2.7. **Coverage discovery tactics**
    Use these checks before declaring the coverage inventory complete. The goal
    is to map concepts, not merely top-level folders.
+
+   First compare the `code-intel.ps1` entry point hints, symbol samples, largest
+   files, and language-server availability against the manual inventory. Any
+   likely entry point or large source file from the helper must be represented
+   in the coverage inventory, folded into a named parent row, or explicitly
+   skipped with a reason. Treat language-server output as a precision boost when
+   available, not as a source of truth that replaces reading the code.
 
    1. **Descend into substantial child directories**
       If a child directory has more than about 30 source files, inspect it as a

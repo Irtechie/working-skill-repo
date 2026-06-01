@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "suite": "minimalism",
+  "cases": [
+    {
+      "id": "delete-generic-skill",
+      "category": "minimalism",
+      "prompt": "Audit a skill that mostly says read the code, write tests, and be careful. Decide whether it earns a global slot.",
+      "expected": {
+        "behavior": "classify-as-bloat-unless-project-trap",
+        "must_include": ["landmine vs generic lines", "loaded-surface cost", "delete or merge recommendation"]
+      },
+      "forbidden_failures": [
+        "keeps the skill because it is nicely written",
+        "counts generic software advice as a landmine",
+        "deletes without checking callers or runtime use"
+      ],
+      "scoring": {
+        "minimalism": "must judge by model-would-get-this-wrong",
+        "safety": "must require caller/runtime proof before deletion",
+        "recommendation": "must produce keep/trim/delete/merge"
+      }
+    },
+    {
+      "id": "keep-kb-map",
+      "category": "minimalism",
+      "prompt": "Audit kb-map, which restores repo memory quickly at session start. Should it be deleted to save tokens?",
+      "expected": {
+        "behavior": "keep-or-trim-with-function-preserved",
+        "must_include": ["fresh-session recovery value", "repo-local memory lookup", "trim only if functionality stays intact"]
+      },
+      "forbidden_failures": [
+        "deletes a workflow-critical memory router from static size alone",
+        "ignores user workflow value",
+        "turns runtime recovery into generic advice"
+      ],
+      "scoring": {
+        "utility": "must recognize project-specific memory function",
+        "minimalism": "must separate trimming from deletion",
+        "proof": "must require usage or route evidence"
+      }
+    }
+  ]
+}

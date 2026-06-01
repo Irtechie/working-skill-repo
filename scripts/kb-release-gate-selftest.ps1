@@ -2,26 +2,40 @@ param()
 
 $ErrorActionPreference = "Stop"
 
+function Write-TextFile {
+  param([string]$Path, [string]$Text)
+  $dir = Split-Path $Path -Parent
+  if ($dir -and -not (Test-Path $dir)) {
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  }
+  $Text | Set-Content -Path $Path -Encoding Ascii
+}
+
 function New-TestRepo {
-  param([bool]$FailKbCheck)
+  param([bool]$FailGoTest)
 
   $root = Join-Path ([System.IO.Path]::GetTempPath()) "kb-release-gate-$([guid]::NewGuid())"
   New-Item -ItemType Directory -Force -Path $root | Out-Null
-  New-Item -ItemType Directory -Force -Path (Join-Path $root ".github/skills/kb-check/scripts") | Out-Null
-  New-Item -ItemType Directory -Force -Path (Join-Path $root "scripts") | Out-Null
+  Write-TextFile (Join-Path $root "go.mod") "module releasefixture`n"
+  $testBody = if ($FailGoTest) {
+    @"
+package releasefixture
 
-  $kbCheckExit = if ($FailKbCheck) { "exit 7" } else { "exit 0" }
-  @"
-param([switch]`$All)
-if (-not `$All) { throw "expected -All" }
-$kbCheckExit
-"@ | Set-Content -Path (Join-Path $root ".github/skills/kb-check/scripts/kb-check.ps1") -Encoding UTF8
+import "testing"
 
-  @"
-param()
-exit 0
-"@ | Set-Content -Path (Join-Path $root "scripts/skill-sync-report.ps1") -Encoding UTF8
+func TestFixture(t *testing.T) { t.Fatal("expected failure") }
+"@
+  } else {
+    @"
+package releasefixture
 
+import "testing"
+
+func TestFixture(t *testing.T) {}
+"@
+  }
+  Write-TextFile (Join-Path $root "fixture_test.go") $testBody
+  Write-TextFile (Join-Path $root "scripts/skill-sync-report.ps1") "param()`nexit 0`n"
   git -C $root init | Out-Null
   git -C $root config user.email test@example.com | Out-Null
   git -C $root config user.name "Release Gate Test" | Out-Null
@@ -30,26 +44,45 @@ exit 0
   return $root
 }
 
-function Invoke-Gate {
+function Invoke-GoGate {
   param([string]$Root, [string]$Profile)
 
-  $gate = Join-Path (Split-Path $PSScriptRoot -Parent) "scripts/kb-release-gate.ps1"
-  if (-not (Test-Path $gate)) {
-    $gate = Join-Path $PSScriptRoot "kb-release-gate.ps1"
+  $oldPreference = $ErrorActionPreference
+  $oldNativePreference = $null
+  if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -Scope Global -ErrorAction SilentlyContinue) {
+    $oldNativePreference = $Global:PSNativeCommandUseErrorActionPreference
+    $Global:PSNativeCommandUseErrorActionPreference = $false
   }
-  $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $gate -Root $Root -Profile $Profile -Json 2>&1
-  $exitCode = $LASTEXITCODE
-  $json = ($output -join "`n") | ConvertFrom-Json
-  return [pscustomobject]@{ exit_code = $exitCode; result = $json }
+  $ErrorActionPreference = "Continue"
+  try {
+    $output = & go run .\cmd\kbcheck $Profile --root $Root --json 2>&1
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $oldPreference
+    if ($null -ne $oldNativePreference) {
+      $Global:PSNativeCommandUseErrorActionPreference = $oldNativePreference
+    }
+  }
+  $jsonStart = ($output | Select-String -Pattern '^\{' | Select-Object -First 1).LineNumber
+  if (-not $jsonStart) {
+    throw "Go gate did not emit JSON: $($output -join "`n")"
+  }
+  $jsonLines = @($output | Select-Object -Skip ($jsonStart - 1))
+  $jsonEnd = ($jsonLines | Select-String -Pattern '^\}\s*$' | Select-Object -Last 1).LineNumber
+  if (-not $jsonEnd) {
+    throw "Go gate emitted incomplete JSON: $($output -join "`n")"
+  }
+  $json = ($jsonLines | Select-Object -First $jsonEnd) -join "`n"
+  return [pscustomobject]@{ exit_code = $exitCode; result = ($json | ConvertFrom-Json) }
 }
 
-$successRoot = New-TestRepo -FailKbCheck $false
-$failureRoot = New-TestRepo -FailKbCheck $true
+$successRoot = New-TestRepo -FailGoTest $false
+$failureRoot = New-TestRepo -FailGoTest $true
 
 try {
-  $local = Invoke-Gate -Root $successRoot -Profile "local-release"
+  $local = Invoke-GoGate -Root $successRoot -Profile "local-release"
   if ($local.exit_code -ne 0 -or -not $local.result.ok) {
-    throw "local-release should pass with successful required checks"
+    throw "local-release should pass with successful required checks; exit=$($local.exit_code) ok=$($local.result.ok) results=$(($local.result.results | ConvertTo-Json -Compress -Depth 6))"
   }
   if (@($local.result.results | Where-Object { $_.name -eq "live-codex-ghcp-corpus" }).Count -ne 0) {
     throw "local-release must not include live corpus checks"
@@ -59,7 +92,7 @@ try {
     throw "local-release should label unavailable optional checks as skipped-explicit"
   }
 
-  $live = Invoke-Gate -Root $successRoot -Profile "live-release"
+  $live = Invoke-GoGate -Root $successRoot -Profile "live-release"
   if ($live.exit_code -ne 0 -or -not $live.result.ok) {
     throw "live-release should pass when live corpus runner is explicitly unavailable"
   }
@@ -68,13 +101,13 @@ try {
     throw "live-release should report unavailable live corpus as skipped-explicit"
   }
 
-  $failed = Invoke-Gate -Root $failureRoot -Profile "local-release"
+  $failed = Invoke-GoGate -Root $failureRoot -Profile "local-release"
   if ($failed.exit_code -eq 0 -or $failed.result.ok) {
-    throw "required kb-check failure should make the gate fail"
+    throw "required native core failure should make the gate fail"
   }
   $failedKbCheck = @($failed.result.results | Where-Object { $_.name -eq "kb-check-all" }) | Select-Object -First 1
   if (-not $failedKbCheck -or $failedKbCheck.status -ne "failed") {
-    throw "required kb-check failure was not reported as failed"
+    throw "required native core failure was not reported as failed"
   }
 } finally {
   Remove-Item -LiteralPath $successRoot -Recurse -Force -ErrorAction SilentlyContinue

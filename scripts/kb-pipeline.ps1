@@ -80,7 +80,7 @@ function Start-Pipeline {
   $runRoot = Resolve-RepoPath $RepoRoot ".atv/pipeline-runs"
   New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 
-  $runId = "{0}-{1}" -f (Get-Date -Format "yyyyMMdd-HHmmss"), (ConvertTo-Slug "$($pipeline.id)")
+  $runId = "{0}-{1}-{2}" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"), ([guid]::NewGuid().ToString("N").Substring(0, 8)), (ConvertTo-Slug "$($pipeline.id)")
   $runDir = Join-Path $runRoot $runId
   New-Item -ItemType Directory -Force -Path $runDir | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $runDir "phase-prompts") | Out-Null

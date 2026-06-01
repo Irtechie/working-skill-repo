@@ -19,7 +19,7 @@ Codex/GHCP the same workflow contract.
 
 ## Existing Harnesses
 
-- `.\.github\skills\kb-check\scripts\kb-check.ps1 -All`
+- `go run .\cmd\kbcheck core`
 - `scripts/skill-lint.ps1`
 - `scripts/route-complexity-eval.ps1`
 - `scripts/skill-eval.ps1`
@@ -35,7 +35,7 @@ Codex/GHCP the same workflow contract.
 ## Canonical Commands
 
 ```powershell
-.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+go run .\cmd\kbcheck core
 git diff --check
 ```
 

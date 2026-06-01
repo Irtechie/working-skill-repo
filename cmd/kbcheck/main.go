@@ -12,35 +12,28 @@ import (
 	"strings"
 )
 
-const usage = `kbcheck is a thin cross-platform entrypoint for the existing KB PowerShell gates.
+const usage = `kbcheck is the native KB gate entrypoint.
 
 Usage:
-  kbcheck core [--root <path>] [--dry-run]
+  kbcheck core [--root <path>] [--list] [--dry-run]
   kbcheck local-release [--root <path>] [--json] [--dry-run]
   kbcheck live-release [--root <path>] [--json] [--dry-run]
   kbcheck help
 
 Commands:
-  core           Run .github/skills/kb-check/scripts/kb-check.ps1 -All.
-  local-release  Run scripts/kb-release-gate.ps1 -Profile local-release.
-  live-release   Run scripts/kb-release-gate.ps1 -Profile live-release.
-
-Notes:
-  This wrapper still delegates to PowerShell scripts. It does not port the
-  harness away from PowerShell; install PowerShell 7 (pwsh) for macOS/Linux.
+  core           Discover and run local deterministic checks.
+  local-release  Run the local release gate with required and optional checks.
+  live-release   Run local release checks plus explicit live-model surfaces.
 `
 
-type invocation struct {
-	exe  string
-	args []string
-	dir  string
-}
+type processRunner func(root string, check Check) CheckResult
 
 type options struct {
 	command string
 	root    string
 	json    bool
 	dryRun  bool
+	list    bool
 }
 
 func main() {
@@ -62,31 +55,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
-	inv, err := buildInvocation(opts)
+	root, err := filepath.Abs(opts.root)
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		fmt.Fprintf(stderr, "resolve root: %v\n", err)
 		return 1
 	}
 
-	if opts.dryRun {
-		fmt.Fprintf(stdout, "%s %s\n", inv.exe, quoteArgs(inv.args))
-		return 0
+	switch opts.command {
+	case "core":
+		return runCore(root, opts, stdout, stderr, runProcessCheck)
+	case "local-release", "live-release":
+		return runRelease(root, opts, stdout, stderr, runProcessCheck)
+	default:
+		fmt.Fprintf(stderr, "unsupported command %q\n", opts.command)
+		return 2
 	}
-
-	cmd := exec.Command(inv.exe, inv.args...)
-	cmd.Dir = inv.dir
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	cmd.Stdin = os.Stdin
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return exitErr.ExitCode()
-		}
-		fmt.Fprintln(stderr, err)
-		return 1
-	}
-	return 0
 }
 
 func parse(args []string) (options, error) {
@@ -98,7 +81,6 @@ func parse(args []string) (options, error) {
 	if cmd == "-h" || cmd == "--help" || cmd == "help" {
 		return options{command: "help", root: "."}, nil
 	}
-
 	if cmd != "core" && cmd != "local-release" && cmd != "live-release" {
 		return options{}, fmt.Errorf("unknown command %q", cmd)
 	}
@@ -108,7 +90,8 @@ func parse(args []string) (options, error) {
 	opts := options{command: cmd, root: "."}
 	fs.StringVar(&opts.root, "root", ".", "repository root")
 	fs.BoolVar(&opts.json, "json", false, "emit JSON when supported")
-	fs.BoolVar(&opts.dryRun, "dry-run", false, "print the delegated command instead of running it")
+	fs.BoolVar(&opts.dryRun, "dry-run", false, "print commands instead of running them")
+	fs.BoolVar(&opts.list, "list", false, "list checks without running them")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, err
 	}
@@ -118,63 +101,75 @@ func parse(args []string) (options, error) {
 	if opts.command == "core" && opts.json {
 		return options{}, fmt.Errorf("--json is only supported for release gate commands")
 	}
+	if opts.command != "core" && opts.list {
+		return options{}, fmt.Errorf("--list is only supported for core")
+	}
 	return opts, nil
 }
 
-func buildInvocation(opts options) (invocation, error) {
-	root, err := filepath.Abs(opts.root)
+func runCore(root string, opts options, stdout, stderr io.Writer, runner processRunner) int {
+	checks, err := DiscoverChecks(root)
 	if err != nil {
-		return invocation{}, fmt.Errorf("resolve root: %w", err)
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	if opts.list || opts.dryRun {
+		printChecks(stdout, checks)
+		return 0
 	}
 
-	ps, err := findPowerShell()
-	if err != nil {
-		return invocation{}, err
+	for _, check := range checks {
+		fmt.Fprintf(stdout, "==> %s: %s\n", check.Name, check.CommandString())
+		result := runner(root, check)
+		if result.Stdout != "" {
+			fmt.Fprint(stdout, result.Stdout)
+			if !strings.HasSuffix(result.Stdout, "\n") {
+				fmt.Fprintln(stdout)
+			}
+		}
+		if result.Stderr != "" {
+			fmt.Fprint(stderr, result.Stderr)
+			if !strings.HasSuffix(result.Stderr, "\n") {
+				fmt.Fprintln(stderr)
+			}
+		}
+		if result.ExitCode != 0 {
+			fmt.Fprintf(stderr, "check failed: %s\n", check.Name)
+			return result.ExitCode
+		}
 	}
-
-	args := powerShellBaseArgs(ps)
-	switch opts.command {
-	case "core":
-		script := filepath.Join(root, ".github", "skills", "kb-check", "scripts", "kb-check.ps1")
-		if err := requireFile(script); err != nil {
-			return invocation{}, err
-		}
-		args = append(args,
-			"-File",
-			script,
-			"-All",
-		)
-	case "local-release", "live-release":
-		profile := opts.command
-		script := filepath.Join(root, "scripts", "kb-release-gate.ps1")
-		if err := requireFile(script); err != nil {
-			return invocation{}, err
-		}
-		args = append(args,
-			"-File",
-			script,
-			"-Profile", profile,
-			"-Root", root,
-		)
-		if opts.json {
-			args = append(args, "-Json")
-		}
-	default:
-		return invocation{}, fmt.Errorf("unsupported command %q", opts.command)
-	}
-
-	return invocation{exe: ps, args: args, dir: root}, nil
+	return 0
 }
 
-func requireFile(path string) error {
-	info, err := os.Stat(path)
+func printChecks(w io.Writer, checks []Check) {
+	for _, check := range checks {
+		fmt.Fprintf(w, "%-40s %s\n", check.Name, check.CommandString())
+	}
+}
+
+func runProcessCheck(root string, check Check) CheckResult {
+	if check.Run != nil {
+		return check.Run(root)
+	}
+	if len(check.Args) == 0 {
+		return CheckResult{ExitCode: 1, Stderr: "check has no command"}
+	}
+	cmd := exec.Command(check.Args[0], check.Args[1:]...)
+	cmd.Dir = root
+	out, err := cmd.Output()
+	result := CheckResult{ExitCode: 0, Stdout: string(out)}
 	if err != nil {
-		return fmt.Errorf("required script not found: %s", path)
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			result.ExitCode = exitErr.ExitCode()
+			result.Stderr = string(exitErr.Stderr)
+			return result
+		}
+		result.ExitCode = 1
+		result.Stderr = err.Error()
+		return result
 	}
-	if info.IsDir() {
-		return fmt.Errorf("required script is a directory: %s", path)
-	}
-	return nil
+	return result
 }
 
 func findPowerShell() (string, error) {
@@ -194,22 +189,18 @@ func findPowerShell() (string, error) {
 	return "", errors.New("PowerShell not found; install PowerShell 7 (pwsh) or set KBCHECK_POWERSHELL")
 }
 
-func powerShellBaseArgs(exe string) []string {
-	base := strings.ToLower(filepath.Base(exe))
+func powerShellArgs(script string, extra ...string) ([]string, error) {
+	ps, err := findPowerShell()
+	if err != nil {
+		return nil, err
+	}
+	base := strings.ToLower(filepath.Base(ps))
+	args := []string{ps}
 	if base == "powershell" || base == "powershell.exe" {
-		return []string{"-NoProfile", "-ExecutionPolicy", "Bypass"}
+		args = append(args, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script)
+	} else {
+		args = append(args, "-NoProfile", "-File", script)
 	}
-	return []string{"-NoProfile"}
-}
-
-func quoteArgs(args []string) string {
-	quoted := make([]string, 0, len(args))
-	for _, arg := range args {
-		if arg == "" || strings.ContainsAny(arg, " \t\"") {
-			quoted = append(quoted, `"`+strings.ReplaceAll(arg, `"`, `\"`)+`"`)
-			continue
-		}
-		quoted = append(quoted, arg)
-	}
-	return strings.Join(quoted, " ")
+	args = append(args, extra...)
+	return args, nil
 }

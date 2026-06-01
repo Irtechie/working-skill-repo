@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -18,6 +17,16 @@ func TestParseReleaseArgs(t *testing.T) {
 	}
 }
 
+func TestParseCoreList(t *testing.T) {
+	opts, err := parse([]string{"core", "--root", "repo", "--list"})
+	if err != nil {
+		t.Fatalf("parse returned error: %v", err)
+	}
+	if opts.command != "core" || !opts.list {
+		t.Fatalf("unexpected options: %+v", opts)
+	}
+}
+
 func TestParseRejectsJSONForCore(t *testing.T) {
 	_, err := parse([]string{"core", "--json"})
 	if err == nil {
@@ -25,80 +34,90 @@ func TestParseRejectsJSONForCore(t *testing.T) {
 	}
 }
 
-func TestBuildLocalReleaseInvocation(t *testing.T) {
+func TestCoreListPrintsNativeChecks(t *testing.T) {
 	t.Setenv("KBCHECK_POWERSHELL", "pwsh")
 	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "scripts", "kb-release-gate.ps1"))
-
-	inv, err := buildInvocation(options{command: "local-release", root: root, json: true})
-	if err != nil {
-		t.Fatalf("buildInvocation returned error: %v", err)
-	}
-
-	wantArgs := []string{
-		"-NoProfile",
-		"-File",
-		filepath.Join(root, "scripts", "kb-release-gate.ps1"),
-		"-Profile", "local-release",
-		"-Root", root,
-		"-Json",
-	}
-	if inv.exe != "pwsh" || inv.dir != root || !reflect.DeepEqual(inv.args, wantArgs) {
-		t.Fatalf("unexpected invocation:\nexe=%q\ndir=%q\nargs=%v", inv.exe, inv.dir, inv.args)
-	}
-}
-
-func TestBuildCoreInvocation(t *testing.T) {
-	t.Setenv("KBCHECK_POWERSHELL", "powershell.exe")
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, ".github", "skills", "kb-check", "scripts", "kb-check.ps1"))
-
-	inv, err := buildInvocation(options{command: "core", root: root})
-	if err != nil {
-		t.Fatalf("buildInvocation returned error: %v", err)
-	}
-
-	wantArgs := []string{
-		"-NoProfile",
-		"-ExecutionPolicy", "Bypass",
-		"-File",
-		filepath.Join(root, ".github", "skills", "kb-check", "scripts", "kb-check.ps1"),
-		"-All",
-	}
-	if inv.exe != "powershell.exe" || !reflect.DeepEqual(inv.args, wantArgs) {
-		t.Fatalf("unexpected invocation:\nexe=%q\nargs=%v", inv.exe, inv.args)
-	}
-}
-
-func TestDryRunPrintsDelegatedCommand(t *testing.T) {
-	t.Setenv("KBCHECK_POWERSHELL", "pwsh")
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, ".github", "skills", "kb-check", "scripts", "kb-check.ps1"))
+	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
+	writeFile(t, filepath.Join(root, "scripts", "skill-sync-report.ps1"), "exit 0")
 
 	var out strings.Builder
-	code := run([]string{"core", "--root", root, "--dry-run"}, &out, os.Stderr)
+	code := run([]string{"core", "--root", root, "--list"}, &out, &strings.Builder{})
 	if code != 0 {
-		t.Fatalf("expected dry run to pass, got %d", code)
+		t.Fatalf("expected list to pass, got %d", code)
 	}
-	if !strings.Contains(out.String(), "kb-check.ps1") || !strings.Contains(out.String(), "-All") {
-		t.Fatalf("dry run did not print delegated core check: %q", out.String())
-	}
-}
-
-func TestBuildInvocationRejectsMissingScript(t *testing.T) {
-	t.Setenv("KBCHECK_POWERSHELL", "pwsh")
-	_, err := buildInvocation(options{command: "core", root: t.TempDir()})
-	if err == nil || !strings.Contains(err.Error(), "required script not found") {
-		t.Fatalf("expected missing script error, got %v", err)
+	if !strings.Contains(out.String(), "go-test") || strings.Contains(out.String(), "kb-check.ps1 -All") {
+		t.Fatalf("unexpected core list: %q", out.String())
 	}
 }
 
-func writeFile(t *testing.T, path string) {
+func TestCoreRunsDiscoveredCheck(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
+	writeFile(t, filepath.Join(root, "go.sum"), "")
+
+	runner := func(root string, check Check) CheckResult {
+		if check.Name != "go-test" {
+			t.Fatalf("unexpected check: %s", check.Name)
+		}
+		return CheckResult{ExitCode: 0, Stdout: "ok\n"}
+	}
+
+	var out, errOut strings.Builder
+	code := runCore(root, options{command: "core", root: root}, &out, &errOut, runner)
+	if code != 0 {
+		t.Fatalf("expected core to pass, got %d stderr=%s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), "==> go-test") {
+		t.Fatalf("missing check output: %q", out.String())
+	}
+}
+
+func TestCoreFailurePropagates(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
+
+	runner := func(root string, check Check) CheckResult {
+		return CheckResult{ExitCode: 7, Stderr: "boom"}
+	}
+
+	var out, errOut strings.Builder
+	code := runCore(root, options{command: "core", root: root}, &out, &errOut, runner)
+	if code != 7 {
+		t.Fatalf("expected exit 7, got %d", code)
+	}
+	if !strings.Contains(errOut.String(), "check failed: go-test") {
+		t.Fatalf("missing failure output: %q", errOut.String())
+	}
+}
+
+func TestReleaseJSONReportsRequiredFailure(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
+	writeFile(t, filepath.Join(root, "scripts", "skill-sync-report.ps1"), "exit 0")
+
+	runner := func(root string, check Check) CheckResult {
+		if check.Name == "kb-check-all" {
+			return CheckResult{ExitCode: 3, Stderr: "core failed"}
+		}
+		return CheckResult{ExitCode: 0}
+	}
+
+	var out, errOut strings.Builder
+	code := runRelease(root, options{command: "local-release", root: root, json: true}, &out, &errOut, runner)
+	if code == 0 {
+		t.Fatal("expected release to fail")
+	}
+	if !strings.Contains(out.String(), `"required_failures": 1`) {
+		t.Fatalf("missing JSON failure count: %s", out.String())
+	}
+}
+
+func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 }

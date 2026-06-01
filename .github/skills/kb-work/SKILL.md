@@ -15,6 +15,7 @@ Run all vertical slices from a `kb-plan` manifest in dependency order. Keep each
 3. Confirm execution once unless the user already asked to run/execute/work the manifest.
 4. Execute ready slices in topological order without asking between slices.
 5. Update the manifest after each slice so the workflow is resumable.
+6. After all runnable slices are terminal, immediately invoke `kb-complete <manifest-path>` unless the user explicitly said to stop before completion.
 
 ## Input
 
@@ -27,6 +28,35 @@ Run all vertical slices from a `kb-plan` manifest in dependency order. Keep each
 **If input is a handoff:** Do not execute the handoff directly. If it links a `docs/plans/*-kb-*-manifest.md`, use that manifest. If it contains only phases, workstreams, bullets, or broad next steps, stop and invoke `kb-plan` to create vertical slices first.
 
 **If input is a feature description, broad task, or "go straight to work" request instead of a manifest path:** invoke `kb-plan <input>` with execution intent, then return to `kb-work <manifest-path>`. `kb-work` only executes KB manifests with per-slice plans and an initial `expected_files` forecast.
+
+## Continuous Completion Loop
+
+When the user invokes `kb-work` with execution intent, this skill owns the loop
+until the work is truly terminal.
+
+Terminal means one of:
+
+- every slice is `done` or intentionally `skipped`, then `kb-complete` has run
+  through review, follow-up resolution, proof, memory, and cleanup;
+- the only remaining slices are `blocked`, `human-required`, or `parked`, with
+  exact resume criteria recorded in `todo.md` and the manifest;
+- the user explicitly says to pause or stop.
+
+Do not stop at weaker milestones:
+
+- "the current slice passed";
+- "all slices are done";
+- "tests passed";
+- "review started";
+- "I wrote the summary."
+
+Those are progress states. The next action is still to continue the loop, either
+to the next runnable slice or to `kb-complete`.
+
+If a repo has a project-specific `done.md` contract such as "can't stop til its
+done", treat it as this same terminal rule. Do not create a new `done.md` from
+the global skill; use `todo.md`, `todo-done.md`, manifests, and handoffs as the
+KB state system unless the repo already opted into `done.md`.
 
 ## Pre-Flight
 
@@ -399,7 +429,7 @@ Next: kb-complete runs automatically for review, documentation, and learning.
 
 8. **Persist scope context** — collect the forecast and discovered file lists from each slice's `notes` field (the `scope-check:` and `scope-discovery:` entries from Step 3.6). Write the combined actual changed file list to the manifest frontmatter as `scope-verified-files` so `kb-complete` can pass it to kb-review without re-deriving.
 
-**Post-work steps (kb-review, compound, learn, evolve, cleanup) are handled by `kb-complete`.** After all slices are `done` or intentionally `skipped`, invoke `kb-complete <manifest-path>` automatically unless the user explicitly asked to stop after work execution.
+**Post-work steps (kb-review, compound, learn, evolve, cleanup) are handled by `kb-complete`.** After all slices are `done` or intentionally `skipped`, invoke `kb-complete <manifest-path>` automatically unless the user explicitly asked to stop after work execution. The `kb-work` run is not complete until `kb-complete` reaches its Done section or records a real blocker.
 
 ## Failure Handling
 

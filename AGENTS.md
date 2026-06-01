@@ -39,10 +39,10 @@ When changing skills in this repo, treat `E:\working-skill-repo` as the working 
 Before syncing or propagating skills, run the canonical skill-repo quality gate:
 
 ```powershell
-.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+go run .\cmd\kbcheck core
 ```
 
-This gate is cross-runtime: it validates the shared skill contract for Codex and GitHub Copilot/GHCP using `config/skill-quality.json`, deterministic skill lint, route-complexity fixtures, and a read-only sync drift report. Required targets are Codex global, Copilot global, shared agents global, and `E:\all-the-vibes\.github\skills`. ATV scaffold/plugin targets are optional thin bundles; warnings there are acceptable unless the current change explicitly ships that skill surface.
+This gate is cross-runtime: the top-level orchestration is native Go and validates the shared skill contract for Codex and GitHub Copilot/GHCP using `config/skill-quality.json`, deterministic skill lint, route-complexity fixtures, and a read-only sync drift report. Some individual validators remain PowerShell scripts until they are separately ported. Required targets are Codex global, Copilot global, shared agents global, and `E:\all-the-vibes\.github\skills`. ATV scaffold/plugin targets are optional thin bundles; warnings there are acceptable unless the current change explicitly ships that skill surface.
 
 Do not remove `kb-review`, `ce-review`, `ce-compound`, or `ce-compound-refresh` from this bundle unless the skills that invoke them are rewritten first. KB completion uses `kb-review`; `ce-review` remains the generalized CE review skill.
 

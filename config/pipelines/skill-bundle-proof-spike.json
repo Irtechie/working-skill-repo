@@ -19,12 +19,12 @@
     },
     {
       "role": "check-runner",
-      "path": ".github/skills/kb-check/scripts/kb-check.ps1"
+      "path": "cmd/kbcheck/main.go"
     }
   ],
   "proof_commands": [
     "git diff --check",
-    "powershell -ExecutionPolicy Bypass -File ./.github/skills/kb-check/scripts/kb-check.ps1 -All"
+    "go run ./cmd/kbcheck core"
   ],
   "phases": [
     {

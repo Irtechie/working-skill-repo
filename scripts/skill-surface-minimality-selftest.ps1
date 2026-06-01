@@ -67,9 +67,36 @@ description: superseded workflow
 old alias
 "@
 
+  Write-TextFile (Join-Path $root ".github/skills/docs-mentioned/SKILL.md") @"
+---
+name: docs-mentioned
+description: mentioned only in docs
+---
+standalone
+"@
+
+  Write-TextFile (Join-Path $root ".github/skills/example-mentioned/SKILL.md") @"
+---
+name: example-mentioned
+description: mentioned only in eval fixtures
+---
+standalone
+"@
+
+  Write-TextFile (Join-Path $root ".github/skills/runtime-mentioned/SKILL.md") @"
+---
+name: runtime-mentioned
+description: mentioned in durable runtime log
+---
+standalone
+"@
+
   Write-TextFile (Join-Path $root ".github/agents/correctness-reviewer.agent.md") "required"
   Write-TextFile (Join-Path $root ".github/agents/conditional-reviewer.agent.md") "conditional"
   Write-TextFile (Join-Path $root ".github/agents/unreferenced-reviewer.agent.md") "unproven"
+  Write-TextFile (Join-Path $root "docs/context/research.md") "docs-mentioned is documented but not invoked."
+  Write-TextFile (Join-Path $root "evals/route/example.json") '{"prompt":"try example-mentioned"}'
+  Write-TextFile (Join-Path $root ".atv/observations.jsonl") '{"tool":"runtime-mentioned","result":"used"}'
 
   $script = Join-Path $PSScriptRoot "skill-surface-minimality.ps1"
   $jsonText = & powershell -NoProfile -ExecutionPolicy Bypass -File $script -Root $root -TrimLineThreshold 6 -Json
@@ -106,6 +133,31 @@ old alias
   $protectedSkill = @($report.skill_classifications | Where-Object { $_.name -eq "ce-review" }) | Select-Object -First 1
   if (-not $protectedSkill -or $protectedSkill.classification -ne "protected") {
     throw "expected ce-review to be protected"
+  }
+
+  $requiredEvidence = @($report.agent_classifications | Where-Object { $_.name -eq "correctness-reviewer" }) | Select-Object -First 1
+  if (-not $requiredEvidence -or $requiredEvidence.evidence_class -ne "dispatch-static") {
+    throw "expected correctness-reviewer to have dispatch-static evidence"
+  }
+
+  $docsEvidence = @($report.skill_classifications | Where-Object { $_.name -eq "docs-mentioned" }) | Select-Object -First 1
+  if (-not $docsEvidence -or $docsEvidence.evidence_class -ne "docs-only") {
+    throw "expected docs-mentioned to have docs-only evidence"
+  }
+
+  $exampleEvidence = @($report.skill_classifications | Where-Object { $_.name -eq "example-mentioned" }) | Select-Object -First 1
+  if (-not $exampleEvidence -or $exampleEvidence.evidence_class -ne "example-only") {
+    throw "expected example-mentioned to have example-only evidence"
+  }
+
+  $runtimeEvidence = @($report.skill_classifications | Where-Object { $_.name -eq "runtime-mentioned" }) | Select-Object -First 1
+  if (-not $runtimeEvidence -or $runtimeEvidence.evidence_class -ne "runtime") {
+    throw "expected runtime-mentioned to have runtime evidence"
+  }
+
+  $noneEvidence = @($report.agent_classifications | Where-Object { $_.name -eq "unreferenced-reviewer" }) | Select-Object -First 1
+  if (-not $noneEvidence -or $noneEvidence.evidence_class -ne "none") {
+    throw "expected unreferenced-reviewer to have no evidence"
   }
 
   $coldNames = @($report.cold_storage_candidates | Select-Object -ExpandProperty name)

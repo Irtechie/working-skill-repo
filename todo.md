@@ -28,11 +28,9 @@ Make this the highest-reliability portable skill bundle for the user's workflow:
 
 ## Current Focus
 
-No active work claimed. Claude remaining hardening is complete. The Go wrapper
-exists as a thin PowerShell-delegating entrypoint. Trim/deletion is constrained:
-protected CE/document-review dependencies are excluded from deletion candidates,
-and remaining cold-storage candidates require runtime usage proof or focused
-trimming before any cut.
+No active work claimed. Cold storage follow-through is complete. The canonical
+quality and release gates are now `go run .\cmd\kbcheck core` and
+`go run .\cmd\kbcheck local-release`.
 
 Audit note: `docs/context/research/2026-05-29-skill-repo-gap-audit.md`
 Requirements: `docs/brainstorms/2026-05-29-cross-runtime-skill-quality-requirements.md`
@@ -55,8 +53,9 @@ Claude remaining hardening manifest: `docs/plans/2026-06-01-080-kb-claude-remain
 - Personal/global installs and tracked ATV skill roots are expected to match this repo for KB skills.
 - ATV scaffold/plugin copies are no longer intentionally thin for tracked skills.
 - Deterministic skill lint, route-complexity fixtures, captured-result scoring, observed trace scoring, claim verification, computed output-quality checks, regression reporting, sync drift checks, and Codex/GHCP live adapters exist. Live model calls remain explicit and outside `kb-check -All`.
-- `cmd/kbcheck` provides a Go CLI wrapper for `core`, `local-release`, and
-  `live-release`; it still requires PowerShell and is not a full harness port.
+- `cmd/kbcheck` provides the native Go top-level gate for `core`,
+  `local-release`, and `live-release`. Several individual validators remain
+  PowerShell scripts until separately ported.
 - `skill-surface-minimality.ps1` has a protected classification so repo-policy
   dependencies such as `ce-review`, `ce-compound`, `ce-compound-refresh`, and
   `document-review` do not become deletion candidates from static analysis
@@ -78,20 +77,17 @@ Claude remaining hardening manifest: `docs/plans/2026-06-01-080-kb-claude-remain
 
 ## Human Required
 
-- None.
+None.
 
 ## Parked / Cold Storage
 
-- Runtime-usage proof for remaining cold-storage candidates from
-  `scripts/skill-surface-minimality.ps1`: 10 unproven agents, one trim-candidate
-  agent (`cli-agent-readiness-reviewer`), and one trim-candidate skill
-  (`kb-map-bootstrap`). Do not delete without usage proof or a focused trim
-  plan.
-- Full Go harness rewrite. The current `cmd/kbcheck` wrapper intentionally
-  delegates to PowerShell; promote a rewrite only when non-PowerShell support is
-  worth the cost.
-- Build cross-model benchmark prompts for route selection, complexity, and proof discipline.
-- Add path-specific `.github/instructions/*.instructions.md` for Copilot if the workflow starts editing multiple file classes with different rules.
+- Deletion/trim decisions for remaining cold-storage candidates stay parked
+  until a dedicated trim/deletion pass reviews the new evidence classes.
+- Live cross-model benchmark execution is parked; fixtures and deterministic
+  schema validation now exist, but live model calls remain explicit.
+- macOS/Linux proof for the Go gate is parked until those environments are
+  available. Windows parity is recorded in
+  `docs/reports/go-gate-parity-2026-06-01.md`.
 
 ## Blocked
 

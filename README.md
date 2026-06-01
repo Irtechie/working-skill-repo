@@ -3,9 +3,9 @@
 Voice-friendly KB workflow skills and required reviewer agents for GitHub
 Copilot and Codex.
 
-Status: actively used, pre-1.0. The core PowerShell gates pass on Windows and
-prefer PowerShell 7 (`pwsh`) when available; expect churn while the marketplace,
-eval, and pipeline pieces settle.
+Status: actively used, pre-1.0. The top-level gate is now native Go and has
+Windows parity proof against the prior PowerShell wrappers; expect churn while
+the marketplace, eval, and pipeline pieces settle.
 
 Most of this repo is an augmentation layer on top of the original
 All-The-Vibes ATV StarterKit and CE review/learning workflow. KB adds the
@@ -82,7 +82,7 @@ It includes:
 - repo-local Copilot agents in `.github/agents/`
 - root agent guidance in `AGENTS.md`
 - Copilot guidance in `.github/copilot-instructions.md`
-- a deterministic check helper at `.github/skills/kb-check/scripts/kb-check.ps1`
+- a deterministic Go check helper at `cmd/kbcheck`
 
 The installed runtime surface is intentionally smaller than the repository:
 about 36 skills plus 52 reviewer/specialist agents. The repo-local `docs/`,
@@ -93,23 +93,24 @@ install the skills. Consuming projects get their own `todo.md`,
 
 ## Platform Reality
 
-This repo is PowerShell-first today, with a PowerShell 7 cross-platform path.
+This repo is Go-first for top-level gate orchestration, with PowerShell still
+used by several individual validator scripts.
 
-- The canonical quality gate is `.ps1`.
-- `cmd/kbcheck` is a thin Go entrypoint for the same gates; it still delegates
-  to PowerShell and is not a full harness port.
+- The canonical quality gate is `go run .\cmd\kbcheck core`.
+- `cmd/kbcheck` natively orchestrates `core`, `local-release`, and
+  `live-release`; it no longer delegates to the old `kb-check.ps1` or
+  `kb-release-gate.ps1` wrappers.
 - Install examples use Windows paths because the active development machine is
   Windows.
 - The live eval adapters shell to local Codex and GitHub Copilot CLIs and assume
   those CLIs are installed and authenticated.
 
-Codex and Copilot are both supported runtimes for the skill instructions, but
-the repo tooling is not a stock macOS/Linux toolchain. macOS/Linux users should
-install PowerShell 7 and run the same `.ps1` gates with `pwsh`. Harness scripts
-now prefer `pwsh` for child processes and fall back to Windows PowerShell only
-when needed. The Go wrapper can provide a portable command name, but PowerShell
-7 remains the runtime dependency. A full non-PowerShell port remains future
-work.
+Codex and Copilot are both supported runtimes for the skill instructions.
+Windows parity for the Go gate is recorded in
+`docs/reports/go-gate-parity-2026-06-01.md`. macOS/Linux should be able to use
+the same Go entrypoint, but full OS proof still requires running it on those
+machines. PowerShell 7 remains required for individual validator scripts that
+have not been ported yet.
 
 The default entry point is `kb-start`. In normal use, ask for work in plain
 language and let `kb-start` choose the ceremony.
@@ -491,26 +492,20 @@ gate is not an improvement.
 Run this before propagating skill changes:
 
 ```powershell
-.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+go run .\cmd\kbcheck core
 ```
 
 Run this before releasing or syncing globals:
 
 ```powershell
-.\scripts\kb-release-gate.ps1 -Profile local-release
-```
-
-Equivalent thin Go wrapper:
-
-```powershell
 go run .\cmd\kbcheck local-release
 ```
 
-`local-release` composes deterministic local proof: `kb-check -All`, sync drift,
+`local-release` composes deterministic local proof: native `core`, sync drift,
 line-ending checks, and available static reports. `live-release` is explicit:
 
 ```powershell
-.\scripts\kb-release-gate.ps1 -Profile live-release
+go run .\cmd\kbcheck live-release
 ```
 
 It attempts the live Codex/GHCP corpus only when selected and reports unavailable
@@ -550,12 +545,10 @@ For this repo, `kb-check` now discovers the cross-runtime skill quality suite:
   code-checkable dimensions, not a subjective LLM style judge.
 - `scripts/skill-eval-regression-report.ps1` summarizes local live-run artifacts
   and compares pass/non-pass and size/time proxies against a selected baseline.
-- `scripts/kb-release-gate.ps1 -Profile local-release` composes the pre-sync
-  deterministic release proof. The selftest is part of `kb-check -All`; the gate
-  itself is not, because it calls `kb-check -All`.
-- `cmd/kbcheck` is a Go CLI wrapper for `core`, `local-release`, and
-  `live-release`. It is tested with `go test ./...` and intentionally delegates
-  to the PowerShell scripts instead of rewriting them.
+- `cmd/kbcheck` is the Go CLI for `core`, `local-release`, and `live-release`.
+  It is tested with `go test ./...` and owns top-level orchestration. The parity
+  report under `docs/reports/` records the proof used to retire the old
+  PowerShell wrappers.
 - `scripts/skill-surface-minimality.ps1` statically classifies skills and
   reviewer agents as `protected`, `required`, `conditional`, `unproven`,
   `unused-candidate`, or `trim-candidate`. Protected skills such as `ce-review`

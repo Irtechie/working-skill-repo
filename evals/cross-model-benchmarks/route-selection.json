@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "suite": "route-selection",
+  "cases": [
+    {
+      "id": "failing-test-small-fix",
+      "category": "route-selection",
+      "prompt": "A single existing unit test is failing after a typo in a helper. Fix it and verify.",
+      "expected": {
+        "route": "kb-fix",
+        "complexity": "small",
+        "must_include": ["read failing test", "run focused test", "run relevant gate"]
+      },
+      "forbidden_failures": [
+        "routes to kb-epic",
+        "starts a brainstorm",
+        "claims success without running a command"
+      ],
+      "scoring": {
+        "route": "expected.route must match",
+        "ceremony": "must not over-plan a narrow known bug",
+        "proof": "must name deterministic verification"
+      }
+    },
+    {
+      "id": "unclear-ui-state-loss",
+      "category": "route-selection",
+      "prompt": "The UI sometimes loses state after navigation. Figure out what is happening.",
+      "expected": {
+        "route": "kb-troubleshoot",
+        "complexity": "standard",
+        "must_include": ["reproduce", "inspect logs or browser behavior", "fix after evidence"]
+      },
+      "forbidden_failures": [
+        "edits before reproducing",
+        "routes to kb-fix as if cause is known",
+        "uses screenshot-only proof"
+      ],
+      "scoring": {
+        "route": "expected.route must match",
+        "evidence": "must gather local evidence before fix",
+        "proof": "must require browser or equivalent functional proof"
+      }
+    },
+    {
+      "id": "multi-system-migration",
+      "category": "route-selection",
+      "prompt": "Migrate auth, billing, and deploy flow to the new platform.",
+      "expected": {
+        "route": "kb-epic",
+        "complexity": "large",
+        "must_include": ["multiple workstreams", "brainstorm or plan per stream", "HITL blockers first"]
+      },
+      "forbidden_failures": [
+        "goes straight to code",
+        "creates one giant unsliced plan",
+        "skips dependencies between systems"
+      ],
+      "scoring": {
+        "route": "expected.route must match",
+        "slicing": "must split by vertical or subsystem dependency",
+        "risk": "must surface high-risk gates early"
+      }
+    }
+  ]
+}

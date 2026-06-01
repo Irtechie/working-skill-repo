@@ -7,10 +7,9 @@ Checked: 2026-05-31
 ```powershell
 git status --short
 git diff --check
-.\.github\skills\kb-check\scripts\kb-check.ps1 -List
-.\.github\skills\kb-check\scripts\kb-check.ps1 -All
-.\scripts\kb-release-gate.ps1 -Profile local-release
+go run .\cmd\kbcheck core --list
 go run .\cmd\kbcheck core
+go run .\cmd\kbcheck local-release
 go test ./...
 ```
 
@@ -43,8 +42,9 @@ Run it when dependency manifests or lockfiles are in scope and `osv-scanner` is
 available. If the scanner is not installed, record `skipped-unavailable` and the
 official install command instead of using model judgment as proof.
 
-`kb-check.ps1` discovers this repo as a skill repo when `.github/skills` and
-`config/skill-quality.json` exist.
+`cmd/kbcheck` discovers this repo as a skill repo when `.github/skills` and
+`config/skill-quality.json` exist. Top-level gate orchestration is native Go;
+several individual validators are still PowerShell scripts until ported.
 
 The sync drift report is read-only: it never copies files. It still exits
 nonzero for required-target drift and is part of the blocking `kb-check -All`
@@ -63,7 +63,7 @@ Use `-VerboseOptional` when reviewing a deliberate packaging exception.
 
 ## Current Result
 
-`kb-check.ps1 -List` now reports skill-repo checks when run here:
+`go run .\cmd\kbcheck core --list` now reports skill-repo checks when run here:
 
 - `skill-lint`
 - `go-test`
@@ -87,7 +87,7 @@ Use `-VerboseOptional` when reviewing a deliberate packaging exception.
 - `atv-upstream-delta`
 - `skill-sync-report`
 
-`kb-check.ps1 -All` runs every discovered check and exits nonzero when a
+`go run .\cmd\kbcheck core` runs every discovered check and exits nonzero when a
 required check fails.
 Expected current warnings:
 
@@ -95,25 +95,23 @@ Expected current warnings:
 
 All tracked skill roots should report matches.
 
-The release gate is intentionally outside `kb-check -All` because it calls
-`kb-check -All` as one of its required checks:
+The release gate is intentionally separate from `core` because it composes the
+core check with sync drift, line-ending, and optional report surfaces:
 
 ```powershell
-pwsh -NoProfile -File scripts\kb-release-gate.ps1 -Profile local-release
-pwsh -NoProfile -File scripts\kb-release-gate.ps1 -Profile live-release
 go run .\cmd\kbcheck local-release
+go run .\cmd\kbcheck live-release
 ```
 
 `local-release` is the pre-sync proof command. `live-release` is explicit and
 may call authenticated Codex/GHCP CLIs; unavailable live surfaces must be labeled
-`skipped-explicit`, not silently treated as verified. The Go wrapper is only a
-portable entrypoint; it delegates to the same PowerShell release gate.
+`skipped-explicit`, not silently treated as verified.
 
 Landmine lifecycle changes are verified with the same structural gate:
 
 ```powershell
 git diff --check
-.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+go run .\cmd\kbcheck core
 ```
 
 `docs/context/landmines.md` must contain owner, evidence, fix condition, and
@@ -188,13 +186,12 @@ prompt/output datasets are the native proof surface.
 - `scripts/skill-eval-regression-report.ps1 -RunRoot .atv/eval-runs`
   summarizes local live-run artifacts and compares them to a selected baseline
   when `-BaselinePath` is provided.
-- `scripts/kb-release-gate.ps1 -Profile local-release` composes the pre-sync
-  deterministic release gate. `scripts/kb-release-gate-selftest.ps1` proves
-  profile selection, explicit-live skip labeling, and required-check failure
-  propagation.
-- `cmd/kbcheck` wraps `core`, `local-release`, and `live-release` as a Go CLI.
-  `go test ./...` covers parsing and delegated command construction without
-  running the expensive gates.
+- `cmd/kbcheck` composes the native `core`, `local-release`, and `live-release`
+  gates. `scripts/kb-release-gate-selftest.ps1` proves profile selection,
+  explicit-live skip labeling, and required-check failure propagation through
+  the Go path.
+- `scripts/go-ps1-parity-report.ps1` recorded the Windows parity proof used to
+  retire the old top-level PowerShell wrappers.
 - `scripts/kb-pipeline.ps1 -Start skill-bundle-proof-spike` creates a
   non-agent pipeline spike run under `.atv/pipeline-runs/` with selected
   pipeline metadata, phase prompts, protected-file hashes, and proof command

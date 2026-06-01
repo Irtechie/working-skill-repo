@@ -16,16 +16,16 @@ Use repo inspection and deterministic scripts:
 ```powershell
 git status --short
 Get-ChildItem .\.github\skills -Directory
-.\.github\skills\kb-check\scripts\kb-check.ps1 -List
-.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+go run .\cmd\kbcheck core --list
 go run .\cmd\kbcheck core
+go run .\cmd\kbcheck local-release
 git diff --check
 ```
 
 On macOS/Linux, install PowerShell 7 and run the same gates with `pwsh
 -NoProfile -File <script>.ps1`. Child harness calls prefer `pwsh` and fall back
-to Windows PowerShell only when needed. `cmd/kbcheck` is a thin Go wrapper for
-the same gates; it provides a portable entrypoint but still requires PowerShell.
+to Windows PowerShell only when needed. `cmd/kbcheck` is the native Go gate for
+top-level orchestration; some individual validators still require PowerShell.
 
 ## How To Test
 
@@ -40,7 +40,7 @@ Primary testing today is structural:
 The canonical quality command is now:
 
 ```powershell
-.\.github\skills\kb-check\scripts\kb-check.ps1 -All
+go run .\cmd\kbcheck core
 ```
 
 It runs skill lint, route-complexity fixture validation, and read-only sync
