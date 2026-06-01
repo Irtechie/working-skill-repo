@@ -14,6 +14,13 @@ Primary files:
 - `config/skill-marketplace.json` - private marketplace path, trust model, and
   promotion policy.
 
+Reference docs:
+
+- `docs/context/architecture/kb-workflow.md` - fresh-session loop, routing,
+  project memory, execution, verification, review agents, and token diet.
+- `docs/context/operations/skill-bundle-maintenance.md` - gates, sync targets,
+  ATV upstream policy, marketplace promotion, security, and install snippets.
+
 ## Main Workflow Lanes
 
 | Lane | Entry Skill | Notes |

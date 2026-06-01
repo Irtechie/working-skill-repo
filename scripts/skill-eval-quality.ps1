@@ -190,11 +190,12 @@ function Test-QualityCase {
     $quality = Measure-ComputedQuality $Case.input_result $FixtureMap
     $computed = $true
   } elseif (Has-Property $Case "quality") {
-    $quality = $Case.quality
+    Add-Issue $issues $caseId "Hand-authored quality objects are not accepted; provide input_result so scores are computed."
+    return [pscustomobject]@{ issues = $issues; computed = $computed; quality = $null }
   }
 
   if (-not $quality) {
-    Add-Issue $issues $caseId "Missing input_result or quality object."
+    Add-Issue $issues $caseId "Missing input_result; quality scores must be computed from captured output."
     return [pscustomobject]@{ issues = $issues; computed = $computed; quality = $null }
   }
 
@@ -211,8 +212,8 @@ function Test-QualityCase {
     }
     if (Has-Property $entry "judge") {
       $judge = "$($entry.judge)"
-      if (@("deterministic", "llm-judged", "human-only") -notcontains $judge) {
-        Add-Issue $issues $caseId "Invalid judge '$judge' for quality dimension '$dimension'."
+      if (@("deterministic") -notcontains $judge) {
+        Add-Issue $issues $caseId "Unsupported judge '$judge' for quality dimension '$dimension'; this scorer only implements deterministic judges."
       }
     }
     if (Has-Property $entry "score") {

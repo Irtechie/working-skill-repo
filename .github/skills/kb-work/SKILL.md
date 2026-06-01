@@ -42,6 +42,12 @@ Terminal means one of:
   exact resume criteria recorded in `todo.md` and the manifest;
 - the user explicitly says to pause or stop.
 
+Default WIP cap is one active slice per checkout/model context. Do not claim or
+start another slice until the current slice is terminal unless the runtime gives
+each slice an isolated checkout/context and the manifest proves the file scopes
+are disjoint. Record any explicit parallel exception in the manifest before
+starting it.
+
 Do not stop at weaker milestones:
 
 - "the current slice passed";

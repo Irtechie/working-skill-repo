@@ -190,7 +190,7 @@ prompt/output datasets are the native proof surface.
   gates. `scripts/kb-release-gate-selftest.ps1` proves profile selection,
   explicit-live skip labeling, and required-check failure propagation through
   the Go path.
-- `scripts/go-ps1-parity-report.ps1` recorded the Windows parity proof used to
+- `scripts/go-ps1-parity-report.ps1` recorded the Windows parity smoke proof used to
   retire the old top-level PowerShell wrappers.
 - `scripts/kb-pipeline.ps1 -Start skill-bundle-proof-spike` creates a
   non-agent pipeline spike run under `.atv/pipeline-runs/` with selected

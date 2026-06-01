@@ -7,7 +7,7 @@
 | 2026-05-29 | drift-risk | ATV propagation | ATV scaffold/plugin copies previously differed or omitted KB skills. Current policy expects all tracked roots to match unless a packaging exception is recorded. | Keep sync report visible for all targets; treat required drift as blocking. | closed |
 | 2026-05-29 | bloat-risk | hot-path skills | Several hot-path skills exceed 400 lines. | Move non-routing templates/examples into lazy references or allowlist with reason. | open |
 | 2026-05-30 | distribution-decision | eval harness exporters | Local JSON/Markdown reports are now the source of truth; external dashboard exporters are optional but undecided. | Add an exporter only after a consuming workflow needs Langfuse, Braintrust, LangSmith, Promptfoo, or DeepEval. | open |
-| 2026-06-01 | platform-proof | Go gate portability | Windows parity is proven for the native Go top-level gate, but macOS/Linux have not been exercised on real machines. | Run `go run ./cmd/kbcheck local-release` on macOS/Linux before claiming full OS parity. | open |
+| 2026-06-01 | platform-proof | Go gate portability | Windows parity smoke proof exists for the native Go top-level gate, but macOS/Linux have not been exercised on real machines. | Run `go run ./cmd/kbcheck local-release` on macOS/Linux before claiming full OS parity. | open |
 
 ## Closed Signals
 
