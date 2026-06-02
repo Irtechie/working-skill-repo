@@ -20,23 +20,32 @@ project, recover local project memory, choose the right workflow, execute work i
 vertical slices, test its own changes, review the result, and leave durable
 handoff/context files behind.
 
-## Token-Minimizing Design
+![KB routing workflow](docs/assets/kb-routing-workflow.png)
 
-The core purpose is to reduce wasted context without lowering the engineering
-bar.
+## Routing And Rework Control
+
+The core purpose is to stop treating every request like the same kind of work.
+The harness is designed to avoid rework by choosing the smallest lane that can
+still prove the result. That is the claim this repo can defend today: the
+routes, gates, and checks exist in code and skills. It does not claim measured
+token savings.
 
 - **Fresh sessions by default.** Handoffs, `todo.md`,
   `docs/context/PROJECT.md`, plans, and architecture notes let a new session
   recover without carrying days of chat history.
 - **Map once, then load narrowly.** `kb-map` builds or refreshes project memory,
   then future sessions follow exact pointers instead of crawling the repo.
-- **Choose the smallest correct lane.** `kb-start` routes by task shape:
-  `kb-fix` for small known bugs, `kb-troubleshoot` for unclear broken behavior,
-  `kb-brainstorm` for unclear ideas, `kb-plan` for slicing known work,
-  `kb-work` for execution, and `kb-epic` only when the work is truly large.
-- **Spend tokens where they prevent rework.** Slicing, checks, and review cost
-  tokens up front, but they are cheaper than redoing broken or under-tested
-  work later.
+- **Choose the smallest correct lane.** `kb-start` routes by task shape. Direct
+  answers do not get a work gate. Small known bugs go to `kb-fix`. Unclear
+  broken behavior goes to `kb-troubleshoot`. Material research goes to
+  `kb-research`. Fuzzy ideas go to `kb-brainstorm`, then `kb-plan`. Clear
+  bounded work can go straight to `kb-plan`.
+- **Keep large work from becoming one giant context.** `kb-epic` coordinates
+  multi-stream initiatives. It can run multiple workstream brainstorms, resolve
+  planning blockers, and produce multiple manifests before execution.
+- **Spend ceremony only where it prevents rework.** Slicing, checks, and review
+  cost time up front. They earn their place only when they prevent the agent
+  from guessing, drifting, or calling unverified work done.
 
 KB means **Kanban-Based**. The workflow still uses boards, manifests, vertical
 slices, and done archives, but user-facing commands use the shorter `kb-`
@@ -306,5 +315,4 @@ It also borrows useful ideas from:
   terse Copilot-first instruction surfaces
 
 The goal is not to copy any one system. The goal is to keep the pieces that make
-agents more reliable, cheaper to run, easier to resume, and harder to let off
-the hook.
+agents easier to route, easier to resume, and harder to let off the hook.
