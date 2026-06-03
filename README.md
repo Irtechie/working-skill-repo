@@ -364,6 +364,18 @@ avoid skill drift between copies.
 Most users should use the npx installer. It is only needed to copy the skills;
 Node is not required afterward.
 
+The GitHub form works before any npm package is published:
+
+```shell
+npx github:Irtechie/working-skill-repo --target all --profile core
+```
+
+After the npm package is published, the shorter registry form works:
+
+```shell
+npx working-skill-repo --target all --profile core
+```
+
 Core personal install for Codex, Copilot, and shared agents:
 
 ```shell
@@ -398,6 +410,21 @@ npx github:Irtechie/working-skill-repo --target repo --repo <path-to-your-projec
 Use repo-local installs only when a project needs pinned/project-specific
 overrides or when the skills should be versioned with that codebase.
 
+Installer options:
+
+| Option | Values | Meaning |
+| --- | --- | --- |
+| `--target` | `codex`, `copilot`, `agents`, `repo`, `all` | Where to install the skills |
+| `--profile` | `core`, `full` | Six-skill starter set or complete runtime bundle |
+| `--repo` | path | Required for repo-local installs |
+| `--install-root` | path | Override the home/root used for global installs |
+| `--yes` | flag | Back up and replace changed existing copies without prompting |
+| `--dry-run` | flag | Print planned actions without writing |
+
+`core` installs `kb-start`, `kb-map`, `kb-fix`, `kb-plan`, `kb-work`, and
+`kb-complete`. `full` installs every skill plus reviewer/specialist agents for
+Codex, Copilot, and repo-local targets.
+
 PowerShell fallback from a local clone:
 
 ```powershell
@@ -405,6 +432,26 @@ pwsh ./scripts/install-kb.ps1 -Target all
 ```
 
 Deep dive: [skill bundle maintenance](docs/context/operations/skill-bundle-maintenance.md).
+
+## Package Maintenance
+
+The npm package is only an installer and runtime-skill bundle. It intentionally
+does not ship docs, eval fixtures, Go source, generated images, or repo memory.
+The published file list is controlled by `package.json` `files` plus
+`.npmignore`.
+
+Before publishing:
+
+```shell
+npm whoami
+npm pack --dry-run
+npm publish
+```
+
+`npm pack --dry-run` should show the installer, `.github/skills/`,
+`.github/agents/`, instruction files, `AGENTS.md`, `README.md`, and `LICENSE`.
+It should not include `docs/`, `evals/`, `cmd/`, `.atv/`, `.tmp/`,
+`__pycache__/`, or `*.pyc`.
 
 ## Platform Reality
 
