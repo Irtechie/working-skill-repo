@@ -130,6 +130,8 @@ slices passed" is progress; `kb-complete` is the done gate.
 
 The workflow keeps memory in files so sessions can stay short.
 
+![KB memory loop](docs/assets/kb-memory-loop.png)
+
 Required consuming-project memory:
 
 - `todo.md` - active work, blockers, parked work, handoff pointers
@@ -145,6 +147,16 @@ Required consuming-project memory:
 `kb-map` resolves the active project root first and reads memory only from that
 repo. It must not search `~`, `.copilot/handoffs`, the whole drive, or sibling
 repos unless explicitly asked for cross-repo lookup.
+
+`kb-map-bootstrap` is the expensive setup path. `kb-map` invokes it when
+`todo.md` or `docs/context/PROJECT.md` is missing, or when memory is badly
+stale. Bootstrap inventories the repo, creates the standard memory layout,
+builds the eval map, and route-tests the result before normal lookup resumes.
+
+`kb-handoff` writes restart packets under `docs/handoffs/active/` and, when
+project memory already exists, adds a compact `todo.md` pointer. A handoff is
+not an executable plan and does not bootstrap memory by itself; the next session
+comes back through `kb-map`.
 
 Deep dive: [KB workflow architecture](docs/context/architecture/kb-workflow.md).
 
