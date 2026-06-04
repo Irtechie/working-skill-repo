@@ -17,7 +17,10 @@ gate_ledger:
     status: passed
     required_evidence:
       - docs/brainstorms/<requirements>.md
+      - "Question Gate classification completed"
       - "Outstanding Questions / Resolve Before Planning is empty"
+      - "No unresolved ask-now or research-first items remain"
+      - "Safe assumptions, deferred planning questions, and parked items are recorded"
     proof:
       - docs/brainstorms/<requirements>.md
     blockers: []
@@ -61,6 +64,19 @@ gate_ledger:
    missing or stale, stop and repair the ledger before doing work.
 6. If new evidence contradicts a passed gate, downgrade it to `blocked` and set
    `allowed_next_action` to the repair/review step.
+
+## Question Gate Evidence
+
+For `brainstorm-to-plan`, the ledger must distinguish these classes:
+
+- `ask-now`: human answer required before planning;
+- `research-first`: source/external research required before planning;
+- `safe-assumption`: reversible assumption with evidence and proof hook;
+- `defer-to-planning`: technical detail planning may resolve;
+- `parked`: out of current scope with forbidden claims recorded.
+
+The gate may pass only when no `ask-now` or `research-first` items remain.
+Unlabeled material assumptions count as blockers.
 
 ## Minimal Gates
 

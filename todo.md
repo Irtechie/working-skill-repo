@@ -78,6 +78,16 @@ Go validator full replacement manifest: `docs/plans/2026-06-01-130-kb-go-validat
 
 ## Queued Improvements
 
+- ⬜ Add runtime hook enforcement for the workflow governor — implement Codex
+  and/or Claude hook files that mirror the Question Gate and gate-ledger checks,
+  block stop/phase advancement when the artifact says blocked, and prove the
+  hooks with deterministic selftests instead of claiming hook enforcement from
+  skill text alone.
+- ⬜ Complete graphify/TokenMasterX brainstorm and plan — finish the large-repo
+  map/bootstrap graph-routing work already started in `kb-map` and
+  `kb-map-bootstrap`; decide thresholds, proof, install prerequisites,
+  TokenMasterX vs raw graphify boundaries, and sync/update path before shipping.
+
 ## Handoff Queue
 
 | Handoff | Status | Route | Created | Stale Check | Link |

@@ -42,6 +42,39 @@ Typical routing:
 The goal is proportional ceremony. A typo fix should not become a brainstorm; a
 framework migration should not become a quick fix.
 
+## Workflow Governor
+
+The KB workflow governor is the contract that keeps an agent from assuming,
+skipping phases, or claiming done without proof.
+
+Enforced by skills and artifacts today:
+
+- `kb-brainstorm` owns the Question Gate before planning. Material unknowns are
+  classified as `ask-now`, `research-first`, `safe-assumption`,
+  `defer-to-planning`, or `parked`.
+- `ask-now` and unresolved `research-first` items block planning.
+- `safe-assumption` items may pass only when they name evidence,
+  reversibility, and the later proof that would catch a wrong assumption.
+- `kb-plan` refuses to slice source material that still contains unresolved
+  brainstorm blockers.
+- `kb-work` and `kb-complete` advance only through manifest gate-ledger records,
+  not chat confidence.
+- `klfg` is the strict orchestrator for the full loop:
+  `kb-brainstorm -> kb-plan -> kb-work -> kb-complete -> DONE`.
+
+The deterministic maintainer proof is:
+
+```shell
+go run ./cmd/kbcheck workflow-governor-selftest
+```
+
+`go run ./cmd/kbcheck core` includes that selftest.
+
+Not shipped yet: platform hook enforcement that blocks a Codex/Claude stop or
+prompt transition at runtime. The hook layer should mirror the same gate
+classes and ledger checks once the target runtime hook files are implemented.
+Until then, do not claim hook-enforced phase blocking.
+
 ## Map And Bootstrap
 
 `kb-map` is the context router for fresh sessions.

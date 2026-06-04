@@ -30,6 +30,7 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 		"skill-surface-minimality-selftest",
 		"skill-surface-report",
 		"skill-sync-report",
+		"workflow-governor-selftest",
 	}
 	if len(got) < len(want) {
 		t.Fatalf("checks=%v want at least %v", got, want)

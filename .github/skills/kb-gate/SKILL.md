@@ -66,12 +66,30 @@ Ask the human only when resolution requires:
 
 ## Phase Gates
 
-- **Brainstorm -> plan:** block on unresolved P0/P1 requirements, contradictions, missing core behavior, unsafe assumptions, or missing verification inputs.
+- **Brainstorm -> plan:** block on unresolved P0/P1 requirements, contradictions, missing core behavior, unsafe assumptions, missing verification inputs, unresolved `ask-now` items, unresolved `research-first` items, or unlabeled material assumptions.
 - **Plan -> work:** block on broken DAG, missing acceptance criteria, missing verification mode, missing expected files, weak functional coverage, unsafe HITL, or unresolved architecture/security risk.
 - **Work -> complete:** block on failing deterministic checks, failed functional flows, scope violations, unresolved durable memory refresh, or blocked slices not explicitly parked.
 - **Complete -> ship:** block on unresolved P0/P1 review findings, failed checks, release risk, or unrecorded human-only blockers.
 
 P2/P3/P4 do not block by severity alone. Before moving on, fix the cheap/actionable ones that improve the artifact. Defer only when the finding is genuinely non-blocking and logging it will not cause avoidable rework.
+
+## Question Gate Classes
+
+Use these classes whenever a workflow is tempted to assume its way across a
+phase boundary:
+
+| Class | Meaning | May Advance? |
+|---|---|---|
+| `ask-now` | Human answer changes scope, user intent, acceptance criteria, safety, architecture direction, or verification | No |
+| `research-first` | Source or external research can answer before user input | No, until researched or reclassified |
+| `safe-assumption` | Reversible, low-risk assumption with evidence and a proof hook | Yes |
+| `defer-to-planning` | Technical detail better answered during planning or code reading | Yes, only into planning |
+| `parked` | Explicitly out of scope | Yes, with forbidden claims recorded |
+
+`safe-assumption` is not a loophole. It must name why the assumption is
+reversible, what evidence supports it, and which later proof would catch it if
+wrong. If any of those are missing, classify the item as `ask-now` or
+`research-first`.
 
 ## Rectify Prompt
 

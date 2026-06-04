@@ -137,6 +137,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"cross-model-benchmark-validate", "cross-model benchmark prompt fixtures detected"},
 		{"atv-upstream-delta-selftest", "read-only ATV upstream delta selftest detected"},
 		{"atv-upstream-delta", "read-only ATV upstream delta report detected"},
+		{"workflow-governor-selftest", "KB workflow governor question/phase gate contract detected"},
 		{"skill-sync-report", "skill sync target config detected"},
 	}
 
@@ -211,6 +212,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 			"marketplace-promotion-selftest":    {"marketplace-promote-selftest"},
 			"atv-upstream-delta-selftest":       {"atv-delta-selftest"},
 			"atv-upstream-delta":                {"atv-delta"},
+			"workflow-governor-selftest":        {"workflow-governor-selftest"},
 		}
 		if command, ok := nativeCommandByCheck[pc.Name]; ok {
 			checks = append(checks, Check{

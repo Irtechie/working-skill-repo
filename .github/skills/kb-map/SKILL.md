@@ -60,6 +60,41 @@ Test-Path (Join-Path $root 'docs/context/PROJECT.md')
 Get-ChildItem (Join-Path $root 'docs/handoffs') -Recurse -File -ErrorAction SilentlyContinue
 ```
 
+## Large Repo Recheck
+
+Normal `kb-map lookup` must stay cheap. Do not run graphify every time. Instead,
+use a cheap size/staleness guard after the contract check and before trusting a
+large or bloated project map.
+
+Check:
+
+- `docs/context/PROJECT.md` size.
+- whether `docs/context/memory-maintenance.md` contains a recent
+  `graphify-size-check` line.
+- repo code-file count only when the last check is missing, older than 30 days,
+  or `PROJECT.md` crosses a size threshold.
+
+Thresholds:
+
+- `PROJECT.md` over 40 KB or about 900 lines: treat the project map as too large
+  for startup and recommend/schedule a `refresh` that splits detail into child
+  architecture docs.
+- repo over 200 code files with no `graphify-size-check` in the last 30 days:
+  run a targeted size recheck and consider graphify-assisted refresh.
+- repo over 80 code files and the current lookup requires caller, callee,
+  impact, dependency, or subsystem-boundary rediscovery: consider graphify if
+  the existing docs do not answer the question.
+
+Record rechecks in `docs/context/memory-maintenance.md`:
+
+```text
+graphify-size-check: 2026-06-03 code_files=402 project_md_bytes=18422 decision=skip|consider|use reason=<short reason>
+```
+
+If the check decides `use`, delegate to `kb-map-bootstrap refresh <subsystem>`
+or a targeted coverage audit rather than running raw graphify inside ordinary
+lookup. After refresh, rerun the original lookup.
+
 ## Modes
 
 | Mode | Use When | Cost |
@@ -119,6 +154,33 @@ Stop reading once you can answer:
 Report route, docs loaded, and any stale-work refresh needed. Do not bulk-load all context docs.
 
 Do not use `rg`, glob, or whole-repo search to find the standard memory files. Use search only after the exact project-root memory files are loaded and only for task-specific context.
+
+### Graph Route Pointers
+
+`PROJECT.md` is the routing surface. For large or structural subsystems, it may
+point to the graph instead of listing every relevant source file.
+
+Use one orientation path, not both:
+
+- If `PROJECT.md` points to an architecture doc or a small source file list,
+  follow those docs/files and do not run graphify.
+- If `PROJECT.md` points to a `graph_route`, use the graph for structural
+  orientation, then verify only the cited source edges needed for the task.
+- If `PROJECT.md` has both a child doc and a `graph_route`, treat the child doc
+  as the product/architecture summary and the graph as the caller/callee/impact
+  lookup surface. Do not re-enumerate the whole subsystem manually.
+
+Suggested `PROJECT.md` row shape:
+
+```markdown
+| Subsystem | Purpose | Orientation | Source |
+|---|---|---|---|
+| Plugin routing | Chooses host/plugin behavior | graph_route: plugin-routing | `.token-master/graph.json`; verify source edges |
+```
+
+When a graph route exists but `.token-master/graph.json` is missing or stale,
+run a targeted `refresh` or delegate to `kb-map-bootstrap` rather than falling
+back to broad rediscovery inside lookup.
 
 ## Coverage Gap Rule
 

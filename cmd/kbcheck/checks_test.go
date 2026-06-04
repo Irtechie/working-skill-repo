@@ -59,6 +59,7 @@ func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 		"skill-surface-minimality-selftest",
 		"skill-surface-report",
 		"skill-sync-report",
+		"workflow-governor-selftest",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("checks=%v want=%v", got, want)

@@ -16,6 +16,101 @@ When `kb-map`, `AGENTS.md`, or `.github/copilot-instructions.md` detects missing
 
 Run bootstrap in the active project root only. Prefer `git rev-parse --show-toplevel`; otherwise use the current working directory only if it is clearly a project directory. Never bootstrap a drive root such as `E:\`, `~`, `%USERPROFILE%`, `.copilot`, `.codex`, `.agents`, the whole drive, or a sibling repo unless the user explicitly chose that path.
 
+## Graphify Bootstrap Decision
+
+Use graphify or TokenMasterX only when the repo is large or structurally complex
+enough for graph routing to pay for itself. Normal `kb-map` lookup remains
+doc-first and must not invoke graphify.
+
+Run this preflight before the deep inventory pass:
+
+```powershell
+$root = git rev-parse --show-toplevel
+$skip = @('.git','.token-master','.codegraph','node_modules','bin','obj','dist','build','venv','__pycache__','.uv-cache','.uv-tools','.uv-bin','.go-cache','.tmp','tmp','runs','graphify-out')
+$ext = @('.cs','.fs','.go','.java','.js','.jsx','.kt','.mjs','.php','.ps1','.py','.rb','.rs','.ts','.tsx')
+$codeFiles = Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction SilentlyContinue |
+  Where-Object {
+    $relative = $_.FullName.Substring($root.Length).TrimStart('\','/')
+    $parts = $relative -split '[\\/]'
+    -not ($parts | Where-Object { ($skip -contains $_) -or ($_ -like '.venv*') }) -and
+    ($ext -contains $_.Extension.ToLowerInvariant())
+  }
+$codeFileCount = @($codeFiles).Count
+```
+
+Do not count generated run folders, dependency installs, tool caches, or copied
+benchmark worktrees as repo size. The threshold is about source the agent would
+otherwise need to understand, not local artifacts.
+
+Default decision:
+
+- Fewer than 80 code files: skip graphify unless the user explicitly asks for
+  graph routing or the task is a hard structural traversal.
+- 80 to 199 code files: consider graphify when bootstrap needs caller, callee,
+  blast-radius, dependency, or subsystem-boundary discovery.
+- 200 or more code files: use graphify during bootstrap when prerequisites are
+  available.
+
+When the decision says to use graphify, prefer the cheapest local graph path:
+
+```powershell
+if (Get-Command graphify -ErrorAction SilentlyContinue) {
+  graphify update .
+  New-Item -ItemType Directory -Force -Path (Join-Path $root '.token-master') | Out-Null
+  Copy-Item -LiteralPath (Join-Path $root 'graphify-out/graph.json') -Destination (Join-Path $root '.token-master/graph.json') -Force
+}
+```
+
+Use TokenMasterX setup instead of raw graphify only when the user wants the host
+routing agent installed for GHCP or Claude:
+
+```powershell
+python <TokenMasterX>/token-master-plugin/skills/token-master/setup.py <repo-root> --host=copilot
+```
+
+For Codex bootstrap, raw graphify output is enough to reduce structural
+rediscovery. For GHCP or Claude live-token benchmarks, the TokenMasterX routing
+agent must be active and verified separately.
+
+If graphify is used, treat graph output as candidate evidence, not final truth.
+Verify load-bearing callers, callees, and impact edges against source files
+before writing `PROJECT.md`, architecture docs, or todos. If graphify coverage
+is sparse, fall back to normal source inspection for unsupported areas and
+record the limitation in `docs/context/memory-maintenance.md`.
+
+When graphify is the right orientation surface, do not make `PROJECT.md`
+duplicate the graph by listing every source file. Keep `PROJECT.md` as the
+router:
+
+- Write a short human-readable subsystem summary.
+- Point structural traversal to a named `graph_route`.
+- Name only source-of-truth files, entry points, tests, and docs that a fresh
+  session should read directly.
+- Leave callers, callees, blast radius, and dense dependency fan-out to the
+  graph route, with source verification required for load-bearing claims.
+
+Suggested row:
+
+```markdown
+| Subsystem | Purpose | Orientation | Source |
+|---|---|---|---|
+| Plugin routing | Chooses host/plugin behavior | graph_route: plugin-routing | `.token-master/graph.json`; verify source edges |
+```
+
+This avoids double orientation: `kb-map` reads `PROJECT.md`, then follows either
+the doc/file pointer or the graph pointer selected by the map.
+
+If prerequisites such as `uv` or `graphify` are missing, do not block bootstrap.
+Record that graphify was skipped and continue with the normal inventory
+workflow.
+
+Record the preflight result in `docs/context/memory-maintenance.md` so future
+`kb-map` lookups do not repeat the size check every time:
+
+```text
+graphify-size-check: 2026-06-03 code_files=<n> project_md_bytes=<n> decision=skip|consider|use reason=<short reason>
+```
+
 ## Create Layout
 
 ```text

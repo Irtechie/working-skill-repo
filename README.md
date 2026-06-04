@@ -177,6 +177,12 @@ for help only for product decisions, credentials, unsafe operations, or genuine
 ambiguity. `kb-check` and `kb-functional-test` push verification into executable
 checks instead of letting the model re-inspect behavior by hand.
 
+`kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-epic`, and `klfg` share a workflow
+governor contract: unresolved `ask-now` or `research-first` questions block
+planning, safe assumptions must be recorded with proof, and later phases advance
+through gate-ledger records rather than chat confidence. The maintainer proof is
+`go run ./cmd/kbcheck workflow-governor-selftest`, included in `core`.
+
 ## Common Commands
 
 | Command | Use When |
@@ -345,6 +351,7 @@ Useful subcommands:
   `skill-eval-wrap` - dry-run/live adapters and observed-trace wrapping
 - `minimality`, `surface-report` - loaded-surface and trim measurement
 - `ready-set`, `scope-lease` - swarm execution proof helpers used by `kb-work`
+- `workflow-governor-selftest` - verify question-gate and phase-gate contract text
 - `atv-delta` - upstream ATV drift report
 - `marketplace-firebreak`, `marketplace-promote` - private marketplace checks
   and promotion path

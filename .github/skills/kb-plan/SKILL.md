@@ -27,6 +27,14 @@ Default to non-interactive planning when the source material is clear. Use the p
 
 When assumptions are safe and reversible, record them in the manifest instead of stopping. Ask one concise question only for material uncertainty.
 
+Planning cannot launder brainstorm ambiguity. If the source contains unresolved
+`ask-now` or `research-first` items, a non-empty `Resolve Before Planning`
+section, or unlabeled material assumptions that affect scope, acceptance
+criteria, architecture direction, safety, or verification, stop and route back
+to `kb-brainstorm`/`kb-gate`. Only `safe-assumption`,
+`defer-to-planning`, and `parked` items may cross into planning, and each must
+be recorded in the manifest.
+
 Phase boundary: `kb-plan` produces a manifest and slice plans. It does not automatically invoke `kb-work` unless the user explicitly asked for execution or an orchestrator such as `klfg` called it.
 
 Execution intent includes phrases such as "go straight to work", "just build it", "don't ask many questions", "continue until done", "run it", or a handoff from `kb-task`, `kb-brainstorm`, or `klfg` that says to continue. In those cases, write the manifest and slice plans first, then immediately invoke `kb-work <manifest-path>`. Never skip manifest creation.
@@ -109,6 +117,13 @@ Read the brainstorm/PRD/description. Extract:
 - What the user-visible outcomes are
 - What constraints/dependencies exist
 - What's explicitly out of scope
+- Question Gate state: unresolved `ask-now`/`research-first` blockers, safe
+  assumptions, deferred planning questions, and parked forbidden claims.
+
+If the source has unresolved `ask-now` or `research-first` items, stop before
+decomposition. Write or update the `brainstorm-to-plan` gate as `blocked` or
+`needs-human` and set `allowed_next_action` to the smallest repair action, such
+as `kb-brainstorm <requirements-path>`.
 
 ### 1.5. Research (Parallel)
 
@@ -202,7 +217,10 @@ gate_ledger:
     status: passed
     required_evidence:
       - "<requirements path exists>"
-      - "Resolve Before Planning is empty or quarantined"
+      - "Question Gate classification exists"
+      - "Resolve Before Planning is empty"
+      - "no unresolved ask-now or research-first items remain"
+      - "safe assumptions, deferred planning questions, and parked items are recorded"
     proof:
       - docs/brainstorms/<source-file>.md
     blockers: []

@@ -41,6 +41,7 @@ brainstorm_style: kb-brainstorm
 
 ## Dependencies / Assumptions
 - [Only include if material]
+- [safe-assumption] [Assumption] - Reversible because: [reason] - Evidence/proof: [how this will be checked]
 
 ## Alternatives Considered
 - [Approach]: [why not chosen] - [research citation]
@@ -53,11 +54,15 @@ brainstorm_style: kb-brainstorm
 ## Outstanding Questions
 
 ### Resolve Before Planning
-- [Affects R1][User decision] [Question that must be answered before planning can proceed]
+- [ask-now][Affects R1][User decision] [Question that must be answered before planning can proceed]
+- [research-first][Affects R2] [Research question that must be resolved or reclassified before planning]
 
 ### Deferred to Planning
-- [Affects R2][Technical] [Question that should be answered during planning]
-- [Affects R2][Needs research] [Question that likely requires deeper research during planning]
+- [defer-to-planning][Affects R2][Technical] [Question that should be answered during planning]
+- [defer-to-planning][Affects R2][Needs research] [Question that likely requires deeper research during planning]
+
+### Parked / Out of Scope
+- [parked][Affects R3] [Deferred scope] - Forbidden claim: [what later phases must not claim]
 
 ## Next Steps
 [If `Resolve Before Planning` is empty: `-> /kb-plan`]

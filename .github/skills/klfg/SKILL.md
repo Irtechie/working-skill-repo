@@ -12,6 +12,15 @@ Before advancing phases, read `kb-gate/references/gate-ledger.md` when needed
 and verify the relevant gate status and `allowed_next_action`. Artifact
 existence is necessary but not sufficient.
 
+`klfg` is the strict workflow governor. It must not let the agent assume across
+phase boundaries:
+
+- Brainstorm cannot advance while `ask-now` or `research-first` items remain.
+- Plan cannot advance without a passed `plan-to-work` gate.
+- Work cannot advance while runnable slices remain or slice proof is missing.
+- Complete cannot emit DONE without a passed or quarantined `complete-to-ship`
+  gate.
+
 This pipeline is interactive in **two specific places** and autonomous everywhere else:
 
 1. **Step 1 (brainstorm)** stops for product Q&A. That is the design. Under `klfg`, once the requirements doc is complete and unblocked, the orchestrator continues to planning.
@@ -27,7 +36,7 @@ Everything else — including kb-plan, kb-work, and kb-complete — proceeds wit
 
    **Record the requirements doc path.** Refer to it as `<reqs-path>` for the rest of the pipeline.
 
-   Also check the requirements doc for `## Outstanding Questions` → `### Resolve Before Planning`. If that subsection has any unresolved entries, do NOT proceed — return to step 1 and resolve them first. `kb-brainstorm` is responsible for not handing off until that section is empty, but verify here as a safety check.
+   Also check the requirements doc for `## Outstanding Questions` → `### Resolve Before Planning`, unresolved `ask-now`, and unresolved `research-first` entries. If any exist, do NOT proceed — return to step 1 and resolve or reclassify them first. `kb-brainstorm` is responsible for not handing off until that section is empty, but verify here as a safety check.
 
    GATE: run `kb-gate` if brainstorm/document-review surfaced P0/P1/P2/P3 issues. Safe/actionable P0/P1 are rectified by the agent; human-only P0/P1 block planning. P2/P3 get the rectify-all prompt. Record `brainstorm-to-plan` as passed, blocked, or needs-human before invoking `kb-plan`.
 

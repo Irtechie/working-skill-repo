@@ -47,6 +47,27 @@ This skill does not implement code. It explores, validates, clarifies, and docum
 6. **Do not trap rich answers in the question UI** — If the answer may need an image, screenshot, file, diagram, long explanation, pasted error, or nuanced correction, ask in the normal conversation instead of the blocking question tool. If a question-tool exchange reveals that richer context is needed, stop asking choices and bring it back to chat.
 7. **Questions must earn their keep** — Ask only when the answer changes scope, behavior, priority, acceptance criteria, risk, or verification. Do not ask quota questions.
 
+## Question Gate
+
+`kb-brainstorm` owns the assumption boundary before planning. It must classify
+material unknowns before handoff:
+
+| Class | Meaning | Planning Allowed? |
+|---|---|---|
+| `ask-now` | Human answer changes scope, user intent, acceptance criteria, safety, architecture direction, or verification | No |
+| `research-first` | External/source research can answer before asking the user | No, until researched or reclassified |
+| `safe-assumption` | Reversible, low-risk assumption with evidence or explicit confidence | Yes, record it |
+| `defer-to-planning` | Technical detail better answered while slicing or reading code | Yes, record owner and trigger |
+| `parked` | Out of current scope by explicit decision | Yes, record forbidden claims |
+
+Do not hand off with unresolved `ask-now` or `research-first` items. Ask
+blocking questions one at a time until resolved, or convert each item into a
+recorded decision, `safe-assumption`, `defer-to-planning`, or `parked` entry.
+
+Safe assumptions must include why they are reversible, what evidence supports
+them, and what proof will catch a wrong assumption later. If that cannot be
+stated compactly, the item is not safe.
+
 ## Token Budget
 
 Every token must pay rent.
@@ -381,6 +402,9 @@ If the document contains outstanding questions:
 - If the user explicitly wants to proceed anyway, convert each remaining item into an explicit decision, assumption, or `Deferred to Planning` question first.
 - Put technical or research-needing questions under `Deferred to Planning` when they are better answered there.
 - Use tags like `[Needs research]` when the planner should likely investigate the question rather than answer from repo context alone.
+- Before Phase 10, every material unknown must be classified through the
+  Question Gate. `Resolve Before Planning` may be empty only when no unresolved
+  `ask-now` or `research-first` items remain.
 
 ### Phase 9: Document Review
 
@@ -414,6 +438,16 @@ If `Resolve Before Planning` contains any items:
 - If the user explicitly wants to proceed anyway, first convert each remaining item into an explicit decision, assumption, or `Deferred to Planning` question.
 - If the user chooses to pause instead, present the handoff as paused or blocked rather than complete.
 - Do not proceed to planning while `Resolve Before Planning` remains non-empty.
+
+Before invoking `kb-plan`, write or expect a `brainstorm-to-plan` gate record
+when the downstream artifact supports a gate ledger. Required evidence:
+
+- requirements path;
+- Question Gate classification completed;
+- `Resolve Before Planning` empty;
+- safe assumptions, deferred planning questions, and parked items recorded with
+  rationale;
+- document review findings resolved, deferred with rationale, or human-blocked.
 
 If no blocking questions remain:
 

@@ -102,6 +102,13 @@ After creating or refreshing brainstorm docs, immediately extract their
 human checkpoint list, ask only the questions that block planning, then continue
 to `kb-plan` for every workstream that is unblocked.
 
+Use the shared Question Gate classes from `kb-gate` for every workstream:
+`ask-now`, `research-first`, `safe-assumption`, `defer-to-planning`, and
+`parked`. Only `ask-now` questions go to the human by default. Resolve
+`research-first` with source/external research before asking, unless research
+cannot answer it. Carry `safe-assumption`, `defer-to-planning`, and `parked`
+items into the epic map with rationale and forbidden claims.
+
 When a question can be handled as an explicit assumption without changing
 safety, architecture, acceptance criteria, or user intent, record the assumption
 and keep planning. Do not stop the epic just because a brainstorm contains nice
@@ -111,9 +118,12 @@ HITL-first rule:
 
 - Surface planning-blocking questions before generating manifests.
 - Ask the smallest number of questions needed to unblock planning, but collect
-  them across all brainstorm-needed workstreams before asking.
+  `ask-now` questions across all brainstorm-needed workstreams before asking.
 - Ask brainstorm questions in one ordered batch, grouped by workstream, instead
   of bouncing between question, answer, plan, question, answer, plan.
+- Do not batch unrelated questions inside one prompt unless the user explicitly
+  asked for a single consolidated checkpoint. Preserve question order and keep
+  each answer mappable back to one workstream.
 - After the last planning-blocking question is answered, continue until all
   unblocked workstreams have manifests or explicit parked/blocked status.
 - Complete or update all brainstorm docs with the answers before creating
@@ -211,10 +221,11 @@ to `todo-done.md`.
      `parked`.
    - `Notes`: blocker, dependency, human checkpoint, or proof pointer.
 5. Run or refresh required brainstorms.
-6. Extract all `Resolve Before Planning` items from every brainstorm into
-   `Human Checkpoints`, preserving workstream/dependency order.
-7. Ask only planning-blocking human questions as one ordered batch. If a
-   question is not blocking, record an assumption and continue.
+6. Extract all Question Gate items from every brainstorm into `Human
+   Checkpoints`, preserving workstream/dependency order.
+7. Resolve `research-first` items with research where possible, then ask only
+   remaining `ask-now` human questions. If a question is not blocking, record a
+   `safe-assumption`, `defer-to-planning`, or `parked` entry and continue.
 8. Apply the answers to complete or update all brainstorm docs.
 9. Route every unblocked workstream to `kb-plan`, including workstreams that
    skipped brainstorming.

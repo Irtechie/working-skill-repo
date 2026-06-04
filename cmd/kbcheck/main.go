@@ -32,6 +32,7 @@ Usage:
   kbcheck benchmark-validate [--root <path>] [--fixture-root <path>] [--json]
   kbcheck route-eval [--root <path>] [--config <path>] [--json]
   kbcheck release-selftest
+  kbcheck workflow-governor-selftest [--root <path>]
   kbcheck surface-report [--root <path>] [--skill-root <path>] [--route <name>] [--baseline <path>] [--output <path>] [--json]
   kbcheck minimality [--root <path>] [--skill-root <path>] [--agent-root <path>] [--trim-line-threshold <n>] [--json]
   kbcheck minimality-selftest
@@ -174,6 +175,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runRouteEvalCommand(root, opts, stdout, stderr)
 	case "release-selftest":
 		return runReleaseSelftestCommand(stdout, stderr)
+	case "workflow-governor-selftest":
+		return runWorkflowGovernorSelftest(root, stdout, stderr)
 	case "surface-report":
 		return runSurfaceReportCommand(root, opts, stdout, stderr)
 	case "minimality":
@@ -227,7 +230,7 @@ func parse(args []string) (options, error) {
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
 		"marketplace-promote": true, "marketplace-promote-selftest": true,
 		"atv-delta": true, "atv-delta-selftest": true,
-		"benchmark-validate": true, "route-eval": true, "release-selftest": true,
+		"benchmark-validate": true, "route-eval": true, "release-selftest": true, "workflow-governor-selftest": true,
 		"surface-report": true, "minimality": true, "minimality-selftest": true,
 		"pipeline": true, "pipeline-selftest": true,
 		"skill-eval": true, "skill-eval-claims": true, "skill-eval-quality": true, "skill-eval-regression": true,
