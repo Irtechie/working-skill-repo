@@ -539,8 +539,11 @@ It also borrows useful ideas from:
   composable workflow skills and vertical slicing
 - [G-Stack](https://github.com/garrytan/gstack), especially persistent workflow
   memory, QA ownership, and operating-system-style orchestration
-- [kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot), especially
-  terse Copilot-first instruction surfaces
+- [Shyam Sridhar's kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot),
+  especially the Copilot-first token-saver / terse-response instruction surface
+- [Shyam Sridhar's TokenMasterX](https://github.com/shyamsridhar123/TokenMasterX),
+  especially graph/token-aware repo orientation ideas that informed the
+  graphify/TokenMasterX map-bootstrap path
 
 The goal is not to copy any one system. The goal is to keep the pieces that make
 agents easier to route, easier to resume, and harder to let off the hook.

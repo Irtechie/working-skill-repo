@@ -48,18 +48,6 @@ Before lookup or refresh, check the standard layout.
 - Never overwrite non-empty user docs without reading and merging.
 - After bootstrap or refresh, continue the original lookup so the caller receives route-ready context.
 
-Exact-path example on Windows:
-
-```powershell
-$root = git rev-parse --show-toplevel
-if (-not $root -or -not (Test-Path $root) -or $root -match '^[A-Za-z]:\\?$') {
-  throw "Project root required"
-}
-Test-Path (Join-Path $root 'todo.md')
-Test-Path (Join-Path $root 'docs/context/PROJECT.md')
-Get-ChildItem (Join-Path $root 'docs/handoffs') -Recurse -File -ErrorAction SilentlyContinue
-```
-
 ## Large Repo Recheck
 
 Normal `kb-map lookup` must stay cheap. Do not run graphify every time. Instead,
@@ -94,6 +82,10 @@ graphify-size-check: 2026-06-03 code_files=402 project_md_bytes=18422 decision=s
 If the check decides `use`, delegate to `kb-map-bootstrap refresh <subsystem>`
 or a targeted coverage audit rather than running raw graphify inside ordinary
 lookup. After refresh, rerun the original lookup.
+
+Load `references/graph-routing.md` only when the guard says graph routing may
+pay for itself. It contains the graphify/TokenMasterX mechanics, graph route
+row shape, and evidence rules.
 
 ## Modes
 
@@ -170,14 +162,6 @@ Use one orientation path, not both:
   as the product/architecture summary and the graph as the caller/callee/impact
   lookup surface. Do not re-enumerate the whole subsystem manually.
 
-Suggested `PROJECT.md` row shape:
-
-```markdown
-| Subsystem | Purpose | Orientation | Source |
-|---|---|---|---|
-| Plugin routing | Chooses host/plugin behavior | graph_route: plugin-routing | `.token-master/graph.json`; verify source edges |
-```
-
 When a graph route exists but `.token-master/graph.json` is missing or stale,
 run a targeted `refresh` or delegate to `kb-map-bootstrap` rather than falling
 back to broad rediscovery inside lookup.
@@ -188,29 +172,9 @@ If lookup cannot get a fresh session meaningfully up to speed on the requested
 subsystem from `PROJECT.md` plus pointed docs, treat that as a project-memory
 coverage gap.
 
-Coverage is insufficient when the agent must rediscover basics by broad search,
-for example:
-
-- the relevant subsystem doc is missing or too generic;
-- a broad parent doc exists but does not point to the child workflow;
-- source-of-truth files, scripts, CI workflows, generated artifacts, or release
-  assets are not named;
-- current mode is unclear, such as bundled runtime vs download-on-demand;
-- known failure modes or "do not assume" notes are missing;
-- the user says the session has no clue about the subsystem after `kb-map`.
-
-When coverage is insufficient:
-
-1. Stop normal routing long enough to run a targeted `refresh` for that
-   subsystem.
-2. Search/read only the files needed to understand the missing workflow.
-3. Update `docs/context/PROJECT.md` and/or the smallest relevant
-   `docs/context/architecture/<subsystem>.md` child doc.
-4. Add a `docs/context/memory-maintenance.md` signal:
-   `stale-doc` or `repeated-rediscovery`, with the missing subsystem and source
-   paths.
-5. Re-run `kb-map lookup <same request>` and report the exact docs a fresh
-   session should read next.
+Load `references/coverage-refresh.md` only when coverage is insufficient. That
+reference contains the gap signals, audit mode, shallow-map detection, and
+targeted refresh steps.
 
 Example: an installer or release workflow that spans build config, packaging
 scripts, CI workflows, release assets, and runtime startup checks needs its own
@@ -219,57 +183,15 @@ cannot explain how the workflow is built, shipped, and updated.
 
 ## Coverage Audit Mode
 
-Use this when the user says the initial map missed a whole class of things, or
-when one invisible subsystem suggests there may be more.
-
-Do a bounded repo-wide coverage audit:
-
-1. Inventory major surfaces:
-   - routes/screens/UI shells;
-   - commands/CLIs/tools/actions/workflows/service capabilities;
-   - jobs/workflows/integrations;
-   - data/auth/session/storage;
-   - build/test/package/installer/updater/release/deploy flows.
-2. Compare the inventory to:
-   - `docs/context/PROJECT.md`;
-   - `docs/context/architecture/README.md`;
-   - `docs/context/architecture/*.md`;
-   - `docs/context/operations/*.md`;
-   - `docs/context/research/*.md` and `docs/context/decisions/*.md` when relevant.
-3. Produce a gap table:
-
-   ```markdown
-   | Area | Evidence Files | Indexed? | Doc Exists? | Good Enough? | Gap | Priority |
-   |---|---|---:|---:|---:|---|---|
-   ```
-
-4. Fix P0/P1 coverage gaps immediately when they block fresh-session routing.
-   Record lower-priority gaps in `docs/context/memory-maintenance.md`.
-
-This is not a full re-bootstrap unless `PROJECT.md` or the architecture index is
-so wrong that targeted repair would be more expensive than rebuilding.
+Use `references/coverage-refresh.md` when the user says the initial map missed
+a whole class of things, or when one invisible subsystem suggests there may be
+more. Keep ordinary lookup narrow unless the requested work touches the gap.
 
 ## Shallow Map Detection
 
 During lookup, warn and recommend `refresh` or `kb-map-bootstrap` when the KB
-appears much thinner than the repo:
-
-- architecture docs are generic top-level names while substantial child
-  directories, route/page folders, commands, tools, actions, or workflows are
-  missing from the subsystem index;
-- a major source area has a rough source-file to architecture-doc ratio above
-  about 25:1 without child pointers or explicit skip reasons;
-- root `README.md`, `AGENTS.md`, `.github/copilot-instructions.md`, memories, or
-  project notes mention architecture topics absent from `docs/context`;
-- file prefix clusters, large files, large directories, or cross-process flows
-  are visible but undocumented;
-- must-cover concerns such as auth, storage, IPC, browser/HTTP, telemetry,
-  settings, build/install, LLM/model, workers, or integrations exist but have no
-  doc, parent pointer, or known-unknown entry.
-
-If the requested work touches one of these gaps, stop normal routing and run a
-targeted refresh. If many gaps exist, recommend re-bootstrap with coverage
-discovery instead of one-off patching.
+appears much thinner than the repo. Load `references/coverage-refresh.md` for
+the specific signals and response path.
 
 ## Missing Memory and Setup
 
