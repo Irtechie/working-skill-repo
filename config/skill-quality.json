@@ -171,6 +171,62 @@
         "right": ".github/skills/kb-review/references/subagent-template.md",
         "owner": "review-skill-maintainers",
         "reason": "Subagent templates differ where KB review injects KB-specific reviewer personas and instructions."
+      },
+      {
+        "id": "document-review-findings-schema-ce",
+        "left": ".github/skills/ce-review/references/findings-schema.json",
+        "right": ".github/skills/document-review/references/findings-schema.json",
+        "owner": "review-skill-maintainers",
+        "reason": "document-review findings target plan/document issues, while ce-review findings target code-review issues."
+      },
+      {
+        "id": "document-review-findings-schema-kb",
+        "left": ".github/skills/kb-review/references/findings-schema.json",
+        "right": ".github/skills/document-review/references/findings-schema.json",
+        "owner": "review-skill-maintainers",
+        "reason": "document-review findings target plan/document issues, while kb-review findings include KB completion and structural-quality code-review issues."
+      },
+      {
+        "id": "document-review-output-template-ce",
+        "left": ".github/skills/ce-review/references/review-output-template.md",
+        "right": ".github/skills/document-review/references/review-output-template.md",
+        "owner": "review-skill-maintainers",
+        "reason": "document-review output is requirements/plan-centered; ce-review output is code-diff-centered."
+      },
+      {
+        "id": "document-review-output-template-kb",
+        "left": ".github/skills/kb-review/references/review-output-template.md",
+        "right": ".github/skills/document-review/references/review-output-template.md",
+        "owner": "review-skill-maintainers",
+        "reason": "document-review output is requirements/plan-centered; kb-review output is KB completion and code-diff-centered."
+      },
+      {
+        "id": "document-review-subagent-template-ce",
+        "left": ".github/skills/ce-review/references/subagent-template.md",
+        "right": ".github/skills/document-review/references/subagent-template.md",
+        "owner": "review-skill-maintainers",
+        "reason": "document-review subagents evaluate document quality personas; ce-review subagents evaluate code-review personas."
+      },
+      {
+        "id": "document-review-subagent-template-kb",
+        "left": ".github/skills/kb-review/references/subagent-template.md",
+        "right": ".github/skills/document-review/references/subagent-template.md",
+        "owner": "review-skill-maintainers",
+        "reason": "document-review subagents evaluate document quality personas; kb-review subagents include KB structural-quality code-review personas."
+      }
+    ],
+    "reference_roots": [
+      {
+        "id": "ce-review",
+        "path": ".github/skills/ce-review/references"
+      },
+      {
+        "id": "kb-review",
+        "path": ".github/skills/kb-review/references"
+      },
+      {
+        "id": "document-review",
+        "path": ".github/skills/document-review/references"
       }
     ]
   },
