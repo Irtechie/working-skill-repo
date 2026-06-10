@@ -118,6 +118,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 	nativeChecks := []nativeCheck{
 		{"skill-lint", "skill quality config detected"},
 		{"route-complexity-eval", "route complexity eval fixtures detected"},
+		{"review-reference-guard", "review skill shared-reference drift guard detected"},
 		{"skill-eval", "skill eval selftest fixtures detected"},
 		{"skill-eval-manifest-selftest", "skill eval protected-file hash selftest detected"},
 		{"skill-eval-baseline-selftest", "skill eval baseline regression selftest detected"},
@@ -187,6 +188,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 		nativeCommandByCheck := map[string][]string{
 			"cross-model-benchmark-validate":    {"benchmark-validate"},
 			"route-complexity-eval":             {"route-eval"},
+			"review-reference-guard":            {"review-reference-guard"},
 			"skill-eval":                        {"skill-eval"},
 			"skill-eval-quality":                {"skill-eval-quality"},
 			"skill-eval-manifest-selftest":      {"skill-eval-manifest-selftest"},

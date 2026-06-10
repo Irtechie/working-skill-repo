@@ -31,6 +31,7 @@ Usage:
   kbcheck atv-delta-selftest
   kbcheck benchmark-validate [--root <path>] [--fixture-root <path>] [--json]
   kbcheck route-eval [--root <path>] [--config <path>] [--json]
+  kbcheck review-reference-guard [--root <path>] [--config <path>] [--json]
   kbcheck release-selftest
   kbcheck workflow-governor-selftest [--root <path>]
   kbcheck surface-report [--root <path>] [--skill-root <path>] [--route <name>] [--baseline <path>] [--output <path>] [--json]
@@ -173,6 +174,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runBenchmarkValidateCommand(root, opts, stdout, stderr)
 	case "route-eval":
 		return runRouteEvalCommand(root, opts, stdout, stderr)
+	case "review-reference-guard":
+		return runReviewReferenceGuardCommand(root, opts, stdout, stderr)
 	case "release-selftest":
 		return runReleaseSelftestCommand(stdout, stderr)
 	case "workflow-governor-selftest":
@@ -230,7 +233,7 @@ func parse(args []string) (options, error) {
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
 		"marketplace-promote": true, "marketplace-promote-selftest": true,
 		"atv-delta": true, "atv-delta-selftest": true,
-		"benchmark-validate": true, "route-eval": true, "release-selftest": true, "workflow-governor-selftest": true,
+		"benchmark-validate": true, "route-eval": true, "review-reference-guard": true, "release-selftest": true, "workflow-governor-selftest": true,
 		"surface-report": true, "minimality": true, "minimality-selftest": true,
 		"pipeline": true, "pipeline-selftest": true,
 		"skill-eval": true, "skill-eval-claims": true, "skill-eval-quality": true, "skill-eval-regression": true,
@@ -318,7 +321,7 @@ func parse(args []string) (options, error) {
 	if opts.command != "scope-lease" && opts.ledger != "" {
 		return options{}, fmt.Errorf("--ledger is only supported for scope-lease")
 	}
-	if opts.config != "" && opts.command != "skill-lint" && opts.command != "skill-sync-report" && opts.command != "marketplace-firebreak" && opts.command != "marketplace-firebreak-selftest" && opts.command != "marketplace-promote" && opts.command != "atv-delta" {
+	if opts.config != "" && opts.command != "skill-lint" && opts.command != "skill-sync-report" && opts.command != "marketplace-firebreak" && opts.command != "marketplace-firebreak-selftest" && opts.command != "marketplace-promote" && opts.command != "atv-delta" && opts.command != "review-reference-guard" {
 		return options{}, fmt.Errorf("--config is only supported for native validator commands")
 	}
 	if opts.verboseOptional && opts.command != "skill-sync-report" {

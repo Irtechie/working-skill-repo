@@ -14,8 +14,9 @@ import (
 )
 
 type skillQualityConfig struct {
-	Lint        lintConfig   `json:"lint"`
-	SyncTargets []syncTarget `json:"sync_targets"`
+	Lint                 lintConfig                 `json:"lint"`
+	ReviewReferenceGuard reviewReferenceGuardConfig `json:"review_reference_guard"`
+	SyncTargets          []syncTarget               `json:"sync_targets"`
 }
 
 type lintConfig struct {

@@ -105,6 +105,75 @@
       "file_read"
     ]
   },
+  "review_reference_guard": {
+    "shared_pairs": [
+      {
+        "id": "review-diff-scope",
+        "left": ".github/skills/ce-review/references/diff-scope.md",
+        "right": ".github/skills/kb-review/references/diff-scope.md",
+        "owner": "review-skill-maintainers",
+        "reason": "Primary, secondary, and pre-existing diff-scope doctrine is intentionally shared by CE and KB review."
+      },
+      {
+        "id": "review-resolve-base",
+        "left": ".github/skills/ce-review/references/resolve-base.sh",
+        "right": ".github/skills/kb-review/references/resolve-base.sh",
+        "owner": "review-skill-maintainers",
+        "reason": "Fork-safe review-base detection must stay identical for CE and KB review."
+      }
+    ],
+    "intentional_forks": [
+      {
+        "id": "review-skill-entrypoints",
+        "left": ".github/skills/ce-review/SKILL.md",
+        "right": ".github/skills/kb-review/SKILL.md",
+        "owner": "review-skill-maintainers",
+        "reason": "Public entry points stay separate: ce-review is the generalized CE lane; kb-review is the KB completion lane."
+      },
+      {
+        "id": "review-findings-schema",
+        "left": ".github/skills/ce-review/references/findings-schema.json",
+        "right": ".github/skills/kb-review/references/findings-schema.json",
+        "owner": "review-skill-maintainers",
+        "reason": "Schemas differ where KB review includes KB-specific structural-quality review expectations."
+      },
+      {
+        "id": "review-persona-catalog",
+        "left": ".github/skills/ce-review/references/persona-catalog.md",
+        "right": ".github/skills/kb-review/references/persona-catalog.md",
+        "owner": "review-skill-maintainers",
+        "reason": "Persona catalogs differ because KB review replaces maintainability with thermonuclear structural-quality review."
+      },
+      {
+        "id": "review-post-review-flow",
+        "left": ".github/skills/ce-review/references/post-review-flow.md",
+        "right": ".github/skills/kb-review/references/post-review-flow.md",
+        "owner": "review-skill-maintainers",
+        "reason": "Post-review flow differs around KB completion gates and CE generalized follow-up handling."
+      },
+      {
+        "id": "review-output-template",
+        "left": ".github/skills/ce-review/references/review-output-template.md",
+        "right": ".github/skills/kb-review/references/review-output-template.md",
+        "owner": "review-skill-maintainers",
+        "reason": "Output templates differ where KB review reports KB-specific structural-quality and completion-gate findings."
+      },
+      {
+        "id": "review-process",
+        "left": ".github/skills/ce-review/references/review-process.md",
+        "right": ".github/skills/kb-review/references/review-process.md",
+        "owner": "review-skill-maintainers",
+        "reason": "Review process differs because KB review runs the KB-specific thermonuclear structural-quality lane."
+      },
+      {
+        "id": "review-subagent-template",
+        "left": ".github/skills/ce-review/references/subagent-template.md",
+        "right": ".github/skills/kb-review/references/subagent-template.md",
+        "owner": "review-skill-maintainers",
+        "reason": "Subagent templates differ where KB review injects KB-specific reviewer personas and instructions."
+      }
+    ]
+  },
   "sync_targets": [
     {
       "id": "working",
