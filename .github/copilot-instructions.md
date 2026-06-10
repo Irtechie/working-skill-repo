@@ -14,16 +14,27 @@ Fresh-session preflight:
 
 This repo is the portable skill bundle. Do not bootstrap consuming-project memory or create project-work handoffs here by accident. If the user is handing off work from another project, switch to that project root or ask for its path. Only create `todo.md`, `docs/context/PROJECT.md`, or `docs/handoffs/*` here when maintaining this skill bundle.
 
-Canonical quality gate for this skill repo:
+Contributor quality gate for this skill repo:
 
 ```shell
 go run ./cmd/kbcheck core
 ```
 
 This command is GHCP-compatible because it uses repo files and the native Go
-`cmd/kbcheck` gate, not Codex-only tools. It runs skill lint, route complexity
-fixture validation, eval selftests, marketplace firebreak checks, and read-only
-sync/ATV drift reports configured in `config/skill-quality.json`.
+`cmd/kbcheck` gate, not Codex-only tools. It runs repo-local deterministic
+checks such as skill lint, route complexity fixture validation, eval selftests,
+marketplace firebreak checks, and ATV drift reports that are available from the
+checkout.
+
+Release/sync gate:
+
+```shell
+go run ./cmd/kbcheck local-release
+```
+
+Run `local-release` before syncing or propagating skills. It composes `core`
+with `git diff --check` and blocking read-only sync drift reports from
+`config/skill-quality.json`.
 
 Every token must pay rent:
 

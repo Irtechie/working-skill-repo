@@ -138,7 +138,6 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"atv-upstream-delta-selftest", "read-only ATV upstream delta selftest detected"},
 		{"atv-upstream-delta", "read-only ATV upstream delta report detected"},
 		{"workflow-governor-selftest", "KB workflow governor question/phase gate contract detected"},
-		{"skill-sync-report", "skill sync target config detected"},
 	}
 
 	checks := make([]Check, 0, len(nativeChecks)+1)
@@ -164,14 +163,6 @@ func skillRepoChecks(root string) ([]Check, error) {
 				Name: "skill-lint", Args: []string{"kbcheck", "skill-lint"},
 				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
 				Run: func(root string) CheckResult { return runNativeCommand(root, []string{"skill-lint"}) },
-			})
-			continue
-		}
-		if pc.Name == "skill-sync-report" {
-			checks = append(checks, Check{
-				Name: "skill-sync-report", Args: []string{"kbcheck", "skill-sync-report"},
-				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
-				Run: func(root string) CheckResult { return runNativeCommand(root, []string{"skill-sync-report"}) },
 			})
 			continue
 		}

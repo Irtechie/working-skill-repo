@@ -7,13 +7,18 @@ import process from "node:process";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
-const CORE_SKILLS = [
-  "kb-start",
-  "kb-map",
-  "kb-fix",
-  "kb-plan",
-  "kb-work",
-  "kb-complete",
+const CORE_AGENTS = [
+  "adversarial-document-reviewer",
+  "coherence-reviewer",
+  "correctness-reviewer",
+  "design-lens-reviewer",
+  "feasibility-reviewer",
+  "product-lens-reviewer",
+  "project-standards-reviewer",
+  "scope-guardian-reviewer",
+  "security-lens-reviewer",
+  "testing-reviewer",
+  "thermo-nuclear-code-quality-reviewer",
 ];
 
 const VALID_TARGETS = new Set(["codex", "copilot", "agents", "repo", "all"]);
@@ -39,8 +44,8 @@ Options:
   --dry-run                                Print actions without writing
   --help                                   Show this help
 
-Core installs: ${CORE_SKILLS.join(", ")}
-Full installs every skill plus reviewer agents for Codex, Copilot, and repo-local targets.
+Core installs every runtime skill plus baseline review/document agents.
+Full installs every runtime skill plus every reviewer/specialist agent for Codex, Copilot, and repo-local targets.
 The Go gate and marketplace are maintainer tools; they are not required to use the skills.
 `;
 }
@@ -180,9 +185,7 @@ async function requirePath(target) {
 
 async function buildInstallPlan(args) {
   const targets = args.target === "all" ? ["codex", "copilot", "agents"] : [args.target];
-  const skills = args.profile === "core"
-    ? CORE_SKILLS
-    : await listDirectories(path.join(args.source, ".github", "skills"));
+  const skills = await listDirectories(path.join(args.source, ".github", "skills"));
   const items = [];
 
   for (const target of targets) {
@@ -196,13 +199,24 @@ async function buildInstallPlan(args) {
       });
     }
 
-    if (args.profile === "full" && roots.agents) {
-      items.push({
-        kind: "agents",
-        source: path.join(args.source, ".github", "agents"),
-        destination: roots.agents,
-        backupRoot: roots.backups,
-      });
+    if (roots.agents) {
+      if (args.profile === "full") {
+        items.push({
+          kind: "agents",
+          source: path.join(args.source, ".github", "agents"),
+          destination: roots.agents,
+          backupRoot: roots.backups,
+        });
+      } else {
+        for (const agent of CORE_AGENTS) {
+          items.push({
+            kind: "agent",
+            source: path.join(args.source, ".github", "agents", `${agent}.agent.md`),
+            destination: path.join(roots.agents, `${agent}.agent.md`),
+            backupRoot: roots.backups,
+          });
+        }
+      }
     }
 
     if (target === "repo") {

@@ -478,7 +478,7 @@ func runSkillEvalManifestSelftest(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Skill eval accepted a manifest with a tampered protected-file SHA.")
 		return 1
 	}
-	fmt.Fprintln(stdout, "Skill eval manifest selftest: valid manifest passed; tampered fixture SHA failed.")
+	fmt.Fprintln(stdout, "Skill eval manifest selftest: valid manifest passed; tampered fixture SHA correctly rejected.")
 	return 0
 }
 
@@ -539,7 +539,7 @@ func runSkillEvalBaselineSelftest(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Baseline comparison accepted a negative-fixture regression.")
 		return 1
 	}
-	fmt.Fprintln(stdout, "Skill eval baseline selftest: baseline update passed; unchanged compare passed; proof regression failed; negative-fixture regression failed.")
+	fmt.Fprintln(stdout, "Skill eval baseline selftest: baseline update passed; unchanged compare passed; proof regression correctly rejected; negative-fixture regression correctly rejected.")
 	return 0
 }
 

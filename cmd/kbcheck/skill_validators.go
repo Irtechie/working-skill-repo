@@ -446,7 +446,7 @@ func runMarketplaceFirebreakSelftest(root string, opts options, stdout, stderr i
 		fmt.Fprintln(stderr, "expected marketplace firebreak to fail when an active skill root points at quarantine")
 		return 1
 	}
-	fmt.Fprintln(stdout, "Skill marketplace firebreak selftest: valid config passed; quarantined active root failed.")
+	fmt.Fprintln(stdout, "Skill marketplace firebreak selftest: valid config passed; quarantined active root correctly rejected.")
 	return 0
 }
 

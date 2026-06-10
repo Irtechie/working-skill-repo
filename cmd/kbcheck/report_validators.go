@@ -576,7 +576,7 @@ func runPipelineSelftest(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Pipeline accepted an unknown id.")
 		return 1
 	}
-	fmt.Fprintln(stdout, "KB pipeline selftest: start/status passed; unknown pipeline id failed.")
+	fmt.Fprintln(stdout, "KB pipeline selftest: start/status passed; unknown pipeline id correctly rejected.")
 	return 0
 }
 

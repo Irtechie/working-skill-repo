@@ -2,6 +2,10 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-06-10
+
+- Skill Bundle Cleanup Audit Follow-up - made `core` contributor-safe by removing release-only sync drift from the core gate, kept sync blocking in `local-release`, lowered the Go directive to `1.22`, changed the installer core profile to install every runtime skill plus baseline review/document agents, reworded successful negative selftests as `correctly rejected`, fixed the optional hook claim in `learn`, refreshed docs/memory, and synced required skill roots plus the changed ATV shipped learn copies. Proof: `go run ./cmd/kbcheck core`, `go run ./cmd/kbcheck local-release`, `go run ./cmd/kbcheck skill-sync-report --verbose-optional`, `git diff --check`, `git -C E:\all-the-vibes diff --check`, installer core/full dry-runs, and old-wording grep passed. Optional ATV scaffold/plugin drift remains warning-only for unrelated pre-existing skill surfaces.
+
 ## 2026-06-03
 
 - Cross-Platform Adoption On-Ramp - added the `npx`/Node installer with `core` and `full` profiles, non-destructive backup-on-replace behavior, repo-local install support, and CI proof for Windows/macOS/Linux. Updated front-door docs to make `core` the shallow start path and switched canonical Go commands to the portable `go run ./cmd/kbcheck` form. Proof: installer core/full/repo-local/conflict smoke checks, `go test ./...` with in-repo `GOCACHE`, `go run ./cmd/kbcheck core`, working/ATV `git diff --check`, and required sync report passed.

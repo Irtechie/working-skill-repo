@@ -36,13 +36,19 @@ When changing skills in this repo, treat `<working-skill-repo>` as the working b
 6. Verify with hashes for copied `SKILL.md` files and `git diff --check` in every touched repo.
 7. Commit and push both repos when requested or when the user asks for the full propagation flow.
 
-Before syncing or propagating skills, run the canonical skill-repo quality gate:
+For repo-local contributor quality, run:
 
 ```shell
 go run ./cmd/kbcheck core
 ```
 
-This gate is cross-runtime: native Go validates the shared skill contract for Codex and GitHub Copilot/GHCP using `config/skill-quality.json`, deterministic skill lint, route-complexity fixtures, eval selftests, marketplace firebreak checks, and read-only sync/ATV drift reports. Required targets are Codex global, Copilot global, shared agents global, and `<atv-repo>/.github/skills`. ATV scaffold/plugin targets are optional thin bundles; warnings there are acceptable unless the current change explicitly ships that skill surface.
+Before syncing or propagating skills, run the release/sync gate:
+
+```shell
+go run ./cmd/kbcheck local-release
+```
+
+`core` is contributor-safe on a fresh clone and validates repo-local deterministic checks. `local-release` composes `core`, `git diff --check`, static reports, and blocking read-only sync drift reports using `config/skill-quality.json`. Required targets are Codex global, Copilot global, shared agents global, and `<atv-repo>/.github/skills`. ATV scaffold/plugin targets are optional thin bundles; warnings there are acceptable unless the current change explicitly ships that skill surface.
 
 Do not remove `kb-review`, `ce-review`, `ce-compound`, or `ce-compound-refresh` from this bundle unless the skills that invoke them are rewritten first. KB completion uses `kb-review`; `ce-review` remains the generalized CE review skill.
 

@@ -54,9 +54,10 @@ complete or honestly blocked. Under a goal, brainstorming is low-interruption:
 the agent picks the best path from evidence and asks only for true planning
 blockers.
 
-The default installer profile is intentionally small. `core` installs the six
-skills above. `full` installs the complete runtime surface: all skills plus the
-reviewer/specialist agents. The Go gate and marketplace are maintainer tools;
+The default installer profile is the runtime dependency closure. `core`
+installs every runtime skill plus the baseline review/document agents needed by
+the normal KB loop. `full` installs the same skills plus every
+reviewer/specialist agent. The Go gate and marketplace are maintainer tools;
 they are not required to start using the workflow.
 
 ## What This Repo Contains
@@ -82,8 +83,8 @@ This repo is two things:
 - `kb-work` executes manifest slices using ready-set and scope-lease rules.
 - `kb-complete` runs review, proof, follow-up cleanup, learning, and memory
   refresh.
-- `cmd/kbcheck` is a maintainer gate for route fixtures, skill lint, sync
-  drift, eval scoring, marketplace firebreaks, and release profiles.
+- `cmd/kbcheck` is a maintainer gate for route fixtures, skill lint, eval
+  scoring, marketplace firebreaks, sync drift, and release profiles.
 
 ## Routing And Rework Control
 
@@ -322,10 +323,10 @@ The harness is not just install plumbing. `cmd/kbcheck` validates route
 fixtures, skill structure, sync drift, marketplace firebreaks, eval result
 scoring, baseline regression checks, and release readiness.
 
-The Go tooling follows the repo's `go.mod` version requirement (`go 1.26` at
+The Go tooling follows the repo's `go.mod` version requirement (`go 1.22` at
 the time of writing).
 
-Run before propagating skill changes:
+Run for repo-local contributor quality:
 
 ```shell
 go run ./cmd/kbcheck core
@@ -337,8 +338,11 @@ Run before releasing or syncing globals:
 go run ./cmd/kbcheck local-release
 ```
 
-`local-release` composes deterministic local proof: native `core`, sync drift,
-line-ending checks, static reports, and the available local eval surfaces.
+`core` is intentionally contributor-safe on a fresh clone: it does not require
+personal global skill roots or an adjacent ATV checkout to exist.
+`local-release` composes deterministic release proof: native `core`, sync
+drift, line-ending checks, static reports, and the available local eval
+surfaces.
 For unattended runners, required sync drift is a release blocker. The repo is
 the source of truth; globals are deployed copies. If a global copy contains
 newer useful behavior, merge it back into this repo first, prove it here, then
@@ -445,9 +449,9 @@ Installer options:
 | `--yes` | flag | Back up and replace changed existing copies without prompting |
 | `--dry-run` | flag | Print planned actions without writing |
 
-`core` installs `kb-start`, `kb-map`, `kb-fix`, `kb-plan`, `kb-work`, and
-`kb-complete`. `full` installs every skill plus reviewer/specialist agents for
-Codex, Copilot, and repo-local targets.
+`core` installs every runtime skill plus baseline review/document agents for
+Codex, Copilot, and repo-local targets. `full` installs every runtime skill plus
+every reviewer/specialist agent for Codex, Copilot, and repo-local targets.
 
 PowerShell fallback from a local clone:
 

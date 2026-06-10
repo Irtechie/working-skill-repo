@@ -176,4 +176,4 @@ Instinct file: .atv/instincts/project.yaml
 - Instincts are project-scoped and committed to the repo — the whole team benefits
 - Run `/instincts` to see all learned patterns
 - Run `/evolve` when instincts reach high confidence to generate full skills
-- The observer hooks in `.github/hooks/copilot-hooks.json` automatically capture tool use data
+- Optional observer hooks such as `.github/hooks/copilot-hooks.json` can capture tool use data when a consuming repo installs them; this portable bundle does not ship that hook file

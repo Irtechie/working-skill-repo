@@ -2,7 +2,7 @@ instincts:
   - id: keep-reusable-skills-domain-generic
     trigger: "when updating a reusable skill because one project exposed a failure"
     behavior: "generalize the fix into domain-neutral rules, using the failing project only as evidence; avoid naming project-specific files, app subsystems, languages, vendors, or one-off technologies unless the skill is explicitly for that domain"
-    confidence: 0.8
+    confidence: 0.71
     domain: workflow
     observations: 2
     first_seen: 2026-05-25
@@ -10,3 +10,13 @@ instincts:
     evidence:
       - "commit 51f384b: removed app/framework-specific examples from kb-map and kb-map-bootstrap after bootstrap coverage tactics became too tied to one app"
       - "user correction 2026-05-25: skill fixes must benefit every app, e.g. say coding language/runtime instead of Python when the skill is not Python-specific"
+  - id: separate-contributor-and-release-gates
+    trigger: "when adding or changing a repo quality gate that depends on global installs, sibling repos, authenticated tools, or deployment state"
+    behavior: "keep the contributor core gate repo-local and put environment-dependent sync or release checks in an explicit release gate"
+    confidence: 0.5
+    domain: workflow
+    observations: 1
+    first_seen: 2026-06-10
+    last_seen: 2026-06-10
+    evidence:
+      - "2026-06-10 skill-bundle cleanup: moved skill-sync-report out of core and kept it blocking in local-release after core failed on missing Codex global skills"

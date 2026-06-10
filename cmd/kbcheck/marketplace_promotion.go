@@ -369,7 +369,7 @@ Used only by marketplace promotion selftest.
 		fmt.Fprintln(stderr, "expected promotion to fail when approved path is inside quarantine")
 		return 1
 	}
-	fmt.Fprintln(stdout, "Marketplace promotion selftest: happy path promoted and synced; quarantine approved path failed.")
+	fmt.Fprintln(stdout, "Marketplace promotion selftest: happy path promoted and synced; quarantine approved path correctly rejected.")
 	return 0
 }
 

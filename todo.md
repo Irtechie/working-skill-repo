@@ -28,9 +28,9 @@ Make this the highest-reliability portable skill bundle for the user's workflow:
 
 ## Current Focus
 
-No active work claimed. Cold storage follow-through is complete. The canonical
-quality and release gates are now `go run ./cmd/kbcheck core` and
-`go run ./cmd/kbcheck local-release`.
+No active work claimed. Fresh-clone/minimalism cleanup is complete. Cold storage
+follow-through is complete. The canonical contributor and release gates are now
+`go run ./cmd/kbcheck core` and `go run ./cmd/kbcheck local-release`.
 
 Audit note: `docs/context/research/2026-05-29-skill-repo-gap-audit.md`
 Requirements: `docs/brainstorms/2026-05-29-cross-runtime-skill-quality-requirements.md`

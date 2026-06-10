@@ -45,8 +45,9 @@ official install command instead of using model judgment as proof.
 `cmd/kbcheck` discovers this repo as a skill repo when `.github/skills` and
 `config/skill-quality.json` exist. The skill-repo quality harness is Go-native.
 
-The sync drift report is read-only: it never copies files. It still exits
-nonzero for required-target drift and is part of the blocking `core` gate.
+The sync drift report is read-only: it never copies files. It exits nonzero for
+required-target drift and is part of the blocking `local-release` gate, not the
+fresh-clone contributor `core` gate.
 Current policy expects ATV scaffold/plugin copies to match the working skill
 root for all tracked skills.
 
@@ -57,12 +58,15 @@ go run ./cmd/kbcheck skill-sync-report --verbose-optional
 
 Default output prints required issues in detail and summarizes any optional ATV
 scaffold/plugin differences. Current expected state is full match across
-working, global, ATV `.github`, ATV scaffold, and ATV plugin skill roots.
-Use `--verbose-optional` when reviewing a deliberate packaging exception.
+working, global, and ATV `.github` roots; ATV scaffold/plugin roots may report
+warning-only differences unless the current change explicitly ships that
+surface. Use `--verbose-optional` when reviewing a deliberate packaging
+exception.
 
 ## Current Result
 
-`go run ./cmd/kbcheck core --list` now reports skill-repo checks when run here:
+`go run ./cmd/kbcheck core --list` now reports contributor-safe skill-repo
+checks when run here:
 
 - `skill-lint`
 - `go-test`
@@ -84,15 +88,13 @@ Use `--verbose-optional` when reviewing a deliberate packaging exception.
 - `skill-surface-minimality`
 - `atv-upstream-delta-selftest`
 - `atv-upstream-delta`
-- `skill-sync-report`
-
 `go run ./cmd/kbcheck core` runs every discovered check and exits nonzero when a
 required check fails.
 Expected current warnings:
 
 - hot-path skill size warnings.
 
-All tracked skill roots should report matches.
+All tracked skill roots should report matches before release or propagation.
 
 The release gate is intentionally separate from `core` because it composes the
 core check with sync drift, line-ending, and optional report surfaces:
@@ -102,7 +104,8 @@ go run ./cmd/kbcheck local-release
 go run ./cmd/kbcheck live-release
 ```
 
-`local-release` is the pre-sync proof command. `live-release` is explicit and
+`local-release` is the pre-sync proof command and includes
+`skill-sync-report`. `live-release` is explicit and
 may call authenticated Codex/GHCP CLIs; unavailable live surfaces must be labeled
 `skipped-explicit`, not silently treated as verified.
 
@@ -174,7 +177,7 @@ All current harness commands are native `cmd/kbcheck` commands:
   boundaries and prove the reviewed promotion path.
 - `skill-sync-report` validates required skill-copy hashes across the working
   repo, Codex global, Copilot global, shared agents global, and ATV `.github`
-  skills.
+  skills; it is release-blocking through `local-release`.
 
 For unattended runners, `skill-sync-report` is a release blocker, not a cleanup
 task. Required drift means source and deployed runner behavior disagree. If a

@@ -81,10 +81,12 @@ See `docs/context/architecture/README.md`.
   isolated contexts, but shared-checkout mutation and observed write overlap
   serialize. `expected_files` remains a forecast, not proof of disjointness.
 - Go-native validator migration is complete for the skill-repo harness:
-  `cmd/kbcheck` owns the default quality/release/eval/marketplace gates and
-  `rg --files -g "*.ps1"` returns no files in this repo. See
+  `cmd/kbcheck` owns the default quality/release/eval/marketplace gates.
+  `core` is contributor-safe and repo-local; `local-release` is the pre-sync
+  gate that blocks on required sync drift. Remaining `.ps1` files are narrow
+  installer or skill helpers, not top-level gate dependencies. See
   `docs/context/epics/go-native-validator-port.md`.
-- ATV scaffold/plugin copies are no longer intentionally thin for the tracked KB/CE skill set; `skill-sync-report` should show matches across all tracked roots.
+- Required skill roots should hash-match before release. ATV scaffold/plugin copies are warning-only unless the current change intentionally ships that surface.
 - Original ATV `upstream/main` is authoritative for ATV-native changes to
   inspect, not a mirror target. Upstream KB deletions are rejected because KB is
   this repo's overlay; superseded workflow skills such as `lfg`, `slfg`, and

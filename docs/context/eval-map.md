@@ -14,12 +14,13 @@ Codex/GHCP the same workflow contract.
 |---|---|---|---|---|
 | Skill structure remains valid | `.github/skills/**/SKILL.md` | `go run ./cmd/kbcheck skill-lint` | Warnings remain for inherited older skills | P1 |
 | Route complexity stays calibrated | `evals/route-complexity/*.json` | `go run ./cmd/kbcheck route-eval` | Fixtures are deterministic metadata, not live prompt runs; workflow-shape fixtures cover skill edit, skill-bundle, proof pipeline, and multi-stream epic prompts | P0 |
-| Required skill copies stay synced | global installs and ATV `.github` skills | `go run ./cmd/kbcheck skill-sync-report` | ATV scaffold/plugin shipping policy unresolved | P1 |
+| Required skill copies stay synced | global installs and ATV `.github` skills | `go run ./cmd/kbcheck local-release`; `go run ./cmd/kbcheck skill-sync-report` | ATV scaffold/plugin shipping policy unresolved | P1 |
 | Skill edits do not regress behavior | prompt/trace/claim evals | `go run ./cmd/kbcheck skill-eval`; `go run ./cmd/kbcheck eval-run-codex`; `go run ./cmd/kbcheck eval-run-ghcp` | Need broader live corpus and richer trace/claim scoring | P0 |
 
 ## Existing Harnesses
 
 - `go run ./cmd/kbcheck core`
+- `go run ./cmd/kbcheck local-release`
 - `go run ./cmd/kbcheck skill-lint`
 - `go run ./cmd/kbcheck route-eval`
 - `go run ./cmd/kbcheck skill-eval`
@@ -36,6 +37,7 @@ Codex/GHCP the same workflow contract.
 
 ```powershell
 go run ./cmd/kbcheck core
+go run ./cmd/kbcheck local-release
 git diff --check
 ```
 

@@ -29,7 +29,6 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 		"skill-surface-minimality",
 		"skill-surface-minimality-selftest",
 		"skill-surface-report",
-		"skill-sync-report",
 		"workflow-governor-selftest",
 	}
 	if len(got) < len(want) {
