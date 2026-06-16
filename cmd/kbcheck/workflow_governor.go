@@ -98,7 +98,8 @@ func runWorkflowGovernorSelftest(root string, stdout, stderr io.Writer) int {
 			missing = append(missing, fmt.Sprintf("%s: read failed: %v", file.Path, err))
 			continue
 		}
-		text := string(content)
+		text := strings.ReplaceAll(string(content), "\r\n", "\n")
+		text = strings.ReplaceAll(text, "\r", "\n")
 		for _, needle := range file.Needles {
 			if !strings.Contains(text, needle) {
 				missing = append(missing, fmt.Sprintf("%s: missing %q", file.Path, needle))
