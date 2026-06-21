@@ -72,6 +72,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
+| RTK-inspired token efficiency | ✅ done | P1 | `docs/context/goals/rtk-inspired-token-efficiency.md` |
 | Skill bundle hardening | 🔧 in_progress | P1 | `docs/plans/2026-06-10-011-kb-skill-bundle-hardening-manifest.md` |
 | Claude remaining hardening | ✅ done | P1 | `docs/plans/archive/2026-06/2026-06-01-080-kb-claude-remaining-hardening-manifest.md` |
 | Go validator full replacement | ✅ done | P1 | `docs/plans/archive/2026-06/2026-06-01-130-kb-go-validator-full-replacement-manifest.md` |
@@ -86,6 +87,8 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 - ⬜ Continue markdown-to-runtime extraction — move remaining deterministic
   hot-path skill rules into `kbcheck` checks; keep `SKILL.md` for judgment,
   scope, escalation, and tradeoffs.
+- ⬜ Add command-aware `kbcheck` failure summarizers after the compact core
+  profile proves stable; preserve `--verbose` for raw output.
 - ⬜ Complete graphify/TokenMasterX brainstorm and plan — finish the large-repo
   map/bootstrap graph-routing work already started in `kb-map` and
   `kb-map-bootstrap`; decide thresholds, proof, install prerequisites,

@@ -14,7 +14,7 @@ import (
 const usage = `kbcheck is the native KB gate entrypoint.
 
 Usage:
-  kbcheck core [--root <path>] [--list] [--dry-run]
+  kbcheck core [--root <path>] [--list] [--dry-run] [--verbose]
   kbcheck local-release [--root <path>] [--json] [--dry-run]
   kbcheck live-release [--root <path>] [--json] [--dry-run]
   kbcheck ready-set --manifest <path> [--json]
@@ -71,6 +71,7 @@ type options struct {
 	root              string
 	json              bool
 	dryRun            bool
+	verbose           bool
 	list              bool
 	manifest          string
 	ledger            string
@@ -264,6 +265,7 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.root, "root", ".", "repository root")
 	fs.BoolVar(&opts.json, "json", false, "emit JSON when supported")
 	fs.BoolVar(&opts.dryRun, "dry-run", false, "print commands instead of running them")
+	fs.BoolVar(&opts.verbose, "verbose", false, "print passing check output")
 	fs.BoolVar(&opts.list, "list", false, "list checks without running them")
 	fs.StringVar(&opts.manifest, "manifest", "", "KB manifest path")
 	fs.StringVar(&opts.ledger, "ledger", "", "scope lease ledger path")
@@ -328,6 +330,9 @@ func parse(args []string) (options, error) {
 	if opts.command != "core" && opts.list {
 		return options{}, fmt.Errorf("--list is only supported for core")
 	}
+	if opts.command != "core" && opts.verbose {
+		return options{}, fmt.Errorf("--verbose is only supported for core")
+	}
 	dryRunAllowed := map[string]bool{"core": true, "local-release": true, "live-release": true, "eval-run-codex": true, "eval-run-ghcp": true, "eval-run-live-corpus": true, "skill-eval-wrap": true}
 	if !dryRunAllowed[opts.command] && opts.dryRun {
 		return options{}, fmt.Errorf("--dry-run is only supported for gate commands")
@@ -377,9 +382,23 @@ func runCore(root string, opts options, stdout, stderr io.Writer, runner process
 		return 0
 	}
 
+	passed := 0
 	for _, check := range checks {
-		fmt.Fprintf(stdout, "==> %s: %s\n", check.Name, check.CommandString())
+		if opts.verbose {
+			fmt.Fprintf(stdout, "==> %s: %s\n", check.Name, check.CommandString())
+		}
 		result := runner(root, check)
+		if result.ExitCode == 0 && !opts.verbose {
+			passed++
+			fmt.Fprintf(stdout, "ok   %s\n", check.Name)
+			continue
+		}
+		if result.ExitCode == 0 {
+			passed++
+		}
+		if result.ExitCode != 0 {
+			fmt.Fprintf(stderr, "FAIL %s: %s\n", check.Name, check.CommandString())
+		}
 		if result.Stdout != "" {
 			fmt.Fprint(stdout, result.Stdout)
 			if !strings.HasSuffix(result.Stdout, "\n") {
@@ -396,6 +415,9 @@ func runCore(root string, opts options, stdout, stderr io.Writer, runner process
 			fmt.Fprintf(stderr, "check failed: %s\n", check.Name)
 			return result.ExitCode
 		}
+	}
+	if !opts.verbose {
+		fmt.Fprintf(stdout, "core: ok checks=%d\n", passed)
 	}
 	return 0
 }

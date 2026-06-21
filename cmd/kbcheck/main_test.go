@@ -27,6 +27,16 @@ func TestParseCoreList(t *testing.T) {
 	}
 }
 
+func TestParseCoreVerbose(t *testing.T) {
+	opts, err := parse([]string{"core", "--root", "repo", "--verbose"})
+	if err != nil {
+		t.Fatalf("parse returned error: %v", err)
+	}
+	if opts.command != "core" || !opts.verbose {
+		t.Fatalf("unexpected options: %+v", opts)
+	}
+}
+
 func TestParseRejectsJSONForCore(t *testing.T) {
 	_, err := parse([]string{"core", "--json"})
 	if err == nil {
@@ -65,8 +75,33 @@ func TestCoreRunsDiscoveredCheck(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected core to pass, got %d stderr=%s", code, errOut.String())
 	}
-	if !strings.Contains(out.String(), "==> go-test") {
+	if !strings.Contains(out.String(), "ok   go-test") || !strings.Contains(out.String(), "core: ok checks=1") {
 		t.Fatalf("missing check output: %q", out.String())
+	}
+	if strings.Contains(out.String(), "ok\n") {
+		t.Fatalf("default core should suppress passing check stdout: %q", out.String())
+	}
+}
+
+func TestCoreVerbosePreservesPassingOutput(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
+	writeFile(t, filepath.Join(root, "go.sum"), "")
+
+	runner := func(root string, check Check) CheckResult {
+		return CheckResult{ExitCode: 0, Stdout: "raw ok\n"}
+	}
+
+	var out, errOut strings.Builder
+	code := runCore(root, options{command: "core", root: root, verbose: true}, &out, &errOut, runner)
+	if code != 0 {
+		t.Fatalf("expected core to pass, got %d stderr=%s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), "==> go-test") || !strings.Contains(out.String(), "raw ok") {
+		t.Fatalf("verbose output did not preserve raw stdout: %q", out.String())
+	}
+	if strings.Contains(out.String(), "core: ok checks=") {
+		t.Fatalf("verbose output should not print compact summary: %q", out.String())
 	}
 }
 
@@ -83,7 +118,7 @@ func TestCoreFailurePropagates(t *testing.T) {
 	if code != 7 {
 		t.Fatalf("expected exit 7, got %d", code)
 	}
-	if !strings.Contains(errOut.String(), "check failed: go-test") {
+	if !strings.Contains(errOut.String(), "FAIL go-test") || !strings.Contains(errOut.String(), "boom") || !strings.Contains(errOut.String(), "check failed: go-test") {
 		t.Fatalf("missing failure output: %q", errOut.String())
 	}
 }
