@@ -18,7 +18,7 @@ Receives from `kb-qa`:
 
 - **Failure report** — which checks failed, expected vs observed, lint errors with file:line
 - **Slice context** — `expected_files` forecast, any `scope-discovery` notes, slice plan path, verification mode
-- **Screenshots** — for any browser failures (paths to `.atv/qa-screenshots/`)
+- **Screenshots** — for any browser failures (paths to `.kb/qa-screenshots/`)
 - **Previous iteration results** — if retrying (empty on first call)
 
 ## Repair Protocol
@@ -74,7 +74,7 @@ After each fix, re-run ALL checks — not just the one that failed:
 
 - **Lint** (always)
 - **Browser checks** (if frontend slice)
-- **Regression snapshots** when the failure or fix touches behavior covered by `.atv/snapshots/`
+- **Regression snapshots** when the failure or fix touches behavior covered by `.kb/snapshots/`
 
 A fix for one failure might introduce another. Catch it immediately. Run the same `kb-qa` Steps 0–7 flow on the affected checks.
 

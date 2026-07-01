@@ -144,7 +144,7 @@ If a test mostly asserts mocks were called, snapshots noise, or duplicates imple
   - one baseline/pass screenshot per tested page or major workflow state;
   - mandatory screenshot for each failure state;
   - responsive screenshots only for deep tier or layout-sensitive changes.
-- Store evidence under `.atv/qa-screenshots/` or the repo's configured QA artifact path.
+- Store evidence under `.kb/qa-screenshots/` or the repo's configured QA artifact path.
 - Keep screenshots until `kb-complete` cleanup. Do not keep unlimited traces/videos unless they explain a failure.
 
 ## Script Rule

@@ -1,5 +1,8 @@
-.atv/eval-runs/
-.atv/pipeline-runs/
+.kb/eval-runs/
+.kb/pipeline-runs/
+.kb/snapshots/
+.kb/qa-screenshots/
+.kb/observations.jsonl
 .tmp/
 __pycache__/
 *.pyc

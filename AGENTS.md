@@ -71,6 +71,23 @@ Use these project memory files:
 
 Do not treat these files as skills. Skills live under `.github/skills/`.
 
+## Learning Model
+
+Instincts are stored at the narrowest scope that owns them. Durable instinct files live in `docs/context/kb/` (git-tracked); ephemeral artifacts live in `.kb/` (git-ignored).
+
+Key paths:
+
+- `docs/context/kb/instincts/project.yaml` — project-tier and global-tier instincts (tagged by `scope: project` or `scope: global`)
+- `docs/context/kb/instincts/scoped/<scope-path>.yaml` — workflow/domain instincts (default home for new lessons)
+- `docs/context/kb/kb-completions.txt` — kb-complete counter
+- `.kb/observations.jsonl` — optional passive observation feed (ephemeral)
+
+Scope hierarchy: `workflow/domain → project → global`. Default = narrowest owning scope. Pull = active scope + all ancestors; never siblings. Promotion = nearest common ancestor when the same lesson recurs independently across sibling scopes. Landmines = instant one-shot at owning scope.
+
+**X pipeline's lessons are not visible to Y pipeline unless promoted to a shared ancestor.**
+
+When running `learn` or recording an instinct, target the workflow/domain scope unless the lesson is demonstrably cross-workflow. Do not default to project or global.
+
 When local memory is missing or badly stale, use `kb-map`; it decides whether lookup, refresh, or bootstrap is required. For normal startup, use `kb-start`.
 
 ## Agent-Owned Verification

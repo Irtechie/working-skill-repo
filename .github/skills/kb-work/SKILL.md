@@ -225,7 +225,7 @@ Backend/API/unit checks may supplement this proof, but they cannot replace it. T
 
 Before starting a new slice, invoke `kb-regression-snapshot verify` before Scope Lock and before editing implementation files.
 
-- Verify all previous snapshots under `.atv/snapshots/`.
+- Verify all previous snapshots under `.kb/snapshots/`.
 - If any previous snapshot fails, STOP before new slice execution.
 - Mark the current slice `🔒 blocked` with the failing snapshot path, target, expected vs observed result, and artifact/log path.
 - Do not continue to implementation, QA, or the next slice until the regression is resolved, parked by the human, or explicitly skipped.
@@ -421,7 +421,7 @@ After the slice completes:
    - If a full suite is too expensive or unavailable, run the narrowest deterministic check that proves the slice and record why.
    - Invoke `kb-functional-test` whenever `test_level` is `integration`, `functional-api`, `functional-cli`, `functional-browser`, or `full`, or when user-visible/cross-boundary changes appear despite a lower test level.
    - For UI-reachable changes, record UI proof: route/screen exercised, interaction performed, assertion made, browser transport used, and screenshot path when applicable. Do not mark the slice done with backend-only proof if a UI path exists.
-   - After Step 3.8 QA passes, invoke `kb-regression-snapshot capture <slice-id>` with a compact spec for what changed. Store `.atv/snapshots/<slice-id>.json`.
+   - After Step 3.8 QA passes, invoke `kb-regression-snapshot capture <slice-id>` with a compact spec for what changed. Store `.kb/snapshots/<slice-id>.json`.
    - Record `test-level: <value>; functional-risk: <value>; proof: <command/artifact>; snapshot: <path/result>` in the manifest notes.
 
 4. **Assess memory impact**

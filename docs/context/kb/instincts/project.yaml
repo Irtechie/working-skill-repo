@@ -1,5 +1,6 @@
 instincts:
   - id: keep-reusable-skills-domain-generic
+    scope: project
     trigger: "when updating a reusable skill because one project exposed a failure"
     behavior: "generalize the fix into domain-neutral rules, using the failing project only as evidence; avoid naming project-specific files, app subsystems, languages, vendors, or one-off technologies unless the skill is explicitly for that domain"
     confidence: 0.63
@@ -12,6 +13,7 @@ instincts:
       - "user correction 2026-05-25: skill fixes must benefit every app, e.g. say coding language/runtime instead of Python when the skill is not Python-specific"
       - "2026-07-01 live steering learning loop: mined HumanLayer design-control-loop for portable control-loop and feedback-steering mechanics while explicitly rejecting Bun, CodeLayer, and GitHub Actions defaults"
   - id: separate-contributor-and-release-gates
+    scope: project
     trigger: "when adding or changing a repo quality gate that depends on global installs, sibling repos, authenticated tools, or deployment state"
     behavior: "keep the contributor core gate repo-local and put environment-dependent sync or release checks in an explicit release gate"
     confidence: 0.43
@@ -22,6 +24,7 @@ instincts:
     evidence:
       - "2026-06-10 skill-bundle cleanup: moved skill-sync-report out of core and kept it blocking in local-release after core failed on missing Codex global skills"
   - id: use-steering-memory-before-instinct-promotion
+    scope: project
     trigger: "when repeated agent work receives feedback that should affect future runs but has not yet proven itself as a project-wide convention"
     behavior: "record the feedback in goal steering memory or docs/context/operations/steering before promoting it to scored instincts or learned skills"
     confidence: 0.5

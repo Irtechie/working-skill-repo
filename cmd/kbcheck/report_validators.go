@@ -467,7 +467,7 @@ func startPipeline(root, pipelineID string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Pipeline '%s' not found at config/pipelines/%s.json\n", pipelineID, pipelineID)
 		return 1
 	}
-	runRoot := resolveRepoPath(root, ".atv/pipeline-runs")
+	runRoot := resolveRepoPath(root, ".kb/pipeline-runs")
 	_ = os.MkdirAll(runRoot, 0o755)
 	runID := time.Now().Format("20060102-150405-000") + "-" + randomShortHash() + "-" + slug(stringValue(pipeline["id"]))
 	runDir := filepath.Join(runRoot, runID)
@@ -516,7 +516,7 @@ func startPipeline(root, pipelineID string, stdout, stderr io.Writer) int {
 }
 
 func pipelineStatus(root, runID string, stdout, stderr io.Writer) int {
-	runRoot := resolveRepoPath(root, ".atv/pipeline-runs")
+	runRoot := resolveRepoPath(root, ".kb/pipeline-runs")
 	runDir := ""
 	if runID != "" {
 		runDir = filepath.Join(runRoot, runID)
@@ -561,7 +561,7 @@ func runPipelineSelftest(root string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	runID := strings.TrimSpace(match[1])
-	runDir := resolveRepoPath(root, ".atv/pipeline-runs/"+runID)
+	runDir := resolveRepoPath(root, ".kb/pipeline-runs/"+runID)
 	defer os.RemoveAll(runDir)
 	for _, required := range []string{"run.json", "pipeline.json", "selected-pipeline.md", "protected-files.json", "proof.json", "phase-prompts/map.md"} {
 		if _, err := os.Stat(filepath.Join(runDir, filepath.FromSlash(required))); err != nil {

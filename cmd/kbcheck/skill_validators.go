@@ -414,7 +414,7 @@ func runMarketplaceFirebreakSelftest(root string, opts options, stdout, stderr i
 		fmt.Fprintf(stderr, "expected valid marketplace firebreak config to pass, got %d issues\n", valid.IssueCount)
 		return 1
 	}
-	tmpParent := filepath.Join(root, ".atv", "tmp")
+	tmpParent := filepath.Join(root, ".kb", "tmp")
 	if err := os.MkdirAll(tmpParent, 0o755); err != nil {
 		fmt.Fprintf(stderr, "create temp dir: %v\n", err)
 		return 1

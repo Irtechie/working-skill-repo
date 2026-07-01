@@ -307,6 +307,40 @@ comes back through `kb-map`.
 
 Deep dive: [KB workflow architecture](docs/context/architecture/kb-workflow.md).
 
+## Learning Model
+
+Learning is kb-native and scoped by default. Durable instincts live in
+`docs/context/kb/` (git-tracked); ephemeral run artifacts live in `.kb/`
+(git-ignored).
+
+Key paths:
+
+- `docs/context/kb/instincts/project.yaml` — project-tier and global-tier instincts (tagged by `scope`)
+- `docs/context/kb/instincts/scoped/<scope-path>.yaml` — workflow/domain and sub-component instincts
+- `docs/context/kb/instincts/archive/` — decayed or evolved instincts
+- `docs/context/kb/kb-completions.txt` — kb-complete counter
+- `.kb/observations.jsonl` — optional passive tool-use feed (git-ignored)
+- `.kb/snapshots/` — regression snapshots (git-ignored)
+
+Scope hierarchy:
+
+```
+global            (rare; domain-neutral universal lessons only)
+  └─ project      (genuinely cross-workflow project conventions)
+       └─ workflow/domain   (audio, image, video, motion) ← DEFAULT
+            └─ component/surface
+```
+
+Rules:
+- **Default = narrowest owning scope.** Most lessons stop at their workflow/domain.
+- **Pull** when working in scope S: load S + all ancestors, never siblings.
+- **Promotion** only when the same trigger+behavior recurs across sibling scopes; climbs to nearest common ancestor (never straight to global).
+- **Landmines** are instant one-shot lessons recorded immediately at the owning scope.
+
+**X pipeline's lessons are not visible to Y pipeline unless promoted to a shared ancestor.**
+
+Deep dive: [KB learning model](docs/context/architecture/kb-learning-model.md).
+
 ## Review Agents
 
 The reviewer agents are runtime dependencies, not optional docs. Removing them
@@ -491,7 +525,7 @@ npm publish
 
 `npm pack --dry-run` should show the installer, `.github/skills/`,
 `.github/agents/`, instruction files, `AGENTS.md`, `README.md`, and `LICENSE`.
-It should not include `docs/`, `evals/`, `cmd/`, `.atv/`, `.tmp/`,
+It should not include `docs/`, `evals/`, `cmd/`, `.atv/`, `.kb/`, `.tmp/`,
 `__pycache__/`, or `*.pyc`.
 
 ## Platform Reality

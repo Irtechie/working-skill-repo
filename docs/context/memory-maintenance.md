@@ -1,5 +1,24 @@
 # Memory Maintenance
 
+## Instinct Roots
+
+Durable instincts live in `docs/context/kb/` (git-tracked). Ephemeral run artifacts live in `.kb/` (git-ignored).
+
+| Path | Purpose | Per-scope cap | Decay |
+|---|---|---|---|
+| `docs/context/kb/instincts/project.yaml` | project-tier + global-tier instincts (tagged by `scope`) | 50 | `0.5^(days/90)` |
+| `docs/context/kb/instincts/scoped/<scope>.yaml` | workflow/domain instincts (default home) | 50 per file | same |
+| `docs/context/kb/instincts/archive/` | decayed or evolved instincts | — | — |
+| `docs/context/kb/kb-completions.txt` | kb-complete counter | — | — |
+
+The cap and decay apply **per scope file** independently: a busy project tier cannot crowd out scoped learning and vice versa.
+
+Scope hierarchy: `workflow/domain → project → global`. Default = narrowest owning scope. Pull = active scope + ancestors; never siblings. Promotion = nearest common ancestor on cross-sibling recurrence. Landmines = instant one-shot at owning scope.
+
+**X pipeline's lessons are not visible to Y pipeline unless promoted to a shared ancestor.**
+
+Canonical reference: `docs/context/architecture/kb-learning-model.md`.
+
 ## Active Signals
 
 | Date | Type | Area | Issue | Suggested Action | Status |
@@ -15,6 +34,7 @@
 | 2026-06-10 | minimality | agent surface | `kbcheck minimality` now reports 11 unproven agents after the approved `cli-agent-readiness-reviewer` merge; remaining candidates are static-only and not deletion approvals. | Keep remaining candidates parked until explicit human approval and runtime proof. | open |
 | 2026-06-10 | archive-policy | plans directory | Root `docs/plans/` had 100 files, making current work harder to find. | Archived 89 historical plan files under `docs/plans/archive/YYYY-MM/`; keep root focused on current-day active/recent plans. | closed |
 | 2026-07-01 | workflow-contract | live steering | KB lacked an in-flight steering layer between one-off PR feedback and post-work `learn`/`evolve`. | Added optional `kb-goal` live steering, feedback classification, docs, and solution note. | closed |
+| 2026-07-01 | state-migration | learning roots | Instincts and kb-completions counter lived under `.atv/instincts/` (legacy ATV root), coupling durable learning to the ATV install. | Migrated to `docs/context/kb/instincts/project.yaml` and `docs/context/kb/kb-completions.txt`; added scoped instinct directory `docs/context/kb/instincts/scoped/`; deleted legacy `.atv/` copies (slice-016). | closed |
 
 ## Closed Signals
 

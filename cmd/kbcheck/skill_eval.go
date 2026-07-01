@@ -356,7 +356,7 @@ func computeSkillEvalQuality(root, qualityRoot, qualityPath string, minScore int
 func runSkillEvalRegressionCommand(root string, opts options, stdout, stderr io.Writer) int {
 	runRoot := opts.runRoot
 	if runRoot == "" {
-		runRoot = ".atv/eval-runs"
+		runRoot = ".kb/eval-runs"
 	}
 	report, err := computeSkillEvalRegression(root, runRoot, opts.baseline, opts.output)
 	if err != nil {
@@ -483,7 +483,7 @@ func runSkillEvalManifestSelftest(root string, stdout, stderr io.Writer) int {
 }
 
 func runSkillEvalBaselineSelftest(root string, stdout, stderr io.Writer) int {
-	tempRoot := filepath.Join(root, ".atv", "eval-baseline-selftest-"+randomShortHash())
+	tempRoot := filepath.Join(root, ".kb", "eval-baseline-selftest-"+randomShortHash())
 	resultRoot := filepath.Join(tempRoot, "results")
 	if err := os.MkdirAll(resultRoot, 0o755); err != nil {
 		fmt.Fprintln(stderr, err)

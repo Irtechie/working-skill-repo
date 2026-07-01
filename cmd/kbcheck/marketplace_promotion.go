@@ -303,7 +303,7 @@ func fileSHA256(path string) (string, error) {
 }
 
 func runMarketplacePromoteSelftest(root string, stdout, stderr io.Writer) int {
-	tmpParent := filepath.Join(root, ".atv", "tmp")
+	tmpParent := filepath.Join(root, ".kb", "tmp")
 	if err := os.MkdirAll(tmpParent, 0o755); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1

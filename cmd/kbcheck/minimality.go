@@ -241,7 +241,7 @@ func runMinimalitySelftest(stdout, stderr io.Writer) int {
 	write(".github/agents/unreferenced-reviewer.agent.md", "unproven")
 	write("docs/context/research.md", "docs-mentioned is documented but not invoked.")
 	write("evals/route/example.json", `{"prompt":"try example-mentioned"}`)
-	write(".atv/observations.jsonl", `{"tool":"runtime-mentioned","result":"used"}`)
+	write(".kb/observations.jsonl", `{"tool":"runtime-mentioned","result":"used"}`)
 	report, err := computeMinimality(root, ".github/skills", ".github/agents", 6)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
@@ -373,7 +373,7 @@ func minimalityEvidenceDocs(root string) []loadedDoc {
 			return nil
 		})
 	}
-	addFiles(".atv/observations.jsonl", "runtime")
+	addFiles(".kb/observations.jsonl", "runtime")
 	addFiles("evals", "example-only")
 	for _, path := range []string{"docs", "README.md", "AGENTS.md", "todo.md", "todo-done.md"} {
 		addFiles(path, "docs-only")

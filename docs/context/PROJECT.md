@@ -121,3 +121,22 @@ See `docs/context/architecture/README.md`.
 ## Maintenance Notes
 
 Use `docs/context/memory-maintenance.md` for stale map, drift, and skill-quality gaps.
+
+## Learning Model
+
+Learning is kb-native. Durable instincts are git-tracked under `docs/context/kb/`; ephemeral run artifacts are git-ignored under `.kb/`.
+
+| Path | Tier | Tracked |
+|---|---|---|
+| `docs/context/kb/instincts/project.yaml` | project + global instincts | yes |
+| `docs/context/kb/instincts/scoped/<scope>.yaml` | workflow/domain instincts | yes |
+| `docs/context/kb/instincts/archive/` | decayed instincts | yes |
+| `docs/context/kb/kb-completions.txt` | kb-complete counter | yes |
+| `.kb/observations.jsonl` | passive observation feed | no |
+| `.kb/snapshots/` | regression snapshots | no |
+
+Scope hierarchy: `workflow/domain → project → global`. Default = narrowest owning scope. Pull = active scope + all ancestors, never siblings. Promotion = nearest common ancestor when the same lesson recurs across sibling scopes. Landmines = instant one-shot at owning scope.
+
+**X pipeline's lessons are not visible to Y pipeline unless promoted to a shared ancestor.**
+
+Canonical reference: `docs/context/architecture/kb-learning-model.md`.

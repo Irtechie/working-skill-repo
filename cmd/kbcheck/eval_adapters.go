@@ -56,7 +56,7 @@ func runEvalAdapterCommand(root string, opts options, runtime string, stdout, st
 func runEvalAdapter(root string, opts options, runtime string) (adapterOutput, error) {
 	runRoot := opts.runRoot
 	if runRoot == "" {
-		runRoot = ".atv/eval-runs"
+		runRoot = ".kb/eval-runs"
 	}
 	fixtures, err := selectRouteFixtures(root, opts.fixtureID, opts.all)
 	if err != nil {
@@ -391,7 +391,7 @@ func gitStatusMap(root string) map[string]string {
 		path := strings.TrimSpace(line[3:])
 		path = strings.Trim(path, `"`)
 		path = filepath.ToSlash(path)
-		if strings.HasPrefix(path, ".atv/") {
+		if strings.HasPrefix(path, ".kb/") {
 			continue
 		}
 		status[path] = line[:2]
