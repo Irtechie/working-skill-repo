@@ -72,6 +72,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
+| Live steering learning loop | ✅ done | P1 | `docs/context/goals/live-steering-learning-loop.md` |
 | RTK-inspired token efficiency | ✅ done | P1 | `docs/context/goals/rtk-inspired-token-efficiency.md` |
 | Skill bundle hardening | 🔧 in_progress | P1 | `docs/plans/2026-06-10-011-kb-skill-bundle-hardening-manifest.md` |
 | Claude remaining hardening | ✅ done | P1 | `docs/plans/archive/2026-06/2026-06-01-080-kb-claude-remaining-hardening-manifest.md` |

@@ -14,6 +14,7 @@
 | 2026-06-10 | install-profile | core closure | The core profile previously installed only six skills while those skills invoked a larger runtime graph. | Core now installs every runtime skill plus baseline review/document agents; full adds every specialist agent. | closed |
 | 2026-06-10 | minimality | agent surface | `kbcheck minimality` now reports 11 unproven agents after the approved `cli-agent-readiness-reviewer` merge; remaining candidates are static-only and not deletion approvals. | Keep remaining candidates parked until explicit human approval and runtime proof. | open |
 | 2026-06-10 | archive-policy | plans directory | Root `docs/plans/` had 100 files, making current work harder to find. | Archived 89 historical plan files under `docs/plans/archive/YYYY-MM/`; keep root focused on current-day active/recent plans. | closed |
+| 2026-07-01 | workflow-contract | live steering | KB lacked an in-flight steering layer between one-off PR feedback and post-work `learn`/`evolve`. | Added optional `kb-goal` live steering, feedback classification, docs, and solution note. | closed |
 
 ## Closed Signals
 

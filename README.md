@@ -54,6 +54,12 @@ complete or honestly blocked. Under a goal, brainstorming is low-interruption:
 the agent picks the best path from evidence and asks only for true planning
 blockers.
 
+For recurring or trend-improvement goals, `kb-goal` can also record a live
+steering loop: set point, sensor, controller, actuator, scope gate, batch size,
+WIP bound, dampener, and steering memory. This is optional. It helps repeated
+runs learn from durable feedback without replacing `kb-complete`, `learn`, or
+`evolve`.
+
 The default installer profile is the runtime dependency closure. `core`
 installs every runtime skill plus the baseline review/document agents needed by
 the normal KB loop. `full` installs the same skills plus every
@@ -83,6 +89,8 @@ This repo is two things:
 - `kb-work` executes manifest slices using ready-set and scope-lease rules.
 - `kb-complete` runs review, proof, follow-up cleanup, learning, and memory
   refresh.
+- `kb-goal` can keep a human on long-running loops through concise steering
+  memory that affects future runs.
 - `cmd/kbcheck` is a maintainer gate for route fixtures, skill lint, eval
   scoring, marketplace firebreaks, sync drift, and release profiles.
 
@@ -277,6 +285,11 @@ Required consuming-project memory:
 - `docs/handoffs/active/` - resumable work
 - `docs/handoffs/parked/` - valuable work that is not runnable today
 - `docs/handoffs/done/` - completed or superseded handoffs
+
+Optional recurring-loop memory:
+
+- `docs/context/operations/steering/<slug>.md` - concise durable feedback for a
+  specific long-running goal when the goal ledger would get too noisy
 
 `kb-map` resolves the active project root first and reads memory only from that
 repo. It must not search `~`, `.copilot/handoffs`, the whole drive, or sibling

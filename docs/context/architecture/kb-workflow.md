@@ -168,6 +168,22 @@ terminal proof matches the original objective. Under a goal, brainstorm stops ar
 the agent resolves the best path from repo evidence, research, and safe
 assumptions, and asks only for true `ask-now` blockers.
 
+For recurring or trend-improvement goals, `kb-goal` may add a live-steering
+block to the goal ledger. That block names the set point, sensor, controller,
+actuator, disturbances, optional dampener, scope gate, batch size, WIP bound,
+and steering-memory path. This is a control-loop framing for repeated work, not
+a requirement for one-shot goals. If one repo tool or agent prompt naturally
+fuses sensor, controller, and actuator, the ledger records the fused component
+instead of inventing fake artifacts.
+
+Steering memory is the middle layer between a one-off PR comment and a promoted
+project instinct. It stores concise durable feedback that should influence
+future runs: permanent scope exclusions, known false positives, reviewer
+preferences, and target-selection guidance. It lives either in the goal ledger
+or in `docs/context/operations/steering/<slug>.md` when the guidance would bloat
+the ledger. Raw transcripts, single-run logs, and current-PR-only instructions
+do not belong there.
+
 `kb-plan` produces vertical slices with expected files, verification,
 dependencies, test level, functional risk, and HITL flags.
 
@@ -191,10 +207,16 @@ runnable slices are done or intentionally skipped.
 - P0/P1 resolution
 - follow-up resolution
 - proof/demo evidence
+- steering feedback classification
 - compound/learn/evolve
 - project memory refresh
 - memory maintenance signals
 - cleanup
+
+The steering step classifies review, iteration, and maintainer feedback as
+current-only, steering memory, observation, landmine candidate, or instinct
+evidence. `learn` still owns scored instincts and `evolve` still owns skill
+promotion; live steering only changes how future runs are selected and prompted.
 
 ## Verification
 

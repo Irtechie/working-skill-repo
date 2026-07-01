@@ -2,6 +2,10 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-01
+
+- Live Steering Learning Loop - mined HumanLayer `design-control-loop` for portable mechanics and added KB live steering without importing its runner assumptions. Updated `kb-goal`, `kb-plan`, `kb-complete`, and `learn`; refreshed README, AGENTS, workflow architecture, goal/manifest docs, and added a solution note. Review found and fixed duplicate observation logging risk. Proof: `go run ./cmd/kbcheck core`, `git diff --check`, `work-to-complete` gate, and `complete-to-ship` gate passed.
+
 ## 2026-06-10
 - Review reference closed contract - added root sweep mode to `kbcheck review-reference-guard`, classified `document-review` overlaps, and filed durable decisions under `docs/context/decisions/`. Proof: `go test ./cmd/kbcheck`, `go run ./cmd/kbcheck review-reference-guard`, `go run ./cmd/kbcheck core`, `go run ./cmd/kbcheck local-release`, `git diff --check`.
 - Review reference drift guard - added `kbcheck review-reference-guard`, wired it into `core`, declared shared/forked `ce-review`/`kb-review` reference ownership in `config/skill-quality.json`, and updated memory-maintenance. Proof: `go test ./cmd/kbcheck`, `go run ./cmd/kbcheck review-reference-guard`, `go run ./cmd/kbcheck core`, `go run ./cmd/kbcheck local-release`.

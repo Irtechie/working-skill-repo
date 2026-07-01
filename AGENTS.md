@@ -66,6 +66,7 @@ Use these project memory files:
 - `todo-done.md` for completed-work summaries.
 - `docs/context/PROJECT.md` for the project route map.
 - `docs/context/eval-map.md` for repo-native eval surfaces and canonical proof commands.
+- `docs/solutions/` for documented solutions to past workflow, tooling, and implementation problems; entries use searchable frontmatter and are relevant when implementing or debugging in documented areas.
 - `docs/handoffs/active/`, `docs/handoffs/parked/`, and `docs/handoffs/done/` for handoff lifecycle.
 
 Do not treat these files as skills. Skills live under `.github/skills/`.

@@ -65,6 +65,23 @@ One sentence.
 - Next allowed action: <exact KB command>
 - Last proof: <command/artifact/status or none>
 
+## Live Steering (optional)
+
+Use this block only for recurring, scheduled, or trend-improvement goals where
+future runs should be steered by measurements and durable feedback. Omit it for
+ordinary one-shot goals.
+
+- Set point: <desired invariant, threshold, or direction>
+- Sensor: <command, query, test, or review signal that measures the gap>
+- Controller: <how the next reviewable increment is selected>
+- Actuator: <KB lane, coding agent, or workflow that applies the increment>
+- Disturbances: <outside changes the loop must tolerate>
+- Dampener: <optional check that prevents the measured issue getting worse>
+- Scope gate: <paths or systems the loop may change/read>
+- Batch size: <maximum targets per run>
+- WIP bound: <maximum active manifests/PRs/work items for this loop>
+- Steering memory: <goal-ledger section or docs/context/operations/steering/<slug>.md>
+
 ## Work Units
 
 | Unit | Route | Artifact | Status | Proof |
@@ -111,6 +128,24 @@ credentials/access, irreversible tradeoffs, or ambiguity that would make the
 plan wrong. Resolve `research-first` with research. Carry `safe-assumption`,
 `defer-to-planning`, and `parked` items in the ledger with rationale instead of
 turning them into questions.
+
+### Live Steering Rule
+
+Use live steering only when the goal benefits from repeated feedback-driven
+runs. The goal ledger should name the set point, sensor, controller, actuator,
+scope gate, batch size, WIP bound, and steering-memory path. Do not manufacture
+separate sensor/controller/actuator steps when one repo tool or prompt naturally
+fuses them; record the fusion instead.
+
+The steering memory is durable guidance loaded into future runs after the next
+increment is selected and before execution begins. It is for permanent scope
+constraints, known false positives, reviewer preferences, or feedback that
+should change future selections. Keep it concise and human-readable. Do not
+store raw transcripts, one-off PR instructions, or single-run logs there.
+
+Default flow control for scheduled or repeated loops is one active manifest or
+PR per loop unless the ledger records a different WIP bound and proof strategy.
+This prevents a loop from producing work faster than it can be reviewed.
 
 ## Loop
 
