@@ -625,10 +625,9 @@ It also borrows useful ideas from:
   especially graph/token-aware repo orientation ideas that informed the
   graphify/TokenMasterX map-bootstrap path
 - [elara-labs/code-context-engine](https://github.com/elara-labs/code-context-engine),
-  for token-efficient codebase indexing (94% retrieval savings, benchmarked).
-  CCE provides the local MCP server, hybrid vector + BM25 search, and
-  cross-session decision memory used when working in this repo. Install with
-  `pip install "code-context-engine[local]"` then `cce init` from the repo root.
+  for token-efficient codebase indexing and cross-session memory ideas. CCE is
+  credited here as future setup/reference only; this repo does not require CCE
+  to be installed or running.
 
 The goal is not to copy any one system. The goal is to keep the pieces that make
 agents easier to route, easier to resume, and harder to let off the hook.

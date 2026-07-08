@@ -101,9 +101,3 @@ Use unit/integration tests, CLI/API probes, browser automation, screenshots, tra
 Only ask the user to test when verification requires something the agent truly cannot access: credentials or MFA/session access not already available, subjective product/design judgment, external hardware or production-only systems, destructive/risky real-world action, or missing test input that cannot be safely generated.
 
 If blocked, state exactly what was attempted, what command/tool failed, and what specific human input is needed.
-
-## Context Engine (CCE)
-
-CCE index is active. Prefer `context_search` over reading files directly.
-Use `expand_chunk` for full source, `related_context` for call/import graph,
-and `session_recall` / `record_decision` for cross-session memory.

@@ -54,9 +54,3 @@ Project memory:
 - `docs/handoffs/active/`, `docs/handoffs/parked/`, and `docs/handoffs/done/` hold resumable handoffs.
 
 If local memory is missing or stale, use `kb-map`; it decides whether lookup, refresh, or bootstrap is required. For normal startup, use `kb-start`.
-
-## Context Engine (CCE)
-
-CCE index is active. Prefer `context_search` over reading files directly.
-Use `expand_chunk` for full source, `related_context` for call/import graph,
-and `session_recall` / `record_decision` for cross-session memory.
