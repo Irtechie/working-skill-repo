@@ -76,11 +76,17 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 | RTK-inspired token efficiency | ✅ done | P1 | `docs/context/goals/rtk-inspired-token-efficiency.md` |
 | Skill bundle hardening | 🔧 in_progress | P1 | `docs/plans/2026-06-10-011-kb-skill-bundle-hardening-manifest.md` |
 | Phoenix proof spine merge | ✅ done | P1 | `docs/plans/2026-07-05-000-kb-phoenix-proof-spine-merge-manifest.md` |
+| Model-agnostic planner economy hardening | ⬜ pending | P1 | `docs/plans/2026-07-05-010-kb-model-agnostic-planner-economy-manifest.md` |
 | Claude remaining hardening | ✅ done | P1 | `docs/plans/archive/2026-06/2026-06-01-080-kb-claude-remaining-hardening-manifest.md` |
 | Go validator full replacement | ✅ done | P1 | `docs/plans/archive/2026-06/2026-06-01-130-kb-go-validator-full-replacement-manifest.md` |
 
 ## Queued Improvements
 
+- ⬜ Turn Dex/HumanLayer control-loop research into a KB recurring-loop plan —
+  design a repo-local sensor/controller/actuator generator with PR-bound
+  `/iterate` steering memory, context-efficient check output, and safe
+  worktree/session adapter criteria. Research:
+  `docs/context/research/2026-07-05-dexhorthy-humanlayer-agent-harness-research.md`.
 - ⬜ Add runtime hook enforcement for the workflow governor — implement Codex
   and/or Claude hook files that mirror the Question Gate and gate-ledger checks,
   block stop/phase advancement when the artifact says blocked, and prove the
@@ -119,6 +125,18 @@ None.
 
 ## Work Log
 
+- 2026-07-05: User approved putting the planner-economy architecture together.
+  Added the control-plane blueprint:
+  `docs/context/decisions/2026-07-05-kb-control-plane-blueprint.md`. Updated the
+  manifest plan-to-work gate to passed; slice-002 is now the next runnable
+  implementation slice.
+- 2026-07-05: Incorporated Fable critique into the model-agnostic planner
+  economy plan. Manifest:
+  `docs/plans/2026-07-05-010-kb-model-agnostic-planner-economy-manifest.md`.
+  The plan now treats KB as the current planning/proof/skill/learning payload,
+  blocks implementation on user approval, and makes the next proof a bounded
+  absorption spike for task state, context packets, recovery fixtures, telemetry,
+  custom-instruction segmentation, and one adapter boundary.
 - 2026-07-05: Completed Phoenix proof spine merge. Added `kbcheck sense`,
   `trace-verify`, `accept`, and `learning-adoption`; wired repair,
   troubleshoot, goal/work/complete/gate, learn/evolve, docs, eval map, and
