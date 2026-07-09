@@ -21,6 +21,12 @@ const CORE_AGENTS = [
   "thermo-nuclear-code-quality-reviewer",
 ];
 
+// Skills excluded from the core profile — only installed with --profile full.
+// Add domain-specific or optional skills here.
+const FULL_ONLY_SKILLS = new Set([
+  "gh-copilot-cost-ops",
+]);
+
 const VALID_TARGETS = new Set(["codex", "copilot", "agents", "repo", "all"]);
 const VALID_PROFILES = new Set(["core", "full"]);
 
@@ -185,7 +191,10 @@ async function requirePath(target) {
 
 async function buildInstallPlan(args) {
   const targets = args.target === "all" ? ["codex", "copilot", "agents"] : [args.target];
-  const skills = await listDirectories(path.join(args.source, ".github", "skills"));
+  const allSkills = await listDirectories(path.join(args.source, ".github", "skills"));
+  const skills = args.profile === "core"
+    ? allSkills.filter(s => !FULL_ONLY_SKILLS.has(s))
+    : allSkills;
   const items = [];
 
   for (const target of targets) {
