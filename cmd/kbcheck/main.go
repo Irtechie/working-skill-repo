@@ -22,6 +22,8 @@ Usage:
   kbcheck manifest-contract --manifest <path> [--json]
   kbcheck manifest-contract-selftest
   kbcheck gate-ledger --manifest <path> --gate <gate-id> [--allowed-next <text>] [--allow-quarantine]
+  kbcheck run-state --history <path> [--json]
+  kbcheck run-state-selftest
   kbcheck sense --check <path> [--trace <path>] [--root <path>]
   kbcheck trace-verify [--trace <path>] [--root <path>]
   kbcheck accept --check <path> [--trace <path>] [--root <path>]
@@ -30,6 +32,8 @@ Usage:
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
   kbcheck skill-sync-report [--root <path>] [--config <path>] [--json] [--verbose-optional]
+  kbcheck doctor [--root <path>] [--config <path>] [--fix] [--json]
+  kbcheck doctor-selftest [--root <path>]
   kbcheck marketplace-firebreak [--root <path>] [--config <path>] [--json]
   kbcheck marketplace-firebreak-selftest [--root <path>] [--config <path>]
   kbcheck marketplace-promote --source <path> --approval-reason <text> --approved [--skill-id <id>] [--install-targets codex,copilot,agents] [--json]
@@ -38,6 +42,7 @@ Usage:
   kbcheck atv-delta-selftest
   kbcheck benchmark-validate [--root <path>] [--fixture-root <path>] [--json]
   kbcheck route-eval [--root <path>] [--config <path>] [--json]
+  kbcheck dishonest-completion-selftest [--root <path>] [--fixture-root <path>]
   kbcheck review-reference-guard [--root <path>] [--config <path>] [--json]
   kbcheck release-selftest
   kbcheck workflow-governor-selftest [--root <path>]
@@ -65,11 +70,14 @@ Commands:
   ready-set      Compute the safe KB manifest ready set.
   manifest-contract  Validate KB manifest phase/gate proof contracts.
   gate-ledger    Validate one KB manifest gate before phase advancement.
+  run-state      Validate KB route-history run state for oscillation and no-progress loops.
   sense          Run an objective check and append a hash-chained trace event.
   trace-verify   Verify the KB proof trace hash chain.
   accept         Prove a check went red->green and is green now.
   learning-adoption  Score held-out learning promotion eligibility.
+  dishonest-completion-selftest  Validate false-done rejection fixtures.
   scope-lease    Validate observed active slice/file write leases.
+  doctor        Report or repair configured skill install drift.
 `
 
 type processRunner func(root string, check Check) CheckResult
@@ -85,6 +93,7 @@ type options struct {
 	ledger            string
 	config            string
 	verboseOptional   bool
+	fix               bool
 	fixtureRoot       string
 	route             string
 	baseline          string
@@ -123,6 +132,7 @@ type options struct {
 	installTargets    string
 	gate              string
 	allowedNext       string
+	history           string
 	checkPath         string
 	tracePath         string
 	allowQuarantine   bool
@@ -175,6 +185,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runManifestContractSelftest(stdout, stderr)
 	case "gate-ledger":
 		return runGateLedgerCommand(root, opts, stdout, stderr)
+	case "run-state":
+		return runRunStateCommand(root, opts, stdout, stderr)
+	case "run-state-selftest":
+		return runRunStateSelftest(stdout, stderr)
 	case "sense":
 		return runProofSenseCommand(root, opts, stdout, stderr)
 	case "trace-verify":
@@ -191,6 +205,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runSkillLintCommand(root, opts, stdout, stderr)
 	case "skill-sync-report":
 		return runSkillSyncReportCommand(root, opts, stdout, stderr)
+	case "doctor":
+		return runDoctorCommand(root, opts, stdout, stderr)
+	case "doctor-selftest":
+		return runDoctorSelftest(root, stdout, stderr)
 	case "marketplace-firebreak":
 		return runMarketplaceFirebreakCommand(root, opts, stdout, stderr)
 	case "marketplace-firebreak-selftest":
@@ -207,6 +225,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runBenchmarkValidateCommand(root, opts, stdout, stderr)
 	case "route-eval":
 		return runRouteEvalCommand(root, opts, stdout, stderr)
+	case "dishonest-completion-selftest":
+		return runDishonestCompletionSelftest(root, opts, stdout, stderr)
 	case "review-reference-guard":
 		return runReviewReferenceGuardCommand(root, opts, stdout, stderr)
 	case "release-selftest":
@@ -261,13 +281,14 @@ func parse(args []string) (options, error) {
 	knownCommands := map[string]bool{
 		"core": true, "local-release": true, "live-release": true,
 		"ready-set": true, "ready-set-selftest": true, "manifest-contract": true, "manifest-contract-selftest": true, "gate-ledger": true,
+		"run-state": true, "run-state-selftest": true,
 		"sense": true, "trace-verify": true, "accept": true, "learning-adoption": true,
 		"scope-lease": true, "scope-lease-selftest": true,
-		"skill-lint": true, "skill-sync-report": true,
+		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
 		"marketplace-promote": true, "marketplace-promote-selftest": true,
 		"atv-delta": true, "atv-delta-selftest": true,
-		"benchmark-validate": true, "route-eval": true, "review-reference-guard": true, "release-selftest": true, "workflow-governor-selftest": true,
+		"benchmark-validate": true, "route-eval": true, "dishonest-completion-selftest": true, "review-reference-guard": true, "release-selftest": true, "workflow-governor-selftest": true,
 		"surface-report": true, "minimality": true, "minimality-selftest": true,
 		"pipeline": true, "pipeline-selftest": true,
 		"skill-eval": true, "skill-eval-claims": true, "skill-eval-quality": true, "skill-eval-regression": true,
@@ -290,6 +311,7 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.ledger, "ledger", "", "scope lease ledger path")
 	fs.StringVar(&opts.config, "config", "", "validator config path")
 	fs.BoolVar(&opts.verboseOptional, "verbose-optional", false, "print optional sync/report rows")
+	fs.BoolVar(&opts.fix, "fix", false, "repair safe required skill install drift")
 	fs.StringVar(&opts.fixtureRoot, "fixture-root", "", "fixture root path")
 	fs.StringVar(&opts.route, "route", "", "route filter")
 	fs.StringVar(&opts.baseline, "baseline", "", "baseline path")
@@ -328,6 +350,7 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.installTargets, "install-targets", "", "comma-separated install targets: codex,copilot,agents,none")
 	fs.StringVar(&opts.gate, "gate", "", "gate_id to validate")
 	fs.StringVar(&opts.allowedNext, "allowed-next", "", "expected allowed_next_action")
+	fs.StringVar(&opts.history, "history", "", "route-history JSONL path")
 	fs.StringVar(&opts.checkPath, "check", "", "objective proof check JSON path")
 	fs.StringVar(&opts.tracePath, "trace", defaultProofTrace, "objective proof trace JSONL path")
 	fs.BoolVar(&opts.allowQuarantine, "allow-quarantine", false, "accept status=quarantined as advanceable")
@@ -362,6 +385,12 @@ func parse(args []string) (options, error) {
 	if !manifestCommands[opts.command] && opts.manifest != "" {
 		return options{}, fmt.Errorf("--manifest is only supported for manifest commands")
 	}
+	if opts.command != "run-state" && opts.history != "" {
+		return options{}, fmt.Errorf("--history is only supported for run-state")
+	}
+	if opts.command == "run-state" && opts.history == "" {
+		return options{}, fmt.Errorf("run-state requires --history")
+	}
 	if opts.command != "scope-lease" && opts.ledger != "" {
 		return options{}, fmt.Errorf("--ledger is only supported for scope-lease")
 	}
@@ -370,6 +399,9 @@ func parse(args []string) (options, error) {
 	}
 	if opts.verboseOptional && opts.command != "skill-sync-report" {
 		return options{}, fmt.Errorf("--verbose-optional is only supported for skill-sync-report")
+	}
+	if opts.fix && opts.command != "doctor" {
+		return options{}, fmt.Errorf("--fix is only supported for doctor")
 	}
 	if opts.command == "ready-set" && opts.manifest == "" {
 		return options{}, fmt.Errorf("ready-set requires --manifest")

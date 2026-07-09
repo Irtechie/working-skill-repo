@@ -54,3 +54,10 @@ Project memory:
 - `docs/handoffs/active/`, `docs/handoffs/parked/`, and `docs/handoffs/done/` hold resumable handoffs.
 
 If local memory is missing or stale, use `kb-map`; it decides whether lookup, refresh, or bootstrap is required. For normal startup, use `kb-start`.
+
+## Optional Context Providers
+
+CCE, MCP search, vector indexes, and similar tools are optional adapters only.
+Do not commit provider-specific hooks/configs or require a daemon/app for
+skills, install, sync, or checks; the file-native `rg`/`kb-map`/`kbcheck` path
+must keep working.

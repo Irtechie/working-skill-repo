@@ -187,9 +187,33 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 
 	issues := []manifestContractIssue{}
 	modelTierContract := manifestHasModelTierContract(path)
+	objectiveContract := manifestHasObjectiveContract(path)
+	modelRoutes := manifestModelRoutes(path)
+	if objectiveContract && !manifestHasTopLevelKey(path, "done_check") {
+		issues = append(issues, manifestContractIssue{Code: "missing-done-check", Message: "objective_contract requires a top-level done_check"})
+	}
 	for _, slice := range slices {
 		if modelTierContract && !validModelTier(slice.ModelTier) {
 			issues = append(issues, manifestContractIssue{Code: "invalid-model-tier", SliceID: slice.ID, Message: "slice must set model_tier to tiny, small, medium, or large"})
+		}
+		if objectiveContract && requiresProofCheck(slice) {
+			if slice.NoCheckReason != "" {
+				if !validNoCheckException(slice) {
+					issues = append(issues, manifestContractIssue{Code: "invalid-no-check-exception", SliceID: slice.ID, Message: "no_check_reason is only valid for verification-only or none slices"})
+				}
+			} else if !slice.ProofCheck {
+				issues = append(issues, manifestContractIssue{Code: "missing-proof-check", SliceID: slice.ID, Message: "objective_contract requires proof_check or a justified no_check_reason"})
+			}
+		}
+		if modelTierContract && len(modelRoutes) > 0 && validModelTier(slice.ModelTier) {
+			allowedRoutes := modelRoutes[slice.ModelTier]
+			if len(allowedRoutes) > 0 {
+				if slice.ModelRoute == "" {
+					issues = append(issues, manifestContractIssue{Code: "missing-model-route", SliceID: slice.ID, Message: "slice must set model_route when routes are declared for its model_tier"})
+				} else if !contains(allowedRoutes, slice.ModelRoute) {
+					issues = append(issues, manifestContractIssue{Code: "invalid-model-route", SliceID: slice.ID, Message: fmt.Sprintf("model_route %q is not allowed for model_tier %q", slice.ModelRoute, slice.ModelTier)})
+				}
+			}
 		}
 		switch slice.Status {
 		case "done":
@@ -224,12 +248,79 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	return manifestContractResult{OK: len(issues) == 0, Issues: issues}, nil
 }
 
+func manifestHasObjectiveContract(path string) bool {
+	frontmatter, err := loadManifestFrontmatter(path)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(frontmatter, "\n") {
+		if countIndent(line) != 0 {
+			continue
+		}
+		key, value, ok := splitYAMLKeyValue(line)
+		if ok && key == "objective_contract" {
+			return parseBool(value)
+		}
+	}
+	return false
+}
+
 func manifestHasModelTierContract(path string) bool {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return false
 	}
 	return strings.Contains(string(content), "model_tier_contract:")
+}
+
+func manifestHasTopLevelKey(path, want string) bool {
+	frontmatter, err := loadManifestFrontmatter(path)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(frontmatter, "\n") {
+		if countIndent(line) != 0 {
+			continue
+		}
+		key, _, ok := splitYAMLKeyValue(line)
+		if ok && key == want {
+			return true
+		}
+	}
+	return false
+}
+
+func manifestModelRoutes(path string) map[string][]string {
+	frontmatter, err := loadManifestFrontmatter(path)
+	if err != nil {
+		return nil
+	}
+	routes := map[string][]string{}
+	inRoutes := false
+	routesIndent := 0
+	for _, line := range strings.Split(frontmatter, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		indent := countIndent(line)
+		if inRoutes {
+			if indent <= routesIndent {
+				inRoutes = false
+			} else {
+				key, value, ok := splitYAMLKeyValue(trimmed)
+				if ok && validModelTier(key) {
+					routes[key] = parseInlineList(value)
+				}
+				continue
+			}
+		}
+		if trimmed == "routes:" {
+			inRoutes = true
+			routesIndent = indent
+		}
+	}
+	return routes
 }
 
 func validModelTier(value string) bool {
@@ -239,6 +330,28 @@ func validModelTier(value string) bool {
 	default:
 		return false
 	}
+}
+
+func requiresProofCheck(slice manifestSlice) bool {
+	switch slice.Status {
+	case "skipped", "parked", "human-required":
+		return false
+	default:
+		return true
+	}
+}
+
+func validNoCheckException(slice manifestSlice) bool {
+	switch slice.Verification {
+	case "verification-only", "none":
+		return true
+	default:
+		return false
+	}
+}
+
+func countIndent(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
 func findManifestGate(path, gateID string) (manifestGate, error) {

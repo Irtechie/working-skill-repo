@@ -101,3 +101,10 @@ Use unit/integration tests, CLI/API probes, browser automation, screenshots, tra
 Only ask the user to test when verification requires something the agent truly cannot access: credentials or MFA/session access not already available, subjective product/design judgment, external hardware or production-only systems, destructive/risky real-world action, or missing test input that cannot be safely generated.
 
 If blocked, state exactly what was attempted, what command/tool failed, and what specific human input is needed.
+
+## Optional Context Providers
+
+CCE, MCP search, vector indexes, and similar tools are optional adapters only.
+Do not commit provider-specific hooks/configs or require a daemon/app for
+skills, install, sync, or checks; the file-native `rg`/`kb-map`/`kbcheck` path
+must keep working.

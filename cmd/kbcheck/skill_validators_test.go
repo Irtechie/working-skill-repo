@@ -75,6 +75,61 @@ func TestSkillSyncReportFindsRequiredDrift(t *testing.T) {
 	}
 }
 
+func TestDoctorRepairsMarkedStaleRequiredTarget(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "source", "demo")
+	requiredRoot := filepath.Join(root, "required")
+	required := filepath.Join(requiredRoot, "demo")
+	writeFile(t, filepath.Join(source, "SKILL.md"), "v1\n")
+	writeFile(t, filepath.Join(required, "SKILL.md"), "v1\n")
+	oldHash, err := skillHash(source)
+	if err != nil {
+		t.Fatalf("hash old source: %v", err)
+	}
+	if err := writeSyncMarker(requiredRoot, "demo", oldHash); err != nil {
+		t.Fatalf("write marker: %v", err)
+	}
+	writeFile(t, filepath.Join(source, "SKILL.md"), "v2\n")
+	config := doctorTestConfig(t, root, filepath.Join(root, "source"), requiredRoot)
+
+	report, err := computeDoctor(root, config, false)
+	if err != nil {
+		t.Fatalf("computeDoctor returned error: %v", err)
+	}
+	if report.OK || report.RequiredIssues != 1 {
+		t.Fatalf("expected stale required issue, got %#v", report)
+	}
+	fixed, err := computeDoctor(root, config, true)
+	if err != nil {
+		t.Fatalf("computeDoctor fix returned error: %v", err)
+	}
+	if !fixed.OK || fixed.Fixed != 1 {
+		t.Fatalf("expected repair to pass, got %#v", fixed)
+	}
+	sourceHash, _ := skillHash(source)
+	targetHash, _ := skillHash(required)
+	if targetHash != sourceHash {
+		t.Fatalf("target hash %s did not match source %s", targetHash, sourceHash)
+	}
+}
+
+func TestDoctorRefusesUnknownRequiredDrift(t *testing.T) {
+	root := t.TempDir()
+	sourceRoot := filepath.Join(root, "source")
+	requiredRoot := filepath.Join(root, "required")
+	writeFile(t, filepath.Join(sourceRoot, "demo", "SKILL.md"), "source\n")
+	writeFile(t, filepath.Join(requiredRoot, "demo", "SKILL.md"), "global-only-change\n")
+	config := doctorTestConfig(t, root, sourceRoot, requiredRoot)
+
+	result, err := computeDoctor(root, config, true)
+	if err != nil {
+		t.Fatalf("computeDoctor returned error: %v", err)
+	}
+	if result.OK || result.Refused != 1 || result.RequiredIssues != 1 {
+		t.Fatalf("expected unknown drift refusal, got %#v", result)
+	}
+}
+
 func TestResolveRepoPathExpandsHome(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
@@ -85,6 +140,18 @@ func TestResolveRepoPathExpandsHome(t *testing.T) {
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
+}
+
+func doctorTestConfig(t *testing.T, root, source, required string) string {
+	t.Helper()
+	config := filepath.Join(root, "config", "skill-quality.json")
+	writeFile(t, config, `{
+	  "sync_targets": [
+	    {"id":"source","path":"`+filepath.ToSlash(source)+`","classification":"source","required":true},
+	    {"id":"required","path":"`+filepath.ToSlash(required)+`","classification":"required","required":true}
+	  ]
+	}`)
+	return config
 }
 
 func TestMarketplaceFirebreakFailsQuarantineActiveRoot(t *testing.T) {

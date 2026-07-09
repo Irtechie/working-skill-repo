@@ -9,7 +9,8 @@ Portable skill bundle for KB workflow skills, reviewer agents, root `AGENTS.md`,
 
 ## How To Run
 
-There is no app runtime.
+There is no app runtime. Optional context providers may accelerate lookup later,
+but they are not part of the required runtime, install path, or release gate.
 
 Use repo inspection and deterministic scripts:
 

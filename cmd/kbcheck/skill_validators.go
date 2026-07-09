@@ -312,6 +312,321 @@ func printSkillSyncReport(w io.Writer, result skillSyncResult, verboseOptional b
 	}
 }
 
+type doctorResult struct {
+	OK              bool        `json:"ok"`
+	RequiredIssues  int         `json:"required_issues"`
+	Fixed           int         `json:"fixed"`
+	Refused         int         `json:"refused"`
+	Rows            []doctorRow `json:"rows"`
+	MergeBackNeeded []doctorRow `json:"merge_back_needed,omitempty"`
+}
+
+type doctorRow struct {
+	Skill      string `json:"skill"`
+	Target     string `json:"target"`
+	Required   bool   `json:"required"`
+	Status     string `json:"status"`
+	SourceHash string `json:"source_hash"`
+	TargetHash string `json:"target_hash"`
+	MarkerHash string `json:"marker_hash,omitempty"`
+	Action     string `json:"action"`
+}
+
+func runDoctorCommand(root string, opts options, stdout, stderr io.Writer) int {
+	configPath := opts.config
+	if configPath == "" {
+		configPath = "config/skill-quality.json"
+	}
+	result, err := computeDoctor(root, configPath, opts.fix)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	if opts.json {
+		writeJSON(stdout, result)
+	} else {
+		printDoctor(stdout, result, opts.fix)
+	}
+	if !result.OK {
+		return 1
+	}
+	return 0
+}
+
+func computeDoctor(root, configPath string, fix bool) (doctorResult, error) {
+	var result doctorResult
+	config, err := loadSkillQualityConfig(root, configPath)
+	if err != nil {
+		return result, err
+	}
+	source, err := sourceSyncTarget(config)
+	if err != nil {
+		return result, err
+	}
+	sourceRoot := resolveRepoPath(root, source.Path)
+	entries, err := os.ReadDir(sourceRoot)
+	if err != nil {
+		return result, fmt.Errorf("source skill root not found: %s", source.Path)
+	}
+	skills := []string{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			skills = append(skills, entry.Name())
+		}
+	}
+	sort.Strings(skills)
+
+	for _, skill := range skills {
+		sourceDir := filepath.Join(sourceRoot, skill)
+		sourceHash, err := skillHash(sourceDir)
+		if err != nil {
+			return result, fmt.Errorf("hash source skill %s: %w", skill, err)
+		}
+		for _, target := range config.SyncTargets {
+			if target.Classification == "source" {
+				continue
+			}
+			targetRoot := resolveRepoPath(root, target.Path)
+			row := doctorRow{
+				Skill: skill, Target: target.ID, Required: target.Required,
+				SourceHash: shortHash(sourceHash), Action: "none",
+			}
+			targetDir := filepath.Join(targetRoot, skill)
+			targetHash, hashErr := skillHash(targetDir)
+			if hashErr == nil {
+				row.TargetHash = shortHash(targetHash)
+			}
+			markerHash := readSyncMarker(targetRoot, skill)
+			row.MarkerHash = shortHash(markerHash)
+			switch {
+			case hashErr == nil && targetHash == sourceHash:
+				row.Status = "match"
+				row.Action = "none"
+				if target.Required {
+					ensureMarker(root, targetRoot, skill, sourceHash, fix, &row, &result)
+				}
+			case hashErr != nil:
+				if target.Required {
+					row.Status = "missing-required"
+					row.Action = "copy source -> target"
+					if fix {
+						if err := repairSkillCopy(sourceDir, targetDir, targetRoot, skill, sourceHash); err != nil {
+							return result, err
+						}
+						row.Status = "repaired"
+						row.TargetHash = shortHash(sourceHash)
+						row.MarkerHash = shortHash(sourceHash)
+						result.Fixed++
+					}
+				} else {
+					row.Status = "missing-optional"
+					row.Action = "optional target not repaired"
+				}
+			case markerHash != "" && markerHash == targetHash:
+				row.Status = "stale-required"
+				if !target.Required {
+					row.Status = "stale-optional"
+					row.Action = "optional target not repaired"
+					break
+				}
+				row.Action = "safe repair from source"
+				if fix {
+					if err := repairSkillCopy(sourceDir, targetDir, targetRoot, skill, sourceHash); err != nil {
+						return result, err
+					}
+					row.Status = "repaired"
+					row.TargetHash = shortHash(sourceHash)
+					row.MarkerHash = shortHash(sourceHash)
+					result.Fixed++
+				}
+			default:
+				if target.Required {
+					row.Status = "refused-unknown-drift"
+					row.Action = "review target diff and merge useful drift back into source before fixing"
+					result.Refused++
+					result.MergeBackNeeded = append(result.MergeBackNeeded, row)
+				} else {
+					row.Status = "drift-optional"
+					row.Action = "review optional drift before shipping there"
+				}
+			}
+			if target.Required && row.Status != "match" && row.Status != "repaired" {
+				result.RequiredIssues++
+			}
+			result.Rows = append(result.Rows, row)
+		}
+	}
+	result.OK = result.RequiredIssues == 0 && result.Refused == 0
+	return result, nil
+}
+
+func sourceSyncTarget(config skillQualityConfig) (syncTarget, error) {
+	for _, target := range config.SyncTargets {
+		if target.Classification == "source" {
+			return target, nil
+		}
+	}
+	return syncTarget{}, fmt.Errorf("no source sync target configured")
+}
+
+func ensureMarker(root, targetRoot, skill, sourceHash string, fix bool, row *doctorRow, result *doctorResult) {
+	if !fix || row.MarkerHash != "" {
+		return
+	}
+	if err := writeSyncMarker(targetRoot, skill, sourceHash); err == nil {
+		row.MarkerHash = shortHash(sourceHash)
+	}
+}
+
+func readSyncMarker(targetRoot, skill string) string {
+	content, err := os.ReadFile(syncMarkerPath(targetRoot, skill))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(content))
+}
+
+func writeSyncMarker(targetRoot, skill, hash string) error {
+	path := syncMarkerPath(targetRoot, skill)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(hash+"\n"), 0o644)
+}
+
+func syncMarkerPath(targetRoot, skill string) string {
+	return filepath.Join(targetRoot, ".kb-sync", skill+".sha256")
+}
+
+func repairSkillCopy(sourceDir, targetDir, targetRoot, skill, sourceHash string) error {
+	if !pathUnder(targetDir, targetRoot) {
+		return fmt.Errorf("refusing to repair outside target root: %s", targetDir)
+	}
+	if err := os.RemoveAll(targetDir); err != nil {
+		return fmt.Errorf("remove stale target %s: %w", targetDir, err)
+	}
+	if err := copyDir(sourceDir, targetDir); err != nil {
+		return err
+	}
+	if err := writeSyncMarker(targetRoot, skill, sourceHash); err != nil {
+		return fmt.Errorf("write sync marker: %w", err)
+	}
+	targetHash, err := skillHash(targetDir)
+	if err != nil {
+		return err
+	}
+	if targetHash != sourceHash {
+		return fmt.Errorf("hash mismatch after doctor repair for %s", skill)
+	}
+	return nil
+}
+
+func copyDir(sourceDir, targetDir string) error {
+	return filepath.WalkDir(sourceDir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return err
+		}
+		out := filepath.Join(targetDir, rel)
+		if entry.IsDir() {
+			return os.MkdirAll(out, 0o755)
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(out, content, info.Mode())
+	})
+}
+
+func printDoctor(w io.Writer, result doctorResult, fix bool) {
+	mode := "check"
+	if fix {
+		mode = "fix"
+	}
+	fmt.Fprintf(w, "KB doctor (%s): required_issues=%d fixed=%d refused=%d\n", mode, result.RequiredIssues, result.Fixed, result.Refused)
+	counts := map[string]int{}
+	for _, row := range result.Rows {
+		counts[row.Target+", "+row.Status]++
+	}
+	for _, key := range sortedMapKeys(counts) {
+		fmt.Fprintf(w, "%s: %d\n", key, counts[key])
+	}
+	for _, row := range result.Rows {
+		if row.Required && row.Status != "match" && row.Status != "repaired" {
+			fmt.Fprintf(w, "ERROR [%s] %s: %s source=%s target=%s marker=%s :: %s\n", row.Target, row.Skill, row.Status, row.SourceHash, row.TargetHash, row.MarkerHash, row.Action)
+		}
+	}
+}
+
+func runDoctorSelftest(root string, stdout, stderr io.Writer) int {
+	temp, err := os.MkdirTemp("", "kb-doctor-selftest-*")
+	if err != nil {
+		fmt.Fprintf(stderr, "create temp dir: %v\n", err)
+		return 1
+	}
+	defer os.RemoveAll(temp)
+	configPath := writeDoctorFixtureConfig(temp)
+	source := filepath.Join(temp, "source", "demo")
+	required := filepath.Join(temp, "required", "demo")
+	writeFileForSelftest(source, "v1\n")
+	writeFileForSelftest(required, "v1\n")
+	oldHash, _ := skillHash(source)
+	if err := writeSyncMarker(filepath.Join(temp, "required"), "demo", oldHash); err != nil {
+		fmt.Fprintf(stderr, "write marker: %v\n", err)
+		return 1
+	}
+	writeFileForSelftest(source, "v2\n")
+	report, err := computeDoctor(temp, configPath, false)
+	if err != nil || report.OK {
+		fmt.Fprintf(stderr, "expected stale report failure: result=%#v err=%v\n", report, err)
+		return 1
+	}
+	fixed, err := computeDoctor(temp, configPath, true)
+	if err != nil || !fixed.OK || fixed.Fixed != 1 {
+		fmt.Fprintf(stderr, "expected stale repair: result=%#v err=%v\n", fixed, err)
+		return 1
+	}
+
+	unknownRoot := filepath.Join(temp, "unknown")
+	unknownConfig := writeDoctorFixtureConfigForTargets(temp, filepath.Join(temp, "source"), unknownRoot)
+	writeFileForSelftest(filepath.Join(unknownRoot, "demo"), "global-only-change\n")
+	refused, err := computeDoctor(temp, unknownConfig, true)
+	if err != nil || refused.OK || refused.Refused == 0 {
+		fmt.Fprintf(stderr, "expected unknown drift refusal: result=%#v err=%v\n", refused, err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "KB doctor selftest: stale repair passed; unknown drift correctly refused.")
+	return 0
+}
+
+func writeDoctorFixtureConfig(root string) string {
+	return writeDoctorFixtureConfigForTargets(root, filepath.Join(root, "source"), filepath.Join(root, "required"))
+}
+
+func writeDoctorFixtureConfigForTargets(root, source, required string) string {
+	path := filepath.Join(root, "config", "skill-quality.json")
+	content := `{"sync_targets":[` +
+		`{"id":"source","path":"` + filepath.ToSlash(source) + `","classification":"source","required":true},` +
+		`{"id":"required","path":"` + filepath.ToSlash(required) + `","classification":"required","required":true}` +
+		`]}`
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	_ = os.WriteFile(path, []byte(content), 0o644)
+	return path
+}
+
+func writeFileForSelftest(skillDir, content string) {
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(content), 0o644)
+}
+
 type marketplaceConfig struct {
 	Marketplace struct {
 		LocalRoot   string `json:"local_root"`

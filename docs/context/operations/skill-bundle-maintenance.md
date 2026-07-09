@@ -82,6 +82,25 @@ Source-of-truth invariant:
   global-only drift into this repo, prove it here, then sync from this repo
   outward.
 
+Use the read-only report when deciding what drift exists:
+
+```powershell
+go run ./cmd/kbcheck skill-sync-report
+```
+
+Use doctor when you want the same evidence plus a safe repair path:
+
+```powershell
+go run ./cmd/kbcheck doctor
+go run ./cmd/kbcheck doctor --fix
+```
+
+`doctor --fix` is intentionally conservative. It repairs missing required
+targets from `<working-skill-repo>\.github\skills` and repairs stale targets
+only when `.kb-sync/<skill>.sha256` proves the target was last deployed from
+this repo. Unknown drift is refused with a merge-back instruction so useful
+global-only edits are not silently overwritten.
+
 After editing this repo, sync the final approved copy to the required targets
 and ATV shipped copies when that skill intentionally ships there.
 

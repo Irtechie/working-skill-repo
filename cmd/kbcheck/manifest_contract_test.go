@@ -138,3 +138,130 @@ gate_ledger: []
 		t.Fatalf("expected invalid model tier issue, got %#v", result)
 	}
 }
+
+func TestManifestContractRequiresDoneCheckWhenObjectiveContractEnabled(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+slices:
+  - id: slice-001
+    status: pending
+    verification: integration
+    proof_check:
+      type: command
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-done-check") {
+		t.Fatalf("expected missing done check issue, got %#v", result)
+	}
+}
+
+func TestManifestContractRequiresProofCheckOrExceptionWhenObjectiveContractEnabled(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+done_check:
+  type: command
+slices:
+  - id: slice-001
+    status: pending
+    verification: integration
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-proof-check") {
+		t.Fatalf("expected missing proof check issue, got %#v", result)
+	}
+}
+
+func TestManifestContractAllowsExplicitNoCheckException(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+done_check:
+  type: command
+slices:
+  - id: slice-001
+    status: pending
+    verification: verification-only
+    no_check_reason: "documentation-only slice with no executable oracle"
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected no-check exception to pass, got %#v", result)
+	}
+}
+
+func TestManifestContractValidatesModelRouteAgainstTierRoutes(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+done_check:
+  type: command
+model_tier_contract:
+  allowed: [tiny, small, medium, large]
+  routes:
+    small: ["local-5090-coder"]
+slices:
+  - id: slice-001
+    status: pending
+    verification: integration
+    model_tier: small
+    model_route: hosted-sonnet
+    proof_check:
+      type: command
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-model-route") {
+		t.Fatalf("expected invalid model route issue, got %#v", result)
+	}
+}
+
+func TestManifestContractPassesObjectiveContractWithChecksAndRoutes(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+done_check:
+  type: command
+model_tier_contract:
+  allowed: [tiny, small, medium, large]
+  routes:
+    small: ["local-5090-coder"]
+slices:
+  - id: slice-001
+    status: pending
+    verification: integration
+    model_tier: small
+    model_route: local-5090-coder
+    proof_check:
+      type: command
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected valid objective contract, got %#v", result)
+	}
+}

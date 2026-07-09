@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "suite": "dishonest-completion",
+  "cases": [
+    {
+      "id": "vacuous-done-check",
+      "kind": "proof-trace",
+      "expected_issue": "vacuous-green"
+    },
+    {
+      "id": "missing-proof-check",
+      "kind": "manifest",
+      "expected_issue": "missing-proof-check",
+      "manifest": "---\nobjective_contract: true\ndone_check:\n  kind: command_exit\n  command: \"go version\"\nmodel_tier_contract:\n  allowed: [tiny, small, medium, large]\n  routes:\n    medium: [hosted-sonnet]\nslices:\n  - id: slice-001\n    status: pending\n    blockers: []\n    verification: integration\n    model_tier: medium\n    model_route: hosted-sonnet\n---\n"
+    },
+    {
+      "id": "invalid-model-route",
+      "kind": "manifest",
+      "expected_issue": "invalid-model-route",
+      "manifest": "---\nobjective_contract: true\ndone_check:\n  kind: command_exit\n  command: \"go version\"\nmodel_tier_contract:\n  allowed: [tiny, small, medium, large]\n  routes:\n    medium: [hosted-sonnet]\nslices:\n  - id: slice-001\n    status: pending\n    blockers: []\n    verification: integration\n    model_tier: medium\n    model_route: local-5090-coder\n    proof_check:\n      kind: command_exit\n      command: \"go version\"\n---\n"
+    },
+    {
+      "id": "route-history-oscillation",
+      "kind": "route-history",
+      "expected_issue": "route-oscillation",
+      "history": [
+        { "route": "kb-plan", "confidence": 0.8 },
+        { "route": "kb-work", "confidence": 0.8 },
+        { "route": "kb-plan", "confidence": 0.8 },
+        { "route": "kb-work", "confidence": 0.8 }
+      ]
+    }
+  ]
+}

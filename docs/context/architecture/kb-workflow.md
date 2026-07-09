@@ -190,6 +190,49 @@ or in `docs/context/operations/steering/<slug>.md` when the guidance would bloat
 the ledger. Raw transcripts, single-run logs, and current-PR-only instructions
 do not belong there.
 
+## KB Run State
+
+Long-running goals may create ephemeral control-loop state under
+`.kb/runs/<goal-slug>/`. This borrows the useful persistence idea from
+Phoenix/Ralph-style loops without adopting a separate runtime, MCP server, or
+`.phoenix-ralph` directory.
+
+`.kb/runs` is git-ignored and never replaces durable human surfaces. The durable
+truth remains:
+
+- goal ledgers in `docs/context/goals/`
+- `todo.md` and `todo-done.md`
+- KB manifests and slice plans in `docs/plans/`
+- handoffs in `docs/handoffs/`
+
+A run directory uses this shape:
+
+| File | Purpose |
+|---|---|
+| `goal.md` | Pointer to the durable goal ledger and current objective |
+| `done-check.json` | Optional `kbcheck sense/accept` check spec |
+| `backlog.json` | Candidate work units with route, priority, blockers, and source |
+| `progress.md` | Current state, last accepted proof, next allowed action |
+| `route-history.jsonl` | Route decisions with confidence and progress signals |
+
+Each route-history row should include `ts`, `route`, `confidence`, and either
+`state_changed` or `progress_key`. Example:
+
+```json
+{"ts":"2026-07-09T15:00:00-04:00","route":"kb-work","confidence":0.82,"state_changed":true,"progress_key":"slice-003-done"}
+```
+
+The deterministic guard is:
+
+```powershell
+go run ./cmd/kbcheck run-state --history .kb/runs/<goal-slug>/route-history.jsonl
+```
+
+It flags A/B/A/B route oscillation, three low-confidence route choices with no
+progress, and four no-progress route decisions. A failure means the agent should
+refresh context, re-plan, or ask a focused human question instead of continuing
+to bounce between lanes.
+
 `kb-plan` produces vertical slices with expected files, verification,
 dependencies, test level, functional risk, model tier, and HITL flags. Model
 tier describes safe delegation (`tiny`, `small`, `medium`, `large`); it never

@@ -226,6 +226,21 @@ check observed RED before GREEN. Learning improvements stay local/scoped unless
 `kbcheck learning-adoption` proves enough measured gain without regressions or
 holdout leakage.
 
+Phoenix routing/slicing absorption status as of July 9, 2026:
+
+- **Done:** proof spine commands, measured learning-adoption gate, model-tier /
+  model-route planning guidance, manifest `done_check` / per-slice
+  `proof_check` validation, KB-native `.kb/runs/<goal>/` route-history guards,
+  snapshot path cleanup, `kbcheck doctor` install drift repair, and
+  dishonest-completion rejection fixtures.
+- **Outstanding:** broader live-run corpus and optional execution of recorded
+  `proof_check` commands from `manifest-contract`.
+- **Plan:** `docs/plans/2026-07-09-010-kb-phoenix-routing-slicing-absorption-manifest.md`.
+- **Measured KB result:** `docs/results/2026-07-09-kb-phoenix-routing-slicing-result.md`.
+- **Public proof note:** `LICENSE` and deterministic eval fixtures already
+  exist. KB publishes its own deterministic fixture result and does not borrow
+  Phoenix metrics.
+
 > **Routing conflict warning:** Do not run the ATV-Phoenix skill suite alongside
 > this bundle. The 18 phoenix-* skills duplicate KB lifecycle lanes
 > (phoenix-plan → kb-plan, phoenix-build → kb-work, phoenix-debug → kb-fix, etc.)
@@ -442,6 +457,11 @@ Useful subcommands:
 - `local-release`, `live-release` - release-readiness gates
 - `skill-lint` - deterministic `SKILL.md` structure lint
 - `skill-sync-report` - read-only drift report across install targets
+- `doctor`, `doctor --fix` - optional install drift repair with global-drift
+  refusal guards
+- `dishonest-completion-selftest` - validate false-completion rejection fixtures
+- `manifest-contract` - validate KB manifest done/proof/model-route gates
+- `run-state` - validate `.kb/runs/<goal>/route-history.jsonl`
 - `sense`, `accept`, `trace-verify` - failure-first repair proof spine
 - `learning-adoption` - measured gate for promoting learning changes
 - `route-eval` - validate `evals/route-complexity/*` fixtures
@@ -637,7 +657,8 @@ It also borrows useful ideas from:
 
 - [ATV-Phoenix](https://github.com/All-The-Vibes/ATV-Phoenix), especially the
   self-healing proof spine around objective sensing, trace verification, and
-  failure-first acceptance
+  failure-first acceptance. Credit for the self-healing concepts adopted in KB
+  belongs to ATV-Phoenix.
 - [Matt Pocock's skills](https://github.com/mattpocock/skills), especially: the
   `grilling` / `grill-me` pattern (relentless one-question-at-a-time interview
   with agent-surfaced recommendations, gated so questions earn their place) now

@@ -117,6 +117,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 	}
 	nativeChecks := []nativeCheck{
 		{"skill-lint", "skill quality config detected"},
+		{"kb-doctor-selftest", "KB doctor install drift repair selftest detected"},
 		{"route-complexity-eval", "route complexity eval fixtures detected"},
 		{"review-reference-guard", "review skill shared-reference drift guard detected"},
 		{"skill-eval", "skill eval selftest fixtures detected"},
@@ -126,6 +127,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"skill-eval-ghcp-dry-run", "GHCP skill eval adapter detected"},
 		{"skill-eval-quality", "skill output quality rubric fixtures detected"},
 		{"manifest-contract-selftest", "KB manifest phase/gate proof contract selftest detected"},
+		{"kb-run-state-selftest", "KB run-state route-history guard selftest detected"},
 		{"kb-work-ready-set-selftest", "KB work ready-set dispatch selftest detected"},
 		{"kb-work-scope-lease-selftest", "KB work scope lease overlap selftest detected"},
 		{"kb-pipeline-selftest", "KB coded pipeline spike selftest detected"},
@@ -137,6 +139,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"skill-surface-minimality-selftest", "skill/agent minimality classification selftest detected"},
 		{"skill-surface-minimality", "static skill/agent minimality report detected"},
 		{"cross-model-benchmark-validate", "cross-model benchmark prompt fixtures detected"},
+		{"dishonest-completion-selftest", "dishonest completion rejection fixtures detected"},
 		{"atv-upstream-delta-selftest", "read-only ATV upstream delta selftest detected"},
 		{"atv-upstream-delta", "read-only ATV upstream delta report detected"},
 		{"workflow-governor-selftest", "KB workflow governor question/phase gate contract detected"},
@@ -188,6 +191,8 @@ func skillRepoChecks(root string) ([]Check, error) {
 		}
 		nativeCommandByCheck := map[string][]string{
 			"cross-model-benchmark-validate":    {"benchmark-validate"},
+			"dishonest-completion-selftest":     {"dishonest-completion-selftest"},
+			"kb-doctor-selftest":                {"doctor-selftest"},
 			"route-complexity-eval":             {"route-eval"},
 			"review-reference-guard":            {"review-reference-guard"},
 			"skill-eval":                        {"skill-eval"},
@@ -199,6 +204,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 			"skill-eval-codex-dry-run":          {"eval-run-codex", "--fixture-id", "tiny-typo-fix", "--dry-run"},
 			"skill-eval-ghcp-dry-run":           {"eval-run-ghcp", "--fixture-id", "tiny-typo-fix", "--dry-run"},
 			"manifest-contract-selftest":        {"manifest-contract-selftest"},
+			"kb-run-state-selftest":             {"run-state-selftest"},
 			"kb-release-gate-selftest":          {"release-selftest"},
 			"skill-surface-report":              {"surface-report"},
 			"skill-surface-minimality":          {"minimality"},

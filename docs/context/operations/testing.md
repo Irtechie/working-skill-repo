@@ -1,6 +1,6 @@
 # Testing Operations
 
-Checked: 2026-06-01
+Checked: 2026-07-09
 
 ## Current Commands
 
@@ -10,6 +10,10 @@ git diff --check
 go run ./cmd/kbcheck core --list
 go run ./cmd/kbcheck core
 go run ./cmd/kbcheck local-release
+go run ./cmd/kbcheck dishonest-completion-selftest
+go run ./cmd/kbcheck manifest-contract --manifest <manifest>
+go run ./cmd/kbcheck run-state --history <history>
+go run ./cmd/kbcheck doctor
 go run ./cmd/kbcheck sense --check <check.json> --trace .kb/trace.jsonl
 go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl
 go run ./cmd/kbcheck trace-verify --trace .kb/trace.jsonl
@@ -52,8 +56,9 @@ official install command instead of using model judgment as proof.
 The sync drift report is read-only: it never copies files. It exits nonzero for
 required-target drift and is part of the blocking `local-release` gate, not the
 fresh-clone contributor `core` gate.
-Current policy expects ATV scaffold/plugin copies to match the working skill
-root for all tracked skills.
+Current policy expects required roots to match the working skill root. ATV
+scaffold/plugin roots may report warning-only differences unless the current
+change explicitly ships that packaging surface.
 
 ```powershell
 go run ./cmd/kbcheck skill-sync-report
@@ -68,6 +73,37 @@ surface. Use `--verbose-optional` when reviewing a deliberate packaging
 exception.
 
 ## Current Result
+
+2026-07-09 local caveat resolved: on this Windows workstation with `go version
+go1.26.2 windows/amd64`, module-scoped Go commands timed out with no output:
+
+```powershell
+go list ./cmd/kbcheck
+go list -buildvcs=false ./cmd/kbcheck
+go test ./cmd/kbcheck -run TestProofAcceptsRedThenGreenTrace -count=1
+go test -buildvcs=false ./cmd/kbcheck -run TestProofAcceptsRedThenGreenTrace -count=1
+go run ./cmd/kbcheck core --list
+```
+
+The workaround was:
+
+```powershell
+go env -w GOTOOLCHAIN=go1.25.4+auto
+```
+
+After that, `go list ./cmd/kbcheck`, the targeted proof-spine test, and
+`go run ./cmd/kbcheck core --list` returned normally.
+
+If the timeout recurs, narrow non-Go proof for snapshot-path only changes is:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .github\skills\kb-regression-snapshot\scripts\kb-regression-snapshot.ps1 verify
+rg -n "\.atv/snapshots|\.atv\\snapshots" .github\skills README.md docs\context\PROJECT.md docs\context\architecture\kb-workflow.md
+git diff --check
+```
+
+Do not expand `cmd/kbcheck` harness behavior while module-scoped Go commands are
+timing out; first fix the toolchain or use a bounded replacement runner.
 
 `go run ./cmd/kbcheck core --list` now reports contributor-safe skill-repo
 checks when run here:
@@ -92,6 +128,10 @@ checks when run here:
 - `skill-surface-minimality`
 - `atv-upstream-delta-selftest`
 - `atv-upstream-delta`
+- `dishonest-completion-selftest`
+- `kb-doctor-selftest`
+- `kb-run-state-selftest`
+- `manifest-contract-selftest`
 `go run ./cmd/kbcheck core` runs every discovered check and exits nonzero when a
 required check fails.
 Expected current warnings:
@@ -182,6 +222,15 @@ All current harness commands are native `cmd/kbcheck` commands:
 - `skill-sync-report` validates required skill-copy hashes across the working
   repo, Codex global, Copilot global, shared agents global, and ATV `.github`
   skills; it is release-blocking through `local-release`.
+- `doctor` reports the same configured install drift and `doctor --fix` repairs
+  only missing or marker-proven stale required copies from this repo source.
+- `dishonest-completion-selftest` validates negative fixtures for vacuous-green
+  proof, missing slice proof checks, invalid model routes, and route-history
+  oscillation.
+- `manifest-contract` validates objective `done_check`, per-slice
+  `proof_check`/`no_check_reason`, model routes, and terminal gate proof.
+- `run-state` validates `.kb/runs/<goal>/route-history.jsonl` for oscillation,
+  repeated low confidence, and no-progress loops.
 - `sense`, `accept`, and `trace-verify` implement the failure-first proof spine:
   a runnable check must be observed RED, then GREEN, with an intact trace before
   a repair claim is accepted.
