@@ -59,6 +59,13 @@ Every token must pay rent. Be concise by default:
 - Lead with the answer, route, command, or code.
 - Keep exact paths, commands, errors, decisions, risks, and safety warnings.
 - Use longer explanations only when they change the decision or reduce rework.
+- Keep stable policy in ambient instructions and volatile task state in
+  `todo.md`, plans, or handoffs so prompt prefixes stay reusable.
+- Move deterministic data gathering outside the reasoning loop when practical:
+  prefetch with repo-native CLI/search commands, then pass only needed paths,
+  fields, or compact output to the agent.
+- Do not register broad MCP/tool catalogs in repo config. Prefer built-in
+  file/search/CLI tools and enable optional tools only when a task needs them.
 
 Use these project memory files:
 
@@ -104,7 +111,11 @@ If blocked, state exactly what was attempted, what command/tool failed, and what
 
 ## Optional Context Providers
 
-CCE, MCP search, vector indexes, and similar tools are optional adapters only.
-Do not commit provider-specific hooks/configs or require a daemon/app for
-skills, install, sync, or checks; the file-native `rg`/`kb-map`/`kbcheck` path
-must keep working.
+CCE is an owned, supported optional context adapter. MCP search, vector indexes,
+and similar tools are optional adapters too. Do not commit or auto-start their
+hooks/configs, and do not require a daemon/app for skills, install, sync, or
+checks. The file-native `rg`/`kb-map`/`kbcheck` path must keep working.
+
+Phoenix is credited prior art whose useful proof/routing mechanics have been
+absorbed into KB. Keep research and attribution, but do not add a Phoenix
+runtime, MCP server, daemon, or required install.

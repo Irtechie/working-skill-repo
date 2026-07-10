@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "packet_id": "session-model-routing-slice-007",
+  "task_id": "session-model-routing",
+  "objective": "Package and synchronize the advisory pilot for portable public use",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/context/goals/session-model-routing.md"
+  ],
+  "source_files": [
+    "AGENTS.md",
+    "README.md",
+    "package.json",
+    "bin/kb-install.mjs",
+    ".github/workflows/cross-platform.yml",
+    "config/skill-quality.json",
+    "docs/context/operations/testing.md"
+  ],
+  "prefetch": [
+    "Read the slice plan and listed source files before broader search"
+  ],
+  "constraints": [
+    "No Go toolchain required for ordinary users",
+    "Skill-only fallback stays functional",
+    "No code-signing claim without proof",
+    "Review drift before overwriting global or ATV copies"
+  ],
+  "out_of_scope": [
+    "Publishing a tag",
+    "Merging the PR",
+    "Force push",
+    "Unsupported host claims"
+  ],
+  "acceptance_criteria": [
+    "Installer handles binary install upgrade uninstall and fallback",
+    "Three operating systems build and smoke test",
+    "Checksums and build provenance exist",
+    "Required skill roots hash match",
+    "local-release passes"
+  ],
+  "proof_targets": [
+    "go run ./cmd/kbcheck local-release"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "Supply-chain, installer, cross-platform, and multi-repo sync work is broad and high risk",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go test",
+    "go run",
+    "node",
+    "npm",
+    "git diff"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Existing global or ATV copy has newer useful drift",
+    "Release integrity cannot be verified",
+    "Installer needs destructive cleanup",
+    "Sync scope overlaps unrelated user changes"
+  ]
+}

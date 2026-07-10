@@ -20,6 +20,8 @@ type manifestSlice struct {
 	ModelRoute             string
 	ProofCheck             bool
 	NoCheckReason          string
+	ContextPacketPath      string
+	NoPacketReason         string
 	CanContinueOtherSlices bool
 	HITL                   bool
 }
@@ -354,9 +356,14 @@ func parseManifestSlices(path string) ([]manifestSlice, error) {
 		case strings.HasPrefix(trimmed, "model_route:"):
 			current.ModelRoute = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_route:")))
 		case strings.HasPrefix(trimmed, "proof_check:"):
-			current.ProofCheck = true
+			value := cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "proof_check:")))
+			current.ProofCheck = value == "" || parseBool(value)
 		case strings.HasPrefix(trimmed, "no_check_reason:"):
 			current.NoCheckReason = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "no_check_reason:")))
+		case strings.HasPrefix(trimmed, "context_packet_path:"):
+			current.ContextPacketPath = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "context_packet_path:")))
+		case strings.HasPrefix(trimmed, "no_packet_reason:"):
+			current.NoPacketReason = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "no_packet_reason:")))
 		case strings.HasPrefix(trimmed, "can_continue_other_slices:"):
 			current.CanContinueOtherSlices = parseBool(strings.TrimSpace(strings.TrimPrefix(trimmed, "can_continue_other_slices:")))
 		case strings.HasPrefix(trimmed, "hitl:"):

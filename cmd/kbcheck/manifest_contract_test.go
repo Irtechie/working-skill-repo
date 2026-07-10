@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -178,8 +179,32 @@ gate_ledger: []
 	if err != nil {
 		t.Fatalf("validateManifestContract returned error: %v", err)
 	}
+
 	if result.OK || !hasManifestIssue(result.Issues, "missing-proof-check") {
 		t.Fatalf("expected missing proof check issue, got %#v", result)
+	}
+}
+
+func TestManifestContractRejectsFalseProofCheck(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+done_check:
+  type: command
+slices:
+  - id: slice-001
+    status: pending
+    verification: integration
+    proof_check: false
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-proof-check") {
+		t.Fatalf("false proof_check passed: %#v", result)
 	}
 }
 
@@ -206,7 +231,7 @@ gate_ledger: []
 	}
 }
 
-func TestManifestContractValidatesModelRouteAgainstTierRoutes(t *testing.T) {
+func TestManifestContractModelRouteAllowsLegacyHintOutsideTierRoutes(t *testing.T) {
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -231,12 +256,12 @@ gate_ledger: []
 	if err != nil {
 		t.Fatalf("validateManifestContract returned error: %v", err)
 	}
-	if result.OK || !hasManifestIssue(result.Issues, "invalid-model-route") {
-		t.Fatalf("expected invalid model route issue, got %#v", result)
+	if !result.OK {
+		t.Fatalf("expected legacy model_route hint to remain readable, got %#v", result)
 	}
 }
 
-func TestManifestContractPassesObjectiveContractWithChecksAndRoutes(t *testing.T) {
+func TestManifestContractModelRouteAllowsRouteFreeObjectiveContract(t *testing.T) {
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -251,7 +276,6 @@ slices:
     status: pending
     verification: integration
     model_tier: small
-    model_route: local-5090-coder
     proof_check:
       type: command
 gate_ledger: []
@@ -263,5 +287,94 @@ gate_ledger: []
 	}
 	if !result.OK {
 		t.Fatalf("expected valid objective contract, got %#v", result)
+	}
+}
+
+func TestManifestContractModelRouteDoesNotSubstituteForProofCheck(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+done_check:
+  type: command
+model_tier_contract:
+  allowed: [tiny, small, medium, large]
+  routes:
+    small: ["local-5090-coder"]
+routing_receipt:
+  route: local-5090-coder
+  provider_model: coder-fast
+slices:
+  - id: slice-001
+    status: pending
+    verification: integration
+    model_tier: small
+    model_route: local-5090-coder
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-proof-check") {
+		t.Fatalf("expected proof_check to remain required, got %#v", result)
+	}
+}
+
+func TestManifestContractRequiresPacketForPendingSliceWhenEnabled(t *testing.T) {
+	path := writeManifest(t, `
+---
+context_packet_contract: true
+slices:
+  - id: slice-001
+    status: pending
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-context-packet") {
+		t.Fatalf("expected missing context packet issue, got %#v", result)
+	}
+}
+
+func TestManifestContractValidatesPacketFileWhenEnabled(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), "{}")
+	writeFile(t, filepath.Join(root, "packet.json"), `{
+	  "schema_version": 1,
+	  "packet_id": "p1",
+	  "task_id": "t1",
+	  "objective": "bounded work",
+	  "source_files": ["a.go"],
+	  "constraints": ["no daemon"],
+	  "out_of_scope": ["unrelated"],
+	  "acceptance_criteria": ["passes"],
+	  "proof_targets": ["go test ./..."],
+	  "model_tier": "small",
+	  "model_tier_reason": "bounded",
+	  "allowed_tools": ["view"],
+	  "broad_search_policy": "bounded",
+	  "escalation_triggers": ["scope expands"]
+	}`)
+	manifestDir := filepath.Join(root, "docs", "plans")
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(manifestDir, "manifest.md")
+	writeFile(t, path, `---
+context_packet_contract: true
+slices:
+  - id: slice-001
+    status: pending
+    context_packet_path: packet.json
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil || !result.OK {
+		t.Fatalf("expected valid packet-backed manifest, result=%#v err=%v", result, err)
 	}
 }

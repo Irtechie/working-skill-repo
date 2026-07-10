@@ -46,6 +46,16 @@ The core loop is six skills:
 Everything else is optional depth for bigger work, maintenance, or release
 proof.
 
+For one explicit plan-to-PR run, use:
+
+```text
+kb-finish <manifest-or-plan>
+```
+
+It recovers the current phase, runs `kb-plan`/`kb-work`/`kb-complete` as
+needed, then invokes `kb-ship` to commit intentional files, push a topic branch,
+and create or update a PR. It never merges.
+
 For long-lived objectives that may run across days or sessions, use `kb-goal`.
 It keeps the durable objective and terminal proof ledger, then routes each work
 unit through the normal KB lanes. `klfg` is one strict idea-to-done pipeline;
@@ -93,6 +103,12 @@ This repo is two things:
   memory that affects future runs.
 - `cmd/kbcheck` is a maintainer gate for route fixtures, skill lint, eval
   scoring, marketplace firebreaks, sync drift, and release profiles.
+- Material slices may carry vendor-neutral context packets so bounded workers
+  receive exact files, prefetch, constraints, proof targets, search policy, and
+  escalation triggers instead of rediscovering the repo.
+- `kbcheck provider-hygiene` rejects Phoenix activation while allowing CCE as
+  an optional adapter. `surface-report` separates base startup from conditional
+  skill cost.
 
 ## Routing And Rework Control
 
@@ -101,6 +117,23 @@ The harness is designed to avoid rework by choosing the smallest lane that can
 still prove the result. That is the claim this repo can defend today: the
 routes, gates, and checks exist in code and skills. It does not claim measured
 token savings.
+
+Model selection follows the same split. `kb-plan` records the slice difficulty,
+risk, tools, context, and proof without freezing a model name. `kb-work`
+starts from the active host's predefined and CLI-discovered catalog (for
+example, Codex, GitHub Copilot, or Claude each knows its own selectable models),
+then merges any user-added private routes for models the host does not normally
+expose. It selects a bounded subagent immediately before work, falls sideways
+and then upward when needed, and keeps routing receipts separate from ordinary
+proof. Private endpoints and credentials stay local; the shareable skills do
+not contain them.
+
+Host-native subagents use the containment supplied by that host. The initial Go
+`codex exec` worker adapter is dispatch-proven on Windows; Linux and macOS keep
+model discovery, preview, and current-model fallback, but report that external
+adapter as unavailable until a native containment implementation is proven.
+
+![KB model selection workflow](docs/assets/kb-model-selection.png)
 
 - **Fresh sessions by default.** Handoffs, `todo.md`,
   `docs/context/PROJECT.md`, plans, and architecture notes let a new session
@@ -125,6 +158,9 @@ token savings.
 - **Spend ceremony only where it prevents rework.** Slicing, checks, and review
   cost time up front. They earn their place only when they prevent the agent
   from guessing, drifting, or calling unverified work done.
+- **Finish explicitly when check-in is intended.** `kb-finish` takes a plan or
+  manifest through work, completion, commit, push, and PR. Ordinary
+  `kb-work -> kb-complete` remains non-shipping.
 
 KB means **Kanban-Based**. The workflow still uses boards, manifests, vertical
 slices, and done archives, but user-facing commands use the shorter `kb-`
@@ -159,15 +195,27 @@ Consuming projects get their own `todo.md`, `docs/context/`,
 
 ## Optional Context Providers
 
-This bundle does not require CCE, MCP search, a vector index, or any background
-app. The default path stays file-native: repo files, `rg`, `kb-map`,
-`docs/context/`, and deterministic `kbcheck` gates.
+CCE is an owned, supported optional context adapter. This bundle does not
+require CCE, MCP search, a vector index, or any background app. The default path
+stays file-native: repo files, `rg`, `kb-map`, `docs/context/`, and
+deterministic `kbcheck` gates.
 
 Optional context tools can still fit as adapters. A good adapter may accelerate
 lookup, chunk expansion, or decision recall, but it must have a repo-native
 fallback and must not be required by install, sync, tests, or skill execution.
-Do not commit provider-specific hook/config files such as `.mcp.json` or
-`.claude/settings.json`.
+Do not commit or auto-start provider-specific hook/config files such as
+`.mcp.json` or `.claude/settings.json`. Keep the enabled tool set narrow and
+prefer deterministic CLI prefetch for data the agent will always need.
+
+Phoenix is credited prior art for specific proof and recovery mechanics. KB's
+routing and vertical slicing were developed independently. The current bundle
+does not require a Phoenix runtime, while focused MCP interoperability remains a
+valid future option when it improves installation or cross-host use.
+
+Maintainers can audit repo-local provider config with `go run ./cmd/kbcheck
+provider-hygiene`, or include standard user config with `go run ./cmd/kbcheck
+provider-hygiene --include-user`. CCE entries are reported as optional; active
+Phoenix provider entries fail.
 
 ## Quick Start
 
@@ -226,7 +274,7 @@ check observed RED before GREEN. Learning improvements stay local/scoped unless
 `kbcheck learning-adoption` proves enough measured gain without regressions or
 holdout leakage.
 
-Phoenix routing/slicing absorption status as of July 9, 2026:
+KB proof-spine integration status as of July 9, 2026:
 
 - **Done:** proof spine commands, measured learning-adoption gate, model-tier /
   model-route planning guidance, manifest `done_check` / per-slice
@@ -241,11 +289,10 @@ Phoenix routing/slicing absorption status as of July 9, 2026:
   exist. KB publishes its own deterministic fixture result and does not borrow
   Phoenix metrics.
 
-> **Routing conflict warning:** Do not run the ATV-Phoenix skill suite alongside
-> this bundle. The 18 phoenix-* skills duplicate KB lifecycle lanes
-> (phoenix-plan → kb-plan, phoenix-build → kb-work, phoenix-debug → kb-fix, etc.)
-> and add routing noise for every request. The proof spine value was merged July
-> 5, 2026. If you have phoenix skills installed globally, remove them with:
+> **Interoperability note:** ATV-Phoenix and KB both provide lifecycle entry
+> points such as planning, building, and debugging. Choose one suite to own
+> lifecycle routing in a given agent installation; Phoenix proof/MCP components
+> can still be evaluated as focused integrations. To select the KB core profile:
 > ```shell
 > npx github:Irtechie/working-skill-repo --target all --profile core --yes
 > ```
@@ -271,7 +318,8 @@ Phoenix routing/slicing absorption status as of July 9, 2026:
 | `kb-review` | KB-specific code review with structural quality review |
 | `kb-complete` | Work needs review, proof, learning, memory, cleanup |
 | `kb-memory-review` | High-cost pass for stale, bloated, or contradictory memory |
-| `kb-ship` | Release, PR, deploy, or final readiness check |
+| `kb-ship` | Commit, push, and create/update a PR after completion gates |
+| `kb-finish` | Recover a plan/manifest through work, completion, and checked-in PR delivery |
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
 | `kb-compact` | Memory, docs, or output have gone too verbose |
 | `klfg` | Fully hands-off route from brainstorm through completion |
@@ -292,7 +340,8 @@ Execution lanes:
 
 - `kb-fix`, `kb-troubleshoot`, `kb-brainstorm`, `kb-research`
 - `kb-architecture-deepening`, `kb-plan`, `kb-work`, `kb-complete`
-- `kb-ship`, `kb-epic`, `kb-task`, `kb-goal`, `kb-first-principles`, `klfg`
+- `kb-ship`, `kb-finish`, `kb-epic`, `kb-task`, `kb-goal`,
+  `kb-first-principles`, `klfg`
 
 Verification and gates:
 
@@ -622,7 +671,7 @@ These are intentionally left out of the portable runtime bundle:
   pipeline
 - upstream `workflows-*` aliases; use KB lanes directly unless a current app
   explicitly needs an ATV alias
-- `land`; shipping remains a deliberate separate decision
+- upstream `land`; `kb-finish` + `kb-ship` own checked-in PR delivery
 - browser tools such as `agent-browser`; skills can call them when installed,
   but this repo does not vendor them
 

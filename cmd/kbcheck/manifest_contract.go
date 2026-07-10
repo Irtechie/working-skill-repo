@@ -188,11 +188,29 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	issues := []manifestContractIssue{}
 	modelTierContract := manifestHasModelTierContract(path)
 	objectiveContract := manifestHasObjectiveContract(path)
-	modelRoutes := manifestModelRoutes(path)
+	contextPacketContract := manifestHasTopLevelKey(path, "context_packet_contract")
 	if objectiveContract && !manifestHasTopLevelKey(path, "done_check") {
 		issues = append(issues, manifestContractIssue{Code: "missing-done-check", Message: "objective_contract requires a top-level done_check"})
 	}
 	for _, slice := range slices {
+		if contextPacketContract {
+			requiresPacket := slice.Status == "pending" || slice.Status == "in_progress"
+			if requiresPacket && slice.ContextPacketPath == "" && slice.NoPacketReason == "" {
+				issues = append(issues, manifestContractIssue{Code: "missing-context-packet", SliceID: slice.ID, Message: "pending/in_progress slice requires context_packet_path or no_packet_reason"})
+			}
+			if slice.ContextPacketPath != "" {
+				packetPath := slice.ContextPacketPath
+				if !filepath.IsAbs(packetPath) {
+					packetPath = filepath.Join(manifestRepoRoot(path), filepath.FromSlash(packetPath))
+				}
+				var packet contextPacket
+				if err := readJSONFile(packetPath, &packet); err != nil {
+					issues = append(issues, manifestContractIssue{Code: "missing-context-packet-file", SliceID: slice.ID, Message: err.Error()})
+				} else if result := validateContextPacket(packet); !result.OK {
+					issues = append(issues, manifestContractIssue{Code: "invalid-context-packet", SliceID: slice.ID, Message: strings.Join(result.Issues, "; ")})
+				}
+			}
+		}
 		if modelTierContract && !validModelTier(slice.ModelTier) {
 			issues = append(issues, manifestContractIssue{Code: "invalid-model-tier", SliceID: slice.ID, Message: "slice must set model_tier to tiny, small, medium, or large"})
 		}
@@ -203,16 +221,6 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 				}
 			} else if !slice.ProofCheck {
 				issues = append(issues, manifestContractIssue{Code: "missing-proof-check", SliceID: slice.ID, Message: "objective_contract requires proof_check or a justified no_check_reason"})
-			}
-		}
-		if modelTierContract && len(modelRoutes) > 0 && validModelTier(slice.ModelTier) {
-			allowedRoutes := modelRoutes[slice.ModelTier]
-			if len(allowedRoutes) > 0 {
-				if slice.ModelRoute == "" {
-					issues = append(issues, manifestContractIssue{Code: "missing-model-route", SliceID: slice.ID, Message: "slice must set model_route when routes are declared for its model_tier"})
-				} else if !contains(allowedRoutes, slice.ModelRoute) {
-					issues = append(issues, manifestContractIssue{Code: "invalid-model-route", SliceID: slice.ID, Message: fmt.Sprintf("model_route %q is not allowed for model_tier %q", slice.ModelRoute, slice.ModelTier)})
-				}
 			}
 		}
 		switch slice.Status {
@@ -246,6 +254,20 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 		}
 	}
 	return manifestContractResult{OK: len(issues) == 0, Issues: issues}, nil
+}
+
+func manifestRepoRoot(path string) string {
+	current := filepath.Dir(path)
+	for {
+		if _, err := os.Stat(filepath.Join(current, "config", "skill-quality.json")); err == nil {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return filepath.Dir(path)
+		}
+		current = parent
+	}
 }
 
 func manifestHasObjectiveContract(path string) bool {
@@ -288,39 +310,6 @@ func manifestHasTopLevelKey(path, want string) bool {
 		}
 	}
 	return false
-}
-
-func manifestModelRoutes(path string) map[string][]string {
-	frontmatter, err := loadManifestFrontmatter(path)
-	if err != nil {
-		return nil
-	}
-	routes := map[string][]string{}
-	inRoutes := false
-	routesIndent := 0
-	for _, line := range strings.Split(frontmatter, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		indent := countIndent(line)
-		if inRoutes {
-			if indent <= routesIndent {
-				inRoutes = false
-			} else {
-				key, value, ok := splitYAMLKeyValue(trimmed)
-				if ok && validModelTier(key) {
-					routes[key] = parseInlineList(value)
-				}
-				continue
-			}
-		}
-		if trimmed == "routes:" {
-			inRoutes = true
-			routesIndent = indent
-		}
-	}
-	return routes
 }
 
 func validModelTier(value string) bool {

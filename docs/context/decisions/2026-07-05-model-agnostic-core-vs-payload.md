@@ -1,6 +1,6 @@
 ---
-date: 2026-07-05
-status: approved-for-spike
+date: 2026-07-09
+status: accepted
 scope: planner-economy
 ---
 
@@ -9,14 +9,15 @@ scope: planner-economy
 Fable's critique is accepted: KB should not declare victory over HumanLayer-style
 runtime machinery before proving it can absorb the missing pieces.
 
-## Provisional Decision
+## Decision
 
-Use KB as the planning, proof, skill, sync, and learning payload. Run a bounded
-absorption spike to decide whether KB should also remain the durable runtime
-core.
+Keep KB as the planning, proof, skill, sync, learning payload, and lightweight
+runtime core. Do not add a second task-state runtime.
 
-The user approved the absorption spike scope on 2026-07-05T13:59:39-04:00. The
-runtime-core decision remains pending until the spike evidence exists.
+Existing manifests, goal ledgers, route history, proof traces, and `todo.md`
+already provide durable lifecycle state. The missing execution boundary is a
+vendor-neutral context packet plus optional normalized telemetry, not another
+database or daemon.
 
 Detailed blueprint: `docs/context/decisions/2026-07-05-kb-control-plane-blueprint.md`.
 
@@ -33,16 +34,20 @@ Detailed blueprint: `docs/context/decisions/2026-07-05-kb-control-plane-blueprin
   deterministic proof, skill sync discipline, custom-instruction hygiene, and
   scoped learning.
 
-## Decision Test
+## Evidence
 
-Keep KB as runtime core only if the spike proves:
+- `kbcheck run-state`, manifests, gate ledgers, and the proof spine cover
+  recovery and completion without a new state engine.
+- `kbcheck context-packet` validates bounded worker inputs without vendor fields.
+- Context packets are wired into `kb-plan` and `kb-work`.
+- Optional telemetry normalizes runtime/model, turns, input/output/cache tokens,
+  proof result, and packet sufficiency while preserving raw values.
+- `kbcheck provider-hygiene` rejects Phoenix activation and permits CCE as an
+  optional adapter.
+- `surface-report` separates base startup from conditional safety/check skills.
 
-- structured task state validates and recovers deterministically;
-- context packets compose with `kb-plan`, `kb-work`, and `kbcheck`;
-- model-tier telemetry can calibrate what tiny/small/medium/large workers can
-  actually handle;
-- one daily-runtime adapter can be added without leaking runtime assumptions into
-  the core contract.
+## Revisit Trigger
 
-If those fail, preserve KB as payload and design or adopt a small runtime/state
-engine under it.
+Reconsider a separate runtime only if real runs prove that manifest/run-state
+recovery requires model interpretation, packet execution cannot be measured, or
+adding a second host adapter leaks vendor assumptions into the core contract.

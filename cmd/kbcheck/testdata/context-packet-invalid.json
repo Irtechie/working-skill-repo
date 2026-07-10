@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "packet_id": "invalid",
+  "task_id": "planner-economy",
+  "objective": "Missing bounded execution fields",
+  "source_files": [],
+  "constraints": [],
+  "acceptance_criteria": [],
+  "proof_targets": [],
+  "model_tier": "cheap",
+  "model_tier_reason": "",
+  "broad_search_policy": "unlimited",
+  "escalation_triggers": []
+}

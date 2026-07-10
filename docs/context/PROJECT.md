@@ -88,6 +88,15 @@ See `docs/context/architecture/README.md`.
   installer or skill helpers, not top-level gate dependencies. See
   `docs/context/epics/go-native-validator-port.md`.
 - Required skill roots should hash-match before release. ATV scaffold/plugin copies are warning-only unless the current change intentionally ships that surface.
+- Planner economy uses vendor-neutral context packets validated by
+  `kbcheck context-packet`; existing manifests, goal ledgers, run state, and
+  proof traces remain the lifecycle state spine.
+- `kbcheck provider-hygiene` rejects Phoenix activation and treats CCE as an
+  optional adapter. `surface-report` reports base and conditional skill costs
+  separately.
+- `kb-finish` is the explicit plan-to-PR lane: it recovers missing
+  plan/work/complete phases, then `kb-ship` commits intentional files, pushes a
+  topic branch, and creates or updates a PR without merging.
 - Original ATV `upstream/main` is authoritative for ATV-native changes to
   inspect, not a mirror target. Upstream KB deletions are rejected because KB is
   this repo's overlay; superseded workflow skills such as `lfg`, `slfg`, and

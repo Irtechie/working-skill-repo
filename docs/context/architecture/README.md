@@ -35,6 +35,7 @@ Reference docs:
 | Verification | `kb-check`, `kb-functional-test`, `kb-qa`, `kb-regression-snapshot` | Chooses and runs deterministic proof where available. |
 | Completion | `kb-complete`, `kb-review`, `ce-compound`, `learn`, `evolve` | Review, memory, learning, and cleanup. |
 | Release | `kb-ship`, `klfg` | Ship readiness or full pipeline orchestration. |
+| Plan-to-PR finish | `kb-finish` | Explicitly runs plan/work/complete, then commits, pushes, and opens or updates a PR without merging. |
 
 ## Private Marketplace
 

@@ -1,0 +1,67 @@
+{
+  "id": "pass-session-model-routing",
+  "fixture_id": "skill-bundle-change",
+  "expected_result": "pass",
+  "eval_run_id": "session-model-routing-red",
+  "actual": {
+    "route": "kb-plan",
+    "user_questions": 0,
+    "artifacts": [
+      "manifest notes for live model routing",
+      "sync proof reserved for the distribution slice",
+      "check output"
+    ],
+    "proof": [
+      "git diff --check",
+      "kb-check -All family proof via go run ./cmd/kbcheck skill-lint",
+      "skill-sync-report deferred to the distribution slice"
+    ]
+  },
+  "trace": {
+    "files_read": [
+      "docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
+      ".github/skills/kb-goal/SKILL.md",
+      ".github/skills/kb-work/SKILL.md",
+      ".github/skills/kb-work/references/execution-prompt.md",
+      ".github/skills/kb-work/references/go-sandbox.md",
+      ".github/skills/kb-complete/SKILL.md",
+      ".github/skills/kb-models/SKILL.md"
+    ],
+    "commands": [
+      "go run ./cmd/kbcheck skill-lint",
+      "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
+      "git diff --check"
+    ],
+    "tools": [
+      "shell",
+      "apply_patch"
+    ]
+  },
+  "claim_checks": [
+    {
+      "type": "file_exists",
+      "path": ".github/skills/kb-work/SKILL.md",
+      "contains": "",
+      "expected": true,
+      "claim": "kb-work skill exists"
+    }
+  ],
+  "trace_rules": {
+    "required_files_read": [
+      ".github/skills/kb-goal/SKILL.md",
+      ".github/skills/kb-work/SKILL.md",
+      ".github/skills/kb-complete/SKILL.md",
+      ".github/skills/kb-models/SKILL.md"
+    ],
+    "required_commands": [
+      "go run ./cmd/kbcheck skill-lint",
+      "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
+      "git diff --check"
+    ],
+    "forbidden_commands": [
+      "git reset --hard",
+      "git checkout --",
+      "git push --force"
+    ]
+  }
+}

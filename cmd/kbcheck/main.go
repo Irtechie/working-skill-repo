@@ -28,6 +28,12 @@ Usage:
   kbcheck trace-verify [--trace <path>] [--root <path>]
   kbcheck accept --check <path> [--trace <path>] [--root <path>]
   kbcheck learning-adoption --result-path <path> [--root <path>]
+  kbcheck context-packet --packet <path> [--root <path>] [--json]
+  kbcheck context-packet-selftest
+  kbcheck execution-telemetry --telemetry <path> [--receipt <path> --evidence-envelope <path>] [--root <path>] [--json]
+  kbcheck execution-telemetry-selftest
+  kbcheck provider-hygiene [--root <path>] [--include-user] [--json]
+  kbcheck provider-hygiene-selftest
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
@@ -83,66 +89,71 @@ Commands:
 type processRunner func(root string, check Check) CheckResult
 
 type options struct {
-	command           string
-	root              string
-	json              bool
-	dryRun            bool
-	verbose           bool
-	list              bool
-	manifest          string
-	ledger            string
-	config            string
-	verboseOptional   bool
-	fix               bool
-	fixtureRoot       string
-	route             string
-	baseline          string
-	output            string
-	skillRoot         string
-	agentRoot         string
-	trimLineThreshold int
-	start             string
-	status            bool
-	runID             string
-	resultRoot        string
-	resultPath        string
-	requiredRunID     string
-	manifestPath      string
-	updateBaseline    bool
-	qualityRoot       string
-	qualityPath       string
-	claimRoot         string
-	claimPath         string
-	minScore          int
-	runRoot           string
-	fixtureID         string
-	all               bool
-	keepRun           bool
-	sealed            bool
-	runner            string
-	runtime           string
-	model             string
-	agentCommand      string
-	source            string
-	skillID           string
-	approvalReason    string
-	approvedBy        string
-	sourceType        string
-	upstreamRepo      string
-	installTargets    string
-	gate              string
-	allowedNext       string
-	history           string
-	checkPath         string
-	tracePath         string
-	allowQuarantine   bool
-	codexSkillsRoot   string
-	copilotSkillsRoot string
-	agentsSkillsRoot  string
-	approved          bool
-	atvRepo           string
-	baseRef           string
-	upstreamRef       string
+	command              string
+	root                 string
+	json                 bool
+	dryRun               bool
+	verbose              bool
+	list                 bool
+	manifest             string
+	ledger               string
+	config               string
+	verboseOptional      bool
+	fix                  bool
+	fixtureRoot          string
+	route                string
+	baseline             string
+	output               string
+	skillRoot            string
+	agentRoot            string
+	trimLineThreshold    int
+	start                string
+	status               bool
+	runID                string
+	resultRoot           string
+	resultPath           string
+	requiredRunID        string
+	manifestPath         string
+	updateBaseline       bool
+	qualityRoot          string
+	qualityPath          string
+	claimRoot            string
+	claimPath            string
+	minScore             int
+	runRoot              string
+	fixtureID            string
+	all                  bool
+	keepRun              bool
+	sealed               bool
+	runner               string
+	runtime              string
+	model                string
+	agentCommand         string
+	source               string
+	skillID              string
+	approvalReason       string
+	approvedBy           string
+	sourceType           string
+	upstreamRepo         string
+	installTargets       string
+	gate                 string
+	allowedNext          string
+	history              string
+	checkPath            string
+	tracePath            string
+	packetPath           string
+	telemetryPath        string
+	receiptPath          string
+	evidenceEnvelopePath string
+	allowQuarantine      bool
+	codexSkillsRoot      string
+	copilotSkillsRoot    string
+	agentsSkillsRoot     string
+	approved             bool
+	includeUser          bool
+	atvRepo              string
+	baseRef              string
+	upstreamRef          string
 }
 
 func main() {
@@ -197,6 +208,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runProofAcceptCommand(root, opts, stdout, stderr)
 	case "learning-adoption":
 		return runLearningAdoptionCommand(root, opts, stdout, stderr)
+	case "context-packet":
+		return runContextPacketCommand(root, opts, stdout, stderr)
+	case "context-packet-selftest":
+		return runContextPacketSelftest(stdout, stderr)
+	case "execution-telemetry":
+		return runExecutionTelemetryCommand(root, opts, stdout, stderr)
+	case "execution-telemetry-selftest":
+		return runExecutionTelemetrySelftest(stdout, stderr)
+	case "provider-hygiene":
+		return runProviderHygieneCommand(root, opts, stdout, stderr)
+	case "provider-hygiene-selftest":
+		return runProviderHygieneSelftest(stdout, stderr)
 	case "scope-lease":
 		return runScopeLeaseCommand(root, opts, stdout, stderr)
 	case "scope-lease-selftest":
@@ -283,6 +306,8 @@ func parse(args []string) (options, error) {
 		"ready-set": true, "ready-set-selftest": true, "manifest-contract": true, "manifest-contract-selftest": true, "gate-ledger": true,
 		"run-state": true, "run-state-selftest": true,
 		"sense": true, "trace-verify": true, "accept": true, "learning-adoption": true,
+		"context-packet": true, "context-packet-selftest": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
+		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -353,12 +378,17 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.history, "history", "", "route-history JSONL path")
 	fs.StringVar(&opts.checkPath, "check", "", "objective proof check JSON path")
 	fs.StringVar(&opts.tracePath, "trace", defaultProofTrace, "objective proof trace JSONL path")
+	fs.StringVar(&opts.packetPath, "packet", "", "context packet JSON path")
+	fs.StringVar(&opts.telemetryPath, "telemetry", "", "execution telemetry JSON path")
+	fs.StringVar(&opts.receiptPath, "receipt", "", "routing receipt JSON path")
+	fs.StringVar(&opts.evidenceEnvelopePath, "evidence-envelope", "", "routing evidence envelope JSON path")
 	fs.BoolVar(&opts.allowQuarantine, "allow-quarantine", false, "accept status=quarantined as advanceable")
 	home, _ := os.UserHomeDir()
 	fs.StringVar(&opts.codexSkillsRoot, "codex-skills-root", filepath.Join(home, ".codex", "skills"), "Codex skills root")
 	fs.StringVar(&opts.copilotSkillsRoot, "copilot-skills-root", filepath.Join(home, ".copilot", "skills"), "Copilot skills root")
 	fs.StringVar(&opts.agentsSkillsRoot, "agents-skills-root", filepath.Join(home, ".agents", "skills"), "Agents skills root")
 	fs.BoolVar(&opts.approved, "approved", false, "confirm human-approved marketplace promotion")
+	fs.BoolVar(&opts.includeUser, "include-user", false, "include standard user-global provider configs")
 	fs.StringVar(&opts.atvRepo, "atv-repo", "../all-the-vibes", "ATV repository path")
 	fs.StringVar(&opts.baseRef, "base-ref", "HEAD", "base git ref")
 	fs.StringVar(&opts.upstreamRef, "upstream-ref", "upstream/main", "upstream git ref")
@@ -427,6 +457,24 @@ func parse(args []string) (options, error) {
 	}
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
+	}
+	if opts.command != "context-packet" && opts.packetPath != "" {
+		return options{}, fmt.Errorf("--packet is only supported for context-packet")
+	}
+	if opts.command == "context-packet" && opts.packetPath == "" {
+		return options{}, fmt.Errorf("context-packet requires --packet")
+	}
+	if opts.command != "execution-telemetry" && (opts.telemetryPath != "" || opts.receiptPath != "" || opts.evidenceEnvelopePath != "") {
+		return options{}, fmt.Errorf("--telemetry, --receipt, and --evidence-envelope are only supported for execution-telemetry")
+	}
+	if opts.command == "execution-telemetry" && opts.telemetryPath == "" {
+		return options{}, fmt.Errorf("execution-telemetry requires --telemetry")
+	}
+	if opts.command == "execution-telemetry" && ((opts.receiptPath == "") != (opts.evidenceEnvelopePath == "")) {
+		return options{}, fmt.Errorf("execution-telemetry requires --receipt and --evidence-envelope together")
+	}
+	if opts.command != "provider-hygiene" && opts.includeUser {
+		return options{}, fmt.Errorf("--include-user is only supported for provider-hygiene")
 	}
 	return opts, nil
 }

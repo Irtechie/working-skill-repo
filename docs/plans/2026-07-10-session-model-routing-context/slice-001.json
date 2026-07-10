@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "packet_id": "session-model-routing-slice-001",
+  "task_id": "session-model-routing",
+  "objective": "Make plans model-neutral while preserving legacy manifest compatibility",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/context/goals/session-model-routing.md"
+  ],
+  "source_files": [
+    "docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md",
+    "cmd/kbcheck/manifest_contract.go",
+    "cmd/kbcheck/manifest_contract_test.go",
+    "cmd/kbcheck/swarm.go",
+    ".github/skills/kb-plan/SKILL.md"
+  ],
+  "prefetch": [
+    "Read the slice plan and listed source files before broader search"
+  ],
+  "constraints": [
+    "Do not weaken proof checks",
+    "Do not require concrete model routes in new manifests"
+  ],
+  "out_of_scope": [
+    "Catalog discovery",
+    "Worker dispatch",
+    "Installer"
+  ],
+  "acceptance_criteria": [
+    "New route-free manifests pass",
+    "Legacy model_route remains readable",
+    "Routing receipts cannot replace work proof"
+  ],
+  "proof_targets": [
+    "go test ./cmd/kbcheck -run ModelRoute"
+  ],
+  "model_tier": "medium",
+  "model_tier_reason": "Bounded compatibility migration across existing manifest and skill contracts",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go test"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Legacy fixtures require semantic behavior outside the documented migration",
+    "Gate semantics beyond route compatibility must change"
+  ]
+}

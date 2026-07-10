@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "packet_id": "session-model-routing-slice-006",
+  "task_id": "session-model-routing",
+  "objective": "Prove the Codex-first advisory pilot and its promotion boundary",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/context/goals/session-model-routing.md"
+  ],
+  "source_files": [
+    "docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md",
+    "docs/context/eval-map.md",
+    "cmd/kbcheck/eval_adapters.go",
+    "evals/cross-model-benchmarks/route-selection.json",
+    ".github/workflows/cross-platform.yml"
+  ],
+  "prefetch": [
+    "Read the slice plan and listed source files before broader search"
+  ],
+  "constraints": [
+    "Initial cohort is Codex CLI plus one Codex-hosted OpenAI-compatible provider",
+    "Telemetry unavailable is not zero",
+    "Supported claims require route-bound live evidence",
+    "Automatic default remains gated"
+  ],
+  "out_of_scope": [
+    "GHCP support label",
+    "TinyBoss control",
+    "MCP dispatch",
+    "Default routing without baseline"
+  ],
+  "acceptance_criteria": [
+    "Release evidence binds deterministic and live proof",
+    "Baseline has no correctness/rework/intervention regression",
+    "One material benefit is measured",
+    "Forbidden claims fail validation"
+  ],
+  "proof_targets": [
+    "go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "Live capability evidence and release claims require strongest review and synthesis",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go test",
+    "go run",
+    "codex CLI",
+    "local LiteLLM route"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Live provider access is unavailable",
+    "Evidence cannot bind exact route and work proof",
+    "Baseline shows regression",
+    "Support claim exceeds conformance"
+  ]
+}

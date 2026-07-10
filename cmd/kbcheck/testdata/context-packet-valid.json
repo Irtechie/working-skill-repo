@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "slice-002",
+  "task_id": "planner-economy",
+  "objective": "Validate a portable context packet",
+  "memory_files": ["todo.md", "docs/context/PROJECT.md"],
+  "source_files": ["cmd/kbcheck/context_packet.go"],
+  "prefetch": ["rg inventory: context_packet"],
+  "constraints": ["No required provider or daemon"],
+  "out_of_scope": ["Runtime scheduler"],
+  "acceptance_criteria": ["Packet validation passes"],
+  "proof_targets": ["go test ./cmd/kbcheck"],
+  "model_tier": "small",
+  "model_tier_reason": "Bounded schema and fixture work",
+  "allowed_tools": ["view", "rg", "go test"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Required field cannot be supplied"]
+}

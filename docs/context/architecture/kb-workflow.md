@@ -36,7 +36,8 @@ Typical routing:
 | requirements exist and need slices | `kb-plan` |
 | valid manifest exists | `kb-work` |
 | all slices are done and need completion gates | `kb-complete` |
-| release, PR, deploy, or final readiness | `kb-ship` |
+| reviewed work needs commit, push, and PR | `kb-ship` |
+| plan/manifest should reach done-done and a checked-in PR | `kb-finish` |
 | multi-subsystem initiative or migration | `kb-epic` |
 | external docs or prior art could change the decision | `kb-research` |
 
@@ -173,6 +174,11 @@ several manifests over days, but it completes only when the goal ledger's
 terminal proof matches the original objective. Under a goal, brainstorm stops are minimized:
 the agent resolves the best path from repo evidence, research, and safe
 assumptions, and asks only for true `ask-now` blockers.
+
+`kb-finish` is the explicit checked-in orchestration boundary. It accepts a
+plan or manifest, recovers whichever planning/work/completion phases remain,
+then invokes `kb-ship`. Ordinary `kb-work -> kb-complete` remains non-shipping;
+internal completion calls must not unexpectedly commit or push.
 
 For recurring or trend-improvement goals, `kb-goal` may add a live-steering
 block to the goal ledger. That block names the set point, sensor, controller,

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "packet_id": "session-model-routing-slice-004",
+  "task_id": "session-model-routing",
+  "objective": "Dispatch bounded Codex workers through native and custom-provider routes with receipts",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/context/goals/session-model-routing.md"
+  ],
+  "source_files": [
+    "docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md",
+    "docs/context/research/2026-07-09-project-model-routing-surfaces.md",
+    "cmd/kbcheck/eval_adapters.go",
+    "cmd/kbcheck/execution_telemetry.go",
+    ".github/skills/kb-work/references/execution-prompt.md"
+  ],
+  "prefetch": [
+    "Read the slice plan and listed source files before broader search"
+  ],
+  "constraints": [
+    "Windows external dispatch is dispatch-proven through Job Object containment",
+    "Linux/macOS external dispatch is unavailable-before-start; discovery, preview, and current fallback remain portable",
+    "Route attestation is dispatcher-owned and stored in private user-local state",
+    "Telemetry verifies but cannot mint capability credit",
+    "Ordinary proof stays authoritative"
+  ],
+  "out_of_scope": [
+    "GHCP support",
+    "TinyBoss controller actions",
+    "Generated agent files",
+    "Inbound MCP",
+    "Unix external dispatch",
+    "Direct OpenAI-compatible agent loops"
+  ],
+  "acceptance_criteria": [
+    "Windows external dispatch is dispatch-proven through Job Object containment",
+    "Linux/macOS external dispatch remains unavailable-before-start while discovery, preview, and current fallback stay portable",
+    "Dispatcher-owned route attestation is stored only in private user-local state",
+    "Telemetry verifies evidence but cannot mint capability credit",
+    "Ordinary proof remains authoritative even when provenance is unknown"
+  ],
+  "proof_targets": [
+    "go test ./cmd/kbrouter -run 'Dispatch|Receipt|Fallback'"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "External process execution, credentials, sandbox authority, fallback, and provenance are high risk",
+  "allowed_tools": [
+    "codex-harness"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Dispatch requires broader filesystem/network authority",
+    "Provider evidence cannot be separated from work proof",
+    "Fallback would cross a less-trusted boundary without approval"
+  ]
+}

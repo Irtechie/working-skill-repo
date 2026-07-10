@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "packet_id": "session-model-routing-slice-002",
+  "task_id": "session-model-routing",
+  "objective": "Build the secure provider-neutral session catalog and conservative selector",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/context/goals/session-model-routing.md"
+  ],
+  "source_files": [
+    "docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md",
+    "docs/context/research/2026-07-09-project-model-routing-surfaces.md",
+    "cmd/kbcheck/context_packet.go",
+    "cmd/kbcheck/execution_telemetry.go",
+    "cmd/kbcheck/provider_hygiene.go"
+  ],
+  "prefetch": [
+    "Read the slice plan and listed source files before broader search"
+  ],
+  "constraints": [
+    "Standard-library Go core",
+    "No secrets or arbitrary executable commands",
+    "Project policy may narrow but not silently activate private routes"
+  ],
+  "out_of_scope": [
+    "Host process launch",
+    "TinyBoss state changes",
+    "MCP dispatch",
+    "Generated agents"
+  ],
+  "acceptance_criteria": [
+    "Only dispatch-proven routes are automatic",
+    "Trust and capability evidence gate selection",
+    "Fallback never moves down",
+    "Unknown attribution earns no capability credit"
+  ],
+  "proof_targets": [
+    "go test ./internal/modelrouting"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "Architecture and security decisions govern provider trust, fallback, storage, and provenance",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go test"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "A requirement needs a new trust boundary",
+    "Endpoint safety needs external dependencies",
+    "Project identity cannot be bounded safely"
+  ]
+}

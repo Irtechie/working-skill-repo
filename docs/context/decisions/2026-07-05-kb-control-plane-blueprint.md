@@ -1,6 +1,6 @@
 ---
-date: 2026-07-05
-status: approved-for-spike
+date: 2026-07-09
+status: implemented-narrow
 scope: planner-economy
 manifest: docs/plans/2026-07-05-010-kb-model-agnostic-planner-economy-manifest.md
 approved_at: 2026-07-05T13:59:39-04:00
@@ -14,7 +14,7 @@ approved_at: 2026-07-05T13:59:39-04:00
 custom instructions
   -> command
   -> skill
-  -> task state
+  -> manifest / goal / run state
   -> context packet
   -> subagent or tool
   -> proof
@@ -22,9 +22,9 @@ custom instructions
   -> scoped learning
 ```
 
-The goal is not to replace KB with HumanLayer, Phoenix, or ACP. The goal is to
-keep KB's planning/proof/learning strengths and add the smallest durable state
-spine needed for cheaper model execution and deterministic recovery.
+The goal is not to replace KB with HumanLayer, Phoenix, or ACP. Existing KB
+artifacts remain the state spine. The implemented addition is the smallest
+bounded packet and telemetry contract needed for cheaper execution.
 
 ## What We Keep
 
@@ -41,14 +41,11 @@ KB remains the source of truth for:
 
 The spike adds the missing control-plane pieces:
 
-- structured task state;
 - context packets that workers consume before acting;
-- parent/child lineage for delegated work;
-- explicit blocked/waiting/interrupted/failed/done states;
-- deterministic recovery hints for stale or invalid states;
 - telemetry for predicted tier, actual tier/model, proof, rework, escalation,
   and packet sufficiency;
-- one daily-runtime adapter boundary before attempting a second adapter.
+- provider hygiene that keeps CCE optional and Phoenix disconnected;
+- honest separation of base and conditional loaded skill surfaces.
 
 ## Surface Ownership
 
@@ -57,32 +54,18 @@ The spike adds the missing control-plane pieces:
 | Custom instruction | stable repo/host policy, safety rules, source precedence, canonical commands | live task state, long workflow bodies, persona prompts |
 | Command | user/host entrypoint and arguments | orchestration or hidden policy |
 | Skill | workflow policy, gates, artifacts, escalation, proof contracts | volatile repo facts or runtime session state |
-| Task state | current task phase, status, lineage, packet pointer, proof pointer, telemetry | prose-only planning or model reasoning |
+| Manifest / goal / run state | current phase, status, lineage, packet pointer, proof pointer | prose-only completion claims |
 | Context packet | bounded worker input, constraints, allowed tools/files, proof target, escalation triggers | broad repo rediscovery authority |
 | Agent | reusable specialist capability and evidence rules | workflow routing or durable state |
 | Subagent | one runtime invocation with one packet and one result | independent planning authority |
 | Tool | deterministic side effect or compact query result | hidden reasoning or policy |
 | Adapter | host/runtime mechanics for Codex, Claude, GHCP, LiteLLM, local models, or future runners | core planning semantics |
 
-## Minimal Task State
+## State Boundary
 
-The first schema should be boring:
-
-- `id`, `slice_id`, `parent_id`;
-- `phase`, `status`;
-- `owner`, `created_at`, `updated_at`;
-- `context_packet`;
-- `predicted_model_tier`;
-- `actual_runtime`, `actual_model`, `actual_tier` when available;
-- `proof_command`, `proof_result`;
-- `rework_count`, `escalation_reason`, `packet_sufficient`;
-- `recovery_hint` for invalid, stale, or blocked states.
-
-Statuses must be externally checkable. At minimum:
-
-```text
-pending, ready, running, waiting_human, blocked, interrupted, failed, done
-```
+Do not create another task-state schema. Use manifests for slice state, goal
+ledgers for durable objectives, `.kb/runs` for ephemeral route state, and proof
+traces for objective acceptance.
 
 ## Context Packet Minimum
 
@@ -124,7 +107,7 @@ the packet is good, not because correctness matters less.
 
 Keep KB as runtime core if the spike proves:
 
-- task state validates, resumes, and repairs through `kbcheck`;
+- existing state validates, resumes, and repairs through `kbcheck`;
 - packets compose with `kb-plan` and `kb-work`;
 - recovery does not depend on model judgment;
 - adapter details stay outside slice plans;
@@ -149,5 +132,5 @@ Build only enough to prove the architecture:
 - no global state migration;
 - no sync propagation until the spike is accepted.
 
-Start with slice-002 in
+Implemented through
 `docs/plans/2026-07-05-010-kb-model-agnostic-planner-economy-manifest.md`.

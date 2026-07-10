@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "packet_id": "session-model-routing-slice-005",
+  "task_id": "session-model-routing",
+  "objective": "Integrate live difficulty selection and route receipts into KB work",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/context/goals/session-model-routing.md"
+  ],
+  "source_files": [
+    "docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md",
+    ".github/skills/kb-goal/SKILL.md",
+    ".github/skills/kb-work/SKILL.md",
+    ".github/skills/kb-work/references/execution-prompt.md",
+    ".github/skills/kb-complete/SKILL.md"
+  ],
+  "prefetch": [
+    "Read the slice plan and listed source files before broader search"
+  ],
+  "constraints": [
+    "Selection occurs at work time",
+    "Proof bar is model-independent",
+    "Missing router degrades to current model",
+    "Generic spawn cannot prove model identity"
+  ],
+  "out_of_scope": [
+    "New task taxonomy",
+    "Direct secret storage",
+    "Model reruns during kb-complete",
+    "Later host support claims"
+  ],
+  "acceptance_criteria": [
+    "Run catalog is initialized/reused honestly",
+    "Overrides have exact scope",
+    "Fallback preserves proof and unrelated ready work",
+    "Pre-existing correct work is not redone"
+  ],
+  "proof_targets": [
+    "go run ./cmd/kbcheck skill-lint"
+  ],
+  "model_tier": "medium",
+  "model_tier_reason": "Workflow integration is bounded by the completed deterministic router contract",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go run",
+    "go test"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Host adapter capability contradicts the skill contract",
+    "Routing would weaken an existing KB gate",
+    "Skill changes require new public behavior beyond requirements"
+  ]
+}

@@ -44,6 +44,39 @@ func TestParseRejectsJSONForCore(t *testing.T) {
 	}
 }
 
+func TestParseContextPacketAndProviderHygiene(t *testing.T) {
+	opts, err := parse([]string{"context-packet", "--packet", "packet.json", "--json"})
+	if err != nil || opts.packetPath != "packet.json" || !opts.json {
+		t.Fatalf("opts=%+v err=%v", opts, err)
+	}
+	opts, err = parse([]string{"provider-hygiene", "--include-user"})
+	if err != nil || !opts.includeUser {
+		t.Fatalf("opts=%+v err=%v", opts, err)
+	}
+	if _, err := parse([]string{"context-packet"}); err == nil {
+		t.Fatal("missing --packet passed")
+	}
+	if _, err := parse([]string{"provider-hygiene", "--packet", "packet.json"}); err == nil {
+		t.Fatal("--packet on provider-hygiene passed")
+	}
+	if _, err := parse([]string{"core", "--include-user"}); err == nil {
+		t.Fatal("--include-user on core passed")
+	}
+	opts, err = parse([]string{"execution-telemetry", "--telemetry", "usage.json", "--receipt", "receipt.json", "--evidence-envelope", "envelope.json"})
+	if err != nil || opts.telemetryPath != "usage.json" || opts.receiptPath != "receipt.json" || opts.evidenceEnvelopePath != "envelope.json" {
+		t.Fatalf("opts=%+v err=%v", opts, err)
+	}
+	if _, err := parse([]string{"execution-telemetry"}); err == nil {
+		t.Fatal("missing --telemetry passed")
+	}
+	if _, err := parse([]string{"execution-telemetry", "--telemetry", "usage.json", "--receipt", "receipt.json"}); err == nil {
+		t.Fatal("partial receipt evidence passed")
+	}
+	if _, err := parse([]string{"execution-telemetry", "--telemetry", "usage.json", "--receipt", "receipt.json", "--evidence-envelope", "envelope.json", "--host-attest"}); err == nil {
+		t.Fatal("removed public host-attest signing oracle was accepted")
+	}
+}
+
 func TestCoreListPrintsNativeChecks(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")

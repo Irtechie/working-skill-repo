@@ -18,6 +18,9 @@ go run ./cmd/kbcheck sense --check <check.json> --trace .kb/trace.jsonl
 go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl
 go run ./cmd/kbcheck trace-verify --trace .kb/trace.jsonl
 go run ./cmd/kbcheck learning-adoption --result-path <results.json>
+go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet-valid.json
+go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
+go run ./cmd/kbcheck provider-hygiene --include-user
 go test ./...
 ```
 
@@ -237,6 +240,14 @@ All current harness commands are native `cmd/kbcheck` commands:
 - `learning-adoption` scores measured learning changes and blocks promotion
   unless the candidate has enough samples, no right-to-wrong regressions, no
   holdout leakage, and a meaningful net gain.
+- `context-packet` validates vendor-neutral bounded worker inputs and optional
+  authority boundaries.
+- `execution-telemetry` validates a separate typed runtime-result artifact.
+  Host adapters may emit it when real usage data is available; model-authored
+  output is not treated as measured usage.
+- `provider-hygiene` rejects Phoenix activation in repo or standard user
+  provider configs while allowing CCE as an opt-in adapter. User-global config
+  is inspected only with `--include-user`; `core` remains repo-local.
 
 For unattended runners, `skill-sync-report` is a release blocker, not a cleanup
 task. Required drift means source and deployed runner behavior disagree. If a

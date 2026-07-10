@@ -21,6 +21,9 @@ Codex/GHCP the same workflow contract.
 | False completion is rejected | `evals/dishonest-completion/fixtures.json` | `go run ./cmd/kbcheck dishonest-completion-selftest` | Small deterministic corpus only; not a live-model benchmark | P0 |
 | Route loops stop instead of oscillating | `.kb/runs/<goal>/route-history.jsonl` | `go run ./cmd/kbcheck run-state --history <history>`; `go run ./cmd/kbcheck run-state-selftest` | Needs more real run histories over time | P1 |
 | Learning promotions are measured | adoption result JSON | `go run ./cmd/kbcheck learning-adoption --result-path <results.json>` | Needs broader real run corpus over time | P1 |
+| Token efficiency is measured without rewarding weaker work | execution telemetry JSON | `go run ./cmd/kbcheck execution-telemetry --telemetry <telemetry.json>` validates normalized raw fields | Codex/GHCP adapters do not yet expose a stable measured-usage artifact; never substitute model-authored usage | P1 |
+| Worker context remains bounded and vendor-neutral | context packet JSON | `go run ./cmd/kbcheck context-packet --packet <packet.json>`; `context-packet-selftest` in core | Real host adapters expose usage inconsistently | P1 |
+| Optional providers do not become hidden runtime dependencies | repo and standard user provider configs | `go run ./cmd/kbcheck provider-hygiene`; provider-hygiene selftest in core | Host-specific plugin registries may need adapters later | P1 |
 
 ## Existing Harnesses
 
@@ -45,6 +48,9 @@ Codex/GHCP the same workflow contract.
 - `go run ./cmd/kbcheck trace-verify --trace .kb/trace.jsonl`
 - `go run ./cmd/kbcheck manifest-contract --manifest <manifest>`
 - `go run ./cmd/kbcheck learning-adoption --result-path <results.json>`
+- `go run ./cmd/kbcheck context-packet --packet cmd/kbcheck/testdata/context-packet-valid.json`
+- `go run ./cmd/kbcheck execution-telemetry --telemetry cmd/kbcheck/testdata/execution-telemetry-valid.json`
+- `go run ./cmd/kbcheck provider-hygiene --include-user`
 - `git diff --check`
 
 ## Canonical Commands
@@ -123,6 +129,8 @@ are stable.
 ## Open Eval Gaps
 
 - Grow the live Codex/GHCP corpus beyond the current route fixture set.
+- Capture normalized real token/cache/turn usage from live Codex/GHCP adapters;
+  current regression reports use duration and artifact-size proxies only.
 - Make `manifest-contract` optionally execute recorded `proof_check` commands
   after the schema and gate contract is stable.
 - Optional exporters can be added for Langfuse, Braintrust, LangSmith,

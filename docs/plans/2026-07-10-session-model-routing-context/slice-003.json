@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "packet_id": "session-model-routing-slice-003",
+  "task_id": "session-model-routing",
+  "objective": "Expose optional model extras and zero-question discovery through kbrouter and kb-models",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/context/goals/session-model-routing.md"
+  ],
+  "source_files": [
+    "docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md",
+    "docs/context/research/2026-07-09-project-model-routing-surfaces.md",
+    "cmd/kbcheck/main.go",
+    "cmd/kbcheck/checks.go",
+    "bin/kb-install.mjs"
+  ],
+  "prefetch": [
+    "Read the slice plan and listed source files before broader search"
+  ],
+  "constraints": [
+    "No catalog file created by default",
+    "Doctor is non-mutating",
+    "Private endpoints remain user-local",
+    "Discovery has bounded deadlines"
+  ],
+  "out_of_scope": [
+    "Inference or worker dispatch",
+    "Controller mutation",
+    "Public support promotion"
+  ],
+  "acceptance_criteria": [
+    "Codex and generic catalogs normalize",
+    "CRUD and preferences are scope-explicit",
+    "Dead adapters do not block current-model work",
+    "Secrets and unsafe endpoints are rejected"
+  ],
+  "proof_targets": [
+    "go test ./cmd/kbrouter -run 'Catalog|Doctor|Policy'"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "Network discovery and user-local policy are security-sensitive public CLI behavior",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go test",
+    "local HTTP test server"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Codex catalog format differs from captured/live evidence",
+    "Route schema would expose credentials",
+    "Doctor would need a mutating probe"
+  ]
+}

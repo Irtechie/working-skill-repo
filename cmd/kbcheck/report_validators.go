@@ -378,14 +378,15 @@ type skillInfo struct {
 func computeSurfaceReport(root, skillRoot, routeFilter, baselinePath string) (surfaceReport, error) {
 	fullRoot := resolveRepoPath(root, skillRoot)
 	routes := map[string][]string{
-		"base":        {"kb-start", "kb-map", "kb-first-principles", "kb-check"},
+		"base":        {"kb-start", "kb-map"},
+		"conditional": {"kb-first-principles", "kb-check"},
 		"kb-plan":     {"kb-start", "kb-map", "kb-plan", "kb-check"},
 		"kb-work":     {"kb-start", "kb-map", "kb-work", "kb-check"},
 		"kb-goal":     {"kb-start", "kb-map", "kb-goal", "kb-check"},
 		"kb-epic":     {"kb-start", "kb-map", "kb-brainstorm", "kb-plan", "kb-epic", "kb-check"},
 		"kb-complete": {"kb-start", "kb-map", "kb-complete", "kb-review", "kb-check", "learn", "evolve"},
 	}
-	order := []string{"base", "kb-plan", "kb-work", "kb-goal", "kb-epic", "kb-complete"}
+	order := []string{"base", "conditional", "kb-plan", "kb-work", "kb-goal", "kb-epic", "kb-complete"}
 	if routeFilter != "" {
 		if _, ok := routes[routeFilter]; !ok {
 			return surfaceReport{}, fmt.Errorf("unknown route '%s'. Known routes: %s", routeFilter, strings.Join(order, ", "))
@@ -420,15 +421,26 @@ func computeSurfaceReport(root, skillRoot, routeFilter, baselinePath string) (su
 			LineDelta   int    `json:"line_delta"`
 			TokenDelta  int    `json:"token_delta"`
 			HashChanged bool   `json:"hash_changed"`
+			Status      string `json:"status"`
 		}
 		comparison := []comparisonRow{}
 		byRoute := map[string]surfaceRoute{}
+		currentByRoute := map[string]surfaceRoute{}
 		for _, row := range baseline.Routes {
 			byRoute[row.Route] = row
 		}
 		for _, row := range report.Routes {
-			if old, ok := byRoute[row.Route]; ok {
-				comparison = append(comparison, comparisonRow{Route: row.Route, LineDelta: row.TotalLines - old.TotalLines, TokenDelta: row.TokenEstimate - old.TokenEstimate, HashChanged: row.CombinedHash != old.CombinedHash})
+			currentByRoute[row.Route] = row
+			old, ok := byRoute[row.Route]
+			status := "changed"
+			if !ok {
+				status = "added"
+			}
+			comparison = append(comparison, comparisonRow{Route: row.Route, LineDelta: row.TotalLines - old.TotalLines, TokenDelta: row.TokenEstimate - old.TokenEstimate, HashChanged: !ok || row.CombinedHash != old.CombinedHash, Status: status})
+		}
+		for _, old := range baseline.Routes {
+			if _, ok := currentByRoute[old.Route]; !ok {
+				comparison = append(comparison, comparisonRow{Route: old.Route, LineDelta: -old.TotalLines, TokenDelta: -old.TokenEstimate, HashChanged: true, Status: "removed"})
 			}
 		}
 		report.Comparison = comparison

@@ -16,14 +16,18 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 	}
 	got := checkNames(checks)
 	want := []string{
+		"context-packet-selftest",
 		"cross-model-benchmark-validate",
 		"dishonest-completion-selftest",
+		"execution-telemetry-selftest",
 		"kb-doctor-selftest",
 		"kb-pipeline-selftest",
 		"kb-release-gate-selftest",
 		"kb-run-state-selftest",
 		"kb-work-ready-set-selftest",
 		"kb-work-scope-lease-selftest",
+		"provider-hygiene",
+		"provider-hygiene-selftest",
 		"route-complexity-eval",
 		"skill-eval",
 		"skill-lint",
