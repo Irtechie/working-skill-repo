@@ -41,11 +41,11 @@ expected_files:
 protected_oracles:
   - path: bin/kb-install.test.mjs
     role: "install, upgrade, uninstall, and fallback oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "55b56a8f3d70704318f9101913b8493f1c54af720f9b73b1030aa9929a749d4f"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
-can_continue_other_slices: false
+can_continue_other_slices: true
 ---
 
 # Model Routing Distribution
@@ -75,3 +75,14 @@ Large: release automation, supply-chain integrity, cross-platform install, and m
 ## Scope Boundary
 
 No tag publication, merge, default-branch push, forced sync overwrite, or claim of unavailable signing/provider support.
+
+## Current Proof Status
+
+Installer 19/19, release-tag contract 3/3, broad Go proof, manifest contract,
+diff integrity, canonical no-paid evidence, and required skill sync are green.
+The proof runner now bounds time/output, contains whole process trees, and
+reports active release checks. `.gitattributes` keeps hash-bound fixtures and
+skills byte-stable across Windows checkouts; runtime bytecode caches do not
+change skill identity. Exact `go run ./cmd/kbcheck local-release` passes on the
+final staged delivery candidate; its proven tree is recorded in delivery
+metadata.

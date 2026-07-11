@@ -59,22 +59,15 @@ Required targets:
 - `~/.codex/skills/<skill>/`
 - `~/.copilot/skills/<skill>/`
 - `~/.agents/skills/<skill>/`
-- `<atv-repo>\.github\skills\<skill>\`
 
-ATV shipped copies:
-
-- `<atv-repo>\pkg\scaffold\templates\skills\<skill>\`
-- `<atv-repo>\plugins\atv-everything\skills\<skill>\`
-
-Before overwriting a global or ATV copy, review drift. Newer useful work found
+Before overwriting a global copy, review drift. Newer useful work found
 only in a global install must be merged back into this repo first, not
 discarded.
 
 Source-of-truth invariant:
 
 - `<working-skill-repo>\.github\skills` is the source for KB-owned skills.
-- Required global/ATV installs are deployed copies for runners, not authorship
-  locations.
+- Required global installs are deployed copies for runners, not authorship locations.
 - A red `skill-sync-report` is a release blocker for unattended runners. It may
   mean a global-only production fix exists and must be merged back, or it may
   mean a stale global copy would downgrade the runner.
@@ -101,8 +94,7 @@ only when `.kb-sync/<skill>.sha256` proves the target was last deployed from
 this repo. Unknown drift is refused with a merge-back instruction so useful
 global-only edits are not silently overwritten.
 
-After editing this repo, sync the final approved copy to the required targets
-and ATV shipped copies when that skill intentionally ships there.
+After editing this repo, sync the final approved copy to the required global targets.
 
 Verify:
 
@@ -110,32 +102,6 @@ Verify:
 go run ./cmd/kbcheck local-release
 git diff --check
 ```
-
-## ATV Upstream Policy
-
-This is a hand-curated ATV-derived snapshot. There is no automatic upstream
-merge bot.
-
-Original ATV `upstream/main` is authoritative for ATV-native changes to inspect,
-not a mirror target. KB-owned skills are this repo's overlay.
-
-Use the read-only upstream report before deciding what to port:
-
-```powershell
-go run ./cmd/kbcheck atv-delta
-```
-
-Classifications:
-
-- `kb-owned-reject` - upstream changed a skill KB owns locally; do not apply it
-  over the KB copy.
-- `shared-overlap-review` - manually review and port useful improvements.
-- `atv-native-candidate` - upstream change may matter to an ATV-native skill.
-- `superseded-workflow-reject` - old workflow skill replaced by KB lanes.
-- `unknown-review` - needs human review.
-
-Superseded workflow skills such as `lfg`, `slfg`, and `workflows-*` stay out
-unless a current app uses them or a focused porting plan proves value.
 
 ## Marketplace
 

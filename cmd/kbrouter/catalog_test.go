@@ -120,6 +120,116 @@ func TestCatalogAddUsesStrictUserSchemaAndRejectsUnsafeProjectPolicy(t *testing.
 	}
 }
 
+func TestProjectPriorityIsUserLocalCanonicalAndQuickAddIsConservative(t *testing.T) {
+	root := t.TempDir()
+	userRoot := filepath.Join(root, "user")
+	projectA := filepath.Join(root, "project-a")
+	projectB := filepath.Join(root, "project-b")
+	for _, project := range []string{projectA, projectB} {
+		if err := os.MkdirAll(project, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(userRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	trustBefore := []byte(`{"schema_version":1,"projects":[]}`)
+	if err := os.WriteFile(filepath.Join(userRoot, userTrustFile), trustBefore, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	code, stdout, stderr := runForTest("models", "priority", "--user-root", userRoot, "--project-root", projectA, "--mode", "self-hosted-first", "--json")
+	if code != 0 {
+		t.Fatalf("priority A code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	code, stdout, stderr = runForTest("models", "priority", "--user-root", userRoot, "--project-root", projectB, "--mode", "native-first", "--json")
+	if code != 0 {
+		t.Fatalf("priority B code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	if _, err := os.Stat(filepath.Join(projectA, "kb-models.json")); !os.IsNotExist(err) {
+		t.Fatalf("priority must not write repository state: %v", err)
+	}
+	preferences, err := loadProjectPriorities(userRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idA, _ := modelrouting.CanonicalProjectIdentity(projectA)
+	idB, _ := modelrouting.CanonicalProjectIdentity(projectB)
+	if got := preferences.priorityFor(idA); got != modelrouting.PreferenceSelfHostedFirst {
+		t.Fatalf("project A priority=%q", got)
+	}
+	if got := preferences.priorityFor(idB); got != modelrouting.PreferenceNativeFirst {
+		t.Fatalf("project B priority=%q", got)
+	}
+
+	code, stdout, stderr = runForTest("models", "priority", "--user-root", userRoot, "--project-root", projectA, "--clear", "--json")
+	if code != 0 {
+		t.Fatalf("priority clear code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	code, stdout, stderr = runForTest("models", "priority", "--user-root", userRoot, "--project-root", projectB, "--reset", "--json")
+	if code != 0 {
+		t.Fatalf("priority reset code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	preferences, err = loadProjectPriorities(userRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := preferences.priorityFor(idA); got != modelrouting.PreferenceAutomatic {
+		t.Fatalf("cleared project A priority=%q", got)
+	}
+	if got := preferences.priorityFor(idB); got != modelrouting.PreferenceAutomatic {
+		t.Fatalf("reset project B priority=%q", got)
+	}
+	if len(preferences.Projects) != 0 {
+		t.Fatalf("clear/reset retained project entries: %#v", preferences.Projects)
+	}
+
+	code, stdout, stderr = runForTest("models", "add", "--scope", "user", "--user-root", userRoot, "--alias", "extra.quick", "--model", "model", "--endpoint", "https://models.example.invalid/v1", "--auth-env", "TEST_API_KEY", "--json")
+	if code != 0 {
+		t.Fatalf("quick add code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	route := loadUserCatalogForTest(t, userRoot).Routes[0]
+	if route.Destination != "https://models.example.invalid" || route.ManagementOrigin != modelrouting.OriginExtra || route.Hosting != modelrouting.HostingUnknown ||
+		route.Capability.Class != modelrouting.ClassUnknown || route.Capability.TaskFamily != "unknown" || route.Capability.Risk != modelrouting.RiskUnknown ||
+		route.Capability.DispatchQualified || route.Capability.DispatchProven {
+		t.Fatalf("quick add was not conservative: %#v", route)
+	}
+	trustAfter, err := os.ReadFile(filepath.Join(userRoot, userTrustFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(trustBefore, trustAfter) {
+		t.Fatalf("priority/quick add mutated trust state: before=%s after=%s", trustBefore, trustAfter)
+	}
+	for _, project := range []string{projectA, projectB} {
+		entries, err := os.ReadDir(project)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(entries) != 0 {
+			t.Fatalf("configuration wrote repository state in %s: %#v", project, entries)
+		}
+	}
+
+	absentUserRoot := filepath.Join(root, "absent-user")
+	absentProjectRoot := filepath.Join(root, "absent-project")
+	if err := os.Mkdir(absentProjectRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = runForTest("models", "show", "--user-root", absentUserRoot, "--project-root", absentProjectRoot, "--json")
+	if code != 0 {
+		t.Fatalf("normal read code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	assertNotExists(t, absentUserRoot)
+	entries, err := os.ReadDir(absentProjectRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("normal read created repository state: %#v", entries)
+	}
+}
+
 func TestPolicyProjectPreferencesContainNoConnectionDetails(t *testing.T) {
 	projectRoot := t.TempDir()
 	code, stdout, stderr := runForTest("models", "prefer",
@@ -570,7 +680,7 @@ func TestApprovedPrivateRouteSurvivesRedactedRunCatalogSelection(t *testing.T) {
 		Risk:        modelrouting.RiskNormal,
 		ProjectID:   policy.Project.ProjectID,
 	}
-	decision, err := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: modelrouting.OverrideUse, Alias: redacted.Alias}, modelrouting.AttemptLedger{}, time.Now())
+	decision, err := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: modelrouting.OverrideRequire, Alias: redacted.Alias}, modelrouting.AttemptLedger{}, time.Now())
 	if err != nil || len(decision.Routes) == 0 || decision.Routes[0].Alias != redacted.Alias {
 		t.Fatalf("approved redacted route not selectable: decision=%#v err=%v", decision, err)
 	}
@@ -740,6 +850,61 @@ func TestPrepareRunRootRejectsSymlinkedProjectAncestors(t *testing.T) {
 	}
 }
 
+func TestPrepareRunRootRejectsExistingRunRootSymlink(t *testing.T) {
+	projectRoot := t.TempDir()
+	base := filepath.Join(projectRoot, ".kb", "runs")
+	actual := filepath.Join(base, "actual")
+	if err := os.MkdirAll(actual, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(base, "alias")
+	if err := os.Symlink(actual, alias); err != nil {
+		t.Skipf("directory aliases unavailable: %v", err)
+	}
+	if _, err := prepareRunRoot(projectRoot, alias); !errors.Is(err, modelrouting.ErrUnsafePath) {
+		t.Fatalf("existing run-root symlink error=%v", err)
+	}
+}
+
+func TestPrepareRunRootRejectsMixedAliasProjectAndRunPath(t *testing.T) {
+	projectRoot := t.TempDir()
+	aliasRoot := filepath.Join(t.TempDir(), "project-alias")
+	if err := os.Symlink(projectRoot, aliasRoot); err != nil {
+		t.Skipf("directory aliases unavailable: %v", err)
+	}
+	runRoot := filepath.Join(projectRoot, ".kb", "runs", "run-1")
+	if _, err := prepareRunRoot(aliasRoot, runRoot); err == nil {
+		t.Fatalf("mixed alias project/run error=%v", err)
+	}
+	assertNotExists(t, filepath.Join(projectRoot, ".kb"))
+}
+
+func TestPrepareRunRootFailsClosedWhenProjectCannotBeCanonicalized(t *testing.T) {
+	parent := t.TempDir()
+	projectRoot := filepath.Join(parent, "missing-project")
+	runRoot := filepath.Join(projectRoot, ".kb", "runs", "run-1")
+	if _, err := prepareRunRoot(projectRoot, runRoot); err == nil || !strings.Contains(err.Error(), "canonicalize project root") {
+		t.Fatalf("nonexistent project canonicalization error=%v", err)
+	}
+	assertNotExists(t, projectRoot)
+}
+
+func TestSafeWindowsRunIDRejectsAmbiguousNames(t *testing.T) {
+	for _, value := range []string{"run-1", "com0", "lpt10", "context"} {
+		if !safeWindowsRunID(value) {
+			t.Fatalf("rejected safe run id %q", value)
+		}
+	}
+	for _, value := range []string{
+		"run-1.", "run-1 ", "run:stream", "CON", "con.txt", "PRN.json", "AUX", "NUL.log",
+		"COM1", "com9.txt", "LPT1", "lpt9.log", "CON .txt",
+	} {
+		if safeWindowsRunID(value) {
+			t.Fatalf("accepted Windows-ambiguous run id %q", value)
+		}
+	}
+}
+
 func TestPreparedRunRootDetectsAncestorReplacement(t *testing.T) {
 	projectRoot := t.TempDir()
 	runRoot := filepath.Join(projectRoot, ".kb", "runs", "run-1")
@@ -756,6 +921,30 @@ func TestPreparedRunRootDetectsAncestorReplacement(t *testing.T) {
 	}
 	if err := prepared.revalidate(); err == nil {
 		t.Fatal("revalidation accepted a replaced .kb/runs ancestor")
+	}
+}
+
+func TestCanonicalizeProspectivePathResolvesExistingAncestorAlias(t *testing.T) {
+	root := t.TempDir()
+	aliasParent := filepath.Join(t.TempDir(), "alias")
+	if err := os.Symlink(root, aliasParent); err != nil {
+		t.Skipf("directory aliases unavailable: %v", err)
+	}
+	got, err := canonicalizeProspectivePath(filepath.Join(aliasParent, "missing", "run-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(root, "missing", "run-1")
+	gotCanonical, err := filepath.Abs(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCanonical, err := filepath.Abs(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sameFilesystemPath(gotCanonical, wantCanonical) {
+		t.Fatalf("prospective path=%q want=%q", gotCanonical, wantCanonical)
 	}
 }
 

@@ -29,6 +29,7 @@ const (
 type CapabilityClass string
 
 const (
+	ClassUnknown CapabilityClass = "unknown"
 	ClassSmall   CapabilityClass = "small"
 	ClassMedium  CapabilityClass = "medium"
 	ClassLarge   CapabilityClass = "large"
@@ -73,8 +74,9 @@ const (
 type RiskLevel string
 
 const (
-	RiskNormal RiskLevel = "normal"
-	RiskBroad  RiskLevel = "broad"
+	RiskUnknown RiskLevel = "unknown"
+	RiskNormal  RiskLevel = "normal"
+	RiskBroad   RiskLevel = "broad"
 )
 
 type TrustBoundary string
@@ -82,6 +84,21 @@ type TrustBoundary string
 const (
 	BoundaryHosted  TrustBoundary = "hosted"
 	BoundaryPrivate TrustBoundary = "private"
+)
+
+type RouteOrigin string
+
+const (
+	OriginNative RouteOrigin = "native"
+	OriginExtra  RouteOrigin = "extra"
+)
+
+type HostingClass string
+
+const (
+	HostingSelfHosted     HostingClass = "self-hosted"
+	HostingProviderHosted HostingClass = "provider-hosted"
+	HostingUnknown        HostingClass = "unknown"
 )
 
 type TrainingUse string
@@ -143,38 +160,42 @@ type CurrentModel struct {
 }
 
 type Route struct {
-	RouteID         string             `json:"route_id,omitempty"`
-	Alias           string             `json:"alias"`
-	DisplayModelID  string             `json:"display_model_id"`
-	Adapter         string             `json:"adapter"`
-	AdapterRevision string             `json:"adapter_revision,omitempty"`
-	DispatchMethod  string             `json:"dispatch_method"`
-	Profile         string             `json:"profile,omitempty"`
-	ProfileRevision string             `json:"profile_revision,omitempty"`
-	Destination     string             `json:"destination"`
-	Endpoint        string             `json:"endpoint,omitempty"`
-	AuthEnv         string             `json:"auth_env,omitempty"`
-	Boundary        TrustBoundary      `json:"boundary"`
-	Retention       RetentionClass     `json:"retention"`
-	TrainingUse     TrainingUse        `json:"training_use"`
-	Residency       string             `json:"residency"`
-	TrustProvenance string             `json:"trust_provenance"`
-	SourceRouteID   string             `json:"source_route_id,omitempty"`
-	Readiness       []Readiness        `json:"readiness"`
-	Capability      CapabilityEvidence `json:"capability"`
+	RouteID          string             `json:"route_id,omitempty"`
+	Alias            string             `json:"alias"`
+	DisplayModelID   string             `json:"display_model_id"`
+	Adapter          string             `json:"adapter"`
+	AdapterRevision  string             `json:"adapter_revision,omitempty"`
+	DispatchMethod   string             `json:"dispatch_method"`
+	Profile          string             `json:"profile,omitempty"`
+	ProfileRevision  string             `json:"profile_revision,omitempty"`
+	Destination      string             `json:"destination"`
+	Endpoint         string             `json:"endpoint,omitempty"`
+	AuthEnv          string             `json:"auth_env,omitempty"`
+	ManagementOrigin RouteOrigin        `json:"management_origin,omitempty"`
+	Hosting          HostingClass       `json:"hosting,omitempty"`
+	DiscoverySources []string           `json:"discovery_sources,omitempty"`
+	Boundary         TrustBoundary      `json:"boundary"`
+	Retention        RetentionClass     `json:"retention"`
+	TrainingUse      TrainingUse        `json:"training_use"`
+	Residency        string             `json:"residency"`
+	TrustProvenance  string             `json:"trust_provenance"`
+	SourceRouteID    string             `json:"source_route_id,omitempty"`
+	Readiness        []Readiness        `json:"readiness"`
+	Capability       CapabilityEvidence `json:"capability"`
 }
 
 type CapabilityEvidence struct {
-	Class          CapabilityClass `json:"class"`
-	Source         EvidenceSource  `json:"source"`
-	RouteAlias     string          `json:"route_alias"`
-	ModelID        string          `json:"model_id"`
-	TaskFamily     string          `json:"task_family"`
-	Tools          []string        `json:"tools,omitempty"`
-	ContextSize    int             `json:"context_size,omitempty"`
-	Risk           RiskLevel       `json:"risk"`
-	DispatchProven bool            `json:"dispatch_proven"`
-	ExpiresAt      time.Time       `json:"expires_at,omitempty"`
+	Class             CapabilityClass `json:"class"`
+	Source            EvidenceSource  `json:"source"`
+	RouteAlias        string          `json:"route_alias"`
+	ModelID           string          `json:"model_id"`
+	TaskFamily        string          `json:"task_family"`
+	Tools             []string        `json:"tools,omitempty"`
+	ContextSize       int             `json:"context_size,omitempty"`
+	Risk              RiskLevel       `json:"risk"`
+	DispatchQualified bool            `json:"dispatch_qualified,omitempty"`
+	DispatchProven    bool            `json:"dispatch_proven"`
+	ExpiresAt         time.Time       `json:"expires_at,omitempty"`
 }
 
 var (
@@ -225,6 +246,17 @@ func validateRouteSchema(route Route) error {
 			return fmt.Errorf("%w: invalid capability tool", ErrInvalidCatalog)
 		}
 	}
+	for _, source := range route.DiscoverySources {
+		if !validTextField(source, 128) {
+			return fmt.Errorf("%w: invalid discovery source", ErrInvalidCatalog)
+		}
+	}
+	if route.ManagementOrigin != "" && route.ManagementOrigin != OriginNative && route.ManagementOrigin != OriginExtra {
+		return fmt.Errorf("%w: invalid management origin", ErrInvalidCatalog)
+	}
+	if route.Hosting != "" && route.Hosting != HostingSelfHosted && route.Hosting != HostingProviderHosted && route.Hosting != HostingUnknown {
+		return fmt.Errorf("%w: invalid hosting class", ErrInvalidCatalog)
+	}
 	if route.Profile != "" && !validProfileName(route.Profile) {
 		return fmt.Errorf("%w: invalid profile", ErrInvalidCatalog)
 	}
@@ -261,6 +293,9 @@ func validateRouteSchema(route Route) error {
 	}
 	if evidence.DispatchProven != hasReadiness(route.Readiness, ReadinessDispatchProven) {
 		return fmt.Errorf("%w: dispatch proof/readiness mismatch", ErrInvalidCatalog)
+	}
+	if evidence.DispatchProven && (!evidence.DispatchQualified || evidence.Source != EvidenceKBReceipt) {
+		return fmt.Errorf("%w: dispatch-proven evidence requires qualified receipt evidence", ErrInvalidCatalog)
 	}
 	return nil
 }
@@ -380,14 +415,16 @@ func validCodexAdapterRevision(revision string) bool {
 }
 
 func validClass(value CapabilityClass) bool {
-	return value == ClassSmall || value == ClassMedium || value == ClassLarge || value == ClassPlanner
+	return value == ClassUnknown || value == ClassSmall || value == ClassMedium || value == ClassLarge || value == ClassPlanner
 }
 
 func validEvidenceSource(value EvidenceSource) bool {
 	return value == EvidenceDeclared || value == EvidenceAdapterPrior || value == EvidenceKBReceipt || value == EvidenceRepositoryClaim || value == EvidenceModelSelfReport
 }
 
-func validRisk(value RiskLevel) bool { return value == RiskNormal || value == RiskBroad }
+func validRisk(value RiskLevel) bool {
+	return value == RiskUnknown || value == RiskNormal || value == RiskBroad
+}
 
 func validRetention(value RetentionClass) bool {
 	return value == RetentionNone || value == RetentionSession || value == RetentionLimited || value == RetentionUnknown
@@ -476,21 +513,22 @@ func ComputeRouteStateFingerprint(route Route) (string, error) {
 	tools := append([]string(nil), route.Capability.Tools...)
 	sort.Strings(tools)
 	state := struct {
-		Configuration  string          `json:"configuration"`
-		Readiness      []Readiness     `json:"readiness"`
-		Class          CapabilityClass `json:"class"`
-		Source         EvidenceSource  `json:"source"`
-		RouteAlias     string          `json:"route_alias"`
-		ModelID        string          `json:"model_id"`
-		TaskFamily     string          `json:"task_family"`
-		Tools          []string        `json:"tools"`
-		ContextSize    int             `json:"context_size"`
-		Risk           RiskLevel       `json:"risk"`
-		DispatchProven bool            `json:"dispatch_proven"`
-		ExpiresAt      time.Time       `json:"expires_at"`
+		Configuration     string          `json:"configuration"`
+		Readiness         []Readiness     `json:"readiness"`
+		Class             CapabilityClass `json:"class"`
+		Source            EvidenceSource  `json:"source"`
+		RouteAlias        string          `json:"route_alias"`
+		ModelID           string          `json:"model_id"`
+		TaskFamily        string          `json:"task_family"`
+		Tools             []string        `json:"tools"`
+		ContextSize       int             `json:"context_size"`
+		Risk              RiskLevel       `json:"risk"`
+		DispatchQualified bool            `json:"dispatch_qualified,omitempty"`
+		DispatchProven    bool            `json:"dispatch_proven"`
+		ExpiresAt         time.Time       `json:"expires_at"`
 	}{configuration, append([]Readiness(nil), route.Readiness...), route.Capability.Class,
 		route.Capability.Source, route.Capability.RouteAlias, route.Capability.ModelID,
-		route.Capability.TaskFamily, tools, route.Capability.ContextSize, route.Capability.Risk,
+		route.Capability.TaskFamily, tools, route.Capability.ContextSize, route.Capability.Risk, route.Capability.DispatchQualified,
 		route.Capability.DispatchProven, route.Capability.ExpiresAt}
 	data, err := json.Marshal(state)
 	if err != nil {
@@ -580,6 +618,10 @@ func MergeCatalog(native, user Catalog) (Catalog, error) {
 }
 
 func normalizeUserRoute(route Route) Route {
+	route.ManagementOrigin = OriginExtra
+	if route.Hosting == "" {
+		route.Hosting = HostingUnknown
+	}
 	route.SourceRouteID = ""
 	route.Capability.Source = EvidenceDeclared
 	route.Capability.DispatchProven = false
@@ -597,11 +639,11 @@ func validateRouteProvenance(route Route, source CatalogSource) error {
 	}
 	switch source {
 	case CatalogSourceUser:
-		if !validRouteID(route.RouteID) || route.SourceRouteID != "" || route.Capability.Source != EvidenceDeclared || route.Capability.DispatchProven || hasReadiness(route.Readiness, ReadinessDispatchProven) {
+		if route.ManagementOrigin != OriginExtra || !validRouteID(route.RouteID) || route.SourceRouteID != "" || route.Capability.Source != EvidenceDeclared || route.Capability.DispatchQualified || route.Capability.DispatchProven || hasReadiness(route.Readiness, ReadinessDispatchProven) {
 			return fmt.Errorf("%w: user routes may only declare selectable capability", ErrInvalidCatalog)
 		}
 	case CatalogSourceNative:
-		if route.RouteID != "" || route.SourceRouteID != "" || (route.Capability.Source != EvidenceDeclared && route.Capability.Source != EvidenceAdapterPrior) {
+		if route.ManagementOrigin != OriginNative || route.RouteID != "" || route.SourceRouteID != "" || (route.Capability.Source != EvidenceDeclared && route.Capability.Source != EvidenceAdapterPrior) || route.Capability.DispatchProven {
 			return fmt.Errorf("%w: native routes cannot claim receipt evidence", ErrInvalidCatalog)
 		}
 	case CatalogSourceRun:
@@ -634,11 +676,12 @@ func validateSourceRouteReference(route Route, policy PolicyContext, trustedCurr
 	if route.Endpoint != "" || route.AuthEnv != "" ||
 		route.Adapter != source.Adapter || route.AdapterRevision != source.AdapterRevision ||
 		route.DispatchMethod != source.DispatchMethod || route.Profile != source.Profile || route.ProfileRevision != source.ProfileRevision || route.Destination != source.Destination ||
+		route.ManagementOrigin != source.ManagementOrigin || route.Hosting != source.Hosting || !slices.Equal(route.DiscoverySources, source.DiscoverySources) ||
 		route.Boundary != source.Boundary || route.Retention != source.Retention ||
 		route.TrainingUse != source.TrainingUse || route.Residency != source.Residency ||
 		route.TrustProvenance != source.TrustProvenance ||
 		route.Capability.Class != source.Capability.Class ||
-		route.Capability.Source != EvidenceDeclared || route.Capability.DispatchProven ||
+		route.Capability.Source != EvidenceDeclared || route.Capability.DispatchQualified != source.Capability.DispatchQualified || route.Capability.DispatchProven ||
 		route.Capability.TaskFamily != source.Capability.TaskFamily ||
 		route.Capability.ContextSize != source.Capability.ContextSize ||
 		route.Capability.Risk != source.Capability.Risk ||
@@ -730,7 +773,7 @@ func isTrustedCurrentRoute(route Route, catalog Catalog, policy PolicyContext) b
 		route.RouteID != "" || route.SourceRouteID != "" || route.Alias != "current" ||
 		route.DisplayModelID != policy.TrustedCurrentModelID || route.Adapter != "codex" ||
 		route.AdapterRevision != "v1" || route.DispatchMethod != "exec-model" || route.Destination != "current" ||
-		route.Endpoint != "" || route.AuthEnv != "" || route.Boundary != BoundaryHosted ||
+		route.Endpoint != "" || route.AuthEnv != "" || route.ManagementOrigin != OriginNative || route.Hosting != HostingProviderHosted || route.Boundary != BoundaryHosted ||
 		route.TrustProvenance != "active orchestrator" || route.Capability.Source != EvidenceDeclared || route.Capability.DispatchProven {
 		return false
 	}
@@ -755,6 +798,7 @@ func cloneCatalog(catalog Catalog) Catalog {
 
 func cloneRoute(route Route) Route {
 	copy := route
+	copy.DiscoverySources = append([]string(nil), route.DiscoverySources...)
 	copy.Readiness = append([]Readiness(nil), route.Readiness...)
 	copy.Capability.Tools = append([]string(nil), route.Capability.Tools...)
 	return copy

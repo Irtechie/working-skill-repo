@@ -5,7 +5,7 @@ Bootstrap confidence: mixed
 
 ## What This Is
 
-Portable skill bundle for KB workflow skills, reviewer agents, root `AGENTS.md`, Copilot instructions, and native Go validation tooling. The repo is the working source that syncs into personal/global installs and selected ATV copies. Original ATV `upstream/main` is a source to mine for useful ATV-native changes; this repo remains the source of truth for the KB overlay and its replacements.
+Portable standalone skill bundle for KB workflow skills, reviewer agents, root `AGENTS.md`, Copilot instructions, and native Go validation tooling. This repo is the source of truth and syncs only into Codex, Copilot, and shared-agent global installs.
 
 ## How To Run
 
@@ -62,7 +62,7 @@ See `docs/context/architecture/README.md`.
 | Epics | `docs/context/epics/` | Coordinating multi-workstream skill-bundle initiatives | verified |
 | 2026 quality audit | `docs/context/research/2026-05-29-skill-repo-gap-audit.md` | Understanding current gaps and recommended priorities | verified |
 | Agent Skills Git distribution | `docs/context/research/2026-05-30-agent-skills-git-distribution.md` | Deciding canonical source, global installs, ATV policy, and deterministic sync scripts | verified |
-| Drift and propagation | `AGENTS.md`; `README.md`; `docs/context/memory-maintenance.md` | Syncing skills across global installs and ATV copies | mixed |
+| Drift and propagation | `AGENTS.md`; `README.md`; `docs/context/memory-maintenance.md` | Syncing skills across global installs | verified |
 | ATV upstream resync | `docs/context/epics/atv-upstream-resync.md`; `docs/context/research/2026-05-31-atv-upstream-skill-delta.md` | Understanding original ATV imports, rejected KB deletions, and workflow skill handling | verified |
 
 ## Current Work Pointers
@@ -75,7 +75,7 @@ See `docs/context/architecture/README.md`.
 ## Known Sharp Edges
 
 - Portable repo hygiene conflicts with the normal KB bootstrap requirement unless this repo's own memory is treated as skill-bundle maintenance.
-- `kb-check` now finds skill-repo checks through `config/skill-quality.json`; working, global, ATV `.github`, ATV scaffold, and ATV plugin skill roots are expected to stay hash-synced unless a deliberate packaging exception is recorded.
+- `kb-check` finds skill-repo checks through `config/skill-quality.json`; Codex, Copilot, and shared-agent global skill roots must stay hash-synced.
 - `kb-eval-map` is now the bootstrap-owned setup skill for repo-native eval surfaces; consuming repos still need their own `docs/context/eval-map.md`.
 - Some skills are long enough to make route-start context expensive; lazy references are used inconsistently.
 - `kb-work` is now bounded-swarm oriented: independent ready slices may run in
@@ -87,7 +87,7 @@ See `docs/context/architecture/README.md`.
   gate that blocks on required sync drift. Remaining `.ps1` files are narrow
   installer or skill helpers, not top-level gate dependencies. See
   `docs/context/epics/go-native-validator-port.md`.
-- Required skill roots should hash-match before release. ATV scaffold/plugin copies are warning-only unless the current change intentionally ships that surface.
+- Required global skill roots should hash-match before release.
 - Planner economy uses vendor-neutral context packets validated by
   `kbcheck context-packet`; existing manifests, goal ledgers, run state, and
   proof traces remain the lifecycle state spine.
@@ -125,7 +125,7 @@ See `docs/context/architecture/README.md`.
 ## Do Not Repeat
 
 - Do not bootstrap consuming-project memory inside this repo.
-- Do not sync over global or ATV copies without reviewing drift first.
+- Do not sync over global copies without reviewing drift first.
 - Do not remove reviewer agents until an eval proves no workflow dispatches them.
 
 ## Maintenance Notes

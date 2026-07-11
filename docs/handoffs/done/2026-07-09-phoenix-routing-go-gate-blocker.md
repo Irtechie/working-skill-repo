@@ -2,7 +2,7 @@
 
 Created: 2026-07-09
 Manifest: `docs/plans/2026-07-09-010-kb-phoenix-routing-slicing-absorption-manifest.md`
-Status: resolved
+Status: archived-resolved
 
 ## State
 

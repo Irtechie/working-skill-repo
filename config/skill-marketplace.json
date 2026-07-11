@@ -59,9 +59,7 @@
   "quarantine_firebreak": {
     "never_load_from_quarantine": true,
     "enforced_by": "go run ./cmd/kbcheck marketplace-firebreak",
-    "additional_active_skill_roots": [
-      "../all-the-vibes/.github/skills"
-    ],
+    "additional_active_skill_roots": [],
     "fail_closed_rules": [
       "active skill roots must not be inside quarantine",
       "loadable skill directories must not link into quarantine",

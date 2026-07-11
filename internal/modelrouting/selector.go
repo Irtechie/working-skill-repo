@@ -7,6 +7,7 @@ import (
 
 type WorkRequest struct {
 	PlannedTier   Tier
+	AttemptTier   Tier
 	TaskFamily    string
 	Tools         []string
 	ContextSize   int
@@ -24,9 +25,18 @@ const (
 )
 
 type RunOverride struct {
-	Mode  OverrideMode
-	Alias string
+	Mode   OverrideMode
+	Alias  string
+	Prefer RoutePreference
 }
+
+type RoutePreference string
+
+const (
+	PreferenceAutomatic       RoutePreference = "automatic"
+	PreferenceSelfHostedFirst RoutePreference = "self-hosted-first"
+	PreferenceNativeFirst     RoutePreference = "native-first"
+)
 
 type SelectionStatus string
 
@@ -38,55 +48,74 @@ const (
 )
 
 type SelectionDecision struct {
-	Status  SelectionStatus
-	Routes  []Route
-	Current CurrentModel
+	Status      SelectionStatus
+	Routes      []Route
+	Current     CurrentModel
+	PlannedTier Tier
+	AttemptTier Tier
+	Preference  RoutePreference
 }
 
 func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyContext, override RunOverride, ledger AttemptLedger, now time.Time) (SelectionDecision, error) {
 	catalog := cloneCatalog(validated.catalog)
+	decision := selectionDecisionForRequest(req)
+	decision.Preference = normalizedRoutePreference(override.Prefer)
 	if override.Mode == OverrideIgnore {
-		return SelectionDecision{Status: SelectionIgnored, Current: catalog.Current}, nil
+		decision.Status, decision.Current = SelectionIgnored, catalog.Current
+		return decision, nil
 	}
 	if req.ProjectID == "" {
-		return SelectionDecision{Status: SelectionUnavailable, Current: catalog.Current}, ErrInvalidWorkRequest
+		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+		return decision, ErrInvalidWorkRequest
+	}
+	if !validTierRequest(req) || !validRoutePreference(override.Prefer) {
+		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+		return decision, ErrInvalidWorkRequest
 	}
 	completeEnvelope := validWorkRequest(req)
 	automatic := []Route(nil)
 	if completeEnvelope {
 		automatic = eligibleRoutes(catalog, req, policy, ledger, now)
+		automatic = preferEligibleRoutes(automatic, decision.Preference)
 	}
 	if override.Mode == OverrideRequire {
 		if route, ok := explicitlySelectable(catalog, override.Alias, req, policy, ledger, now); ok {
-			return SelectionDecision{Status: SelectionRouted, Routes: []Route{route}}, nil
+			decision.Status, decision.Routes = SelectionRouted, []Route{route}
+			return decision, nil
 		}
-		return SelectionDecision{Status: SelectionUnavailable, Current: catalog.Current}, ErrRequiredRouteUnavailable
+		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+		return decision, ErrRequiredRouteUnavailable
 	}
 	if override.Mode == OverrideUse {
-		if preferred, ok := explicitlySelectable(catalog, override.Alias, req, policy, ledger, now); ok {
+		if preferred, ok := preferredSelectable(catalog, override.Alias, req, policy, ledger, now, completeEnvelope); ok {
 			routes := []Route{preferred}
 			for _, route := range automatic {
 				if route.Alias != preferred.Alias {
 					routes = append(routes, route)
 				}
 			}
-			return SelectionDecision{Status: SelectionRouted, Routes: routes}, nil
+			decision.Status, decision.Routes = SelectionRouted, routes
+			return decision, nil
 		}
 	}
 	if !completeEnvelope {
-		return SelectionDecision{Status: SelectionUnavailable, Current: catalog.Current}, ErrInvalidWorkRequest
+		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+		return decision, ErrInvalidWorkRequest
 	}
 	if len(automatic) > 0 {
-		return SelectionDecision{Status: SelectionRouted, Routes: automatic}, nil
+		decision.Status, decision.Routes = SelectionRouted, automatic
+		return decision, nil
 	}
 	if currentFallbackAllowed(catalog.Current, req, policy, now) {
-		return SelectionDecision{Status: SelectionDegraded, Current: catalog.Current}, nil
+		decision.Status, decision.Current = SelectionDegraded, catalog.Current
+		return decision, nil
 	}
-	return SelectionDecision{Status: SelectionUnavailable, Current: catalog.Current}, nil
+	decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+	return decision, nil
 }
 
 func validWorkRequest(req WorkRequest) bool {
-	if req.PlannedTier != TierTiny && req.PlannedTier != TierSmall && req.PlannedTier != TierMedium && req.PlannedTier != TierLarge {
+	if !validTierRequest(req) {
 		return false
 	}
 	if req.ProjectID == "" || req.TaskFamily == "" || len(req.Tools) == 0 || req.ContextSize <= 0 || !validRisk(req.Risk) {
@@ -105,6 +134,42 @@ func validWorkRequest(req WorkRequest) bool {
 	return true
 }
 
+func validTierRequest(req WorkRequest) bool {
+	if !validTier(req.PlannedTier) {
+		return false
+	}
+	if req.AttemptTier == "" {
+		return true
+	}
+	return (req.PlannedTier == TierMedium && req.AttemptTier == TierSmall) ||
+		(req.PlannedTier == TierLarge && req.AttemptTier == TierMedium)
+}
+
+func validRoutePreference(preference RoutePreference) bool {
+	return preference == "" || preference == PreferenceAutomatic || preference == PreferenceSelfHostedFirst || preference == PreferenceNativeFirst
+}
+
+func normalizedRoutePreference(preference RoutePreference) RoutePreference {
+	if preference == "" {
+		return PreferenceAutomatic
+	}
+	return preference
+}
+
+func preferredSelectable(catalog Catalog, alias string, req WorkRequest, policy PolicyContext, ledger AttemptLedger, now time.Time, completeEnvelope bool) (Route, bool) {
+	if !completeEnvelope || alias == "" || ledger.Attempted(alias) {
+		return Route{}, false
+	}
+	floor := tierFloor(selectionAttemptTier(req))
+	for _, route := range catalog.Routes {
+		if route.Alias != alias || validateRouteSchema(route) != nil || !routeAllowedByPolicy(route, req, policy, now) || !automaticEligible(route, req, floor, now) {
+			continue
+		}
+		return route, true
+	}
+	return Route{}, false
+}
+
 func explicitlySelectable(catalog Catalog, alias string, req WorkRequest, policy PolicyContext, ledger AttemptLedger, now time.Time) (Route, bool) {
 	if alias == "" || ledger.Attempted(alias) {
 		return Route{}, false
@@ -119,12 +184,12 @@ func explicitlySelectable(catalog Catalog, alias string, req WorkRequest, policy
 }
 
 func eligibleRoutes(catalog Catalog, req WorkRequest, policy PolicyContext, ledger AttemptLedger, now time.Time) []Route {
-	floor := tierFloor(req.PlannedTier)
+	floor := tierFloor(selectionAttemptTier(req))
 	floorRank := classRank(floor)
 	sameClass := make([]Route, 0, len(catalog.Routes))
 	higher := make([]Route, 0, len(catalog.Routes))
 	for _, route := range catalog.Routes {
-		if ledger.Attempted(route.Alias) || validateRouteSchema(route) != nil || !routeAllowedByPolicy(route, req, policy, now) || !automaticEligible(route, req, floor, now) {
+		if route.Capability.Class == ClassPlanner || ledger.Attempted(route.Alias) || validateRouteSchema(route) != nil || !routeAllowedByPolicy(route, req, policy, now) || !automaticEligible(route, req, floor, now) {
 			continue
 		}
 		if classRank(route.Capability.Class) == floorRank {
@@ -146,6 +211,61 @@ func eligibleRoutes(catalog Catalog, req WorkRequest, policy PolicyContext, ledg
 		higher = qualified
 	}
 	return append(sameClass, higher...)
+}
+
+func preferEligibleRoutes(routes []Route, preference RoutePreference) []Route {
+	if preference == "" || preference == PreferenceAutomatic || len(routes) < 2 {
+		return routes
+	}
+	byRank := make(map[int][]Route)
+	for _, route := range routes {
+		rank := classRank(route.Capability.Class)
+		byRank[rank] = append(byRank[rank], route)
+	}
+	for rank, group := range byRank {
+		preferred := make([]Route, 0, len(group))
+		for _, route := range group {
+			if routeMatchesPreference(route, preference) {
+				preferred = append(preferred, route)
+			}
+		}
+		for _, route := range group {
+			if !routeMatchesPreference(route, preference) {
+				preferred = append(preferred, route)
+			}
+		}
+		byRank[rank] = preferred
+	}
+	ordered := make([]Route, len(routes))
+	offsets := make(map[int]int)
+	for index, route := range routes {
+		rank := classRank(route.Capability.Class)
+		ordered[index] = byRank[rank][offsets[rank]]
+		offsets[rank]++
+	}
+	return ordered
+}
+
+func routeMatchesPreference(route Route, preference RoutePreference) bool {
+	if preference == PreferenceSelfHostedFirst {
+		return route.Hosting == HostingSelfHosted
+	}
+	return preference == PreferenceNativeFirst && route.ManagementOrigin == OriginNative
+}
+
+func selectionDecisionForRequest(req WorkRequest) SelectionDecision {
+	return SelectionDecision{PlannedTier: req.PlannedTier, AttemptTier: selectionAttemptTier(req)}
+}
+
+func selectionAttemptTier(req WorkRequest) Tier {
+	if req.AttemptTier != "" {
+		return req.AttemptTier
+	}
+	return req.PlannedTier
+}
+
+func validTier(tier Tier) bool {
+	return tier == TierTiny || tier == TierSmall || tier == TierMedium || tier == TierLarge
 }
 
 func sortRoutesByEvidence(routes []Route, req WorkRequest, now time.Time) {
@@ -199,11 +319,11 @@ func evidenceStrength(route Route, req WorkRequest, now time.Time) int64 {
 }
 
 func automaticEligible(route Route, req WorkRequest, floor CapabilityClass, now time.Time) bool {
-	if !readinessCumulativeThrough(route.Readiness, ReadinessDispatchProven) {
+	if !readinessCumulativeThrough(route.Readiness, ReadinessSelectable) {
 		return false
 	}
 	evidence := route.Capability
-	if !evidence.DispatchProven || (evidence.Source != EvidenceKBReceipt && evidence.Source != EvidenceAdapterPrior) {
+	if !(evidence.DispatchQualified || evidence.DispatchProven) || (evidence.Source != EvidenceKBReceipt && evidence.Source != EvidenceAdapterPrior) {
 		return false
 	}
 	if evidence.ExpiresAt.IsZero() || !now.Before(evidence.ExpiresAt) {

@@ -1,0 +1,30 @@
+{
+  "id": "pass-finish-plan-flow",
+  "fixture_id": "finish-plan-flow",
+  "expected_result": "pass",
+  "actual": {
+    "route": "kb-complete",
+    "user_questions": 0,
+    "artifacts": ["reviewed manifest", "commit", "pushed branch", "PR URL"],
+    "proof": ["complete-to-ship gate", "release checks pass", "remote branch up to date"]
+  },
+  "trace": {
+    "files_read": ["todo.md", "docs/context/PROJECT.md", "docs/plans/example-manifest.md"],
+    "commands": ["git diff --check"],
+    "tools": ["kb-map", "kb-work", "kb-finalize", "kb-complete", "kb-ship"]
+  },
+  "claim_checks": [
+    {
+      "type": "command_ran",
+      "contains": "git diff --check",
+      "expected": true,
+      "claim": "Finish flow recorded a release diff check"
+    },
+    {
+      "type": "file_exists",
+      "path": ".github/skills/kb-complete/SKILL.md",
+      "expected": true,
+      "claim": "kb-complete skill exists"
+    }
+  ]
+}

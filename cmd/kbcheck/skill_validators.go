@@ -975,7 +975,17 @@ func skillHash(skillDir string) (string, error) {
 	}
 	lines := []string{}
 	err = filepath.WalkDir(skillDir, func(path string, entry os.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			if entry.Name() == "__pycache__" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := strings.ToLower(entry.Name())
+		if name == ".ds_store" || name == "thumbs.db" || strings.HasSuffix(name, ".pyc") || strings.HasSuffix(name, ".pyo") {
 			return nil
 		}
 		content, err := os.ReadFile(path)

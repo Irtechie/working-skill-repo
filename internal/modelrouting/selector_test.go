@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -14,13 +15,13 @@ import (
 	"time"
 )
 
-func TestSelectRouteRespectsOverridesEvidenceStrengthAndNoDownwardFallback(t *testing.T) {
+func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t *testing.T) {
 	now := fixedNow()
 	mediumA := provenRoute("medium-a", ClassMedium, "openai", "codex", "named-agent", "gpt-medium", "code", now.Add(time.Hour))
 	mediumB := provenRoute("medium-b", ClassMedium, "openai", "codex", "named-agent", "gpt-medium-b", "code", now.Add(2*time.Hour))
-	mediumB.Capability.Source = EvidenceAdapterPrior
+	mediumB = adapterPriorQualifiedRoute(mediumB)
 	large := provenRoute("large-a", ClassLarge, "openai", "codex", "named-agent", "gpt-large", "code", now.Add(time.Hour))
-	large.Capability.Source = EvidenceAdapterPrior // not stronger than the best Medium route
+	large = adapterPriorQualifiedRoute(large) // not stronger than the best Medium route
 	catalog := catalogWithCurrent(now, []Route{
 		mediumA,
 		mediumB,
@@ -35,17 +36,40 @@ func TestSelectRouteRespectsOverridesEvidenceStrengthAndNoDownwardFallback(t *te
 		t.Fatalf("select: %v", err)
 	}
 	assertAliases(t, decision, []string{"medium-a", "medium-b"})
+	if decision.PlannedTier != TierMedium || decision.AttemptTier != TierMedium {
+		t.Fatalf("decision tiers planned=%q attempt=%q", decision.PlannedTier, decision.AttemptTier)
+	}
 
-	// Explicit use can prefer a trusted selectable route even when its automatic
-	// capability evidence is only declared. The ordinary fallback set stays proven.
+	// A lower tier is considered only when the caller explicitly marks this
+	// bounded packet for that attempt. Task family alone never lowers the floor.
+	withAttempt := req
+	withAttempt.AttemptTier = TierSmall
+	decision, err = selectForTest(t, catalog, withAttempt, policy, RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatalf("small attempt: %v", err)
+	}
+	assertAliases(t, decision, []string{"small-a"})
+	if decision.PlannedTier != TierMedium || decision.AttemptTier != TierSmall {
+		t.Fatalf("attempt decision tiers planned=%q attempt=%q", decision.PlannedTier, decision.AttemptTier)
+	}
+	decision, err = selectForTest(t, catalog, withAttempt, policy, RunOverride{Mode: OverrideUse, Alias: "small-a"}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatalf("use eligible small attempt: %v", err)
+	}
+	assertAliases(t, decision, []string{"small-a"})
+
+	// `use` is only a preference within the fully eligible automatic set. A
+	// declared route cannot bypass proof, tools, context, risk, or the tier floor.
 	attended := declaredRoute("attended", ClassSmall, "openai", "codex", "named-agent", "manual-model", "code")
 	catalog.Routes = append(catalog.Routes, attended)
 	decision, err = selectForTest(t, catalog, req, policy, RunOverride{Mode: OverrideUse, Alias: "attended"}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatalf("use attended: %v", err)
 	}
-	assertAliases(t, decision, []string{"attended", "medium-a", "medium-b"})
+	assertAliases(t, decision, []string{"medium-a", "medium-b"})
 
+	// `require` remains the exact attended pin and may select a trusted route
+	// without automatic capability evidence.
 	decision, err = selectForTest(t, catalog, req, policy, RunOverride{Mode: OverrideRequire, Alias: "attended"}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatalf("require attended: %v", err)
@@ -64,14 +88,160 @@ func TestSelectRouteRespectsOverridesEvidenceStrengthAndNoDownwardFallback(t *te
 
 	// A stronger exact-match Large receipt is a qualified upward fallback.
 	large.Capability.Source = EvidenceKBReceipt
+	large.Capability.DispatchProven = true
+	large.Readiness = append(large.Readiness, ReadinessDispatchProven)
 	large.Capability.ContextSize = 16384
-	mediumA.Capability.Source = EvidenceAdapterPrior
+	mediumA = adapterPriorQualifiedRoute(mediumA)
 	catalog.Routes[0], catalog.Routes[2] = mediumA, large
 	decision, err = selectForTest(t, catalog, req, policy, RunOverride{}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatalf("qualified escalation: %v", err)
 	}
 	assertAliases(t, decision, []string{"medium-b", "medium-a", "large-a"})
+}
+
+func TestSelectRouteAcceptsOnlyTheExactNextLowerAttemptTier(t *testing.T) {
+	now := fixedNow()
+	for name, tiers := range map[string][2]Tier{
+		"equal":       {TierMedium, TierMedium},
+		"skips tier":  {TierLarge, TierSmall},
+		"small tries": {TierSmall, TierTiny},
+		"above":       {TierSmall, TierMedium},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := broadRequest(tiers[0])
+			req.AttemptTier = tiers[1]
+			decision, err := selectForTest(t, catalogWithCurrent(now, nil), req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+			if !errors.Is(err, ErrInvalidWorkRequest) || decision.Status != SelectionUnavailable {
+				t.Fatalf("decision=%#v err=%v", decision, err)
+			}
+			if decision.PlannedTier != tiers[0] || decision.AttemptTier != tiers[1] {
+				t.Fatalf("invalid decision lost tier metadata: %#v", decision)
+			}
+		})
+	}
+}
+
+func TestSelectRoutePreferenceReordersOnlyAlreadyEligibleSameTierRoutes(t *testing.T) {
+	now := fixedNow()
+	local := provenRoute("local", ClassMedium, "local-lan", "codex", "named-agent", "local-model", "code", now.Add(time.Hour))
+	local.Boundary = BoundaryPrivate
+	hosted := provenRoute("hosted", ClassMedium, "openai", "codex", "named-agent", "hosted-model", "code", now.Add(2*time.Hour))
+	policy := publicPolicy()
+	local.ManagementOrigin = OriginExtra
+	local.Hosting = HostingSelfHosted
+	hosted.ManagementOrigin = OriginNative
+	hosted.Hosting = HostingProviderHosted
+	fingerprint, err := ComputeRouteFingerprint(local)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy.Trusted.RouteApprovals = []RouteApproval{{ProjectID: "project-a", RouteFingerprint: fingerprint, ExpiresAt: now.Add(time.Hour)}}
+	decision, err := selectForTest(t, catalogWithCurrent(now, []Route{hosted, local}), broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceSelfHostedFirst}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"local", "hosted"})
+	decision, err = selectForTest(t, catalogWithCurrent(now, []Route{hosted, local}), broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"hosted", "local"})
+}
+
+func TestOriginHostingAndQualifiedProofRemainIndependent(t *testing.T) {
+	now := fixedNow()
+	privateProvider := provenRoute("private-provider", ClassMedium, "openai", "codex", "named-agent", "provider-model", "code", now.Add(2*time.Hour))
+	privateProvider.Boundary = BoundaryPrivate
+	privateProvider.ManagementOrigin = OriginExtra
+	privateProvider.Hosting = HostingProviderHosted
+	selfHosted := provenRoute("self-hosted", ClassMedium, "local-lan", "codex", "named-agent", "local-model", "code", now.Add(time.Hour))
+	selfHosted.ManagementOrigin = OriginExtra
+	selfHosted.Hosting = HostingSelfHosted
+	native := provenRoute("native", ClassMedium, "openai", "codex", "named-agent", "native-model", "code", now.Add(3*time.Hour))
+	native.ManagementOrigin = OriginNative
+	native.Hosting = HostingProviderHosted
+
+	policy := publicPolicy()
+	for _, route := range []Route{privateProvider, selfHosted} {
+		fingerprint, err := ComputeRouteFingerprint(route)
+		if err != nil {
+			t.Fatal(err)
+		}
+		policy.Trusted.RouteApprovals = append(policy.Trusted.RouteApprovals, RouteApproval{ProjectID: "project-a", RouteFingerprint: fingerprint, ExpiresAt: now.Add(time.Hour)})
+	}
+	catalog := catalogWithCurrent(now, []Route{privateProvider, selfHosted, native})
+	decision, err := selectForTest(t, catalog, broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceSelfHostedFirst}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"self-hosted", "native", "private-provider"})
+	decision, err = selectForTest(t, catalog, broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"native", "private-provider", "self-hosted"})
+
+	qualified := declaredRoute("qualified", ClassMedium, "openai", "codex", "named-agent", "qualified-model", "code")
+	qualified.ManagementOrigin = OriginNative
+	qualified.Hosting = HostingProviderHosted
+	qualified.Capability.Source = EvidenceAdapterPrior
+	qualified.Capability.DispatchQualified = true
+	qualified.Capability.ExpiresAt = now.Add(time.Hour)
+	decision, err = selectForTest(t, catalogWithCurrent(now, []Route{qualified}), broadRequest(TierMedium), publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"qualified"})
+	if decision.Routes[0].Capability.DispatchProven {
+		t.Fatal("adapter qualification must not claim exact route-bound dispatch proof")
+	}
+}
+
+func TestPlannerClassRequiresExplicitUseOrRequire(t *testing.T) {
+	now := fixedNow()
+	large := provenRoute("large", ClassLarge, "openai", "codex", "named-agent", "large-model", "code", now.Add(time.Hour))
+	planner := provenRoute("planner", ClassPlanner, "openai", "codex", "named-agent", "planner-model", "code", now.Add(2*time.Hour))
+	catalog := catalogWithCurrent(now, []Route{planner, large})
+	req := broadRequest(TierLarge)
+	policy := publicPolicy()
+
+	decision, err := selectForTest(t, catalog, req, policy, RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"large"})
+	decision, err = selectForTest(t, catalog, req, policy, RunOverride{Mode: OverrideUse, Alias: "planner"}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"planner", "large"})
+	decision, err = selectForTest(t, catalog, req, policy, RunOverride{Mode: OverrideRequire, Alias: "planner"}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAliases(t, decision, []string{"planner"})
+}
+
+func TestUseCannotBypassTierToolsContextOrRisk(t *testing.T) {
+	now := fixedNow()
+	good := provenRoute("good", ClassMedium, "openai", "codex", "named-agent", "good-model", "code", now.Add(time.Hour))
+	belowTier := provenRoute("below-tier", ClassSmall, "openai", "codex", "named-agent", "small-model", "code", now.Add(time.Hour))
+	wrongTools := provenRoute("wrong-tools", ClassMedium, "openai", "codex", "named-agent", "tools-model", "code", now.Add(time.Hour))
+	wrongTools.Capability.Tools = []string{"read"}
+	shortContext := provenRoute("short-context", ClassMedium, "openai", "codex", "named-agent", "context-model", "code", now.Add(time.Hour))
+	shortContext.Capability.ContextSize = 1024
+	narrowRisk := provenRoute("narrow-risk", ClassMedium, "openai", "codex", "named-agent", "risk-model", "code", now.Add(time.Hour))
+	narrowRisk.Capability.Risk = RiskNormal
+	catalog := catalogWithCurrent(now, []Route{belowTier, wrongTools, shortContext, narrowRisk, good})
+	req := broadRequest(TierMedium)
+	for _, alias := range []string{"below-tier", "wrong-tools", "short-context", "narrow-risk"} {
+		decision, err := selectForTest(t, catalog, req, publicPolicy(), RunOverride{Mode: OverrideUse, Alias: alias}, AttemptLedger{}, now)
+		if err != nil {
+			t.Fatalf("use %s: %v", alias, err)
+		}
+		assertAliases(t, decision, []string{"good"})
+	}
 }
 
 func TestAutomaticEligibilityFailsClosedOnUnknownEvidenceAndTrust(t *testing.T) {
@@ -523,6 +693,21 @@ func TestCanonicalProjectIdentityStableAcrossLinkedWorktreesButNotClones(t *test
 	if one != two {
 		t.Fatalf("linked worktree identities differ: %q != %q", one, two)
 	}
+	alias := filepath.Join(t.TempDir(), "checkout-alias")
+	if err := os.Symlink(checkoutOne, alias); err != nil && runtime.GOOS == "windows" {
+		if output, junctionErr := exec.Command("cmd", "/c", "mklink", "/J", alias, checkoutOne).CombinedOutput(); junctionErr != nil {
+			t.Fatalf("create directory alias: symlink=%v junction=%v output=%s", err, junctionErr, output)
+		}
+	} else if err != nil {
+		t.Fatal(err)
+	}
+	aliased, err := CanonicalProjectIdentity(filepath.Join(alias, "nested"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if aliased != one {
+		t.Fatalf("symlink alias changed identity: %q != %q", aliased, one)
+	}
 	clone := filepath.Join(root, "clone")
 	if err := os.MkdirAll(filepath.Join(clone, ".git"), 0o700); err != nil {
 		t.Fatal(err)
@@ -546,6 +731,65 @@ func TestCanonicalProjectIdentityStableAcrossLinkedWorktreesButNotClones(t *test
 	}
 	if replacement == other {
 		t.Fatalf("replacement repository inherited identity %q", other)
+	}
+}
+
+func TestCanonicalProjectIdentityStableAcrossRepositoryMove(t *testing.T) {
+	parent := t.TempDir()
+	repo := filepath.Join(parent, "repo")
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	before, err := CanonicalProjectIdentity(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := filepath.Join(parent, "renamed-repo")
+	if err := os.Rename(repo, moved); err != nil {
+		t.Fatal(err)
+	}
+	after, err := CanonicalProjectIdentity(moved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("repository move changed identity: %q != %q", after, before)
+	}
+}
+
+func TestRouteSchemaRejectsDispatchProvenWithoutQualification(t *testing.T) {
+	route := provenRoute("invalid-proof", ClassMedium, "openai", "codex", "named-agent", "gpt-medium", "code", fixedNow().Add(time.Hour))
+	route.Capability.DispatchQualified = false
+	if err := ValidateCatalogStatic(Catalog{SchemaVersion: CatalogSchemaVersion, Routes: []Route{route}}, CatalogSourceRun); !errors.Is(err, ErrInvalidCatalog) {
+		t.Fatalf("dispatch-proven route without qualification error=%v", err)
+	}
+	route.Capability.DispatchQualified = true
+	route.Capability.Source = EvidenceAdapterPrior
+	if err := ValidateCatalogStatic(Catalog{SchemaVersion: CatalogSchemaVersion, Routes: []Route{route}}, CatalogSourceRun); !errors.Is(err, ErrInvalidCatalog) {
+		t.Fatalf("dispatch-proven route without receipt evidence error=%v", err)
+	}
+}
+
+func TestDefaultManagementMetadataDoesNotInvalidateLegacyRouteApproval(t *testing.T) {
+	legacy := declaredRoute("legacy-extra", ClassMedium, "local-lan", "codex", "named-agent", "local-model", "code")
+	legacy.ManagementOrigin = ""
+	legacy.Hosting = ""
+	legacy.DiscoverySources = nil
+	legacyFingerprint, err := ComputeRouteFingerprint(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defaulted := legacy
+	defaulted.ManagementOrigin = OriginExtra
+	defaulted.Hosting = HostingUnknown
+	defaulted.DiscoverySources = []string{}
+	defaultedFingerprint, err := ComputeRouteFingerprint(defaulted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaultedFingerprint != legacyFingerprint {
+		t.Fatalf("selection-only metadata invalidated approval: defaulted=%q legacy=%q", defaultedFingerprint, legacyFingerprint)
 	}
 }
 
@@ -718,6 +962,7 @@ func broadRequest(tier Tier) WorkRequest {
 func catalogWithCurrent(now time.Time, routes []Route) Catalog {
 	currentRoute := Route{
 		Alias: "current", DisplayModelID: "current-gpt", Adapter: "codex", AdapterRevision: "v1", DispatchMethod: "exec-model", Destination: "current",
+		ManagementOrigin: OriginNative, Hosting: HostingProviderHosted, DiscoverySources: []string{"active-host"},
 		Boundary: BoundaryHosted, Retention: RetentionSession, TrainingUse: TrainingUnknown, Residency: "unknown", TrustProvenance: "active orchestrator",
 		Readiness: []Readiness{ReadinessDiscovered, ReadinessConfigured, ReadinessSelectable},
 		Capability: CapabilityEvidence{Class: ClassPlanner, Source: EvidenceDeclared, RouteAlias: "current", ModelID: "current-gpt", TaskFamily: "code",
@@ -729,17 +974,32 @@ func catalogWithCurrent(now time.Time, routes []Route) Catalog {
 func provenRoute(alias string, class CapabilityClass, destination, adapter, dispatchMethod, modelID, family string, expires time.Time) Route {
 	return Route{
 		Alias: alias, DisplayModelID: modelID, Adapter: adapter, AdapterRevision: "v1", DispatchMethod: dispatchMethod, Destination: destination,
+		ManagementOrigin: OriginNative, Hosting: HostingProviderHosted, DiscoverySources: []string{"test-adapter"},
 		Boundary: BoundaryHosted, Retention: RetentionSession, TrainingUse: TrainingNo, Residency: "declared", TrustProvenance: "adapter-v1",
 		Readiness: []Readiness{ReadinessDiscovered, ReadinessConfigured, ReadinessSelectable, ReadinessDispatchProven},
 		Capability: CapabilityEvidence{Class: class, Source: EvidenceKBReceipt, RouteAlias: alias, ModelID: modelID, TaskFamily: family,
-			Tools: []string{"apply_patch", "go test"}, ContextSize: 8192, Risk: RiskBroad, DispatchProven: true, ExpiresAt: expires},
+			Tools: []string{"apply_patch", "go test"}, ContextSize: 8192, Risk: RiskBroad, DispatchQualified: true, DispatchProven: true, ExpiresAt: expires},
 	}
 }
 
 func declaredRoute(alias string, class CapabilityClass, destination, adapter, dispatchMethod, modelID, family string) Route {
 	route := provenRoute(alias, class, destination, adapter, dispatchMethod, modelID, family, fixedNow().Add(time.Hour))
 	route.Readiness = []Readiness{ReadinessDiscovered, ReadinessConfigured, ReadinessSelectable}
-	route.Capability.Source, route.Capability.DispatchProven = EvidenceDeclared, false
+	route.Capability.Source, route.Capability.DispatchQualified, route.Capability.DispatchProven = EvidenceDeclared, false, false
+	return route
+}
+
+func adapterPriorQualifiedRoute(route Route) Route {
+	route.Capability.Source = EvidenceAdapterPrior
+	route.Capability.DispatchQualified = true
+	route.Capability.DispatchProven = false
+	readiness := route.Readiness[:0]
+	for _, value := range route.Readiness {
+		if value != ReadinessDispatchProven {
+			readiness = append(readiness, value)
+		}
+	}
+	route.Readiness = readiness
 	return route
 }
 

@@ -26,13 +26,14 @@ expected_files:
     op: edit
     scope: "cover custom instructions, thin commands, workflow skills, specialist agents, and deterministic tools"
 protected_oracles: []
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: "slice-003 done"
 next_agent_action: "Document the segmentation contract and implement a small static inventory/report."
 human_action: ""
 can_continue_other_slices: true
+notes: "Ambient GHCP instructions deduplicated to a thin AGENTS.md pointer; surface-report now separates startup and conditional skills; provider boundary is file-native by default."
 ---
 
 # Slice 005 - Custom Instructions, Segmentation, and Adapter Boundary

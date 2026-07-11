@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 type Check struct {
@@ -18,6 +19,7 @@ type Check struct {
 	Run        func(root string) CheckResult
 	Available  func(root string) bool
 	SkipReason string
+	Timeout    time.Duration
 }
 
 type CheckResult struct {
@@ -141,8 +143,6 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"skill-surface-minimality", "static skill/agent minimality report detected"},
 		{"cross-model-benchmark-validate", "cross-model benchmark prompt fixtures detected"},
 		{"dishonest-completion-selftest", "dishonest completion rejection fixtures detected"},
-		{"atv-upstream-delta-selftest", "read-only ATV upstream delta selftest detected"},
-		{"atv-upstream-delta", "read-only ATV upstream delta report detected"},
 		{"workflow-governor-selftest", "KB workflow governor question/phase gate contract detected"},
 		{"context-packet-selftest", "context packet and usage telemetry contract detected"},
 		{"execution-telemetry-selftest", "execution telemetry contract detected"},
@@ -216,8 +216,6 @@ func skillRepoChecks(root string) ([]Check, error) {
 			"skill-surface-minimality-selftest": {"minimality-selftest"},
 			"kb-pipeline-selftest":              {"pipeline-selftest"},
 			"marketplace-promotion-selftest":    {"marketplace-promote-selftest"},
-			"atv-upstream-delta-selftest":       {"atv-delta-selftest"},
-			"atv-upstream-delta":                {"atv-delta"},
 			"workflow-governor-selftest":        {"workflow-governor-selftest"},
 			"context-packet-selftest":           {"context-packet-selftest"},
 			"execution-telemetry-selftest":      {"execution-telemetry-selftest"},

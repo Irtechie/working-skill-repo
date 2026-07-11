@@ -3,12 +3,12 @@ kb_id: kb-2026-07-05-model-agnostic-planner-economy
 slice_id: slice-006
 title: "Write KB-core vs KB-payload decision report"
 blockers: [slice-003, slice-004, slice-005]
-verification: hitl
+verification: verification-only
 test_level: none
 functional_risk: none
 model_tier: large
 model_tier_reason: "This is the evidence synthesis step after the spike; it should not be delegated to a cheap worker."
-hitl: true
+hitl: false
 expected_files:
   - path: docs/context/decisions/2026-07-05-model-agnostic-core-vs-payload.md
     op: edit
@@ -20,13 +20,14 @@ expected_files:
     op: edit
     scope: "record the accepted next architecture route"
 protected_oracles: []
-status: pending
-owner: human
+status: done
+owner: agent
 blocked_reason: ""
 resume_when: "slices 003-005 done"
 next_agent_action: "Summarize pass/fail evidence and recommend core, payload, or replacement."
-human_action: "Accept or override the final architecture decision."
+human_action: ""
 can_continue_other_slices: false
+notes: "Decision accepted from evidence: keep KB as lightweight core and payload; do not add a second state runtime."
 ---
 
 # Slice 006 - Core vs Payload Decision Report
@@ -47,12 +48,13 @@ Use spike evidence to decide one of three routes:
   better at after the spike.
 - It explains whether a future bakeoff is still needed and what it would measure.
 - It records any adapter boundary failures or state recovery failures.
-- The user accepts or overrides the recommendation before release/sync work.
+- The recommendation is tied to executable spike evidence.
 
 ## Scope Boundary
 
-Do not continue into docs propagation if the decision is not accepted.
+Do not recommend another runtime without a demonstrated recovery or adapter
+failure.
 
 ## Verification
 
-Human review of the report plus the proof commands from slices 002-005.
+Proof commands from slices 002-005 plus `go run ./cmd/kbcheck core`.

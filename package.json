@@ -2,6 +2,10 @@
   "name": "working-skill-repo",
   "version": "0.1.0",
   "description": "Portable KB workflow skill bundle installer for Codex and GitHub Copilot.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Irtechie/working-skill-repo.git"
+  },
   "type": "module",
   "bin": {
     "working-skill-repo": "bin/kb-install.mjs",
@@ -23,8 +27,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "test:install:core": "node ./bin/kb-install.mjs --target all --profile core --install-root ./.tmp/node-install-core --yes",
-    "test:install:full": "node ./bin/kb-install.mjs --target all --profile full --install-root ./.tmp/node-install-full --yes"
+    "test": "node --test ./bin/kb-install.test.mjs",
+    "test:install:core": "node ./bin/kb-install.mjs --target all --profile core --install-root ./.tmp/node-install-core --router skip --yes",
+    "test:install:full": "node ./bin/kb-install.mjs --target all --profile full --install-root ./.tmp/node-install-full --router skip --yes"
   },
   "license": "MIT"
 }

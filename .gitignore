@@ -1,10 +1,4 @@
-.kb/eval-runs/
-.kb/pipeline-runs/
-.kb/runs/
-.kb/snapshots/
-.kb/qa-screenshots/
-.kb/observations.jsonl
-.kb/runtime/
+.kb/
 .tmp/
 .gocache/
 .gotmp/

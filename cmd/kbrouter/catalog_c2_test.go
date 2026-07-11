@@ -155,14 +155,14 @@ func TestCodexDiscoveryPromotesOnlyExactWindowsExecutableIdentity(t *testing.T) 
 		}
 		return
 	}
-	if route.Capability.Source != modelrouting.EvidenceAdapterPrior || !route.Capability.DispatchProven {
-		t.Fatalf("exact executable did not earn adapter prior: %#v", route)
+	if route.Capability.Source != modelrouting.EvidenceAdapterPrior || !route.Capability.DispatchQualified || route.Capability.DispatchProven || hasReadiness(route.Readiness, modelrouting.ReadinessDispatchProven) {
+		t.Fatalf("exact executable did not earn qualified-only adapter prior: %#v", route)
 	}
 	miniRoute := routeByAlias(report.Catalog.Routes, "codex.gpt-5.4-mini")
 	if miniRoute == nil {
 		t.Fatalf("missing mini route: %#v", report.Catalog.Routes)
 	}
-	if miniRoute.Capability.Class == modelrouting.ClassLarge || miniRoute.Capability.DispatchProven {
+	if miniRoute.Capability.Class == modelrouting.ClassLarge || miniRoute.Capability.DispatchQualified || miniRoute.Capability.DispatchProven {
 		t.Fatalf("listing/name-only mini route was promoted by exact executable: %#v", miniRoute)
 	}
 	if !strings.HasPrefix(route.AdapterRevision, "codex-cli-v1:") || route.AdapterRevision == "v1" {

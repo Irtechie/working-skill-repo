@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "cohort": "initial-pilot",
+  "evidence_mode": "deterministic-no-paid",
+  "model_provenance": "unavailable",
+  "paid_calls": 0,
+  "baseline": "planned-tier-host-native",
+  "release_decision": "not-promoted",
+  "next_lower_attempts": "disabled",
+  "live_support_status": "not-qualified",
+  "router": {
+    "status": "unavailable",
+    "reason": "private-acl-access-denied"
+  },
+  "supported_cohorts": [],
+  "support_claims": [],
+  "parked_surfaces": [
+    "ghcp",
+    "codex-app-exact-attribution",
+    "tinyboss-control",
+    "mcp-dispatch",
+    "direct-chat-completions"
+  ],
+  "fixtures": [
+    {
+      "class": "deterministic-conformance",
+      "path": "evals/model-routing/initial-pilot.json",
+      "sha256": "9809d574f86e4505ec0a504d5cb4ecac2387ee87c3f3fb7cdc69c4acc4c71f6f",
+      "live": false,
+      "efficiency_evidence": false,
+      "support_evidence": false
+    },
+    {
+      "class": "seeded-correction-safety",
+      "path": "evals/model-routing/correction-pilot.json",
+      "sha256": "093593de2bfb2b6284e6c7ed0cfe35a4846590c26b92ac43e890fe947bbc1afc",
+      "live": false,
+      "efficiency_evidence": false,
+      "support_evidence": false
+    }
+  ],
+  "metrics": {
+    "total_billed_cost": {"status": "unavailable"},
+    "total_tokens": {"status": "unavailable"},
+    "wall_clock_ms": {"status": "unavailable"}
+  },
+  "promotion": {
+    "preregistered_gates_met": false,
+    "independent_holdout": false,
+    "power_justified": false,
+    "live_sample_size": 0,
+    "task_families": 0,
+    "zero_right_to_wrong": false,
+    "primary_metric": "unavailable",
+    "correction_safety": "not-run"
+  }
+}

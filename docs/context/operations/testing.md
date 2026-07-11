@@ -20,6 +20,7 @@ go run ./cmd/kbcheck trace-verify --trace .kb/trace.jsonl
 go run ./cmd/kbcheck learning-adoption --result-path <results.json>
 go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet-valid.json
 go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
+go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
 go run ./cmd/kbcheck provider-hygiene --include-user
 go test ./...
 ```
@@ -129,8 +130,6 @@ checks when run here:
 - `kb-release-gate-selftest`
 - `skill-surface-minimality-selftest`
 - `skill-surface-minimality`
-- `atv-upstream-delta-selftest`
-- `atv-upstream-delta`
 - `dishonest-completion-selftest`
 - `kb-doctor-selftest`
 - `kb-run-state-selftest`
@@ -152,7 +151,11 @@ go run ./cmd/kbcheck live-release
 ```
 
 `local-release` is the pre-sync proof command and includes
-`skill-sync-report`. `live-release` is explicit and
+`skill-sync-report`. When the canonical model-routing evidence artifact exists,
+it also revalidates the fixed no-paid routing proof. The current honest state is
+`not-promoted`: zero supported cohorts, no live/efficiency evidence, next-lower
+attempts disabled, and correction dispatch limited to validation plus refusal.
+`live-release` is explicit and
 may call authenticated Codex/GHCP CLIs; unavailable live surfaces must be labeled
 `skipped-explicit`, not silently treated as verified.
 
@@ -215,23 +218,20 @@ All current harness commands are native `cmd/kbcheck` commands:
   bounded-swarm write-overlap guards.
 - `surface-report` and `minimality` report loaded skill surface and static
   skill/agent minimality classifications.
-- `atv-delta` compares local ATV/fork state to original ATV upstream with
-  read-only git diff commands and classifies changed skills as KB-owned rejects,
-  shared-overlap reviews, ATV-native candidates, superseded workflow rejects, or
-  unknown reviews.
 - `marketplace-firebreak`, `marketplace-firebreak-selftest`,
   `marketplace-promote`, and `marketplace-promote-selftest` enforce quarantine
   boundaries and prove the reviewed promotion path.
 - `skill-sync-report` validates required skill-copy hashes across the working
-  repo, Codex global, Copilot global, shared agents global, and ATV `.github`
-  skills; it is release-blocking through `local-release`.
+  repo, Codex global, Copilot global, and shared agents global; it is
+  release-blocking through `local-release`.
 - `doctor` reports the same configured install drift and `doctor --fix` repairs
   only missing or marker-proven stale required copies from this repo source.
 - `dishonest-completion-selftest` validates negative fixtures for vacuous-green
-  proof, missing slice proof checks, invalid model routes, and route-history
-  oscillation.
+  proof, missing slice proof checks, receipt-is-not-work-proof claims, and
+  route-history oscillation.
 - `manifest-contract` validates objective `done_check`, per-slice
-  `proof_check`/`no_check_reason`, model routes, and terminal gate proof.
+  `proof_check`/`no_check_reason`, route-neutral planning, inert legacy
+  `model_route` hints, and terminal gate proof.
 - `run-state` validates `.kb/runs/<goal>/route-history.jsonl` for oscillation,
   repeated low confidence, and no-progress loops.
 - `sense`, `accept`, and `trace-verify` implement the failure-first proof spine:
@@ -245,6 +245,11 @@ All current harness commands are native `cmd/kbcheck` commands:
 - `execution-telemetry` validates a separate typed runtime-result artifact.
   Host adapters may emit it when real usage data is available; model-authored
   output is not treated as measured usage.
+- `model-routing-release --cohort initial-pilot --evidence
+  docs/results/2026-07-10-session-model-routing-initial-pilot.json` validates
+  strict no-paid evidence and reruns fixed local selector/refusal/fallback
+  proofs. Green means the artifact is honest, not that AMR or a live cohort was
+  promoted.
 - `provider-hygiene` rejects Phoenix activation in repo or standard user
   provider configs while allowing CCE as an opt-in adapter. User-global config
   is inspected only with `--include-user`; `core` remains repo-local.

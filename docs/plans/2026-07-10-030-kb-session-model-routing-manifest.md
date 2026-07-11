@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-10-session-model-routing
 brainstorm_path: docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md
 created: 2026-07-10
-status: active
+status: completed
 workflow_shape: pipeline-change
 objective_contract: true
 done_check:
@@ -29,20 +29,20 @@ gate_ledger:
       - docs/context/research/2026-07-09-project-model-routing-surfaces.md
       - "Question Gate and Outstanding Questions sections"
       - "Resolve Before Planning: None"
-      - "two completed document-review passes"
+      - "2026-07-11 multi-persona document-review refinements resolved with final feasibility-adversarial clear and coherence auto-fix"
     blockers: []
-    passed_at: "2026-07-10T03:39:22Z"
+    passed_at: "2026-07-11T04:46:57Z"
     allowed_next_action: "kb-plan docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md"
   - gate_id: plan-to-work
     owner_skill: kb-plan
     status: passed
     required_evidence:
-      - "manifest and seven slice plans exist"
+      - "manifest and nine slice plans exist"
       - "DAG has no missing blockers or cycles"
       - "every slice has acceptance, expected files, proof, test level, risk, and model tier"
       - "every slice has a validated bounded context packet"
       - "new plans omit concrete model routes and legacy manifests remain readable"
-      - "supported cohort and parked claims are explicit"
+      - "candidate cohort, qualified supported cohorts, and parked claims are explicit"
       - "objective done check exists"
     proof:
       - docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md
@@ -53,8 +53,13 @@ gate_ledger:
       - docs/plans/2026-07-10-035-kb-work-model-routing-plan.md
       - docs/plans/2026-07-10-036-model-routing-pilot-plan.md
       - docs/plans/2026-07-10-037-model-routing-distribution-plan.md
+      - docs/plans/2026-07-10-038-amr-one-loop-cleanup-plan.md
+      - docs/plans/2026-07-10-039-project-model-priority-plan.md
+      - docs/plans/2026-07-10-session-model-routing-context/slice-005a.json
+      - docs/plans/2026-07-10-session-model-routing-context/slice-005b.json
+      - "amended DAG has no missing blockers or cycles"
     blockers: []
-    passed_at: "2026-07-10T04:45:00Z"
+    passed_at: "2026-07-11T04:48:59Z"
     allowed_next_action: "kb-work docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md"
   - gate_id: slice-slice-001-to-done
     owner_skill: kb-work
@@ -121,8 +126,8 @@ gate_ledger:
       - .github/skills/kb-models/SKILL.md
       - ".kb/snapshots/session-model-routing-slice-003.json"
       - ".kb/runs/session-model-routing/slice-003-result.md"
-      - "P0/P1 coherence review: clear"
-      - "Windows tests plus Linux/Darwin amd64 compile: PASS"
+      - "P0-P1 coherence review: clear"
+      - "Windows tests plus Linux-Darwin amd64 compile: PASS"
       - "qa-browser: skipped — no UI-reachable behavior changed"
     blockers: []
     passed_at: "2026-07-10T11:10:00Z"
@@ -142,7 +147,7 @@ gate_ledger:
       - cmd/kbrouter/dispatch_test.go
       - .kb/runs/session-model-routing/slice-004-result.md
       - ".kb/snapshots/session-model-routing-slice-004.json"
-      - "Windows package tests, native Linux package tests, Linux vet, Darwin cross-compile, live native Codex discovery, and final P0/P1-clear reviews are inherited from C1/C2"
+      - "Windows package tests, native Linux package tests, Linux vet, Darwin cross-compile, live native Codex discovery, and final P0-P1-clear reviews are inherited from C1-C2"
     blockers: []
     passed_at: "2026-07-10T20:05:00Z"
     allowed_next_action: "kb-work slice-005"
@@ -165,7 +170,92 @@ gate_ledger:
       - "focused and full skill-eval selftests, skill-lint, context-packet validation, and scoped diff check: PASS"
     blockers: []
     passed_at: "2026-07-10T21:36:00Z"
+    allowed_next_action: "kb-work slice-005a"
+  - gate_id: slice-slice-005a-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "one AMR attempt/proof/correction loop replaces DDR duplication"
+      - "planned tier remains correction authority while bounded lower-tier attempts are explicit"
+      - "failed attempts produce bounded correction evidence without claiming unsafe preserved-work savings"
+      - "automatic correction dispatch fails closed until isolated proof-and-apply execution exists"
+      - "runtime, CLI, validator, skill, docs, eval, core, and release checks pass"
+    proof:
+      - internal/modelrouting/selector.go
+      - internal/modelrouting/correction.go
+      - internal/modelrouting/correction_test.go
+      - cmd/kbrouter/dispatch.go
+      - cmd/kbrouter/dispatch_test.go
+      - evals/skill-eval/selftest/pass-session-model-routing.json
+      - ".kb/snapshots/session-model-routing-slice-005a.json"
+    blockers: []
+    passed_at: "2026-07-11T03:32:33-04:00"
+    allowed_next_action: "kb-work slice-005b"
+  - gate_id: slice-slice-005b-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "user-local project priority never writes personal state to the repository"
+      - "origin, hosting, trust, qualification, and exact proof remain distinct"
+      - "ordinary work defaults silently to automatic source choice"
+      - "functional CLI, package, core, and release checks pass"
+    proof:
+      - internal/modelrouting/catalog.go
+      - internal/modelrouting/policy.go
+      - internal/modelrouting/selector.go
+      - internal/modelrouting/selector_test.go
+      - cmd/kbrouter/catalog.go
+      - cmd/kbrouter/catalog_test.go
+      - cmd/kbrouter/main.go
+      - cmd/kbrouter/select.go
+      - cmd/kbrouter/select_test.go
+      - ".kb/snapshots/session-model-routing-slice-005b.json"
+    blockers: []
+    passed_at: "2026-07-11T09:42:50-04:00"
     allowed_next_action: "kb-work slice-006"
+  - gate_id: slice-slice-006-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "strict evidence validation distinguishes honest not-promoted from promotion"
+      - "deterministic and correction fixtures cannot count as live support or efficiency"
+      - "missing telemetry is unavailable, never zero"
+      - "no-paid evidence keeps public next-lower attempts disabled and supported cohorts empty"
+      - "focused validator, package, core, and regression checks pass"
+    proof:
+      - cmd/kbcheck/model_routing_release.go
+      - cmd/kbcheck/model_routing_release_test.go
+      - evals/model-routing/initial-pilot.json
+      - evals/model-routing/correction-pilot.json
+      - docs/results/2026-07-10-session-model-routing-initial-pilot.json
+      - ".kb/snapshots/session-model-routing-slice-006.json"
+    blockers: []
+    passed_at: "2026-07-11T11:43:19-04:00"
+    allowed_next_action: "kb-work slice-007"
+  - gate_id: slice-slice-007-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "optional binary lifecycle is checksum-verified, backup-safe, and cross-platform"
+      - "skill-only fallback remains usable when router install is skipped or unavailable"
+      - "skills resolve the standard user-local binary without mutating shell profiles"
+      - "working/global/ATV skill copies are drift-reviewed then hash-synced"
+      - "core, installer tests, local-release, manifest, and regression checks pass"
+    proof:
+      - bin/kb-install.test.mjs
+      - bin/check-release-tag.test.mjs
+      - cmd/kbcheck/main_test.go
+      - cmd/kbcheck/skill_validators_test.go
+      - cmd/kbcheck/process_tree_windows.go
+      - cmd/kbcheck/process_tree_unix.go
+      - .gitattributes
+      - docs/results/2026-07-10-session-model-routing-initial-pilot.json
+      - docs/results/2026-07-11-session-model-routing-release-proof.md
+      - docs/assets/kb-model-selection.png
+      - docs/assets/kb-routing-workflow.png
+    blockers: []
+    passed_at: "2026-07-11T15:27:09-04:00"
+    allowed_next_action: "kb-complete"
 slices:
   - id: slice-001
     title: "Keep manifests model-neutral with legacy compatibility"
@@ -188,7 +278,7 @@ slices:
     protected_oracles:
       - path: cmd/kbcheck/manifest_contract_test.go
         role: "new/legacy manifest compatibility oracle"
-        sha256: "cbfd6b3265e47b1bba0d97e0590780c8ebbc6978d62041d6e75021536e338b4b"
+        sha256: "3f85c7e3e6c961bb55d92dd3dc3e60c1931652806004c37d4b914a04a6d9e206"
         update_policy: "requires explicit plan update"
   - id: slice-002
     title: "Select routes conservatively from a secure session catalog"
@@ -211,7 +301,7 @@ slices:
     protected_oracles:
       - path: internal/modelrouting/selector_test.go
         role: "difficulty, trust, fallback, and current-model degradation oracle"
-        sha256: "3e241a0c74d2020fcc1b535c45b45604b042c912292698be3b66bdae3e9a5465"
+        sha256: "b421387416e485307d28a45d8ea63a1b190796ea639a36ae5fd23059efec01d2"
         update_policy: "requires explicit plan update"
   - id: slice-003
     title: "Manage optional extra routes without a setup questionnaire"
@@ -234,7 +324,7 @@ slices:
     protected_oracles:
       - path: cmd/kbrouter/catalog_test.go
         role: "secure CRUD, discovery, and non-mutating doctor CLI oracle"
-        sha256: "6d13708dd3eee4d01fc5c89d1217b9614e13ed8c8b0de6da09a1036d62666006"
+        sha256: "0ab7eebc9d94f1c91a4bffb11fc77b30bc118eca95140a587c2472cf545569e6"
         update_policy: "requires explicit plan update"
   - id: slice-004
     title: "Dispatch Codex and custom-provider workers with route-bound receipts"
@@ -257,7 +347,7 @@ slices:
     protected_oracles:
       - path: cmd/kbrouter/dispatch_test.go
         role: "least-privilege host dispatch and receipt binding oracle"
-        sha256: "a8c38d5d13edb9c9ed39e2c3752157af68ca9eb8548d99d7bfce1cfedb4a2eba"
+        sha256: "8cb51e43203729f714aced1f297bd6d490b7c5a32ace35ee26976563d8e6973f"
         update_policy: "requires explicit plan update"
   - id: slice-005
     title: "Route kb-work slices by live difficulty and preserve proof"
@@ -280,12 +370,62 @@ slices:
     protected_oracles:
       - path: evals/skill-eval/selftest/pass-session-model-routing.json
         role: "work-time routing, override, fallback, and provenance behavior oracle"
-        sha256: "342ba9e2bf109433e145453f0102ea814acc7c3fd41ec52d31660214201ef669"
+        sha256: "7dcb5cd560f48833929ba871ec7e25dfa17c053e719df836d6157784df02773f"
+        update_policy: "requires explicit plan update"
+  - id: slice-005a
+    title: "Consolidate AMR into one proof-triggered attempt and correction loop"
+    path: docs/plans/2026-07-10-038-amr-one-loop-cleanup-plan.md
+    blockers: [slice-005]
+    verification: tdd
+    test_level: functional-cli
+    functional_risk: broad
+    model_tier: large
+    context_packet_path: docs/plans/2026-07-10-session-model-routing-context/slice-005a.json
+    proof_check:
+      kind: command_exit
+      command: "go test ./internal/modelrouting ./cmd/kbrouter ./cmd/kbcheck"
+      expect: 0
+    hitl: false
+    status: done
+    owner: agent
+    can_continue_other_slices: false
+    notes: "Router discovery was attempted before execution but both the existing run root and fresh run root failed before selection; fresh preparation failed setting the private Windows ACL with Access is denied. No Terra-Luna-Mini or other route is claimed; current planner and bounded subagents have unavailable model provenance and ordinary proof is authoritative. RED-GREEN established explicit next-lower attempt metadata, planned-tier authority, typed correction handoff, and fail-closed correction dispatch. Two adversarial reviews exposed and resolved unsafe live-checkout correction, self-asserted proof-oracle scaffolding, hidden broad diff ranges, hardlink-ADS aliases, stale executable skill instructions, and dormant test-only result code. Final production behavior retains only bounded handoff validation and refuses correction before worker launch, mutation, output, or receipt because isolation plus compare-and-swap apply does not exist. No preserved-work savings are claimed. Full packages, manifest, context, skill-eval, lint, diff check, and regression snapshot PASS; browser QA skipped because no UI behavior. Scope discovery: correction.go and correction_test.go were required runtime-oracle additions; receipt and trusted-finalizer scaffolding were deliberately deleted. Memory impact: durable AMR policy updated in requirements, README, architecture, skills, eval, and manifest."
+    protected_oracles:
+      - path: internal/modelrouting/selector_test.go
+        role: "attempt, correction-tier, trust, override, and fallback oracle"
+        sha256: "b421387416e485307d28a45d8ea63a1b190796ea639a36ae5fd23059efec01d2"
+        update_policy: "this plan explicitly authorizes replacing the obsolete no-downward assertions"
+      - path: internal/modelrouting/correction_test.go
+        role: "driver-owned correction scope, preserved-hunk, and exact-proof oracle"
+        sha256: "5f6cd0365c639f894be0c0f210d5410ecb32f2e0b23c508cbc239edb82226a59"
+        update_policy: "requires explicit plan update"
+  - id: slice-005b
+    title: "Persist honest user-local project source priority"
+    path: docs/plans/2026-07-10-039-project-model-priority-plan.md
+    blockers: [slice-003, slice-005a]
+    verification: tdd
+    test_level: functional-cli
+    functional_risk: broad
+    model_tier: large
+    context_packet_path: docs/plans/2026-07-10-session-model-routing-context/slice-005b.json
+    proof_check:
+      kind: command_exit
+      command: "go test ./internal/modelrouting ./cmd/kbrouter -run 'Qualified|Hosting|Origin|Priority|Preference|QuickAdd'"
+      expect: 0
+    hitl: false
+    status: done
+    owner: agent
+    can_continue_other_slices: true
+    notes: "Router discovery failed before selection because private Windows ACL setup returned Access is denied; no named model route is claimed and worker model provenance is unavailable. TDD established independent management origin, hosting, trust boundary, dispatch qualification, and exact receipt proof; project priorities are versioned user-local state keyed by rename-stable canonical project identity and never grant trust or write repository files. Adversarial review found and resolved six underbuilds: minimal endpoint quick-add now defaults to unknown/unqualified capability, run overrides bypass saved-state corruption, clear/reset and no-write/trust-mutation oracles are protected, repository moves/aliases preserve identity while clones do not, selection metadata no longer invalidates legacy approvals, and dispatch-proven requires qualified KB-receipt evidence. Full internal/modelrouting and cmd/kbrouter packages, focused functional CLI proof, context/manifest contracts, diff check, and regression snapshot capture PASS; browser QA skipped because no UI behavior changed."
+    protected_oracles:
+      - path: cmd/kbrouter/catalog_test.go
+        role: "user-local project preference, quick-add, and no-repo-write oracle"
+        sha256: "0ab7eebc9d94f1c91a4bffb11fc77b30bc118eca95140a587c2472cf545569e6"
         update_policy: "requires explicit plan update"
   - id: slice-006
     title: "Prove the Codex-first advisory pilot and promotion boundary"
     path: docs/plans/2026-07-10-036-model-routing-pilot-plan.md
-    blockers: [slice-004, slice-005]
+    blockers: [slice-004, slice-005b]
     verification: functional
     test_level: full
     functional_risk: full
@@ -296,13 +436,14 @@ slices:
       command: "go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
-    can_continue_other_slices: false
+    can_continue_other_slices: true
+    notes: "No paid, model, or network calls were made and no named model provenance is claimed. The strict release validator rejects unknown fields, path escapes, symlinks, hash mismatch, deterministic fixtures counted as live support/efficiency, unsupported host claims, zero substituted for unavailable telemetry, unbound supported cohorts, and promotion without preregistered gates plus a measured nonzero primary baseline. Production reruns two fixed local Go proof commands with bounded output and a ten-minute Windows/toolchain ceiling; fixture input cannot alter argv. The canonical evidence result is deterministic-no-paid, release_decision=not-promoted, supported_cohorts=[], next_lower_attempts=disabled, live support not-qualified, router unavailable/private-acl-access-denied, and metrics unavailable. Focused validator tests, production done-check, full cmd/kbcheck, core 34/34, context/manifest contracts, diff check, snapshot capture, and prior snapshot replay 10/10 PASS. The first core attempt observed the concurrent untracked amrbench draft mid-edit; after its writer completed, cmd/amrbench and full core passed."
     protected_oracles:
       - path: cmd/kbcheck/model_routing_release_test.go
         role: "support-cohort and no-regression release oracle"
-        sha256: "filled by kb-work after RED/protection"
+        sha256: "8a63ed271f8817d3efc13a7bc5f64e887e9dea024602d2080116203fe5883f45"
         update_policy: "requires explicit plan update"
   - id: slice-007
     title: "Ship portable binaries, installer fallback, docs, and sync"
@@ -318,13 +459,14 @@ slices:
       command: "go run ./cmd/kbcheck local-release"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
-    can_continue_other_slices: false
+    can_continue_other_slices: true
+    notes: "Adversarial review closed synthetic live-evidence promotion, feature-marker deletion bypass, malformed installer version state, insecure/unbounded downloads, release tag drift, publication-without-proof, Linux-only lifecycle fixtures, AMR wording drift, unbounded/silent proof subprocesses, checkout-unstable line endings, runtime-cache sync noise, and Windows ACL/path-alias failures. Installer 19/19, tag 3/3, broad Go proof, manifest, diff, no-paid evidence, and required sync pass on the final staged delivery candidate. GitHub workflows are explicitly outside this delivery. Images were regenerated only after the issue/proof pass."
     protected_oracles:
       - path: bin/kb-install.test.mjs
         role: "install, upgrade, uninstall, and router-unavailable fallback oracle"
-        sha256: "filled by kb-work after RED/protection"
+        sha256: "55b56a8f3d70704318f9101913b8493f1c54af720f9b73b1030aa9929a749d4f"
         update_policy: "requires explicit plan update"
 ---
 
@@ -338,9 +480,17 @@ Brainstorm: `docs/brainstorms/2026-07-09-session-model-discovery-and-routing-req
 
 `pipeline-change` - deterministic routing binary, host adapter, skill behavior, proof contract, and public distribution.
 
-## Supported Cohort
+## Candidate and Supported Cohorts
 
-The first shipped cohort is an advisory pilot for Codex CLI plus one generic OpenAI-compatible provider routed through Codex's coding-agent harness. Codex App-only model names remain informative unless a selector is exposed. GHCP, TinyBoss controller actions, MCP model dispatch, generated named agents, and default automatic routing require later conformance evidence.
+The first candidate exact routed cohort is Codex CLI plus one
+OpenAI-compatible/LiteLLM provider routed through a trusted Codex profile and
+coding-agent harness. It is not a supported cohort until attended route-bound
+receipts prove the exact packet, work proof, and install state. A no-paid release
+artifact may therefore pass honestly with zero supported cohorts and
+`not-promoted`. Host-managed unpinned native selection remains usable with
+unknown attribution. GHCP, TinyBoss controller actions, MCP/direct
+chat-completions model dispatch, generated cross-host agents, and default
+next-lower AMR attempts require later conformance and value evidence.
 
 ## Slice Overview
 
@@ -351,12 +501,14 @@ The first shipped cohort is an advisory pilot for Codex CLI plus one generic Ope
 | 3 | Optional extra-route catalog | 2 | integration | large | no | done |
 | 4 | Codex/custom-provider dispatch | 1, 2, 3 | integration | large | no | done |
 | 5 | KB work-time routing | 1, 4 | integration | medium | no | done |
-| 6 | Advisory pilot proof | 4, 5 | functional | large | no | pending |
+| 5a | One AMR attempt/proof/correction loop | 5 | tdd | large | no | done |
+| 5b | User-local project source priority | 3, 5a | tdd | large | no | in_progress |
+| 6 | Advisory pilot proof | 4, 5b | functional | large | no | pending |
 | 7 | Distribution and sync | 3, 5, 6 | integration | large | no | pending |
 
 ## Model Selection Contract
 
-The planner records only difficulty. `kb-work` discovers routes before dispatch, prefers evidence-qualified routes that meet tier/risk/tool/trust needs, and records actual runtime/model evidence when available. Here Large prefers a dispatch-proven GPT-5.5 High route; Medium prefers a dispatch-proven Terra route when the active surface exposes a selector, otherwise an evidence-qualified same-class route such as GPT-5.4, then a stronger route. Visibility alone never proves dispatch.
+The planner records difficulty, authority, and proof only. `kb-work` discovers routes before dispatch, prefers evidence-qualified routes that meet tier/risk/tool/trust needs, and records actual runtime/model evidence when available. Host-native and configured extra routes resolve live; plans never contain a hosted model version or personal route preference. Visibility alone never proves dispatch, adapter qualification is not exact route proof, and planner models are not automatic workers.
 
 ## Parked Claims
 

@@ -474,12 +474,14 @@ func TestC1ConcurrentDispatchLockPreservesFailedHandoff(t *testing.T) {
 				handoffPath:       "handoff.json",
 				workerRequestPath: "worker-request.json",
 				routeAlias:        route.Alias,
-				timeout:           10 * time.Second,
-				outputLimit:       defaultDispatchOutputLimit,
-				attemptLimit:      2,
-				sandbox:           "workspace-write",
-				approvalPolicy:    "never",
-				network:           "none",
+				// This test proves lock/namespace serialization, not worker timeout.
+				// Leave enough headroom for loaded Windows CI hosts.
+				timeout:        time.Minute,
+				outputLimit:    defaultDispatchOutputLimit,
+				attemptLimit:   2,
+				sandbox:        "workspace-write",
+				approvalPolicy: "never",
+				network:        "none",
 			})
 			results <- err
 		}()

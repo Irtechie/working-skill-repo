@@ -1,0 +1,14 @@
+instincts:
+  - id: keep-provider-audits-semantic-and-opt-in
+    scope: skill-bundle/provider-hygiene
+    trigger: "when adding checks for optional MCP servers, hooks, context engines, or provider-specific runtime configuration"
+    behavior: "keep contributor gates repo-local, make user-global inspection explicit, parse enabled provider entries semantically, and distinguish optional adapters from forbidden active dependencies"
+    confidence: 0.5
+    domain: tooling
+    observations: 1
+    first_seen: 2026-07-09
+    last_seen: 2026-07-09
+    evidence:
+      - "docs/solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md"
+      - "cmd/kbcheck/provider_hygiene_test.go covers optional CCE, active/escaped Phoenix, and disabled JSON/TOML entries"
+      - "2026-07-09 multi-agent review caught machine-dependent core and substring-based false positives before completion"

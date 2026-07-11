@@ -102,7 +102,7 @@ gate_ledger:
     proof:
       - .github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1
       - docs/context/operations/testing.md
-      - docs/handoffs/active/2026-07-09-phoenix-routing-go-gate-blocker.md
+      - docs/handoffs/done/2026-07-09-phoenix-routing-go-gate-blocker.md
       - todo.md
       - docs/plans/2026-07-09-010-kb-phoenix-routing-slicing-absorption-manifest.md
     blockers: []

@@ -26,13 +26,14 @@ expected_files:
     op: sync
     scope: "propagate approved skill changes to required roots after drift review"
 protected_oracles: []
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: "slice-006 done"
 next_agent_action: "Update docs, sync final skill copies, and run release gates."
 human_action: ""
 can_continue_other_slices: true
+notes: "Working docs and ATV-facing README updated; kb-plan/kb-work synced to required Codex, Copilot, shared agents, and ATV .github roots."
 ---
 
 # Slice 007 - Docs, Sync, and Release

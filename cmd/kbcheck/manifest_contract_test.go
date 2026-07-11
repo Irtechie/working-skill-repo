@@ -321,6 +321,36 @@ gate_ledger: []
 	}
 }
 
+func TestManifestContractTreatsLegacyDDRMetadataAsInertTelemetry(t *testing.T) {
+	proof := filepath.Join(t.TempDir(), "proof.md")
+	writeFile(t, proof, "# proof\n")
+	path := writeManifest(t, `
+---
+gate_ledger:
+  - gate_id: slice-slice-001-to-done
+    status: passed
+    required_evidence:
+      - "proof exists"
+    proof:
+      - "`+filepath.ToSlash(proof)+`"
+    blockers: []
+    passed_at: "2026-07-10"
+slices:
+  - id: slice-001
+    status: done
+    execution_mode: ddr
+    ddr_status: legacy
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("legacy DDR metadata should not create a cosmetic proof gate: %#v", result)
+	}
+}
+
 func TestManifestContractRequiresPacketForPendingSliceWhenEnabled(t *testing.T) {
 	path := writeManifest(t, `
 ---

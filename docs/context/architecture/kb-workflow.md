@@ -72,10 +72,10 @@ Enforced by skills and artifacts today:
   reversibility, and the later proof that would catch a wrong assumption.
 - `kb-plan` refuses to slice source material that still contains unresolved
   brainstorm blockers.
-- `kb-work` and `kb-complete` advance only through manifest gate-ledger records,
+- `kb-work`, `kb-finalize`, and `kb-complete` advance only through manifest gate-ledger records,
   not chat confidence.
-- `klfg` is the strict orchestrator for the full loop:
-  `kb-brainstorm -> kb-plan -> kb-work -> kb-complete -> DONE`.
+- `kb-complete` is the state-aware orchestrator for the full loop:
+  `brainstorm when needed -> kb-plan -> kb-work -> kb-finalize -> delivery`.
 
 The deterministic maintainer proof is:
 
@@ -168,17 +168,16 @@ checks the hash chain, and `kbcheck accept` is the preferred repair proof. A
 latest-green check without a recorded prior RED is not enough for a repair
 claim.
 
-`klfg` is one strict pipeline run from brainstorm through completion. `kb-goal`
-is the durable-objective lane: it may run `klfg`, `kb-epic`, `kb-task`, or
+`kb-complete` is one state-aware run from source through configured delivery.
+`kb-goal` is the durable-objective lane: it may run `kb-complete`, `kb-epic`, `kb-task`, or
 several manifests over days, but it completes only when the goal ledger's
 terminal proof matches the original objective. Under a goal, brainstorm stops are minimized:
 the agent resolves the best path from repo evidence, research, and safe
 assumptions, and asks only for true `ask-now` blockers.
 
-`kb-finish` is the explicit checked-in orchestration boundary. It accepts a
-plan or manifest, recovers whichever planning/work/completion phases remain,
-then invokes `kb-ship`. Ordinary `kb-work -> kb-complete` remains non-shipping;
-internal completion calls must not unexpectedly commit or push.
+`kb-work` auto-invokes only `kb-finalize`, which cannot publish. Explicit
+`kb-complete` applies project delivery policy after finalization. `kb-finish`
+and `klfg` remain compatibility aliases.
 
 For recurring or trend-improvement goals, `kb-goal` may add a live-steering
 block to the goal ledger. That block names the set point, sensor, controller,
@@ -241,8 +240,54 @@ to bounce between lanes.
 
 `kb-plan` produces vertical slices with expected files, verification,
 dependencies, test level, functional risk, model tier, and HITL flags. Model
-tier describes safe delegation (`tiny`, `small`, `medium`, `large`); it never
-lowers the executable proof requirement.
+tier records planned correction/authority (`small`, `medium`, `large`; legacy
+`tiny` maps to `small`). It never lowers the executable proof requirement and
+does not freeze the first worker.
+
+Plans contain tier, requirements, risk, and proof only. They never name a model,
+route alias, source preference, adapter, endpoint, or transport. The current
+master chooses eligible host-native routes automatically and records the actual
+route in the receipt. Only run-scoped `require <model>` hard-pins.
+
+Ordinary map/bootstrap and native-only work ask no routing questions. Explicit
+`kb-models` setup may add user-local OpenAI-compatible/LiteLLM routes whose
+alias resolves to the current model, adapter, endpoint, and auth reference.
+Generic MCP model dispatch is not a current capability. Ordinary work silently
+uses `automatic` when no project source choice is saved. Only explicit setup or
+configuration offers `automatic`, `self-hosted-first`, or `native-first`. Save
+only that source preference through user-local `kb-models`; connection details remain local.
+
+Adaptive Model Routing (AMR) is automatic: `kb-work` uses the live `kbrouter`
+catalog and the current master to run one proof-triggered attempt/correction
+loop. For settled intent, bounded scope and authority, objective proof, safe
+trust/destination, and exact escalation triggers, the driver may explicitly
+request one next-lower `attempt_tier`. The selector validates that requested
+route; it does not infer suitability from “code,” file extensions, or price.
+
+```text
+plan correction tier + bounded packet + objective proof
+  -> eligible? one next-lower attempt : planned-tier start
+  -> proof passes? keep result
+  -> proof fails? prepare planned-tier surgical correction handoff
+  -> no isolated correction runner? fail closed; record ordinary planned-tier execution
+```
+
+Deterministic proof is the validator. The planned-tier model is correction
+authority, not a mandatory reviewer of passing work. Failure handoff carries
+the accepted result, exact failed criterion/location, smallest allowed change,
+preserved invariants, relevant interfaces, proof result, compact diff, attempt
+ledger, and focused/regression checks. The current runtime does not dispatch
+that handoff into the live checkout: isolation, host-owned proof, and
+compare-and-swap apply are required first. A full-file rewrite is forbidden unless
+the failure cannot be localized or the plan/interface/authority boundary
+changes.
+
+No routing file means planned-tier AMR selection is automatic while substantive
+next-lower attempts remain disabled until explicit pilot/opt-in or promotion. Normal work
+asks no routing questions. `kb-configure` may disable attempts, while
+advanced run-scoped `use`, `require`, `prefer self-hosted` (`prefer local`
+shorthand), `prefer native`, and `ignore model routing` controls remain
+available through `kb-models`.
 
 `kb-work` executes the safe ready set from the slice dependency DAG. Once
 execution starts, it does not ask before each slice. The default WIP is every
@@ -254,10 +299,10 @@ destructive approval, blocked/human-required work, scope failures, QA/repair
 exhaustion, dependency deadlock, observed overlap that cannot be safely
 serialized, or explicit user stop.
 
-`kb-work` is not done when slices pass. It must invoke `kb-complete` after all
-runnable slices are done or intentionally skipped.
+`kb-work` is not finalized when slices pass. It must invoke `kb-finalize` after
+all runnable slices are done or intentionally skipped.
 
-`kb-complete` owns the terminal half of the loop:
+`kb-finalize` owns the post-work quality half of the loop:
 
 - deterministic final checks
 - `kb-review`
@@ -269,6 +314,13 @@ runnable slices are done or intentionally skipped.
 - project memory refresh
 - memory maintenance signals
 - cleanup
+
+`kb-complete` is the single user-facing state-aware orchestrator. It can begin
+from a feature description, plan, active manifest, or reviewed manifest; it
+delegates planning, work, and finalization, then applies project delivery
+policy. `kb-ship` owns internal PR delivery and `kb-land` owns explicit
+merge/direct integration plus configured post-integration sync. Legacy `klfg`
+and `kb-finish` delegate to `kb-complete`.
 
 The steering step classifies review, iteration, and maintainer feedback as
 current-only, steering memory, observation, landmine candidate, or instinct

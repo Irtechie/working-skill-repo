@@ -1,0 +1,24 @@
+{
+  "id": "finish-plan-flow",
+  "platforms": ["codex", "ghcp"],
+  "prompt": "Take this existing implementation plan all the way to done-done and checked in with a pushed PR.",
+  "repo_state": "A valid plan or manifest exists; implementation, completion review, commit, push, and PR may still be required.",
+  "expected": {
+    "route": "kb-complete",
+    "complexity_tier": "large",
+    "max_user_questions": 1,
+    "artifacts": ["reviewed manifest", "commit", "pushed branch", "PR URL"],
+    "proof": ["complete-to-ship gate", "release checks pass", "remote branch up to date"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 3,
+    "uncertainty": 1,
+    "user_visible": false,
+    "data_auth_security_risk": 1,
+    "external_dependency": true,
+    "verification_surface": "full",
+    "rollback_difficulty": 2,
+    "expected_duration_hours": 4
+  },
+  "guards": ["wrong-lane", "skipped-gate"]
+}

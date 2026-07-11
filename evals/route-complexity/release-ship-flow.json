@@ -1,14 +1,14 @@
 {
   "id": "release-ship-flow",
   "platforms": ["codex", "ghcp"],
-  "prompt": "Ship this branch: review, version, changelog, and push.",
-  "repo_state": "Implementation is done; request is packaging and release readiness.",
+  "prompt": "This reviewed KB manifest has a passing complete-to-ship gate. Check it in, push the topic branch, and open or update its PR.",
+  "repo_state": "Implementation and kb-complete are done; checked-in PR delivery remains.",
   "expected": {
-    "route": "kb-ship",
+    "route": "kb-complete",
     "complexity_tier": "standard",
     "max_user_questions": 1,
-    "artifacts": ["release checklist", "verification output", "changelog/version update if applicable"],
-    "proof": ["tests/checks pass", "review and ship gates complete"]
+    "artifacts": ["audited shipping scope", "commit", "pushed branch", "PR URL"],
+    "proof": ["complete-to-ship gate", "release checks pass", "local and upstream SHAs match"]
   },
   "complexity_signals": {
     "subsystem_count": 2,

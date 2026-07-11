@@ -28,13 +28,14 @@ import (
 )
 
 const (
-	userCatalogFile             = "models.json"
-	userPreferencesFile         = "preferences.json"
-	userTrustFile               = "trust.json"
-	projectPolicyFile           = "kb-models.json"
-	maxCatalogBytes       int64 = 1 << 20
-	codexPriorWindow            = 48 * time.Hour
-	codexPriorContextSize       = 8192
+	userCatalogFile                 = "models.json"
+	userPreferencesFile             = "preferences.json"
+	userProjectPrioritiesFile       = "project-priorities.json"
+	userTrustFile                   = "trust.json"
+	projectPolicyFile               = "kb-models.json"
+	maxCatalogBytes           int64 = 1 << 20
+	codexPriorWindow                = 48 * time.Hour
+	codexPriorContextSize           = 8192
 )
 
 var authEnvPattern = regexp.MustCompile(`^[A-Z_][A-Z0-9_]{0,127}$`)
@@ -60,6 +61,77 @@ type userProjectTrust struct {
 	RouteDenials      []modelrouting.RouteDenial      `json:"route_denials,omitempty"`
 	EndpointApprovals []modelrouting.EndpointApproval `json:"endpoint_approvals,omitempty"`
 	AuthBindings      []modelrouting.AuthBinding      `json:"auth_bindings,omitempty"`
+}
+
+type userProjectPriorities struct {
+	SchemaVersion int                   `json:"schema_version"`
+	Projects      []userProjectPriority `json:"projects,omitempty"`
+}
+
+type userProjectPriority struct {
+	ProjectID string                       `json:"project_id"`
+	Priority  modelrouting.RoutePreference `json:"priority"`
+}
+
+func (p userProjectPriorities) priorityFor(projectID string) modelrouting.RoutePreference {
+	for _, project := range p.Projects {
+		if project.ProjectID == projectID {
+			return project.Priority
+		}
+	}
+	return modelrouting.PreferenceAutomatic
+}
+
+func loadProjectPriorities(root string) (userProjectPriorities, error) {
+	var priorities userProjectPriorities
+	err := modelrouting.LoadStrictJSON(root, userProjectPrioritiesFile, &priorities, maxCatalogBytes)
+	if os.IsNotExist(err) {
+		return userProjectPriorities{SchemaVersion: 1}, nil
+	}
+	if err != nil {
+		return userProjectPriorities{}, err
+	}
+	if priorities.SchemaVersion != 1 {
+		return userProjectPriorities{}, fmt.Errorf("unsupported project priority schema version %d", priorities.SchemaVersion)
+	}
+	seen := map[string]bool{}
+	for _, project := range priorities.Projects {
+		if project.ProjectID == "" || seen[project.ProjectID] || !validStoredPriority(project.Priority) {
+			return userProjectPriorities{}, fmt.Errorf("invalid project priority entry")
+		}
+		seen[project.ProjectID] = true
+	}
+	return priorities, nil
+}
+
+func saveProjectPriorities(root string, priorities userProjectPriorities) error {
+	priorities.SchemaVersion = 1
+	sort.SliceStable(priorities.Projects, func(i, j int) bool { return priorities.Projects[i].ProjectID < priorities.Projects[j].ProjectID })
+	return modelrouting.SaveAtomicJSON(root, userProjectPrioritiesFile, priorities, maxCatalogBytes)
+}
+
+func validStoredPriority(priority modelrouting.RoutePreference) bool {
+	return priority == modelrouting.PreferenceAutomatic || priority == modelrouting.PreferenceSelfHostedFirst || priority == modelrouting.PreferenceNativeFirst
+}
+
+func storeProjectPriority(root, projectID string, priority modelrouting.RoutePreference, clear bool) error {
+	return modelrouting.WithPrivateStateLock(root, func() error {
+		priorities, err := loadProjectPriorities(root)
+		if err != nil {
+			return err
+		}
+		projects := priorities.Projects[:0]
+		for _, project := range priorities.Projects {
+			if project.ProjectID != projectID {
+				projects = append(projects, project)
+			}
+		}
+		priorities.Projects = projects
+		if !clear {
+			priorities.Projects = append(priorities.Projects, userProjectPriority{ProjectID: projectID, Priority: priority})
+		}
+		return saveProjectPriorities(root, priorities)
+	})
 }
 
 type discoveryReport struct {
@@ -122,6 +194,14 @@ func loadUserCatalog(root string) (modelrouting.Catalog, error) {
 	}
 	if err != nil {
 		return modelrouting.Catalog{}, err
+	}
+	for index := range catalog.Routes {
+		if catalog.Routes[index].ManagementOrigin == "" {
+			catalog.Routes[index].ManagementOrigin = modelrouting.OriginExtra
+		}
+		if catalog.Routes[index].Hosting == "" {
+			catalog.Routes[index].Hosting = modelrouting.HostingUnknown
+		}
 	}
 	if err := modelrouting.ValidateCatalogStatic(catalog, modelrouting.CatalogSourceUser); err != nil {
 		return modelrouting.Catalog{}, err
@@ -248,8 +328,21 @@ func saveUserPreferences(root string, policy projectModelsPolicy) error {
 }
 
 func routeFromAddOptions(opts addOptions) (modelrouting.Route, error) {
-	if opts.alias == "" || opts.model == "" || opts.destination == "" || opts.trustProvenance == "" {
-		return modelrouting.Route{}, fmt.Errorf("user add requires --alias, --model, --destination, and --trust-provenance")
+	if opts.alias == "" || opts.model == "" || opts.endpoint == "" {
+		return modelrouting.Route{}, fmt.Errorf("user add requires --alias, --model, and --endpoint")
+	}
+	destination, inferredBoundary, err := conservativeEndpointDefaults(opts.endpoint)
+	if err != nil {
+		return modelrouting.Route{}, err
+	}
+	if opts.destination == "" {
+		opts.destination = destination
+	}
+	if opts.boundary == "" {
+		opts.boundary = string(inferredBoundary)
+	}
+	if opts.trustProvenance == "" {
+		opts.trustProvenance = "user-declared configuration"
 	}
 	if opts.authEnv != "" && !authEnvPattern.MatchString(opts.authEnv) {
 		return modelrouting.Route{}, fmt.Errorf("auth-env must be an environment variable name")
@@ -258,31 +351,44 @@ func routeFromAddOptions(opts addOptions) (modelrouting.Route, error) {
 	if err != nil {
 		return modelrouting.Route{}, err
 	}
+	capabilityClass := modelrouting.CapabilityClass(opts.class)
+	taskFamily := "unknown"
+	risk := modelrouting.RiskUnknown
+	if capabilityClass != modelrouting.ClassUnknown {
+		// An explicit advanced capability declaration retains the existing
+		// code/normal scope. Minimal quick-add receives no capability credit.
+		taskFamily = "code"
+		risk = modelrouting.RiskNormal
+	}
 	route := modelrouting.Route{
-		RouteID:         routeID,
-		Alias:           opts.alias,
-		DisplayModelID:  opts.model,
-		Adapter:         opts.adapter,
-		AdapterRevision: "v1",
-		DispatchMethod:  opts.dispatchMethod,
-		Profile:         opts.profile,
-		Destination:     opts.destination,
-		Endpoint:        opts.endpoint,
-		AuthEnv:         opts.authEnv,
-		Boundary:        modelrouting.TrustBoundary(opts.boundary),
-		Retention:       modelrouting.RetentionClass(opts.retention),
-		TrainingUse:     modelrouting.TrainingUse(opts.trainingUse),
-		Residency:       opts.residency,
-		TrustProvenance: opts.trustProvenance,
-		Readiness:       []modelrouting.Readiness{modelrouting.ReadinessDiscovered, modelrouting.ReadinessConfigured, modelrouting.ReadinessSelectable},
+		RouteID:          routeID,
+		Alias:            opts.alias,
+		DisplayModelID:   opts.model,
+		Adapter:          opts.adapter,
+		AdapterRevision:  "v1",
+		DispatchMethod:   opts.dispatchMethod,
+		Profile:          opts.profile,
+		Destination:      opts.destination,
+		Endpoint:         opts.endpoint,
+		AuthEnv:          opts.authEnv,
+		ManagementOrigin: modelrouting.OriginExtra,
+		Hosting:          modelrouting.HostingClass(opts.hosting),
+		DiscoverySources: []string{"user-configured"},
+		Boundary:         modelrouting.TrustBoundary(opts.boundary),
+		Retention:        modelrouting.RetentionClass(opts.retention),
+		TrainingUse:      modelrouting.TrainingUse(opts.trainingUse),
+		Residency:        opts.residency,
+		TrustProvenance:  opts.trustProvenance,
+		Readiness:        []modelrouting.Readiness{modelrouting.ReadinessDiscovered, modelrouting.ReadinessConfigured, modelrouting.ReadinessSelectable},
 		Capability: modelrouting.CapabilityEvidence{
-			Class:          modelrouting.CapabilityClass(opts.class),
-			Source:         modelrouting.EvidenceDeclared,
-			RouteAlias:     opts.alias,
-			ModelID:        opts.model,
-			TaskFamily:     "code",
-			Risk:           modelrouting.RiskNormal,
-			DispatchProven: false,
+			Class:             capabilityClass,
+			Source:            modelrouting.EvidenceDeclared,
+			RouteAlias:        opts.alias,
+			ModelID:           opts.model,
+			TaskFamily:        taskFamily,
+			Risk:              risk,
+			DispatchQualified: false,
+			DispatchProven:    false,
 		},
 	}
 	if route.Profile != "" {
@@ -300,6 +406,25 @@ func routeFromAddOptions(opts addOptions) (modelrouting.Route, error) {
 		return modelrouting.Route{}, err
 	}
 	return route, nil
+}
+
+func conservativeEndpointDefaults(endpoint string) (string, modelrouting.TrustBoundary, error) {
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" || parsed.RawQuery != "" {
+		return "", "", modelrouting.ErrUnsafeEndpoint
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return "", "", modelrouting.ErrUnsafeEndpoint
+	}
+	boundary := modelrouting.BoundaryHosted
+	host := parsed.Hostname()
+	if strings.EqualFold(host, "localhost") {
+		boundary = modelrouting.BoundaryPrivate
+	} else if ip := net.ParseIP(host); ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+		boundary = modelrouting.BoundaryPrivate
+	}
+	return strings.ToLower(scheme + "://" + parsed.Host), boundary, nil
 }
 
 func newRouteID() (string, error) {
@@ -522,12 +647,12 @@ func codexAdapterPriorRoute(route modelrouting.Route, prior *codexExecutablePrio
 		modelrouting.ReadinessDiscovered,
 		modelrouting.ReadinessConfigured,
 		modelrouting.ReadinessSelectable,
-		modelrouting.ReadinessDispatchProven,
 	}
 	route.AdapterRevision = prior.Revision
 	route.TrustProvenance = "codex CLI " + prior.Version + " exact executable " + prior.Executable.Hash
 	route.Capability.Source = modelrouting.EvidenceAdapterPrior
-	route.Capability.DispatchProven = true
+	route.Capability.DispatchQualified = true
+	route.Capability.DispatchProven = false
 	route.Capability.ExpiresAt = codexAdapterPriorExpiry(now)
 	return route
 }
@@ -936,14 +1061,27 @@ func saveRunCatalog(root string, catalog modelrouting.Catalog) error {
 }
 
 func prepareRunRoot(projectRoot, runRoot string) (preparedRunRoot, error) {
-	projectPath, err := filepath.Abs(filepath.Clean(projectRoot))
+	projectInputPath, err := filepath.Abs(filepath.Clean(projectRoot))
 	if err != nil {
 		return preparedRunRoot{}, err
 	}
-	if canonical, canonicalErr := filepath.EvalSymlinks(projectPath); canonicalErr == nil {
-		projectPath = canonical
-	}
 	runPath, err := filepath.Abs(filepath.Clean(runRoot))
+	if err != nil {
+		return preparedRunRoot{}, err
+	}
+	rawAllowedBase := filepath.Join(projectInputPath, ".kb", "runs")
+	rawRelative, rawRelErr := filepath.Rel(rawAllowedBase, runPath)
+	if rawRelErr != nil || rawRelative == "." || rawRelative == ".." || strings.HasPrefix(rawRelative, ".."+string(filepath.Separator)) || filepath.Dir(rawRelative) != "." {
+		return preparedRunRoot{}, fmt.Errorf("run root must be one dedicated direct child of %s", rawAllowedBase)
+	}
+	if err := rejectRunPathSymlinks(projectInputPath, runPath); err != nil {
+		return preparedRunRoot{}, err
+	}
+	projectPath, err := filepath.EvalSymlinks(projectInputPath)
+	if err != nil {
+		return preparedRunRoot{}, fmt.Errorf("canonicalize project root: %w", err)
+	}
+	runPath, err = canonicalizeProspectivePath(runPath)
 	if err != nil {
 		return preparedRunRoot{}, err
 	}
@@ -952,6 +1090,9 @@ func prepareRunRoot(projectRoot, runRoot string) (preparedRunRoot, error) {
 	relative, err := filepath.Rel(allowedBase, runPath)
 	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.Dir(relative) != "." {
 		return preparedRunRoot{}, fmt.Errorf("run root must be one dedicated direct child of %s", allowedBase)
+	}
+	if !safeWindowsRunID(relative) {
+		return preparedRunRoot{}, fmt.Errorf("run root direct-child name is unsafe on Windows")
 	}
 	kbIdentity, err := ensureRealDirectory(kbPath, 0o755)
 	if err != nil {
@@ -1000,6 +1141,84 @@ func prepareRunRoot(projectRoot, runRoot string) (preparedRunRoot, error) {
 		return preparedRunRoot{}, err
 	}
 	return prepared, nil
+}
+
+func rejectRunPathSymlinks(projectPath, runPath string) error {
+	relative, err := filepath.Rel(projectPath, runPath)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		// Do not canonicalize an uncontained caller-visible path and thereby
+		// erase a symlink or namespace alias before it can be inspected.
+		return modelrouting.ErrUnsafePath
+	}
+	probe := projectPath
+	parts := []string{""}
+	if relative != "." {
+		parts = append(parts, strings.Split(relative, string(filepath.Separator))...)
+	}
+	for _, part := range parts {
+		if part != "" {
+			probe = filepath.Join(probe, part)
+		}
+		info, statErr := os.Lstat(probe)
+		if os.IsNotExist(statErr) {
+			return nil
+		}
+		if statErr != nil {
+			return statErr
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return modelrouting.ErrUnsafePath
+		}
+	}
+	return nil
+}
+
+func safeWindowsRunID(value string) bool {
+	if value == "" || strings.TrimRight(value, " .") != value || strings.Contains(value, ":") {
+		return false
+	}
+	base := value
+	if dot := strings.IndexByte(base, '.'); dot >= 0 {
+		base = base[:dot]
+	}
+	base = strings.ToUpper(strings.TrimRight(base, " ."))
+	switch base {
+	case "CON", "PRN", "AUX", "NUL":
+		return false
+	}
+	if len(base) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) && base[3] >= '1' && base[3] <= '9' {
+		return false
+	}
+	return true
+}
+
+// canonicalizeProspectivePath resolves aliases and symlinks through the
+// deepest existing ancestor, then appends only the missing path components.
+// This keeps containment comparisons stable when Windows presents the same
+// temp directory as both RUNNER~1 and runneradmin, without requiring the run
+// directory to exist before its safety checks run.
+func canonicalizeProspectivePath(path string) (string, error) {
+	path = filepath.Clean(path)
+	existing := path
+	missing := make([]string, 0, 3)
+	for {
+		canonical, err := filepath.EvalSymlinks(existing)
+		if err == nil {
+			for index := len(missing) - 1; index >= 0; index-- {
+				canonical = filepath.Join(canonical, missing[index])
+			}
+			return filepath.Clean(canonical), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			return "", err
+		}
+		missing = append(missing, filepath.Base(existing))
+		existing = parent
+	}
 }
 
 func ensureRealDirectory(path string, mode os.FileMode) (os.FileInfo, error) {
@@ -1183,18 +1402,21 @@ func currentModel(model string) modelrouting.CurrentModel {
 
 func currentRoute(model string) modelrouting.Route {
 	return modelrouting.Route{
-		Alias:           "current",
-		DisplayModelID:  model,
-		Adapter:         "codex",
-		AdapterRevision: "v1",
-		DispatchMethod:  "exec-model",
-		Destination:     "current",
-		Boundary:        modelrouting.BoundaryHosted,
-		Retention:       modelrouting.RetentionSession,
-		TrainingUse:     modelrouting.TrainingUnknown,
-		Residency:       "unknown",
-		TrustProvenance: "active orchestrator",
-		Readiness:       []modelrouting.Readiness{modelrouting.ReadinessDiscovered, modelrouting.ReadinessConfigured, modelrouting.ReadinessSelectable},
+		Alias:            "current",
+		DisplayModelID:   model,
+		Adapter:          "codex",
+		AdapterRevision:  "v1",
+		DispatchMethod:   "exec-model",
+		Destination:      "current",
+		ManagementOrigin: modelrouting.OriginNative,
+		Hosting:          modelrouting.HostingProviderHosted,
+		DiscoverySources: []string{"active-host"},
+		Boundary:         modelrouting.BoundaryHosted,
+		Retention:        modelrouting.RetentionSession,
+		TrainingUse:      modelrouting.TrainingUnknown,
+		Residency:        "unknown",
+		TrustProvenance:  "active orchestrator",
+		Readiness:        []modelrouting.Readiness{modelrouting.ReadinessDiscovered, modelrouting.ReadinessConfigured, modelrouting.ReadinessSelectable},
 		Capability: modelrouting.CapabilityEvidence{
 			Class:          modelrouting.ClassLarge,
 			Source:         modelrouting.EvidenceDeclared,
@@ -1209,18 +1431,21 @@ func currentRoute(model string) modelrouting.Route {
 
 func redactedDiscoveredRoute(alias, model, adapter, method, destination string) modelrouting.Route {
 	return modelrouting.Route{
-		Alias:           alias,
-		DisplayModelID:  model,
-		Adapter:         adapter,
-		AdapterRevision: "v1",
-		DispatchMethod:  method,
-		Destination:     destination,
-		Boundary:        modelrouting.BoundaryHosted,
-		Retention:       modelrouting.RetentionSession,
-		TrainingUse:     modelrouting.TrainingUnknown,
-		Residency:       "unknown",
-		TrustProvenance: "adapter discovery",
-		Readiness:       []modelrouting.Readiness{modelrouting.ReadinessDiscovered},
+		Alias:            alias,
+		DisplayModelID:   model,
+		Adapter:          adapter,
+		AdapterRevision:  "v1",
+		DispatchMethod:   method,
+		Destination:      destination,
+		ManagementOrigin: modelrouting.OriginNative,
+		Hosting:          modelrouting.HostingProviderHosted,
+		DiscoverySources: []string{"native-adapter"},
+		Boundary:         modelrouting.BoundaryHosted,
+		Retention:        modelrouting.RetentionSession,
+		TrainingUse:      modelrouting.TrainingUnknown,
+		Residency:        "unknown",
+		TrustProvenance:  "adapter discovery",
+		Readiness:        []modelrouting.Readiness{modelrouting.ReadinessDiscovered},
 		Capability: modelrouting.CapabilityEvidence{
 			Class:          modelrouting.ClassSmall,
 			Source:         modelrouting.EvidenceDeclared,
@@ -1245,6 +1470,7 @@ func redactedChildRoute(parent modelrouting.Route, model string) modelrouting.Ro
 	route.Capability.RouteAlias = route.Alias
 	route.Capability.ModelID = model
 	route.Capability.Source = modelrouting.EvidenceDeclared
+	route.Capability.DispatchQualified = false
 	route.Capability.DispatchProven = false
 	route.Capability.ExpiresAt = time.Time{}
 	return route

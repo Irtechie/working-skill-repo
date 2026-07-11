@@ -13,14 +13,17 @@ import (
 
 type selectOptions struct {
 	commonOptions
-	runRoot, runID, tier, taskFamily, risk, override, alias string
-	tools                                                   repeatFlag
-	contextSize                                             int
-	sensitive                                               bool
+	runRoot, runID, tier, attemptTier, taskFamily, risk, override, alias, prefer string
+	tools                                                                        repeatFlag
+	contextSize                                                                  int
+	sensitive                                                                    bool
 }
 
 type selectOutput struct {
 	Status       modelrouting.SelectionStatus `json:"status"`
+	PlannedTier  modelrouting.Tier            `json:"planned_tier"`
+	AttemptTier  modelrouting.Tier            `json:"attempt_tier"`
+	Preference   modelrouting.RoutePreference `json:"preference,omitempty"`
 	Aliases      []string                     `json:"aliases,omitempty"`
 	CurrentModel string                       `json:"current_model,omitempty"`
 	Fallback     string                       `json:"fallback,omitempty"`
@@ -35,6 +38,7 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&opts.runRoot, "run-root", "", "marked KB run root")
 	fs.StringVar(&opts.runID, "run-id", "", "KB run id")
 	fs.StringVar(&opts.tier, "tier", "", "small, medium, or large")
+	fs.StringVar(&opts.attemptTier, "attempt-tier", "", "optional caller-vetted lower initial tier")
 	fs.StringVar(&opts.taskFamily, "task-family", "", "task family")
 	fs.Var(&opts.tools, "tool", "required tool; repeatable")
 	fs.IntVar(&opts.contextSize, "context-size", 0, "required context size")
@@ -42,6 +46,7 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&opts.sensitive, "sensitive-data", false, "work contains sensitive data")
 	fs.StringVar(&opts.override, "override", "", "run-only use, require, or ignore")
 	fs.StringVar(&opts.alias, "alias", "", "run-only override alias")
+	fs.StringVar(&opts.prefer, "prefer", "", "run-only self-hosted or native preference")
 	if err := fs.Parse(args); err != nil {
 		return flagError(stderr, err)
 	}
@@ -85,9 +90,31 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "use/require override needs --alias")
 		return 2
 	}
-	request := modelrouting.WorkRequest{PlannedTier: modelrouting.Tier(opts.tier), TaskFamily: opts.taskFamily, Tools: []string(opts.tools), ContextSize: opts.contextSize, Risk: modelrouting.RiskLevel(opts.risk), SensitiveData: opts.sensitive, ProjectID: policy.Project.ProjectID}
-	decision, selectErr := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: mode, Alias: opts.alias}, modelrouting.AttemptLedger{}, time.Now())
-	out := selectOutput{Status: decision.Status, CurrentModel: decision.Current.ModelID}
+	preference := modelrouting.RoutePreference(strings.TrimSpace(opts.prefer))
+	switch preference {
+	case "self-hosted":
+		preference = modelrouting.PreferenceSelfHostedFirst
+	case "native":
+		preference = modelrouting.PreferenceNativeFirst
+	case "":
+		if mode == "" {
+			priorities, loadErr := loadProjectPriorities(opts.userRoot)
+			if loadErr != nil {
+				fmt.Fprintln(stderr, "router-unavailable: load project priority: "+loadErr.Error())
+				return 1
+			}
+			preference = priorities.priorityFor(policy.Project.ProjectID)
+		} else {
+			preference = modelrouting.PreferenceAutomatic
+		}
+	}
+	if !validStoredPriority(preference) {
+		fmt.Fprintln(stderr, "unsupported route preference")
+		return 2
+	}
+	request := modelrouting.WorkRequest{PlannedTier: modelrouting.Tier(opts.tier), AttemptTier: modelrouting.Tier(opts.attemptTier), TaskFamily: opts.taskFamily, Tools: []string(opts.tools), ContextSize: opts.contextSize, Risk: modelrouting.RiskLevel(opts.risk), SensitiveData: opts.sensitive, ProjectID: policy.Project.ProjectID}
+	decision, selectErr := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: mode, Alias: opts.alias, Prefer: preference}, modelrouting.AttemptLedger{}, time.Now())
+	out := selectOutput{Status: decision.Status, PlannedTier: decision.PlannedTier, AttemptTier: decision.AttemptTier, Preference: decision.Preference, CurrentModel: decision.Current.ModelID}
 	for _, route := range decision.Routes {
 		out.Aliases = append(out.Aliases, route.Alias)
 	}
@@ -109,7 +136,7 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 	} else {
-		fmt.Fprintf(stdout, "selection: %s aliases=%s current=%s fallback=%s error=%s\n", out.Status, strings.Join(out.Aliases, ","), out.CurrentModel, out.Fallback, out.ErrorClass)
+		fmt.Fprintf(stdout, "selection: %s planned-tier=%s attempt-tier=%s preference=%s aliases=%s current=%s fallback=%s error=%s\n", out.Status, out.PlannedTier, out.AttemptTier, out.Preference, strings.Join(out.Aliases, ","), out.CurrentModel, out.Fallback, out.ErrorClass)
 	}
 	if selectErr != nil {
 		return 1

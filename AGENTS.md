@@ -18,23 +18,21 @@ When changing skills in this repo, treat `<working-skill-repo>` as the working b
 
 1. Compare the target skill across:
    - `<working-skill-repo>/.github/skills/<skill>/`
-   - `<atv-repo>/.github/skills/<skill>/`
-   - `<atv-repo>/pkg/scaffold/templates/skills/<skill>/`
-   - `<atv-repo>/plugins/atv-everything/skills/<skill>/`
    - `~/.copilot/skills/<skill>/`
    - `~/.agents/skills/<skill>/`
    - `~/.codex/skills/<skill>/`
-2. If a global or ATV copy differs, review the diff before copying over it. Newer useful work found only in a global install must be merged back into this repo first, not discarded.
+2. If a global copy differs, review the diff before copying over it. Newer useful work found only in a global install must be merged back into this repo first, not discarded.
 3. After editing this repo, sync the final approved copy to:
    - Codex global: `~/.codex/skills/<skill>/`
    - Copilot global: `~/.copilot/skills/<skill>/`
    - shared agents global: `~/.agents/skills/<skill>/`
-   - ATV fork: `<atv-repo>/.github/skills/<skill>/`
-   - ATV scaffold/plugin copies only when that skill is intentionally shipped there.
 4. Update `README.md` in this repo when the visible workflow, installed-skill list, install commands, or repo hygiene contract changes.
-5. Update `<atv-repo>\README.md` when the ATV-facing workflow, bundled skills, or scaffold/plugin behavior changes.
-6. Verify with hashes for copied `SKILL.md` files and `git diff --check` in every touched repo.
-7. Commit and push both repos when requested or when the user asks for the full propagation flow.
+5. Verify copied `SKILL.md` files with hashes and run `git diff --check` here.
+6. Commit and push this repo when requested.
+
+ATV repositories are not sync, release, or delivery targets. Do not inspect,
+modify, commit, push, or gate on a neighboring ATV checkout unless the user
+explicitly starts a separate ATV task.
 
 For repo-local contributor quality, run:
 
@@ -48,7 +46,7 @@ Before syncing or propagating skills, run the release/sync gate:
 go run ./cmd/kbcheck local-release
 ```
 
-`core` is contributor-safe on a fresh clone and validates repo-local deterministic checks. `local-release` composes `core`, `git diff --check`, static reports, and blocking read-only sync drift reports using `config/skill-quality.json`. Required targets are Codex global, Copilot global, shared agents global, and `<atv-repo>/.github/skills`. ATV scaffold/plugin targets are optional thin bundles; warnings there are acceptable unless the current change explicitly ships that skill surface.
+`core` is contributor-safe on a fresh clone and validates repo-local deterministic checks. `local-release` composes `core`, `git diff --check`, static reports, and blocking read-only sync drift reports using `config/skill-quality.json`. Required targets are Codex global, Copilot global, and shared agents global.
 
 Do not remove `kb-review`, `ce-review`, `ce-compound`, or `ce-compound-refresh` from this bundle unless the skills that invoke them are rewritten first. KB completion uses `kb-review`; `ce-review` remains the generalized CE review skill.
 

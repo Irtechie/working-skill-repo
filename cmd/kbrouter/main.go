@@ -21,7 +21,8 @@ Usage:
   kbrouter dispatch --run-root <path> --run-id <id> --slice-id <id> --packet <path> --route-alias <alias> --model <id> [--json]
   kbrouter models show [--user-root <path>] [--project-root <path>] [--json]
   kbrouter models discover --run-root <path> [--user-root <path>] [--current-model <id>] [--probe-openai-compatible] [--json]
-  kbrouter models select --run-root <path> --run-id <id> --tier <small|medium|large> --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--override use|require|ignore --alias <alias>] [--json]
+  kbrouter models select --run-root <path> --run-id <id> --tier <small|medium|large> [--attempt-tier <small|medium>] --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] [--json]
+  kbrouter models priority --project-root <path> (--mode automatic|self-hosted-first|native-first | --clear | --reset) [--json]
   kbrouter models add --scope user|project [options]
   kbrouter models remove --scope user|project --alias <alias>
   kbrouter models prefer --scope user|project --alias <alias>
@@ -109,6 +110,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runModelsDiscover(args[2:], stdout, stderr)
 	case "select":
 		return runModelsSelect(args[2:], stdout, stderr)
+	case "priority":
+		return runModelsPriority(args[2:], stdout, stderr)
 	case "add":
 		return runModelsAdd(args[2:], stdout, stderr)
 	case "remove":
@@ -135,6 +138,44 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unsupported models subcommand %q\n", args[1])
 		return 2
 	}
+}
+
+func runModelsPriority(args []string, stdout, stderr io.Writer) int {
+	fs := flagSet("models priority")
+	opts := commonOptions{}
+	opts.bind(fs)
+	var mode string
+	var clear bool
+	var reset bool
+	fs.StringVar(&mode, "mode", "", "automatic, self-hosted-first, or native-first")
+	fs.BoolVar(&clear, "clear", false, "remove the saved project priority")
+	fs.BoolVar(&reset, "reset", false, "remove the saved project priority")
+	if err := fs.Parse(args); err != nil {
+		return flagError(stderr, err)
+	}
+	if customUserRootRejected(fs) {
+		fmt.Fprintln(stderr, "project priority uses the fixed user-local root; custom --user-root is test-only")
+		return 2
+	}
+	priority := modelrouting.RoutePreference(strings.TrimSpace(mode))
+	clearRequested := clear || reset
+	if clear && reset || clearRequested == (priority != "") || (!clearRequested && !validStoredPriority(priority)) {
+		fmt.Fprintln(stderr, "priority requires exactly one of --clear, --reset, or --mode automatic|self-hosted-first|native-first")
+		return 2
+	}
+	projectID, err := modelrouting.CanonicalProjectIdentity(opts.projectRoot)
+	if err != nil {
+		fmt.Fprintf(stderr, "canonical project identity: %v\n", err)
+		return 1
+	}
+	if err := storeProjectPriority(opts.userRoot, projectID, priority, clearRequested); err != nil {
+		fmt.Fprintf(stderr, "save project priority: %v\n", err)
+		return 1
+	}
+	if clearRequested {
+		priority = modelrouting.PreferenceAutomatic
+	}
+	return printResult(stdout, stderr, map[string]any{"project_id": projectID, "priority": priority, "path": filepath.Join(opts.userRoot, userProjectPrioritiesFile), "cleared": clearRequested}, opts.json, nil)
 }
 
 func runModelsShow(args []string, stdout, stderr io.Writer) int {
@@ -213,15 +254,16 @@ func runModelsAdd(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&opts.adapter, "adapter", "openai-compatible", "built-in adapter")
 	fs.StringVar(&opts.dispatchMethod, "dispatch-method", "chat-completions", "built-in dispatch method")
 	fs.StringVar(&opts.profile, "profile", "", "trusted user-local Codex profile name")
-	fs.StringVar(&opts.destination, "destination", "", "destination label")
+	fs.StringVar(&opts.destination, "destination", "", "optional destination label; defaults to endpoint origin")
 	fs.StringVar(&opts.endpoint, "endpoint", "", "provider endpoint")
 	fs.StringVar(&opts.authEnv, "auth-env", "", "auth environment variable name")
-	fs.StringVar(&opts.boundary, "boundary", "hosted", "hosted or private")
+	fs.StringVar(&opts.boundary, "boundary", "", "hosted or private; inferred conservatively when omitted")
+	fs.StringVar(&opts.hosting, "hosting", "unknown", "self-hosted, provider-hosted, or unknown")
 	fs.StringVar(&opts.retention, "retention", "unknown", "none, session, limited, or unknown")
 	fs.StringVar(&opts.trainingUse, "training-use", "unknown", "no, yes, or unknown")
 	fs.StringVar(&opts.residency, "residency", "unknown", "residency claim")
 	fs.StringVar(&opts.trustProvenance, "trust-provenance", "", "trust metadata provenance")
-	fs.StringVar(&opts.class, "class", "large", "declared capability class")
+	fs.StringVar(&opts.class, "class", "unknown", "declared capability class")
 	fs.BoolVar(&opts.approveEndpoint, "approve-endpoint", false, "record local approval for this endpoint during validation")
 	if err := fs.Parse(args); err != nil {
 		return flagError(stderr, err)
@@ -627,6 +669,7 @@ type addOptions struct {
 	endpoint        string
 	authEnv         string
 	boundary        string
+	hosting         string
 	retention       string
 	trainingUse     string
 	residency       string

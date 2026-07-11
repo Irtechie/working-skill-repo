@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseReleaseArgs(t *testing.T) {
@@ -86,7 +89,7 @@ func TestCoreListPrintsNativeChecks(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected list to pass, got %d", code)
 	}
-	if !strings.Contains(out.String(), "go-test") || strings.Contains(out.String(), "kb-check.ps1 -All") {
+	if !strings.Contains(out.String(), "go-test") || !strings.Contains(out.String(), "go test ./...") || strings.Contains(out.String(), "kb-check.ps1 -All") {
 		t.Fatalf("unexpected core list: %q", out.String())
 	}
 }
@@ -153,6 +156,82 @@ func TestCoreFailurePropagates(t *testing.T) {
 	}
 	if !strings.Contains(errOut.String(), "FAIL go-test") || !strings.Contains(errOut.String(), "boom") || !strings.Contains(errOut.String(), "check failed: go-test") {
 		t.Fatalf("missing failure output: %q", errOut.String())
+	}
+}
+
+func TestRunProcessCheckFailsClosedOnTimeout(t *testing.T) {
+	if os.Getenv("KBCHECK_TIMEOUT_HELPER") == "1" {
+		time.Sleep(5 * time.Second)
+		return
+	}
+	t.Setenv("KBCHECK_TIMEOUT_HELPER", "1")
+	result := runProcessCheck(t.TempDir(), Check{
+		Name:    "timeout-helper",
+		Args:    []string{os.Args[0], "-test.run=^TestRunProcessCheckFailsClosedOnTimeout$"},
+		Timeout: 50 * time.Millisecond,
+	})
+	if result.ExitCode != 124 || !strings.Contains(result.Stderr, "timed out") {
+		t.Fatalf("timeout did not fail closed: %+v", result)
+	}
+}
+
+func TestRunProcessCheckFailsClosedOnOversizedOutput(t *testing.T) {
+	if os.Getenv("KBCHECK_OUTPUT_HELPER") == "1" {
+		fmt.Print(strings.Repeat("x", maxProcessCheckOutputBytes+1))
+		return
+	}
+	t.Setenv("KBCHECK_OUTPUT_HELPER", "1")
+	result := runProcessCheck(t.TempDir(), Check{
+		Name: "output-helper",
+		Args: []string{os.Args[0], "-test.run=^TestRunProcessCheckFailsClosedOnOversizedOutput$"},
+	})
+	if result.ExitCode != 125 || !strings.Contains(result.Stderr, "output exceeded") {
+		t.Fatalf("oversized output did not fail closed: code=%d stderr=%q", result.ExitCode, result.Stderr)
+	}
+}
+
+func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
+	if os.Getenv("KBCHECK_GRANDCHILD_CHILD") == "1" {
+		time.Sleep(7 * time.Second)
+		if err := os.WriteFile(os.Getenv("KBCHECK_GRANDCHILD_SENTINEL"), []byte("survived"), 0o600); err != nil {
+			os.Exit(2)
+		}
+		return
+	}
+	if os.Getenv("KBCHECK_GRANDCHILD_HELPER") == "parent" {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestRunProcessCheckTimeoutKillsGrandchild$")
+		cmd.Env = append(os.Environ(), "KBCHECK_GRANDCHILD_CHILD=1")
+		if err := cmd.Start(); err != nil {
+			os.Exit(3)
+		}
+		if err := os.WriteFile(os.Getenv("KBCHECK_GRANDCHILD_READY"), []byte("started"), 0o600); err != nil {
+			os.Exit(4)
+		}
+		time.Sleep(20 * time.Second)
+		return
+	}
+
+	sentinel := filepath.Join(t.TempDir(), "grandchild-survived.txt")
+	ready := filepath.Join(filepath.Dir(sentinel), "grandchild-started.txt")
+	t.Setenv("KBCHECK_GRANDCHILD_HELPER", "parent")
+	t.Setenv("KBCHECK_GRANDCHILD_SENTINEL", sentinel)
+	t.Setenv("KBCHECK_GRANDCHILD_READY", ready)
+	result := runProcessCheck(t.TempDir(), Check{
+		Name:    "grandchild-timeout-helper",
+		Args:    []string{os.Args[0], "-test.run=^TestRunProcessCheckTimeoutKillsGrandchild$"},
+		Timeout: 5 * time.Second,
+	})
+	if result.ExitCode != 124 {
+		t.Fatalf("grandchild helper did not time out: %+v", result)
+	}
+	if _, err := os.Stat(ready); err != nil {
+		t.Fatalf("grandchild helper never proved it started: %v", err)
+	}
+	time.Sleep(3 * time.Second)
+	if _, err := os.Stat(sentinel); err == nil {
+		t.Fatalf("grandchild survived proof-gate containment and wrote %s", sentinel)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat sentinel: %v", err)
 	}
 }
 

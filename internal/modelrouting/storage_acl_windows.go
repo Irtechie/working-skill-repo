@@ -17,6 +17,7 @@ const (
 	daclSecurityInformation           = 0x00000004
 	protectedDACLSSecurityInformation = 0x80000000
 	errorInsufficientBuffer           = syscall.Errno(122)
+	builtinAdministratorsSID          = "S-1-5-32-544"
 )
 
 var (
@@ -54,7 +55,7 @@ func secureWindowsStoragePath(path string, directory bool) error {
 		return err
 	}
 	sid, err := currentWindowsSID()
-	if err != nil || !strings.EqualFold(owner, "O:"+sid) {
+	if err != nil || !windowsStorageOwnerMayBeSecured(owner, sid) {
 		return ErrUnsafePath
 	}
 	descriptor, free, err := windowsDescriptor(expectedWindowsStorageSDDL(sid, directory))
@@ -66,12 +67,28 @@ func secureWindowsStoragePath(path string, directory bool) error {
 	if err != nil {
 		return err
 	}
+	// Builtin Administrators is accepted only as a transitional owner for a root
+	// the caller explicitly supplied to a private-state API. An elevated caller
+	// may take ownership of that dedicated root; shared/project storage must never
+	// use this path. The committed state must be owned by the current user with
+	// the exact protected DACL.
 	information := uintptr(ownerSecurityInformation | daclSecurityInformation | protectedDACLSSecurityInformation)
 	result, _, callErr := setFileSecurityW.Call(uintptr(unsafe.Pointer(pathPointer)), information, descriptor)
 	if result == 0 {
 		return fmt.Errorf("set private Windows ACL: %w", callErr)
 	}
 	return validateWindowsStoragePath(path, directory)
+}
+
+// windowsStorageOwnerMayBeSecured accepts the current user and the transitional
+// Builtin Administrators owner used by elevated processes (including hosted
+// runners). Every other owner remains fail-closed, and validation after the
+// secure write requires current-user ownership.
+func windowsStorageOwnerMayBeSecured(owner, currentSID string) bool {
+	owner = strings.TrimSpace(owner)
+	return strings.EqualFold(owner, "O:"+currentSID) ||
+		strings.EqualFold(owner, "O:BA") ||
+		strings.EqualFold(owner, "O:"+builtinAdministratorsSID)
 }
 
 func validateWindowsStoragePath(path string, directory bool) error {

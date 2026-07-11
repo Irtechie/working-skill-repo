@@ -1,0 +1,13 @@
+# Hash-bound fixtures and synchronized skills must have checkout-stable bytes.
+* text=auto eol=lf
+
+# Generated documentation assets are binary.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+
+# Preserve native Windows line endings if command scripts are added later.
+*.bat text eol=crlf
+*.cmd text eol=crlf

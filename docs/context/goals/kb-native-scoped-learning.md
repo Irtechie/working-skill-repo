@@ -39,16 +39,16 @@ it, not only a global project bucket.
 ## Current State
 
 - Current artifact: docs/plans/2026-07-01-010-kb-native-scoped-learning-manifest.md
-- Next allowed action: kb-work docs/plans/2026-07-01-010-kb-native-scoped-learning-manifest.md
-- Last proof: schema inspection (no component scope today); atv coupling quantified
-  (37 skill refs + ~14 Go touchpoints).
+- Next allowed action: none
+- Last proof: `go test ./cmd/kbcheck/...`; `kbcheck core ok checks=26`; commit
+  `d783a68`.
 
 ## Work Units
 
 | Unit | Route | Artifact | Status | Proof |
 |---|---|---|---|---|
 | Plan the refactor | kb-plan | manifest 010 + slices 011-016 | done | this ledger + manifest gate_ledger plan-to-work passed |
-| Execute slices | kb-work | manifest 010 | pending | per-slice gates |
+| Execute slices | kb-work | manifest 010 | done | all six slices completed; commit `d783a68` |
 
 ## Blockers
 

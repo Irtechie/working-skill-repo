@@ -37,8 +37,6 @@ func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 	}
 	got := checkNames(checks)
 	want := []string{
-		"atv-upstream-delta",
-		"atv-upstream-delta-selftest",
 		"context-packet-selftest",
 		"cross-model-benchmark-validate",
 		"dishonest-completion-selftest",

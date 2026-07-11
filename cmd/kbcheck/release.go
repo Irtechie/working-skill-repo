@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+const modelRoutingInitialPilotEvidence = "docs/results/2026-07-10-session-model-routing-initial-pilot.json"
+const modelRoutingFeatureMarker = "internal/modelrouting/selector.go"
+
 type ReleaseResult struct {
 	OK               bool              `json:"ok"`
 	Profile          string            `json:"profile"`
@@ -47,6 +50,13 @@ func runRelease(root string, opts options, stdout, stderr io.Writer, runner proc
 	requiredFailures := 0
 	optionalFailures := 0
 	for _, check := range checks {
+		if !opts.json {
+			requiredLabel := "optional"
+			if check.Required {
+				requiredLabel = "required"
+			}
+			fmt.Fprintf(stdout, "running [%s/%s] %s: %s\n", requiredLabel, check.Confidence, check.Name, check.CommandString())
+		}
 		run := invokeReleaseCheck(root, check, runner)
 		results = append(results, run)
 		if run.Required && run.Status != "passed" {
@@ -125,15 +135,27 @@ func releaseChecks(root, profile string, runner processRunner) ([]Check, error) 
 	} else {
 		checks = append(checks, Check{Name: "skill-surface-minimality", Args: []string{"kbcheck", "minimality"}, Required: false, Confidence: "static-report", Available: func(string) bool { return false }, SkipReason: "skill surface unavailable"})
 	}
-	atvRepo := resolveRepoPath(root, "../all-the-vibes")
-	if pathExists(filepath.Join(atvRepo, ".git")) && exists(root, "config/atv-upstream-delta.json") {
+	// Once the routing feature exists, its canonical evidence is mandatory. Do
+	// not let deleting or renaming the evidence silently remove the release gate.
+	if exists(root, modelRoutingFeatureMarker) || exists(root, modelRoutingInitialPilotEvidence) {
 		checks = append(checks, Check{
-			Name: "atv-upstream-delta", Args: []string{"kbcheck", "atv-delta", "--json"},
-			Required: false, Confidence: "read-only-git-diff", Reason: "ATV upstream repo detected",
-			Run: func(root string) CheckResult { return runNativeCommand(root, []string{"atv-delta", "--json"}) },
+			Name: "model-routing-initial-pilot",
+			Args: []string{
+				"kbcheck", "model-routing-release",
+				"--cohort", "initial-pilot",
+				"--evidence", modelRoutingInitialPilotEvidence,
+			},
+			Reason:     "canonical model-routing pilot evidence detected",
+			Required:   true,
+			Confidence: "deterministic-local",
+			Run: func(root string) CheckResult {
+				return runNativeCommand(root, []string{
+					"model-routing-release",
+					"--cohort", "initial-pilot",
+					"--evidence", modelRoutingInitialPilotEvidence,
+				})
+			},
 		})
-	} else {
-		checks = append(checks, Check{Name: "atv-upstream-delta", Args: []string{"kbcheck", "atv-delta", "--json"}, Required: false, Confidence: "read-only-git-diff", Available: func(string) bool { return false }, SkipReason: "ATV repo unavailable"})
 	}
 	if profile == "live-release" {
 		if exists(root, "evals/route-complexity") {

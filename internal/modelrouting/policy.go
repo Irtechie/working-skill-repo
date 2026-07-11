@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -420,13 +419,10 @@ func CanonicalProjectIdentity(root string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read project filesystem identity: %w", err)
 	}
-	// Include the canonical path as a diagnostic namespace and the filesystem
-	// object ID as the replacement-resistant authority. Linked worktrees share
-	// the Git common-directory object; a replacement clone receives a new ID.
-	if runtime.GOOS == "windows" {
-		identityPath = strings.ToLower(identityPath)
-	}
-	sum := sha256.Sum256([]byte(identityPath + "\x00" + objectID))
+	// The filesystem object is authoritative: its identity survives path aliases
+	// and moves, while a replacement clone receives a different object ID.
+	// Linked worktrees share the Git common-directory object.
+	sum := sha256.Sum256([]byte("filesystem-object-v1\x00" + objectID))
 	return "project-sha256:" + hex.EncodeToString(sum[:]), nil
 }
 

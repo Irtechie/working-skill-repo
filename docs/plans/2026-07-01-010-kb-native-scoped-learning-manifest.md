@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-01-native-scoped-learning
 brainstorm_path: docs/context/goals/kb-native-scoped-learning.md
 created: 2026-07-01
-status: active
+status: completed
 workflow_shape: "skill-bundle-change"
 gate_ledger:
   - gate_id: brainstorm-to-plan
@@ -59,7 +59,7 @@ slices:
     test_level: none
     functional_risk: none
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
@@ -76,7 +76,7 @@ slices:
     test_level: none
     functional_risk: none
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
@@ -93,7 +93,7 @@ slices:
     test_level: none
     functional_risk: none
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
@@ -110,7 +110,7 @@ slices:
     test_level: none
     functional_risk: none
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
@@ -127,7 +127,7 @@ slices:
     test_level: unit
     functional_risk: narrow
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
@@ -148,7 +148,7 @@ slices:
     test_level: none
     functional_risk: none
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
@@ -214,12 +214,12 @@ harness + installer + visible docs. No new app runtime.
 
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|-------|------------|--------------|------|--------|
-| 011 | kb-native learning contract (roots + scope schema) | - | verification-only | no | pending |
-| 012 | learn: kb-native store + scoped write | 011 | verification-only | no | pending |
-| 013 | evolve: kb-native path + scoped promotion (fix drift) | 011 | verification-only | no | pending |
-| 014 | de-atv kb-* + klfg (snapshots/qa/observations/completions) | 011 | verification-only | no | pending |
-| 015 | kbcheck Go harness + gitignore + installer | 012,013,014 | tdd (unit) | no | pending |
-| 016 | migrate state + docs/proof surface | 015 | verification-only | no | pending |
+| 011 | kb-native learning contract (roots + scope schema) | - | verification-only | no | done |
+| 012 | learn: kb-native store + scoped write | 011 | verification-only | no | done |
+| 013 | evolve: kb-native path + scoped promotion (fix drift) | 011 | verification-only | no | done |
+| 014 | de-atv kb-* + klfg (snapshots/qa/observations/completions) | 011 | verification-only | no | done |
+| 015 | kbcheck Go harness + gitignore + installer | 012,013,014 | tdd (unit) | no | done |
+| 016 | migrate state + docs/proof surface | 015 | verification-only | no | done |
 
 ## Goal Link
 

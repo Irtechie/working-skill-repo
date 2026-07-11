@@ -58,8 +58,6 @@ Sync targets:
 - `~/.codex/skills\<skill>\`
 - `~/.copilot/skills\<skill>\`
 - `~/.agents/skills\<skill>\`
-- `<atv-repo>\.github\skills\<skill>\`
-- ATV scaffold/plugin copies when the skill is intentionally shipped there.
 
 Approved reusable catalog:
 

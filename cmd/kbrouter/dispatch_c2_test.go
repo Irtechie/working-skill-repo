@@ -66,10 +66,10 @@ func TestC2DispatchRevalidatesAdapterPriorExecutableRevisionBeforeLaunch(t *test
 		modelrouting.ReadinessDiscovered,
 		modelrouting.ReadinessConfigured,
 		modelrouting.ReadinessSelectable,
-		modelrouting.ReadinessDispatchProven,
 	}
 	route.Capability.Source = modelrouting.EvidenceAdapterPrior
-	route.Capability.DispatchProven = true
+	route.Capability.DispatchQualified = true
+	route.Capability.DispatchProven = false
 	route.Capability.ExpiresAt = time.Now().Add(time.Hour)
 	fixture.installCatalog(route)
 	fixture.trustRoutes(route)

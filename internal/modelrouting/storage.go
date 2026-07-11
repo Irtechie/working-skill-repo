@@ -37,6 +37,10 @@ func SaveCatalog(root, rel string, catalog Catalog, opts StorageOptions) error {
 // SaveAtomicJSON writes a bounded JSON object without following symlinks and
 // enforces a private user-local/run-state security profile. Callers remain
 // responsible for validating the object schema before this storage boundary.
+// The root must be dedicated private state: on Windows, an elevated caller may
+// take ownership of a Builtin-Administrators-owned root while installing the
+// protected current-user/SYSTEM DACL. Shared/project files must use
+// SaveAtomicProjectJSON instead.
 func SaveAtomicJSON(root, rel string, value any, maxBytes int64) error {
 	return saveAtomicJSON(root, rel, value, maxBytes, true)
 }

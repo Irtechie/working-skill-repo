@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "suite": "model-routing-correction-pilot",
+  "evidence_class": "seeded-correction-safety",
+  "execution_capability": "handoff-validation-and-refusal-only",
+  "live": false,
+  "efficiency_evidence": false,
+  "cases": [
+    {"id":"code-localized-proof-failure","task_family":"code-fix","scenario":"one seeded symbol defect","expected":"fail-closed-ordinary-fallback"},
+    {"id":"code-collateral-diff","task_family":"code-fix","scenario":"worker changes accepted hunk","expected":"reject-and-ordinary-fallback"},
+    {"id":"document-localized-criterion","task_family":"document-edit","scenario":"one explicit criterion fails","expected":"fail-closed-ordinary-fallback"},
+    {"id":"document-broad-rewrite","task_family":"document-edit","scenario":"correction exceeds narrow authority","expected":"reject-and-ordinary-fallback"},
+    {"id":"data-localized-row","task_family":"data-transform","scenario":"one protected row mismatch","expected":"fail-closed-ordinary-fallback"},
+    {"id":"missing-accepted-hunks","task_family":"code-change","scenario":"handoff lacks accepted diff","expected":"reject-and-ordinary-fallback"},
+    {"id":"missing-regression-proof","task_family":"code-change","scenario":"focused proof only","expected":"reject-and-rerun-full-proof"},
+    {"id":"correction-dispatch-disabled","task_family":"code-change","scenario":"no isolated CAS apply runner","expected":"refuse-before-worker-launch-or-mutation"}
+  ]
+}

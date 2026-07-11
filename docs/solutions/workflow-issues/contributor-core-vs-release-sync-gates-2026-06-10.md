@@ -1,6 +1,7 @@
 ---
 title: Keep Contributor Core Gates Separate From Release Sync Gates
 date: 2026-06-10
+last_updated: 2026-07-09
 category: docs/solutions/workflow-issues
 module: skill-repo-quality-gates
 problem_type: workflow_issue
@@ -33,6 +34,18 @@ Keep two gates with different contracts:
   require personal global installs or adjacent sibling repos.
 - `local-release`: release/sync proof. It composes `core`, `git diff --check`,
   and blocking sync drift reports.
+
+Apply the same split to optional provider state. Repo-local provider files may
+be checked by `core`; user-global MCP/hooks/config belong behind an explicit
+environment diagnostic such as:
+
+```powershell
+go run ./cmd/kbcheck provider-hygiene --include-user
+```
+
+Do not make a clean checkout fail because a maintainer has optional CCE config
+or unrelated global state. Active forbidden providers should still fail the
+explicit machine audit.
 
 Install profiles should match the runtime contract. If the "core" runtime tells
 agents to invoke downstream KB skills, install that dependency closure rather
@@ -84,4 +97,4 @@ full = all runtime skills + every reviewer/specialist agent
 - `docs/context/operations/testing.md`
 - `bin/kb-install.mjs`
 - `cmd/kbcheck/checks.go`
-
+- `docs/solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md`

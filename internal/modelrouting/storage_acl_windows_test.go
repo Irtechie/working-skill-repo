@@ -39,6 +39,40 @@ func TestStrictStorageRejectsUnsafeWindowsDACL(t *testing.T) {
 	}
 }
 
+func TestWindowsStorageOwnerMayBeSecuredIsNarrow(t *testing.T) {
+	const currentSID = "S-1-5-21-100-200-300-1001"
+	for _, owner := range []string{"O:" + currentSID, "o:ba", "O:" + builtinAdministratorsSID} {
+		if !windowsStorageOwnerMayBeSecured(owner, currentSID) {
+			t.Fatalf("rejected permitted Windows storage owner %q", owner)
+		}
+	}
+	for _, owner := range []string{"", "O:SY", "O:WD", "O:S-1-5-21-100-200-300-1002"} {
+		if windowsStorageOwnerMayBeSecured(owner, currentSID) {
+			t.Fatalf("accepted unsafe Windows storage owner %q", owner)
+		}
+	}
+}
+
+func TestSecureWindowsStorageCommitsCurrentUserOwner(t *testing.T) {
+	root := t.TempDir()
+	if err := SaveAtomicJSON(root, "private.json", map[string]int{"schema_version": 1}, 1024); err != nil {
+		t.Fatal(err)
+	}
+	sid, err := currentWindowsSID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{root, filepath.Join(root, "private.json")} {
+		owner, err := windowsStorageOwner(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.EqualFold(owner, "O:"+sid) {
+			t.Fatalf("secured path %q owner=%q want current user %q", path, owner, sid)
+		}
+	}
+}
+
 func TestProjectJSONDoesNotReplaceRepositoryDACL(t *testing.T) {
 	root := t.TempDir()
 	beforeDescriptor, err := getWindowsFileDescriptor(root, ownerSecurityInformation|daclSecurityInformation)

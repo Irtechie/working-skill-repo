@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "suite": "model-routing-initial-pilot",
+  "evidence_class": "deterministic-conformance",
+  "execution_capability": "non-live-routing-conformance",
+  "live": false,
+  "efficiency_evidence": false,
+  "cases": [
+    {"id":"small-planned-tier","task_family":"code-fix","scenario":"planned-tier baseline","expected":"planned-tier"},
+    {"id":"medium-planned-tier","task_family":"code-change","scenario":"planned-tier baseline","expected":"planned-tier"},
+    {"id":"large-planned-tier","task_family":"code-change","scenario":"planned-tier baseline","expected":"planned-tier"},
+    {"id":"qualified-same-tier","task_family":"code-change","scenario":"exact tier unavailable","expected":"qualified-same-tier"},
+    {"id":"higher-tier-fallback","task_family":"document-edit","scenario":"same tier unavailable","expected":"higher-tier"},
+    {"id":"current-model-degraded","task_family":"data-transform","scenario":"router unavailable","expected":"current-model-degraded"},
+    {"id":"private-trust-denial","task_family":"code-fix","scenario":"route unapproved","expected":"ordinary-planned-tier"},
+    {"id":"model-mismatch","task_family":"code-fix","scenario":"receipt model mismatch","expected":"ordinary-planned-tier"},
+    {"id":"worker-timeout","task_family":"document-edit","scenario":"bounded worker timeout","expected":"handoff-then-ordinary-planned-tier"},
+    {"id":"partial-handoff","task_family":"data-transform","scenario":"incomplete failure packet","expected":"ordinary-planned-tier"},
+    {"id":"no-objective-oracle","task_family":"code-change","scenario":"proof unavailable","expected":"amr-ineligible"},
+    {"id":"speculative-design","task_family":"document-edit","scenario":"requirements unresolved","expected":"amr-ineligible"},
+    {"id":"philosophy","task_family":"document-edit","scenario":"interpretive argument","expected":"amr-ineligible"},
+    {"id":"approved-html","task_family":"code-change","scenario":"approved design and browser oracle","expected":"pilot-eligible"},
+    {"id":"unapproved-html","task_family":"code-change","scenario":"design unresolved","expected":"amr-ineligible"},
+    {"id":"bounded-code-fix","task_family":"code-fix","scenario":"localized edit and focused test","expected":"pilot-eligible"},
+    {"id":"bounded-doc-edit","task_family":"document-edit","scenario":"explicit acceptance criteria","expected":"pilot-eligible"},
+    {"id":"bounded-data-transform","task_family":"data-transform","scenario":"deterministic schema and comparator","expected":"pilot-eligible"},
+    {"id":"router-private-acl-failure","task_family":"code-change","scenario":"router setup denied before selection","expected":"no-route-claim-current-model"},
+    {"id":"automatic-downward-forbidden","task_family":"code-fix","scenario":"only lower tier is available","expected":"ordinary-planned-tier"}
+  ]
+}

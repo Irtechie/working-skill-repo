@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "packet_id": "slice-005b",
+  "task_id": "session-model-routing",
+  "objective": "Persist honest user-local project source priority without adding normal-work ceremony or conflating route origin, hosting, trust, and proof",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/brainstorms/2026-07-09-session-model-discovery-and-routing-requirements.md"
+  ],
+  "source_files": [
+    "internal/modelrouting/catalog.go",
+    "internal/modelrouting/selector.go",
+    "cmd/kbrouter/catalog.go",
+    "cmd/kbrouter/main.go",
+    "cmd/kbrouter/select.go"
+  ],
+  "prefetch": [
+    "Read current user catalog, trust, preference, project identity, route redaction, and selector precedence tests",
+    "Confirm normal show/discover/select do not mutate user or project state"
+  ],
+  "constraints": [
+    "Current master chooses host-native models automatically",
+    "No normal-work priority prompt or repository write",
+    "Personal project priority remains user-local and never grants trust",
+    "Route origin and hosting are independent from trust boundary",
+    "Adapter qualification is not exact dispatch proof"
+  ],
+  "out_of_scope": [
+    "Generic MCP or direct chat-completions dispatch",
+    "Fleet controller actions",
+    "Static hosted-model lists",
+    "User-global preference convenience beyond compatibility"
+  ],
+  "acceptance_criteria": [
+    "User-local canonical-project priority supports automatic, self-hosted-first, and native-first",
+    "Normal work silently defaults to automatic without creating state",
+    "Selector preferences reorder only eligible routes using explicit origin and hosting metadata",
+    "Dispatch-qualified and dispatch-proven evidence remain distinct",
+    "Functional CLI and package tests pass"
+  ],
+  "proof_targets": [
+    "go test ./internal/modelrouting ./cmd/kbrouter -run 'Qualified|Hosting|Origin|Priority|Preference|QuickAdd'",
+    "go test ./internal/modelrouting ./cmd/kbrouter",
+    "go run ./cmd/kbcheck core"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "Crosses persistent user-local security state, route evidence semantics, selector precedence, and CLI compatibility",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go test",
+    "go run ./cmd/kbcheck"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Preference storage would grant or migrate trust",
+    "Canonical identity behavior conflicts with existing approval fixtures",
+    "A schema migration would discard existing user state",
+    "Preference changes eligibility instead of stable ordering"
+  ]
+}

@@ -9,6 +9,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+)
+
+const (
+	defaultProcessCheckTimeout  = 20 * time.Minute
+	processCheckTerminationWait = 5 * time.Second
+	maxProcessCheckOutputBytes  = 1 << 20
 )
 
 const usage = `kbcheck is the native KB gate entrypoint.
@@ -32,6 +39,7 @@ Usage:
   kbcheck context-packet-selftest
   kbcheck execution-telemetry --telemetry <path> [--receipt <path> --evidence-envelope <path>] [--root <path>] [--json]
   kbcheck execution-telemetry-selftest
+  kbcheck model-routing-release --cohort <name> --evidence <path> [--root <path>]
   kbcheck provider-hygiene [--root <path>] [--include-user] [--json]
   kbcheck provider-hygiene-selftest
   kbcheck scope-lease --ledger <path> [--json]
@@ -44,8 +52,6 @@ Usage:
   kbcheck marketplace-firebreak-selftest [--root <path>] [--config <path>]
   kbcheck marketplace-promote --source <path> --approval-reason <text> --approved [--skill-id <id>] [--install-targets codex,copilot,agents] [--json]
   kbcheck marketplace-promote-selftest [--root <path>]
-  kbcheck atv-delta [--atv-repo <path>] [--base-ref <ref>] [--upstream-ref <ref>] [--config <path>] [--json]
-  kbcheck atv-delta-selftest
   kbcheck benchmark-validate [--root <path>] [--fixture-root <path>] [--json]
   kbcheck route-eval [--root <path>] [--config <path>] [--json]
   kbcheck dishonest-completion-selftest [--root <path>] [--fixture-root <path>]
@@ -145,15 +151,14 @@ type options struct {
 	telemetryPath        string
 	receiptPath          string
 	evidenceEnvelopePath string
+	cohort               string
+	evidencePath         string
 	allowQuarantine      bool
 	codexSkillsRoot      string
 	copilotSkillsRoot    string
 	agentsSkillsRoot     string
 	approved             bool
 	includeUser          bool
-	atvRepo              string
-	baseRef              string
-	upstreamRef          string
 }
 
 func main() {
@@ -216,6 +221,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runExecutionTelemetryCommand(root, opts, stdout, stderr)
 	case "execution-telemetry-selftest":
 		return runExecutionTelemetrySelftest(stdout, stderr)
+	case "model-routing-release":
+		return runModelRoutingReleaseCommand(root, opts, stdout, stderr)
 	case "provider-hygiene":
 		return runProviderHygieneCommand(root, opts, stdout, stderr)
 	case "provider-hygiene-selftest":
@@ -240,10 +247,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runMarketplacePromoteCommand(root, opts, stdout, stderr)
 	case "marketplace-promote-selftest":
 		return runMarketplacePromoteSelftest(root, stdout, stderr)
-	case "atv-delta":
-		return runAtvDeltaCommand(root, opts, stdout, stderr)
-	case "atv-delta-selftest":
-		return runAtvDeltaSelftest(stdout, stderr)
 	case "benchmark-validate":
 		return runBenchmarkValidateCommand(root, opts, stdout, stderr)
 	case "route-eval":
@@ -308,11 +311,11 @@ func parse(args []string) (options, error) {
 		"sense": true, "trace-verify": true, "accept": true, "learning-adoption": true,
 		"context-packet": true, "context-packet-selftest": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
-		"scope-lease": true, "scope-lease-selftest": true,
+		"model-routing-release": true,
+		"scope-lease":           true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
 		"marketplace-promote": true, "marketplace-promote-selftest": true,
-		"atv-delta": true, "atv-delta-selftest": true,
 		"benchmark-validate": true, "route-eval": true, "dishonest-completion-selftest": true, "review-reference-guard": true, "release-selftest": true, "workflow-governor-selftest": true,
 		"surface-report": true, "minimality": true, "minimality-selftest": true,
 		"pipeline": true, "pipeline-selftest": true,
@@ -382,6 +385,8 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.telemetryPath, "telemetry", "", "execution telemetry JSON path")
 	fs.StringVar(&opts.receiptPath, "receipt", "", "routing receipt JSON path")
 	fs.StringVar(&opts.evidenceEnvelopePath, "evidence-envelope", "", "routing evidence envelope JSON path")
+	fs.StringVar(&opts.cohort, "cohort", "", "model-routing release cohort")
+	fs.StringVar(&opts.evidencePath, "evidence", "", "model-routing release evidence path")
 	fs.BoolVar(&opts.allowQuarantine, "allow-quarantine", false, "accept status=quarantined as advanceable")
 	home, _ := os.UserHomeDir()
 	fs.StringVar(&opts.codexSkillsRoot, "codex-skills-root", filepath.Join(home, ".codex", "skills"), "Codex skills root")
@@ -389,9 +394,6 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.agentsSkillsRoot, "agents-skills-root", filepath.Join(home, ".agents", "skills"), "Agents skills root")
 	fs.BoolVar(&opts.approved, "approved", false, "confirm human-approved marketplace promotion")
 	fs.BoolVar(&opts.includeUser, "include-user", false, "include standard user-global provider configs")
-	fs.StringVar(&opts.atvRepo, "atv-repo", "../all-the-vibes", "ATV repository path")
-	fs.StringVar(&opts.baseRef, "base-ref", "HEAD", "base git ref")
-	fs.StringVar(&opts.upstreamRef, "upstream-ref", "upstream/main", "upstream git ref")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, err
 	}
@@ -424,7 +426,7 @@ func parse(args []string) (options, error) {
 	if opts.command != "scope-lease" && opts.ledger != "" {
 		return options{}, fmt.Errorf("--ledger is only supported for scope-lease")
 	}
-	if opts.config != "" && opts.command != "skill-lint" && opts.command != "skill-sync-report" && opts.command != "marketplace-firebreak" && opts.command != "marketplace-firebreak-selftest" && opts.command != "marketplace-promote" && opts.command != "atv-delta" && opts.command != "review-reference-guard" {
+	if opts.config != "" && opts.command != "skill-lint" && opts.command != "skill-sync-report" && opts.command != "marketplace-firebreak" && opts.command != "marketplace-firebreak-selftest" && opts.command != "marketplace-promote" && opts.command != "review-reference-guard" {
 		return options{}, fmt.Errorf("--config is only supported for native validator commands")
 	}
 	if opts.verboseOptional && opts.command != "skill-sync-report" {
@@ -472,6 +474,12 @@ func parse(args []string) (options, error) {
 	}
 	if opts.command == "execution-telemetry" && ((opts.receiptPath == "") != (opts.evidenceEnvelopePath == "")) {
 		return options{}, fmt.Errorf("execution-telemetry requires --receipt and --evidence-envelope together")
+	}
+	if opts.command != "model-routing-release" && (opts.cohort != "" || opts.evidencePath != "") {
+		return options{}, fmt.Errorf("--cohort and --evidence are only supported for model-routing-release")
+	}
+	if opts.command == "model-routing-release" && (opts.cohort == "" || opts.evidencePath == "") {
+		return options{}, fmt.Errorf("model-routing-release requires --cohort and --evidence")
 	}
 	if opts.command != "provider-hygiene" && opts.includeUser {
 		return options{}, fmt.Errorf("--include-user is only supported for provider-hygiene")
@@ -543,15 +551,69 @@ func runProcessCheck(root string, check Check) CheckResult {
 	if len(check.Args) == 0 {
 		return CheckResult{ExitCode: 1, Stderr: "check has no command"}
 	}
+	timeout := check.Timeout
+	if timeout <= 0 {
+		timeout = defaultProcessCheckTimeout
+	}
 	cmd := exec.Command(check.Args[0], check.Args[1:]...)
 	cmd.Dir = root
-	out, err := cmd.Output()
-	result := CheckResult{ExitCode: 0, Stdout: string(out)}
+	if err := configureCheckProcessTree(cmd); err != nil {
+		return CheckResult{ExitCode: 1, Stderr: fmt.Sprintf("configure process containment: %v", err)}
+	}
+	overflow := make(chan struct{}, 1)
+	stdout := newCappedCheckBuffer(overflow)
+	stderr := newCappedCheckBuffer(overflow)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return CheckResult{ExitCode: 1, Stderr: err.Error()}
+	}
+	tree, err := attachCheckProcessTree(cmd)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return CheckResult{ExitCode: 1, Stderr: fmt.Sprintf("attach process containment: %v", err)}
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	exitReason := ""
+	select {
+	case err = <-done:
+	case <-timer.C:
+		exitReason = "timeout"
+	case <-overflow:
+		exitReason = "overflow"
+	}
+	if exitReason != "" {
+		_ = tree.Kill()
+		select {
+		case err = <-done:
+		case <-time.After(processCheckTerminationWait):
+			_ = tree.Close()
+			if exitReason == "timeout" {
+				return CheckResult{ExitCode: 124, Stderr: fmt.Sprintf("check timed out after %s and process tree did not exit within %s", timeout, processCheckTerminationWait)}
+			}
+			return CheckResult{ExitCode: 125, Stderr: fmt.Sprintf("check output exceeded %d bytes and process tree did not exit within %s", maxProcessCheckOutputBytes, processCheckTerminationWait)}
+		}
+	}
+	_ = tree.Close()
+	result := CheckResult{ExitCode: 0, Stdout: stdout.String(), Stderr: stderr.String()}
+	if exitReason == "timeout" {
+		result.ExitCode = 124
+		result.Stderr = appendCheckDiagnostic(result.Stderr, fmt.Sprintf("check timed out after %s", timeout))
+		return result
+	}
+	if exitReason == "overflow" || stdout.truncated || stderr.truncated {
+		result.ExitCode = 125
+		result.Stderr = appendCheckDiagnostic(result.Stderr, fmt.Sprintf("check output exceeded %d bytes", maxProcessCheckOutputBytes))
+		return result
+	}
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			result.ExitCode = exitErr.ExitCode()
-			result.Stderr = string(exitErr.Stderr)
 			return result
 		}
 		result.ExitCode = 1
@@ -559,6 +621,44 @@ func runProcessCheck(root string, check Check) CheckResult {
 		return result
 	}
 	return result
+}
+
+type cappedCheckBuffer struct {
+	data      []byte
+	truncated bool
+	overflow  chan<- struct{}
+}
+
+func newCappedCheckBuffer(overflow chan<- struct{}) cappedCheckBuffer {
+	return cappedCheckBuffer{overflow: overflow}
+}
+
+func (buffer *cappedCheckBuffer) Write(content []byte) (int, error) {
+	remaining := maxProcessCheckOutputBytes - len(buffer.data)
+	if remaining > 0 {
+		copyBytes := len(content)
+		if copyBytes > remaining {
+			copyBytes = remaining
+		}
+		buffer.data = append(buffer.data, content[:copyBytes]...)
+	}
+	if len(content) > remaining {
+		buffer.truncated = true
+		select {
+		case buffer.overflow <- struct{}{}:
+		default:
+		}
+	}
+	return len(content), nil
+}
+
+func (buffer *cappedCheckBuffer) String() string { return string(buffer.data) }
+
+func appendCheckDiagnostic(existing, diagnostic string) string {
+	if strings.TrimSpace(existing) == "" {
+		return diagnostic
+	}
+	return strings.TrimRight(existing, "\r\n") + "\n" + diagnostic
 }
 
 func runNativeCommand(root string, args []string) CheckResult {

@@ -26,13 +26,14 @@ expected_files:
     op: edit
     scope: "expect packet-backed planning for high-risk skill-bundle changes"
 protected_oracles: []
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: "slice-002 done"
 next_agent_action: "Update planner and worker contracts to use the structured packet."
 human_action: ""
 can_continue_other_slices: true
+notes: "kb-plan now defines material-slice packets; kb-work validates/loads them before broad search or delegation; execution prompt carries the packet."
 ---
 
 # Slice 003 - Planner/Worker Packet Integration

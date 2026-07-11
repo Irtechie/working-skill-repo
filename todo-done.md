@@ -2,6 +2,26 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-09
+
+- Finish Skill Repo Hardening - removed Phoenix runtime/MCP/global skills,
+  preserved CCE as an opt-in adapter, deduplicated ambient Copilot
+  instructions, added bounded context-packet and separate telemetry contracts,
+  added semantic provider hygiene, corrected loaded-surface accounting,
+  reconciled stale goal/manifest/handoff state, and refreshed compound/learning
+  memory. Multi-agent review found and resolved eight P1 contract defects.
+  Proof: `go test ./cmd/kbcheck`, `go run ./cmd/kbcheck core` (33 checks),
+  `go run ./cmd/kbcheck local-release`, manifest/packet/telemetry/provider CLI
+  probes, required skill hash sync, and working/ATV `git diff --check`.
+- Phoenix routing/slicing absorption - absorbed useful routing, snapshot,
+  manifest-proof, run-state, and doctor mechanics without retaining a Phoenix
+  runtime or MCP dependency.
+- Skill bundle hardening - completed/reviewed the hot-path rent audit, review
+  reference guard, native gate extraction, plan archive, and contributor/release
+  gate split; the H2 experiment remains intentionally parked.
+- RTK-inspired token efficiency - compact passing check output while preserving
+  full failure evidence and verbose diagnostics.
+
 ## 2026-07-05
 
 - Phoenix Proof Spine Merge - mined ATV-Phoenix for self-healing primitives without replacing KB. Added `kbcheck sense`, `trace-verify`, `accept`, and `learning-adoption`; wired failure-first proof into repair/troubleshoot/goal/work/complete/gate; added model-tier decomposition contracts; preserved scoped-local learning with a measured adoption gate for promotion. Review found and fixed one proof digest issue: behavior-changing check fields such as `timeout_ms` must be part of the digest. Proof: `go test ./cmd/kbcheck`, proof-spine RED->GREEN smoke, learning-adoption ADOPT_ELIGIBLE smoke, `go run ./cmd/kbcheck manifest-contract`, `go run ./cmd/kbcheck local-release`, working/ATV `git diff --check`, `work-to-complete`, and `complete-to-ship` gates passed.

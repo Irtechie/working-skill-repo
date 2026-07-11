@@ -8,6 +8,13 @@
     "user_questions": 0,
     "artifacts": [
       "manifest notes for live model routing",
+      "one AMR attempt and fail-closed surgical correction handoff contract",
+      "explicit attempt without file-type inference",
+      "proof-failed correction handoff with independent hunk oracle",
+      "correction dispatch refused before live-checkout worker launch or receipt",
+      "no-oracle result routed to ordinary planned-tier execution",
+      "unsafe use override rejected by the full eligibility envelope",
+      "conditional once-per-project route-source preference with native-only silence",
       "sync proof reserved for the distribution slice",
       "check output"
     ],
@@ -21,14 +28,21 @@
     "files_read": [
       "docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
       ".github/skills/kb-goal/SKILL.md",
+      ".github/skills/kb-map/SKILL.md",
+      ".github/skills/kb-plan/SKILL.md",
       ".github/skills/kb-work/SKILL.md",
       ".github/skills/kb-work/references/execution-prompt.md",
+      ".github/skills/kb-functional-test/SKILL.md",
+      ".github/skills/kb-configure/SKILL.md",
       ".github/skills/kb-work/references/go-sandbox.md",
       ".github/skills/kb-complete/SKILL.md",
       ".github/skills/kb-models/SKILL.md"
     ],
     "commands": [
       "go run ./cmd/kbcheck skill-lint",
+      "go test ./internal/modelrouting -run 'TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength|TestUseCannotBypassTierToolsContextOrRisk'",
+      "go test ./internal/modelrouting -run 'TestTrustedCorrectionFinalizerRejectsOmittedScopeBroadRewriteAndCallerProof|TestCorrectionPathsRejectWindowsADSDevicesTrailingNamesAndHardlinks|TestCorrectionPilotIneligibleRoutesToSeparateOrdinaryExecution'",
+      "go test ./cmd/kbrouter -run TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt",
       "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
       "git diff --check"
     ],
@@ -41,20 +55,72 @@
     {
       "type": "file_exists",
       "path": ".github/skills/kb-work/SKILL.md",
-      "contains": "",
       "expected": true,
       "claim": "kb-work skill exists"
+    },
+    {
+      "type": "file_read",
+      "contains": ".github/skills/kb-map/SKILL.md",
+      "expected": true,
+      "claim": "The run verified normal map and bootstrap remain routing-question free"
+    },
+    {
+      "type": "file_read",
+      "contains": ".github/skills/kb-plan/SKILL.md",
+      "expected": true,
+      "claim": "The run verified planner output remains model and transport neutral"
+    },
+    {
+      "type": "file_read",
+      "contains": ".github/skills/kb-configure/SKILL.md",
+      "expected": true,
+      "claim": "The run inspected the beginner opt-out policy"
+    },
+    {
+      "type": "file_read",
+      "contains": ".github/skills/kb-work/references/execution-prompt.md",
+      "expected": true,
+      "claim": "The run inspected the canonical attempt/correction packet"
+    },
+    {
+      "type": "command_ran",
+      "path": "",
+      "contains": "TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength",
+      "expected": true,
+      "claim": "Behavioral selector proof covered explicit attempts without file-type inference"
+    },
+    {
+      "type": "command_ran",
+      "path": "",
+      "contains": "TestCorrectionPilotIneligibleRoutesToSeparateOrdinaryExecution",
+      "expected": true,
+      "claim": "Behavioral correction proof covered no-oracle ordinary planned-tier fallback"
+    },
+    {
+      "type": "command_ran",
+      "path": "",
+      "contains": "TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt",
+      "expected": true,
+      "claim": "Functional CLI proof refused correction before live-checkout worker launch or receipt"
     }
   ],
   "trace_rules": {
     "required_files_read": [
       ".github/skills/kb-goal/SKILL.md",
+      ".github/skills/kb-map/SKILL.md",
+      ".github/skills/kb-plan/SKILL.md",
       ".github/skills/kb-work/SKILL.md",
+      ".github/skills/kb-work/references/execution-prompt.md",
+      ".github/skills/kb-functional-test/SKILL.md",
+      ".github/skills/kb-configure/SKILL.md",
       ".github/skills/kb-complete/SKILL.md",
       ".github/skills/kb-models/SKILL.md"
     ],
     "required_commands": [
       "go run ./cmd/kbcheck skill-lint",
+      "TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength",
+      "TestCorrectionPilotIneligibleRoutesToSeparateOrdinaryExecution",
+      "TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt",
       "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
       "git diff --check"
     ],

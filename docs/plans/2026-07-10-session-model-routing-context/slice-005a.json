@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "packet_id": "slice-005a",
+  "task_id": "session-model-routing",
+  "objective": "Consolidate AMR into one bounded lower-tier attempt, objective proof, and surgical planned-tier correction loop",
+  "memory_files": [
+    "todo.md",
+    "docs/context/PROJECT.md",
+    "docs/handoffs/active/2026-07-10-sol-amr-ddr-completion-review.md"
+  ],
+  "source_files": [
+    ".github/skills/kb-plan/SKILL.md",
+    ".github/skills/kb-work/SKILL.md",
+    ".github/skills/kb-configure/SKILL.md",
+    "internal/modelrouting/selector.go",
+    "internal/modelrouting/receipt.go",
+    "internal/modelrouting/correction.go",
+    "cmd/kbrouter/select.go",
+    "cmd/kbrouter/dispatch.go",
+    "cmd/kbcheck/context_packet.go"
+  ],
+  "prefetch": [
+    "rg AMR/DDR/tier ownership across skills, router, validators, README, and architecture docs",
+    "read selector, selector tests, select CLI, context packet, and manifest contract"
+  ],
+  "constraints": [
+    "Preserve unrelated dirty work",
+    "Planner records difficulty and proof, not DDR or model names",
+    "Lower-tier attempts require bounded caller-supplied eligibility and objective proof",
+    "Planned-tier correction preserves accepted hunks and receives exact failing evidence",
+    "Only independently accepted hunks may be protected; otherwise surgical pilot eligibility fails",
+    "Ordinary proof and trust policy remain authoritative"
+  ],
+  "out_of_scope": [
+    "Image regeneration",
+    "Model procurement or credentials",
+    "Automatic global skill promotion",
+    "Changing delivery authorization"
+  ],
+  "acceptance_criteria": [
+    "One AMR attempt/proof/correction loop replaces DDR duplication",
+    "Runtime and CLI prove explicit lower-tier attempt with planned-tier correction metadata",
+    "A typed correction packet and deterministic scope check reject unproved preservation or worker-supplied authority",
+    "Skills are concise for beginners and preserve advanced overrides",
+    "Focused Go, skill-eval, core, and release checks are executed"
+  ],
+  "proof_targets": [
+    "go test ./internal/modelrouting ./cmd/kbrouter ./cmd/kbcheck",
+    "go run ./cmd/kbcheck core",
+    "go run ./cmd/kbcheck local-release"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "Cross-runtime routing semantics, validator migration, skill consolidation, and compatibility risk",
+  "allowed_tools": [
+    "view",
+    "rg",
+    "apply_patch",
+    "go test",
+    "go run ./cmd/kbcheck"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Existing manifest compatibility requires a user-visible migration choice",
+    "A change would weaken trust, proof, or delivery authorization",
+    "Required sync target contains newer useful drift",
+    "Scoped tests reveal an unrelated blocking failure"
+  ]
+}

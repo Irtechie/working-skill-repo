@@ -88,6 +88,8 @@
       "kb-ship",
       "kb-finish",
       "kb-complete",
+      "kb-finalize",
+      "kb-land",
       "kb-review",
       "kb-research"
     ],
@@ -259,27 +261,6 @@
       "path": "~/.agents/skills",
       "classification": "required",
       "required": true
-    },
-    {
-      "id": "atv-github",
-      "label": "ATV .github skills",
-      "path": "../all-the-vibes/.github/skills",
-      "classification": "required",
-      "required": true
-    },
-    {
-      "id": "atv-scaffold",
-      "label": "ATV scaffold template",
-      "path": "../all-the-vibes/pkg/scaffold/templates/skills",
-      "classification": "optional",
-      "required": false
-    },
-    {
-      "id": "atv-plugin",
-      "label": "ATV everything plugin",
-      "path": "../all-the-vibes/plugins/atv-everything/skills",
-      "classification": "optional",
-      "required": false
     }
   ]
 }

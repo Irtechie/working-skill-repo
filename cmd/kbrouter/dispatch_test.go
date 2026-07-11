@@ -56,6 +56,125 @@ func TestDispatchCodexExecArgvProfileModelAndProofUnknown(t *testing.T) {
 	}
 }
 
+func TestDispatchPreservesAttemptAndPlannedCorrectionTiers(t *testing.T) {
+	fixture := newDispatchFixture(t, "attempt-tier")
+	fixture.writePacket(dispatchPacketForTest{
+		SchemaVersion: 1, PacketID: "packet-attempt-tier", TaskID: "task-attempt-tier",
+		RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004", ModelTier: "medium", AttemptTier: "small",
+		TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
+		ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true,
+	})
+	route := fixture.route("codex.small", "small-model", modelrouting.ClassSmall)
+	fixture.installCatalog(route)
+	fixture.trustRoutes(route)
+	fixture.trustSession("session-small", "small-model")
+	fixture.withFakeCodex(fixture.fakeCodex(fakeCodexSpec{sessionID: "session-small"}))
+
+	result := fixture.run("--route-alias", route.Alias)
+	if result.code != 0 {
+		t.Fatalf("dispatch exit=%d stderr=%s stdout=%s", result.code, result.stderr, result.stdout)
+	}
+	report := decodeDispatchReport(t, result.stdout)
+	if report.PlannedTier != modelrouting.TierMedium || report.AttemptTier != modelrouting.TierSmall {
+		t.Fatalf("dispatch lost planned/attempt distinction: %#v", report)
+	}
+
+	for name, tiers := range map[string][2]string{
+		"equal":       {"medium", "medium"},
+		"skips tier":  {"large", "small"},
+		"small tries": {"small", "small"},
+		"above":       {"small", "medium"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			invalid := dispatchPacketForTest{
+				SchemaVersion: 1, PacketID: "packet-invalid-attempt", TaskID: "task-invalid-attempt",
+				RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004", ModelTier: tiers[0], AttemptTier: tiers[1],
+				TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
+				ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true,
+			}
+			data, err := json.Marshal(invalid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := decodeDispatchPacket(data, invalid.RunID, invalid.SliceID); err == nil || !strings.Contains(err.Error(), "attempt tier") {
+				t.Fatalf("invalid attempt tier accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt(t *testing.T) {
+	fixture := newDispatchFixture(t, "correction-link")
+	projectID, err := modelrouting.CanonicalProjectIdentity(fixture.projectRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attempt := modelrouting.RoutingReceipt{
+		RouteEvidence: modelrouting.RouteDispatchEvidence{
+			RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004", ProjectID: projectID, RouteAlias: "codex.small",
+			RouteFingerprint: modelrouting.SHA256Bytes([]byte("small-route")), Adapter: "codex", AdapterRevision: "v1",
+			DispatchMethod: "exec-model", RequestedModelID: "small-model", ProviderReportedModel: "small-model", SessionID: "attempt-session",
+			TaskFamily: "code", ContextPacketID: "attempt-packet", ContextPacketHash: modelrouting.SHA256Bytes([]byte("attempt-packet")),
+			CapabilityEnvelopeHash: "capability-sha256:" + strings.Repeat("a", 64), Attempt: 1,
+		},
+		WorkProof: modelrouting.WorkProof{Command: "go test ./cmd/kbrouter", ArtifactHash: modelrouting.SHA256Bytes([]byte("failed-proof")), Result: modelrouting.ProofFail},
+	}
+	attemptHash, err := modelrouting.HashRoutingReceipt(attempt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := modelrouting.SaveAtomicJSON(fixture.runRoot, "attempt-receipt.json", attempt, maxCatalogBytes); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{"current.diff": "diff", "worker-result.redacted": "worker-result", "worker.log": "worker-log"} {
+		if err := os.WriteFile(filepath.Join(fixture.runRoot, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fix := modelrouting.HunkBoundary{ID: "fix", File: "cmd/kbrouter/dispatch.go", StartLine: 1, EndLine: 2}
+	keep := modelrouting.HunkBoundary{ID: "keep", File: "cmd/kbrouter/dispatch_test.go", StartLine: 1, EndLine: 2}
+	correction := modelrouting.CorrectionPacket{
+		SchemaVersion: modelrouting.CorrectionSchemaVersion, PacketID: "correction-packet", RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004",
+		AttemptReceipt: modelrouting.AttemptReceiptReference{Path: "attempt-receipt.json", Hash: attemptHash, RouteAlias: "codex.small", Attempt: 1},
+		PlannedTier:    modelrouting.TierMedium, CorrectionTier: modelrouting.TierMedium,
+		Authority: modelrouting.CorrectionAuthority{
+			Owner: modelrouting.AuthorityDriver, OriginalScopeHash: modelrouting.SHA256Bytes([]byte("scope")), PreCorrectionBaselineHash: modelrouting.SHA256Bytes([]byte("baseline")), AllowedChanges: []modelrouting.HunkBoundary{fix},
+			Invariants: []string{"routing policy unchanged"}, RelevantInterfaces: []string{"cmd/kbrouter/dispatch.go"}, ExactProof: []string{"go test ./cmd/kbrouter"},
+		},
+		Failure:       modelrouting.FailureEvidence{CriterionID: "proof-1", Localizable: true, Location: &fix},
+		AttemptLedger: []modelrouting.CorrectionAttempt{{Attempt: 1, RouteAlias: "codex.small", ReceiptHash: attemptHash, OutcomeCode: modelrouting.AttemptOutcomeProofFailed}},
+		CurrentDiff:   modelrouting.BoundedArtifact{Path: "current.diff", Hash: modelrouting.SHA256Bytes([]byte("diff")), Bytes: int64(len("diff")), Redacted: true},
+		WorkerResult:  modelrouting.BoundedArtifact{Path: "worker-result.redacted", Hash: modelrouting.SHA256Bytes([]byte("worker-result")), Bytes: int64(len("worker-result")), Redacted: true},
+		WorkerLog:     modelrouting.BoundedArtifact{Path: "worker.log", Hash: modelrouting.SHA256Bytes([]byte("worker-log")), Bytes: int64(len("worker-log")), Redacted: true},
+		AcceptedHunks: []modelrouting.AcceptedHunk{{Boundary: keep, ContentHash: modelrouting.SHA256Bytes([]byte("keep")), Oracle: modelrouting.HunkOracle{
+			Owner: modelrouting.AuthorityIndependentOracle, Scope: modelrouting.OracleScopeHunkLocal, Command: "go test ./cmd/kbrouter -run Keep",
+			ArtifactHash: modelrouting.SHA256Bytes([]byte("keep-proof")), Result: modelrouting.ProofPass,
+		}}},
+	}
+	fixture.writePacket(dispatchPacketForTest{
+		SchemaVersion: 1, PacketID: "packet-correction-link", TaskID: "task-correction-link", RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004",
+		ModelTier: "medium", TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
+		ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true, Correction: &correction,
+	})
+	route := fixture.route("codex.medium", "medium-model", modelrouting.ClassMedium)
+	fixture.installCatalog(route)
+	fixture.trustRoutes(route)
+	fixture.trustSession("correction-session", "medium-model")
+	fake := fixture.fakeCodex(fakeCodexSpec{sessionID: "correction-session"})
+	fixture.withFakeCodex(fake)
+
+	result := fixture.run("--route-alias", route.Alias)
+	if result.code == 0 || !strings.Contains(result.stderr, "isolated workspace") {
+		t.Fatalf("correction dispatch was not fail-closed: exit=%d stderr=%s stdout=%s", result.code, result.stderr, result.stdout)
+	}
+	if _, err := os.Stat(fake.argsPath); !os.IsNotExist(err) {
+		t.Fatalf("correction worker launched before isolation: %v", err)
+	}
+	if _, err := os.Stat(fixture.receiptPath); !os.IsNotExist(err) {
+		t.Fatalf("correction receipt minted before validation: %v", err)
+	}
+}
+
 func TestDispatchRequiresMarkedRunCatalogAndRejectsArbitraryExec(t *testing.T) {
 	fixture := newDispatchFixture(t, "required-catalog")
 	fake := fixture.fakeCodex(fakeCodexSpec{})
@@ -310,19 +429,21 @@ type fakeCodex struct {
 }
 
 type dispatchPacketForTest struct {
-	SchemaVersion  int            `json:"schema_version"`
-	PacketID       string         `json:"packet_id"`
-	TaskID         string         `json:"task_id"`
-	RunID          string         `json:"run_id"`
-	SliceID        string         `json:"slice_id"`
-	ModelTier      string         `json:"model_tier"`
-	TaskFamily     string         `json:"task_family"`
-	ContextSize    int            `json:"context_size"`
-	Risk           string         `json:"risk"`
-	AllowedTools   []string       `json:"allowed_tools"`
-	ProofTargets   []string       `json:"proof_targets"`
-	Redaction      map[string]any `json:"redaction"`
-	BoundedContext bool           `json:"bounded_context"`
+	SchemaVersion  int                            `json:"schema_version"`
+	PacketID       string                         `json:"packet_id"`
+	TaskID         string                         `json:"task_id"`
+	RunID          string                         `json:"run_id"`
+	SliceID        string                         `json:"slice_id"`
+	ModelTier      string                         `json:"model_tier"`
+	AttemptTier    string                         `json:"attempt_tier,omitempty"`
+	TaskFamily     string                         `json:"task_family"`
+	ContextSize    int                            `json:"context_size"`
+	Risk           string                         `json:"risk"`
+	AllowedTools   []string                       `json:"allowed_tools"`
+	ProofTargets   []string                       `json:"proof_targets"`
+	Redaction      map[string]any                 `json:"redaction"`
+	BoundedContext bool                           `json:"bounded_context"`
+	Correction     *modelrouting.CorrectionPacket `json:"correction,omitempty"`
 }
 
 func newDispatchFixture(t *testing.T, name string) dispatchFixture {

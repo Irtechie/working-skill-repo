@@ -1,5 +1,18 @@
 # Memory Maintenance
 
+Last deep review: never
+
+## Counters Since Last Review
+
+- Completed KB cycles: 13
+- Durable memory refreshes: 1 (current run; earlier history not reconstructed)
+- Closed handoffs: 1 (current run; earlier history not reconstructed)
+- Contradiction signals: 1
+- Overlap signals: 1
+- Stale-doc signals: 1
+- Bloat signals: 0
+- Repeated-rediscovery signals: 1
+
 ## Instinct Roots
 
 Durable instincts live in `docs/context/kb/` (git-tracked). Ephemeral run artifacts live in `.kb/` (git-ignored).
@@ -36,6 +49,10 @@ Canonical reference: `docs/context/architecture/kb-learning-model.md`.
 | 2026-07-01 | workflow-contract | live steering | KB lacked an in-flight steering layer between one-off PR feedback and post-work `learn`/`evolve`. | Added optional `kb-goal` live steering, feedback classification, docs, and solution note. | closed |
 | 2026-07-01 | state-migration | learning roots | Instincts and kb-completions counter lived under `.atv/instincts/` (legacy ATV root), coupling durable learning to the ATV install. | Migrated to `docs/context/kb/instincts/project.yaml` and `docs/context/kb/kb-completions.txt`; added scoped instinct directory `docs/context/kb/instincts/scoped/`; deleted legacy `.atv/` copies (slice-016). | closed |
 | 2026-07-05 | workflow-contract | proof spine | KB adopted Phoenix-style failure-first proof, measured learning adoption, and model-tier decomposition contracts. | After real usage, review `cmd/kbcheck` proof-spine checks and skill instructions for over/under-strict acceptance rules. | open |
+| 2026-07-09 | provider-hygiene | optional providers | Repo-local and user-global provider state were conflated; substring scanning also misclassified disabled providers. | Core is repo-local; `provider-hygiene --include-user` performs semantic machine inspection; CCE is optional and active Phoenix entries fail. | closed |
+| 2026-07-09 | contradiction | completion state | A completed scoped-learning goal still pointed to `kb-work`, its manifest remained active/pending, and a resolved handoff remained active. | Reconciled goal/manifest statuses, moved the handoff to done, and reduced `todo.md` to active work only. | closed |
+| 2026-07-09 | overlap | provider gate guidance | Provider hygiene extends the existing contributor-core vs release/environment gate rule. | Added a focused provider solution and refreshed the canonical gate solution with a cross-link. | closed |
+| 2026-07-09 | repeated-rediscovery | optional provider boundary | CCE/Phoenix optionality had been described in docs but was not mechanically distinguished in local config. | Added semantic provider-hygiene checks, fixtures, and a scoped instinct. | closed |
 
 ## Closed Signals
 

@@ -59,31 +59,35 @@ func (f *repeatFlag) Set(value string) error {
 }
 
 type dispatchReport struct {
-	Status                string `json:"status"`
-	RouteAlias            string `json:"route_alias"`
-	ProviderReportedModel string `json:"provider_reported_model,omitempty"`
-	SessionID             string `json:"session_id,omitempty"`
-	Attempt               int    `json:"attempt"`
-	Attribution           string `json:"attribution"`
-	ReceiptPath           string `json:"receipt_path,omitempty"`
-	OutputPath            string `json:"output_path,omitempty"`
-	HandoffPath           string `json:"handoff_path,omitempty"`
+	Status                string            `json:"status"`
+	RouteAlias            string            `json:"route_alias"`
+	PlannedTier           modelrouting.Tier `json:"planned_tier,omitempty"`
+	AttemptTier           modelrouting.Tier `json:"attempt_tier,omitempty"`
+	ProviderReportedModel string            `json:"provider_reported_model,omitempty"`
+	SessionID             string            `json:"session_id,omitempty"`
+	Attempt               int               `json:"attempt"`
+	Attribution           string            `json:"attribution"`
+	ReceiptPath           string            `json:"receipt_path,omitempty"`
+	OutputPath            string            `json:"output_path,omitempty"`
+	HandoffPath           string            `json:"handoff_path,omitempty"`
 }
 
 type dispatchPacket struct {
-	SchemaVersion  int                    `json:"schema_version"`
-	PacketID       string                 `json:"packet_id"`
-	TaskID         string                 `json:"task_id"`
-	RunID          string                 `json:"run_id"`
-	SliceID        string                 `json:"slice_id"`
-	ModelTier      modelrouting.Tier      `json:"model_tier"`
-	TaskFamily     string                 `json:"task_family"`
-	ContextSize    int                    `json:"context_size"`
-	Risk           modelrouting.RiskLevel `json:"risk"`
-	AllowedTools   []string               `json:"allowed_tools"`
-	ProofTargets   []string               `json:"proof_targets"`
-	Redaction      map[string]any         `json:"redaction"`
-	BoundedContext bool                   `json:"bounded_context"`
+	SchemaVersion  int                            `json:"schema_version"`
+	PacketID       string                         `json:"packet_id"`
+	TaskID         string                         `json:"task_id"`
+	RunID          string                         `json:"run_id"`
+	SliceID        string                         `json:"slice_id"`
+	ModelTier      modelrouting.Tier              `json:"model_tier"`
+	AttemptTier    modelrouting.Tier              `json:"attempt_tier,omitempty"`
+	TaskFamily     string                         `json:"task_family"`
+	ContextSize    int                            `json:"context_size"`
+	Risk           modelrouting.RiskLevel         `json:"risk"`
+	AllowedTools   []string                       `json:"allowed_tools"`
+	ProofTargets   []string                       `json:"proof_targets"`
+	Redaction      map[string]any                 `json:"redaction"`
+	BoundedContext bool                           `json:"bounded_context"`
+	Correction     *modelrouting.CorrectionPacket `json:"correction,omitempty"`
 }
 
 type dispatchTrustedState struct {
@@ -271,6 +275,13 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 	if err != nil {
 		return dispatchReport{}, err
 	}
+	if packet.Correction != nil {
+		return dispatchReport{}, fmt.Errorf("correction dispatch is non-executable until an isolated workspace and compare-and-swap apply runner are available")
+	}
+	attemptTier := packet.AttemptTier
+	if attemptTier == "" {
+		attemptTier = packet.ModelTier
+	}
 	packetHash := modelrouting.SHA256Bytes(packetData)
 	projectID, err := modelrouting.CanonicalProjectIdentity(opts.projectRoot)
 	if err != nil {
@@ -376,7 +387,7 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 		attemptStart := time.Now().UTC()
 		result := runWorkerProcess(trustedExec.Path, req, packetData, opts.outputLimit, codexHome, route.AuthEnv)
 		if result.notStarted {
-			return dispatchReport{Status: "dispatch-unavailable", RouteAlias: req.RouteAlias, Attempt: req.Attempt}, fmt.Errorf("dispatch unavailable before worker start: %w", result.err)
+			return dispatchReport{Status: "dispatch-unavailable", RouteAlias: req.RouteAlias, PlannedTier: packet.ModelTier, AttemptTier: attemptTier, Attempt: req.Attempt}, fmt.Errorf("dispatch unavailable before worker start: %w", result.err)
 		}
 		sessionID := parseThreadStartedSession(result.stdout)
 		evidence := modelrouting.ProviderEvidence{}
@@ -391,6 +402,8 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 		output := map[string]any{
 			"status":         outputStatus,
 			"route_alias":    req.RouteAlias,
+			"planned_tier":   packet.ModelTier,
+			"attempt_tier":   attemptTier,
 			"attempt":        req.Attempt,
 			"exit_code":      result.exitCode,
 			"timeout":        result.timeout,
@@ -410,7 +423,7 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 			}
 		}
 		if result.containmentFailure {
-			return dispatchReport{Status: "containment-failed", RouteAlias: req.RouteAlias, Attempt: req.Attempt, OutputPath: attemptOutputPath}, fmt.Errorf("worker containment cleanup failed: %w", result.err)
+			return dispatchReport{Status: "containment-failed", RouteAlias: req.RouteAlias, PlannedTier: packet.ModelTier, AttemptTier: attemptTier, Attempt: req.Attempt, OutputPath: attemptOutputPath}, fmt.Errorf("worker containment cleanup failed: %w", result.err)
 		}
 		outputData, err := readRunChild(prepared, attemptOutputPath, maxCatalogBytes)
 		if err != nil {
@@ -449,7 +462,7 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 				return lastReport, fmt.Errorf("record dispatcher-owned route attestation: %w", err)
 			}
 		}
-		lastReport = dispatchReport{Status: "observation-only", RouteAlias: req.RouteAlias, ProviderReportedModel: evidence.Model, SessionID: evidence.SessionID, Attempt: req.Attempt, Attribution: string(attribution), ReceiptPath: attemptReceiptPath, OutputPath: attemptOutputPath, HandoffPath: handoffPath}
+		lastReport = dispatchReport{Status: "observation-only", RouteAlias: req.RouteAlias, PlannedTier: packet.ModelTier, AttemptTier: attemptTier, ProviderReportedModel: evidence.Model, SessionID: evidence.SessionID, Attempt: req.Attempt, Attribution: string(attribution), ReceiptPath: attemptReceiptPath, OutputPath: attemptOutputPath, HandoffPath: handoffPath}
 		if result.exitCode == 0 && !result.timeout {
 			return lastReport, nil
 		}
@@ -556,6 +569,14 @@ func decodeDispatchPacket(data []byte, runID, sliceID string) (dispatchPacket, e
 	}
 	if !slices.Contains([]modelrouting.Tier{modelrouting.TierSmall, modelrouting.TierMedium, modelrouting.TierLarge}, packet.ModelTier) {
 		return dispatchPacket{}, fmt.Errorf("unsupported model tier %q", packet.ModelTier)
+	}
+	if packet.AttemptTier != "" {
+		if !slices.Contains([]modelrouting.Tier{modelrouting.TierSmall, modelrouting.TierMedium, modelrouting.TierLarge}, packet.AttemptTier) {
+			return dispatchPacket{}, fmt.Errorf("unsupported attempt tier %q", packet.AttemptTier)
+		}
+		if dispatchTierRank(packet.AttemptTier)+1 != dispatchTierRank(packet.ModelTier) {
+			return dispatchPacket{}, fmt.Errorf("attempt tier %q is not the next tier below planned model tier %q", packet.AttemptTier, packet.ModelTier)
+		}
 	}
 	if packet.Risk != modelrouting.RiskNormal && packet.Risk != modelrouting.RiskBroad {
 		return dispatchPacket{}, fmt.Errorf("unsupported packet risk %q", packet.Risk)
@@ -797,15 +818,31 @@ func validProfileNameForDispatch(value string) bool {
 }
 
 func routeFromValidatedCatalog(validated modelrouting.ValidatedCatalog, policy modelrouting.PolicyContext, alias string, packet dispatchPacket) (modelrouting.Route, error) {
-	request := modelrouting.WorkRequest{PlannedTier: packet.ModelTier, TaskFamily: packet.TaskFamily, Tools: packet.AllowedTools, ContextSize: packet.ContextSize, Risk: packet.Risk, ProjectID: policy.Project.ProjectID}
-	decision, err := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: modelrouting.OverrideUse, Alias: alias}, modelrouting.AttemptLedger{}, time.Now())
+	request := modelrouting.WorkRequest{PlannedTier: packet.ModelTier, AttemptTier: packet.AttemptTier, TaskFamily: packet.TaskFamily, Tools: packet.AllowedTools, ContextSize: packet.ContextSize, Risk: packet.Risk, ProjectID: policy.Project.ProjectID}
+	decision, err := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: modelrouting.OverrideRequire, Alias: alias}, modelrouting.AttemptLedger{}, time.Now())
 	if err != nil {
+		if errors.Is(err, modelrouting.ErrRequiredRouteUnavailable) {
+			return modelrouting.Route{}, fmt.Errorf("route %q not trusted/selectable for dispatch: %w", alias, err)
+		}
 		return modelrouting.Route{}, err
 	}
 	if len(decision.Routes) == 0 {
 		return modelrouting.Route{}, fmt.Errorf("route %q not trusted/selectable for dispatch", alias)
 	}
 	return decision.Routes[0], nil
+}
+
+func dispatchTierRank(tier modelrouting.Tier) int {
+	switch tier {
+	case modelrouting.TierSmall:
+		return 1
+	case modelrouting.TierMedium:
+		return 2
+	case modelrouting.TierLarge:
+		return 3
+	default:
+		return 0
+	}
 }
 
 func fallbackAllowed(first, next modelrouting.Route) bool {

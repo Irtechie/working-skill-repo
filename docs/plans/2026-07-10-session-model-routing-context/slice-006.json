@@ -19,22 +19,24 @@
     "Read the slice plan and listed source files before broader search"
   ],
   "constraints": [
-    "Initial cohort is Codex CLI plus one Codex-hosted OpenAI-compatible provider",
+    "Initial exact cohort is Codex CLI plus one OpenAI-compatible/LiteLLM route through a trusted Codex profile/harness",
     "Telemetry unavailable is not zero",
     "Supported claims require route-bound live evidence",
-    "Automatic default remains gated"
+    "Planned-tier host-native selection is baseline; public-default next-lower attempts remain gated",
+    "Deterministic seeded faults prove correction-handoff refusal and fallback safety but never count as live efficiency benefit"
   ],
   "out_of_scope": [
     "GHCP support label",
     "TinyBoss control",
-    "MCP dispatch",
-    "Default routing without baseline"
+    "MCP or direct chat-completions dispatch",
+    "Public-default next-lower attempts without preregistered promotion evidence"
   ],
   "acceptance_criteria": [
-    "Release evidence binds deterministic and live proof",
-    "Baseline has no correctness/rework/intervention regression",
-    "One material benefit is measured",
-    "Forbidden claims fail validation"
+    "Release evidence distinguishes deterministic proof from absent or later attended live proof",
+    "Exploratory and correction-handoff strata prove mechanics and fail-closed dispatch without false savings claims",
+    "Insufficient live samples or incomparable metrics produce not-promoted and keep next-lower attempts disabled",
+    "Forbidden claims fail validation",
+    "An honest no-paid not-promoted artifact passes without implying cohort support"
   ],
   "proof_targets": [
     "go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json"
