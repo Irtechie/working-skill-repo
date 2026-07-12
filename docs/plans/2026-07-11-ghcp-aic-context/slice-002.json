@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "ghcp-aic-slice-002",
+  "task_id": "ghcp-aic-falsification",
+  "objective": "Fail closed around model writes, generated-code proof, fixture authority, and paid state",
+  "memory_files": ["docs/brainstorms/2026-07-11-ghcp-aic-amr-falsification-requirements.md", "docs/context/eval-map.md"],
+  "source_files": ["cmd/amrbench/main.go", "cmd/amrbench/process_windows.go", "cmd/amrbench/process_unix.go", "evals/amr-model-benchmark"],
+  "prefetch": ["Read current process containment, fixture copy, proof execution, local profile, and first invalid-canary paths"],
+  "constraints": ["No paid/model call", "Separate model/proof containment", "Complete immutable proof closure", "Owner-only raw state", "Invalid attempt launches no fallback"],
+  "out_of_scope": ["Production correction runner", "Live canary", "Context winner", "Route promotion"],
+  "acceptance_criteria": ["Oracle mutations and escape attempts fail", "DisabledRunner proves no-paid zero-spawn behavior", "Unsupported sandbox blocks before spend and require-ready returns nonzero", "Fixtures prove red-green-negative sensitivity", "Subjective and HTML tasks are unrunnable"],
+  "proof_targets": ["go test ./cmd/amrbench -run 'Isolation|Oracle|Fixture|Budget|Containment|InvalidRoute|DisabledRunner' -count=1", "native Linux CI amrbench containment tests", "Darwin and alternate-OS compile proof"],
+  "model_tier": "large",
+  "model_tier_reason": "Host code execution, filesystem/network/process containment, credential minimization, and paid-state safety require strongest authority",
+  "allowed_tools": ["view", "rg", "apply_patch", "go test", "go vet"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Portable sandbox unavailable", "Proof needs host credentials/network", "Fixture closure cannot be made immutable", "Any conformance path constructs a live runner or loads secrets", "Change would enable paid execution"]
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "ghcp-aic-slice-003",
+  "task_id": "ghcp-aic-falsification",
+  "objective": "Predeclare a disjoint and comparable context-diet experiment without selecting a winner or spending credits",
+  "memory_files": ["docs/brainstorms/2026-07-11-ghcp-aic-amr-falsification-requirements.md"],
+  "source_files": ["cmd/amrbench/main.go", "docs/context/kb/context-packet-schema.md", "evals/amr-model-benchmark"],
+  "prefetch": ["Measure current deterministic packet sizes and role overlays; do not inspect held-out outcomes when selecting the contract"],
+  "constraints": ["No paid/model call", "Disjoint development and routing corpora", "Only ambient context varies", "Contracts and winner rule hash before outcomes"],
+  "out_of_scope": ["Live A-B", "Route matrix", "Production skill trimming", "Adaptive routing"],
+  "acceptance_criteria": ["Context schema validates", "Crossover and holdout simulation pass", "Winner rule rejects any correctness regression", "No winner is claimed without attended evidence", "No route advice enters packets"],
+  "proof_targets": ["go test ./cmd/amrbench -run 'Context|Contract|Crossover|Winner|Holdout' -count=1"],
+  "model_tier": "medium",
+  "model_tier_reason": "Bounded experiment-contract and deterministic analysis work with frozen product decisions",
+  "allowed_tools": ["view", "rg", "apply_patch", "go test"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Context variants alter tools/proof/stopping", "Corpora overlap", "Winner requires subjective interpretation"]
+}

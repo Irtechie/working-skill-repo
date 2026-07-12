@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "ghcp-aic-slice-004",
+  "task_id": "ghcp-aic-falsification",
+  "objective": "Build a paired family-specific full-fallback AMR grader that can only report no-paid conformance or honest not-promotion",
+  "memory_files": ["docs/brainstorms/2026-07-11-ghcp-aic-amr-falsification-requirements.md", "docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md", "docs/context/eval-map.md"],
+  "source_files": ["cmd/amrbench/main.go", "cmd/amrbench/main_test.go", "cmd/kbcheck/model_routing_release.go", "cmd/kbcheck/model_routing_release_test.go", "evals/amr-model-benchmark"],
+  "prefetch": ["Read existing promotion validator and incoming phase-bucket grader before designing paired trial schema"],
+  "constraints": ["No paid/model call", "Separate follow-on cohort", "Full-fallback economics only", "Family-specific correctness plus aggregate and median AIU", "Invalid never becomes fail or win"],
+  "out_of_scope": ["Live canary or matrix", "Production partial reuse", "Adaptive/load-aware trials", "Initial Codex cohort changes"],
+  "acceptance_criteria": ["No-paid conformance passes", "Phase-bucket and mismatch fixtures fail", "Promotion needs paired held-out evidence", "Current invalid canary is classified invalid-route and operational waste"],
+  "proof_targets": ["go test ./cmd/amrbench ./cmd/kbcheck -run 'Conformance|Paired|Promotion|GHCP' -count=1", "go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json", "go run ./cmd/kbcheck core"],
+  "model_tier": "large",
+  "model_tier_reason": "Promotion statistics, correctness claims, cohort boundaries, and experimental interpretation require strongest review",
+  "allowed_tools": ["view", "rg", "apply_patch", "go test", "go run ./cmd/kbcheck"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Any command would spend credits", "Promotion math can pass mismatched/incomplete trials", "Active slice 006 would be expanded", "Family correctness bound is ambiguous"]
+}

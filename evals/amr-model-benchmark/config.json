@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "models": [
+    {"alias": "haiku", "model": "claude-haiku-4.5", "runner": "ghcp", "tier": "small"},
+    {"alias": "sonnet", "model": "claude-sonnet-4.6", "runner": "ghcp", "tier": "medium"},
+    {"alias": "terra", "model": "gpt-5.6-terra", "runner": "ghcp", "tier": "medium"},
+    {"alias": "gpt55", "model": "gpt-5.5", "runner": "ghcp", "tier": "large"},
+    {"alias": "sol", "model": "gpt-5.6-sol", "runner": "ghcp", "tier": "large"},
+    {"alias": "qwen-local", "model": "qwen-local", "runner": "byok", "tier": "small", "profile": "qwen-local"},
+    {"alias": "deepseek-local", "model": "deepseek-local", "runner": "byok", "tier": "medium", "profile": "deepseek-local"}
+  ],
+  "tasks": [
+    {
+      "id": "accessible-profile-card",
+      "family": "html-ui",
+      "planned_tier": "medium",
+      "attempt_tier": "small",
+      "fixture": "evals/amr-model-benchmark/fixtures/accessible-profile-card",
+      "prompt": "Implement the accessible profile card described in SPEC.md. Keep the solution dependency-free. Do not edit verify.test.js.",
+      "verify": ["node", "--test", "verify.test.js"],
+      "required_tests": ["accessible structure", "interactive behavior"],
+      "amr_eligible": true
+    },
+    {
+      "id": "retry-after-parser",
+      "family": "go-local-logic",
+      "planned_tier": "medium",
+      "attempt_tier": "small",
+      "fixture": "evals/amr-model-benchmark/fixtures/retry-after-parser",
+      "prompt": "Implement ParseRetryAfter in retry/retry.go exactly as specified in SPEC.md. Do not edit tests.",
+      "verify": ["go", "test", "./..."],
+      "required_tests": ["TestParseRetryAfter"],
+      "amr_eligible": true
+    },
+    {
+      "id": "canonical-cache-key",
+      "family": "go-cross-file",
+      "planned_tier": "large",
+      "attempt_tier": "medium",
+      "fixture": "evals/amr-model-benchmark/fixtures/canonical-cache-key",
+      "prompt": "Implement canonical request cache keys across the key and request packages as specified in SPEC.md. Preserve public APIs and do not edit tests.",
+      "verify": ["go", "test", "./..."],
+      "required_tests": ["TestCanonicalQuerySortsFiltersAndPreservesEmpty", "TestCanonicalQueryRejectsMalformedEscapes", "TestCacheKeyCanonicalizesWithoutMutation", "TestCacheKeyPreservesNonDefaultPortAndTrailingSlash", "TestCacheKeyRejectsMalformedQuery"],
+      "amr_eligible": true
+    },
+    {
+      "id": "agent-personhood-policy",
+      "family": "subjective-policy",
+      "planned_tier": "large",
+      "fixture": "evals/amr-model-benchmark/fixtures/agent-personhood-policy",
+      "prompt": "Decide the organization's philosophical position on AI personhood and rewrite POLICY.md.",
+      "verify": ["go", "test", "./..."],
+      "required_tests": [],
+      "amr_eligible": false,
+      "ineligible_reason": "subjective philosophical and policy intent is unsettled and has no objective implementation oracle"
+    }
+  ],
+  "qualification": {
+    "minimum_samples": 5,
+    "qualify_pass_rate": 0.8,
+    "suspend_pass_rate": 0.6
+  }
+}

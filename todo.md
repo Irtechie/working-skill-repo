@@ -72,15 +72,11 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
-
-| Phoenix routing/slicing absorption | ✅ done | P1 | `docs/plans/2026-07-09-010-kb-phoenix-routing-slicing-absorption-manifest.md` |
-| Live steering learning loop | ✅ done | P1 | `docs/context/goals/live-steering-learning-loop.md` |
-| RTK-inspired token efficiency | ✅ done | P1 | `docs/context/goals/rtk-inspired-token-efficiency.md` |
-| Skill bundle hardening | 🔧 in_progress | P1 | `docs/plans/2026-06-10-011-kb-skill-bundle-hardening-manifest.md` |
-| Phoenix proof spine merge | ✅ done | P1 | `docs/plans/2026-07-05-000-kb-phoenix-proof-spine-merge-manifest.md` |
-| Model-agnostic planner economy hardening | ⬜ pending | P1 | `docs/plans/2026-07-05-010-kb-model-agnostic-planner-economy-manifest.md` |
-| Claude remaining hardening | ✅ done | P1 | `docs/plans/archive/2026-06/2026-06-01-080-kb-claude-remaining-hardening-manifest.md` |
-| Go validator full replacement | ✅ done | P1 | `docs/plans/archive/2026-06/2026-06-01-130-kb-go-validator-full-replacement-manifest.md` |
+| Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
+| Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
+| One-loop AMR cleanup, completion review, and image refresh | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
+| GHCP AIC/context falsification harness | 🔧 in_progress | P1 | `docs/plans/2026-07-11-040-kb-ghcp-aic-falsification-manifest.md` — session-routing baseline landed via PR #1; deterministic no-paid work authorized |
+| Invisible workflow UX: retire KLFG, preserve consent, report route/proof/AIC | 🔒 blocked | P1 | `docs/plans/2026-07-11-045-kb-invisible-workflow-ux-manifest.md` — waits for overlapping AMR/AIC work to stabilize and explicit plan-to-work consent |
 
 ## Queued Improvements
 
@@ -108,7 +104,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Handoff | Status | Route | Created | Stale Check | Link |
 |---|---|---|---|---|---|
-| Phoenix routing Go gate blocker | ✅ resolved | `kb-work` | 2026-07-09 | resolved by `GOTOOLCHAIN=go1.25.4+auto` | `docs/handoffs/active/2026-07-09-phoenix-routing-go-gate-blocker.md` |
+| One-loop AMR cleanup and image gate | active | `kb-work` | 2026-07-10 | fresh | `docs/handoffs/active/2026-07-10-sol-amr-ddr-completion-review.md` |
 
 ## Human Required
 
@@ -124,31 +120,10 @@ None.
 
 ## Blocked
 
-None.
+- Invisible workflow UX execution is blocked on overlapping writes in the
+  session-routing and GHCP AIC workstreams. Recheck the actual diff after those
+  settle, then ask before starting `kb-work`.
 
 ## Work Log
 
-- 2026-07-05: User approved putting the planner-economy architecture together.
-  Added the control-plane blueprint:
-  `docs/context/decisions/2026-07-05-kb-control-plane-blueprint.md`. Updated the
-  manifest plan-to-work gate to passed; slice-002 is now the next runnable
-  implementation slice.
-- 2026-07-05: Incorporated Fable critique into the model-agnostic planner
-  economy plan. Manifest:
-  `docs/plans/2026-07-05-010-kb-model-agnostic-planner-economy-manifest.md`.
-  The plan now treats KB as the current planning/proof/skill/learning payload,
-  blocks implementation on user approval, and makes the next proof a bounded
-  absorption spike for task state, context packets, recovery fixtures, telemetry,
-  custom-instruction segmentation, and one adapter boundary.
-- 2026-07-05: Completed Phoenix proof spine merge. Added `kbcheck sense`,
-  `trace-verify`, `accept`, and `learning-adoption`; wired repair,
-  troubleshoot, goal/work/complete/gate, learn/evolve, docs, eval map, and
-  model-tier decomposition contracts. Proof: `go test ./cmd/kbcheck`,
-  proof-spine RED->GREEN smoke, learning-adoption ADOPT_ELIGIBLE smoke,
-  `go run ./cmd/kbcheck core`, `go run ./cmd/kbcheck local-release`,
-  `git diff --check`, and `git -C E:\all-the-vibes diff --check` passed.
-  Required skill roots were synced with zero required sync issues.
-- 2026-06-03: Completed cross-platform adoption on-ramp. Added `npx` installer with core/full profiles, non-destructive backups, repo-local install, and Windows/macOS/Linux CI proof. Proof: installer smoke checks, `go test ./...`, `go run ./cmd/kbcheck core`, working/ATV `git diff --check`, and required sync report passed.
-- 2026-06-01: Completed Go validator full replacement. Ported all remaining skill-repo validators, eval adapters, marketplace promotion/firebreak checks, ATV delta reporting, pipeline proof, ready-set/scope-lease utilities, release selftests, surface/minimality reports, and sync drift reports into `cmd/kbcheck`; deleted all `.ps1` files. Proof: `go test ./...`, `go run ./cmd/kbcheck core`, `go run ./cmd/kbcheck local-release --json`, `go run ./cmd/kbcheck ready-set --manifest docs\plans\archive\2026-06\2026-06-01-130-kb-go-validator-full-replacement-manifest.md --json`, `rg --files -g "*.ps1"`, and `git diff --check`.
-
-Older completed work is archived in `todo-done.md`.
+Completed work is archived in `todo-done.md`.

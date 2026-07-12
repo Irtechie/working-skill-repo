@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "ghcp-aic-slice-001",
+  "task_id": "ghcp-aic-falsification",
+  "objective": "Normalize complete exact GHCP leaf-call accounting without paid calls",
+  "memory_files": ["docs/brainstorms/2026-07-11-ghcp-aic-amr-falsification-requirements.md", "docs/context/kb/context-packet-schema.md"],
+  "source_files": ["cmd/amrbench/main.go", "cmd/amrbench/main_test.go", "cmd/kbcheck/execution_telemetry.go", "internal/ghcpotel/testdata/schema-probe-redacted.jsonl"],
+  "prefetch": ["Use only the bounded redacted schema fixture; raw .kb probes are forbidden model context and are processed outside the reasoning loop"],
+  "constraints": ["No paid/model call", "Exact raw AIU authority", "Leaf chat only", "Complete trace lineage and closure", "Requested and observed route stay distinct"],
+  "out_of_scope": ["Sandbox implementation", "Context A-B", "Promotion", "Production correction"],
+  "acceptance_criteria": ["Strict aiu/nano parser passes malicious fixtures", "Partial or mismatched telemetry is invalid", "Existing execution telemetry remains proof-neutral"],
+  "proof_targets": ["go test ./internal/ghcpotel ./cmd/amrbench ./cmd/kbcheck -run 'OTel|AIU|Span|Telemetry|Mismatch' -count=1"],
+  "model_tier": "medium",
+  "model_tier_reason": "Deterministic bounded parser work with exact tests; security boundaries are specified and escalate on schema ambiguity",
+  "allowed_tools": ["view", "rg", "apply_patch", "go test"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Official schema contradicts probe", "Exact accounting cannot avoid float loss", "Trace cannot bind one phase/arm"]
+}
