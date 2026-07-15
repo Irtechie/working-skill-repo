@@ -110,7 +110,7 @@ KB separates three decisions that agents often blur together:
    make the work correct. Tests, lint, browser assertions, API probes, or another
    objective check remain authoritative.
 
-### Difficulty-Driven Routing (DDR)
+### Difficulty-Driven Routing (DDR) — Testing
 
 DDR is shorthand for that decision pattern, not a separate command or artifact
 created by `kb-plan`. Planning records difficulty and proof; execution discovers
@@ -146,10 +146,10 @@ Run-only controls remain explicit:
 - `use <model>` prefers an eligible route for this run;
 - `require <model>` hard-pins it or fails;
 - `ignore model routing` stays on the current driver;
-- fallback goes same tier, then higher tier, then the current model in degraded
-  mode—never automatically downward.
+- fallback goes same tier, then higher tier, then the current model only after
+  an explicit, capability-qualified degraded decision—never automatically downward.
 
-### Adaptive Model Routing (AMR)
+### Adaptive Model Routing (AMR) — Optional, Testing
 
 AMR is a narrower, optional optimization inside this system. If a task was
 planned at medium but is settled, bounded, and objectively provable, an enabled
@@ -183,7 +183,8 @@ without reducing correctness.
 - `kb-work` executes manifest slices using ready-set and scope-lease rules.
 - At execution time, the current master may choose a dispatch-qualified worker
   from the bounded live catalog; otherwise it uses the planned-tier current-model
-  path. Durable plans contain tier/proof, never model or transport advice. The
+  path only after an explicit, capability-qualified decision. Durable plans
+  contain tier/proof, never model or transport advice. The
   current master chooses host-native routes
   automatically. `kb-models` configures optional user-local
   OpenAI-compatible/LiteLLM extras; no generic MCP model dispatch is claimed.

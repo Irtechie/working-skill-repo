@@ -8,6 +8,8 @@ import (
 type WorkRequest struct {
 	PlannedTier   Tier
 	AttemptTier   Tier
+	AllowCurrent  bool
+	CurrentReason CurrentExecutionReason
 	TaskFamily    string
 	Tools         []string
 	ContextSize   int
@@ -15,6 +17,13 @@ type WorkRequest struct {
 	SensitiveData bool
 	ProjectID     string
 }
+
+type CurrentExecutionReason string
+
+const (
+	CurrentReasonReasonerRequired CurrentExecutionReason = "reasoner-required"
+	CurrentReasonNoQualifiedRoute CurrentExecutionReason = "no-qualified-route"
+)
 
 type OverrideMode string
 
@@ -48,12 +57,14 @@ const (
 )
 
 type SelectionDecision struct {
-	Status      SelectionStatus
-	Routes      []Route
-	Current     CurrentModel
-	PlannedTier Tier
-	AttemptTier Tier
-	Preference  RoutePreference
+	Status         SelectionStatus
+	Routes         []Route
+	Current        CurrentModel
+	PlannedTier    Tier
+	AttemptTier    Tier
+	Preference     RoutePreference
+	ExecutionOwner string
+	CurrentReason  CurrentExecutionReason
 }
 
 func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyContext, override RunOverride, ledger AttemptLedger, now time.Time) (SelectionDecision, error) {
@@ -62,6 +73,7 @@ func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyConte
 	decision.Preference = normalizedRoutePreference(override.Prefer)
 	if override.Mode == OverrideIgnore {
 		decision.Status, decision.Current = SelectionIgnored, catalog.Current
+		decision.ExecutionOwner = "current-reasoner"
 		return decision, nil
 	}
 	if req.ProjectID == "" {
@@ -81,6 +93,7 @@ func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyConte
 	if override.Mode == OverrideRequire {
 		if route, ok := explicitlySelectable(catalog, override.Alias, req, policy, ledger, now); ok {
 			decision.Status, decision.Routes = SelectionRouted, []Route{route}
+			decision.ExecutionOwner = "delegated-worker"
 			return decision, nil
 		}
 		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
@@ -95,6 +108,7 @@ func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyConte
 				}
 			}
 			decision.Status, decision.Routes = SelectionRouted, routes
+			decision.ExecutionOwner = "delegated-worker"
 			return decision, nil
 		}
 	}
@@ -104,10 +118,12 @@ func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyConte
 	}
 	if len(automatic) > 0 {
 		decision.Status, decision.Routes = SelectionRouted, automatic
+		decision.ExecutionOwner = "delegated-worker"
 		return decision, nil
 	}
 	if currentFallbackAllowed(catalog.Current, req, policy, now) {
 		decision.Status, decision.Current = SelectionDegraded, catalog.Current
+		decision.ExecutionOwner, decision.CurrentReason = "current-reasoner", req.CurrentReason
 		return decision, nil
 	}
 	decision.Status, decision.Current = SelectionUnavailable, catalog.Current
@@ -119,6 +135,9 @@ func validWorkRequest(req WorkRequest) bool {
 		return false
 	}
 	if req.ProjectID == "" || req.TaskFamily == "" || len(req.Tools) == 0 || req.ContextSize <= 0 || !validRisk(req.Risk) {
+		return false
+	}
+	if req.AllowCurrent != validCurrentExecutionReason(req.CurrentReason) {
 		return false
 	}
 	seen := make(map[string]struct{}, len(req.Tools))
@@ -254,7 +273,7 @@ func routeMatchesPreference(route Route, preference RoutePreference) bool {
 }
 
 func selectionDecisionForRequest(req WorkRequest) SelectionDecision {
-	return SelectionDecision{PlannedTier: req.PlannedTier, AttemptTier: selectionAttemptTier(req)}
+	return SelectionDecision{PlannedTier: req.PlannedTier, AttemptTier: selectionAttemptTier(req), CurrentReason: req.CurrentReason}
 }
 
 func selectionAttemptTier(req WorkRequest) Tier {
@@ -353,10 +372,24 @@ func automaticEligible(route Route, req WorkRequest, floor CapabilityClass, now 
 }
 
 func currentFallbackAllowed(current CurrentModel, req WorkRequest, policy PolicyContext, now time.Time) bool {
-	if policy.Project.DenyCurrentFallback || current.ModelID == "" || current.Route == nil || current.Route.DisplayModelID != current.ModelID {
+	if !req.AllowCurrent || !validCurrentExecutionReason(req.CurrentReason) || policy.Project.DenyCurrentFallback || current.ModelID == "" || current.Route == nil || current.Route.DisplayModelID != current.ModelID {
 		return false
 	}
-	return validateRouteSchema(*current.Route) == nil && routeAllowedByPolicy(*current.Route, req, policy, now)
+	route := *current.Route
+	evidence := route.Capability
+	if validateRouteSchema(route) != nil || !routeAllowedByPolicy(route, req, policy, now) || classRank(evidence.Class) < classRank(tierFloor(req.PlannedTier)) || evidence.TaskFamily != req.TaskFamily || evidence.ContextSize < req.ContextSize || !riskCovers(evidence.Risk, req.Risk) {
+		return false
+	}
+	for _, tool := range req.Tools {
+		if !containsString(evidence.Tools, tool) {
+			return false
+		}
+	}
+	return true
+}
+
+func validCurrentExecutionReason(reason CurrentExecutionReason) bool {
+	return reason == CurrentReasonReasonerRequired || reason == CurrentReasonNoQualifiedRoute
 }
 
 func tierFloor(tier Tier) CapabilityClass {

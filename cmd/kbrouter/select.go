@@ -13,21 +13,24 @@ import (
 
 type selectOptions struct {
 	commonOptions
-	runRoot, runID, tier, attemptTier, taskFamily, risk, override, alias, prefer string
-	tools                                                                        repeatFlag
-	contextSize                                                                  int
-	sensitive                                                                    bool
+	runRoot, runID, tier, attemptTier, taskFamily, risk, override, alias, prefer, currentReason string
+	tools                                                                                       repeatFlag
+	contextSize                                                                                 int
+	sensitive                                                                                   bool
+	allowCurrent                                                                                bool
 }
 
 type selectOutput struct {
-	Status       modelrouting.SelectionStatus `json:"status"`
-	PlannedTier  modelrouting.Tier            `json:"planned_tier"`
-	AttemptTier  modelrouting.Tier            `json:"attempt_tier"`
-	Preference   modelrouting.RoutePreference `json:"preference,omitempty"`
-	Aliases      []string                     `json:"aliases,omitempty"`
-	CurrentModel string                       `json:"current_model,omitempty"`
-	Fallback     string                       `json:"fallback,omitempty"`
-	ErrorClass   string                       `json:"error_class,omitempty"`
+	Status         modelrouting.SelectionStatus        `json:"status"`
+	PlannedTier    modelrouting.Tier                   `json:"planned_tier"`
+	AttemptTier    modelrouting.Tier                   `json:"attempt_tier"`
+	Preference     modelrouting.RoutePreference        `json:"preference,omitempty"`
+	Aliases        []string                            `json:"aliases,omitempty"`
+	CurrentModel   string                              `json:"current_model,omitempty"`
+	ExecutionOwner string                              `json:"execution_owner,omitempty"`
+	CurrentReason  modelrouting.CurrentExecutionReason `json:"current_reason,omitempty"`
+	Fallback       string                              `json:"fallback,omitempty"`
+	ErrorClass     string                              `json:"error_class,omitempty"`
 }
 
 func runModelsSelect(args []string, stdout, stderr io.Writer) int {
@@ -44,6 +47,8 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 	fs.IntVar(&opts.contextSize, "context-size", 0, "required context size")
 	fs.StringVar(&opts.risk, "risk", "", "normal or broad")
 	fs.BoolVar(&opts.sensitive, "sensitive-data", false, "work contains sensitive data")
+	fs.BoolVar(&opts.allowCurrent, "allow-current", false, "allow current reasoner execution when no worker qualifies")
+	fs.StringVar(&opts.currentReason, "current-reason", "", "reasoner-required or no-qualified-route")
 	fs.StringVar(&opts.override, "override", "", "run-only use, require, or ignore")
 	fs.StringVar(&opts.alias, "alias", "", "run-only override alias")
 	fs.StringVar(&opts.prefer, "prefer", "", "run-only self-hosted or native preference")
@@ -112,9 +117,9 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "unsupported route preference")
 		return 2
 	}
-	request := modelrouting.WorkRequest{PlannedTier: modelrouting.Tier(opts.tier), AttemptTier: modelrouting.Tier(opts.attemptTier), TaskFamily: opts.taskFamily, Tools: []string(opts.tools), ContextSize: opts.contextSize, Risk: modelrouting.RiskLevel(opts.risk), SensitiveData: opts.sensitive, ProjectID: policy.Project.ProjectID}
+	request := modelrouting.WorkRequest{PlannedTier: modelrouting.Tier(opts.tier), AttemptTier: modelrouting.Tier(opts.attemptTier), AllowCurrent: opts.allowCurrent, CurrentReason: modelrouting.CurrentExecutionReason(opts.currentReason), TaskFamily: opts.taskFamily, Tools: []string(opts.tools), ContextSize: opts.contextSize, Risk: modelrouting.RiskLevel(opts.risk), SensitiveData: opts.sensitive, ProjectID: policy.Project.ProjectID}
 	decision, selectErr := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: mode, Alias: opts.alias, Prefer: preference}, modelrouting.AttemptLedger{}, time.Now())
-	out := selectOutput{Status: decision.Status, PlannedTier: decision.PlannedTier, AttemptTier: decision.AttemptTier, Preference: decision.Preference, CurrentModel: decision.Current.ModelID}
+	out := selectOutput{Status: decision.Status, PlannedTier: decision.PlannedTier, AttemptTier: decision.AttemptTier, Preference: decision.Preference, CurrentModel: decision.Current.ModelID, ExecutionOwner: decision.ExecutionOwner, CurrentReason: decision.CurrentReason}
 	for _, route := range decision.Routes {
 		out.Aliases = append(out.Aliases, route.Alias)
 	}

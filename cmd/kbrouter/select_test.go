@@ -158,6 +158,49 @@ func TestModelsSelectIgnoreBypassesCorruptSavedPriority(t *testing.T) {
 	}
 }
 
+func TestModelsSelectParsesExplicitCurrentReasonWithoutImplicitExecution(t *testing.T) {
+	skipIfPrivateACLUnsupported(t)
+	fixture := newDispatchFixture(t, "select-current-reason")
+	current := currentModel("current-reasoner")
+	current.Route.Capability.Tools = []string{"codex-harness"}
+	current.Route.Capability.ContextSize = 8192
+	catalog := modelrouting.Catalog{SchemaVersion: modelrouting.CatalogSchemaVersion, Current: current}
+	fingerprintAndSort(&catalog)
+	if err := modelrouting.SaveCatalog(fixture.runRoot, "catalog.json", catalog, modelrouting.StorageOptions{MaxBytes: maxCatalogBytes, Source: modelrouting.CatalogSourceRun}); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := prepareRunRoot(fixture.projectRoot, fixture.runRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := saveDispatchTrustedState(fixture.userRoot, prepared, loadRunCatalogForTest(t, fixture.runRoot)); err != nil {
+		t.Fatal(err)
+	}
+	base := []string{"models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--json"}
+	code, stdout, stderr := runForTest(base...)
+	if code != 0 {
+		t.Fatalf("selection failed code=%d stderr=%s", code, stderr)
+	}
+	var out selectOutput
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Status != modelrouting.SelectionUnavailable {
+		t.Fatalf("implicit current execution accepted: %#v", out)
+	}
+	base = append(base[:len(base)-1], "--allow-current", "--current-reason", "no-qualified-route", "--json")
+	code, stdout, stderr = runForTest(base...)
+	if code != 0 {
+		t.Fatalf("explicit current selection failed code=%d stderr=%s", code, stderr)
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Status != modelrouting.SelectionUnavailable || out.ExecutionOwner != "" || out.CurrentReason != modelrouting.CurrentReasonNoQualifiedRoute {
+		t.Fatalf("current reason was lost or caused implicit execution: %#v", out)
+	}
+}
+
 func TestDispatchSchemaNameIsSliceScoped(t *testing.T) {
 	a := "worker-output-schema-" + sha256Text("slice-a")[:16] + ".json"
 	b := "worker-output-schema-" + sha256Text("slice-b")[:16] + ".json"

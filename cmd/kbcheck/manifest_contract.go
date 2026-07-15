@@ -214,6 +214,15 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 		if modelTierContract && !validModelTier(slice.ModelTier) {
 			issues = append(issues, manifestContractIssue{Code: "invalid-model-tier", SliceID: slice.ID, Message: "slice must set model_tier to tiny, small, medium, or large"})
 		}
+		if modelTierContract && strings.TrimSpace(slice.ModelTierReason) == "" {
+			issues = append(issues, manifestContractIssue{Code: "missing-model-tier-reason", SliceID: slice.ID, Message: "slice must justify model_tier from complexity, authority, risk, and proof"})
+		}
+		if modelTierContract && !nonBlankStrings(slice.ModelRequirements) {
+			issues = append(issues, manifestContractIssue{Code: "missing-model-requirements", SliceID: slice.ID, Message: "slice must declare model_requirements"})
+		}
+		if modelTierContract && !nonBlankStrings(slice.EscalationTriggers) {
+			issues = append(issues, manifestContractIssue{Code: "missing-escalation-triggers", SliceID: slice.ID, Message: "slice must declare escalation_triggers"})
+		}
 		if objectiveContract && requiresProofCheck(slice) {
 			if slice.NoCheckReason != "" {
 				if !validNoCheckException(slice) {

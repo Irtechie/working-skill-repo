@@ -17,6 +17,9 @@ type manifestSlice struct {
 	Status                 string
 	Verification           string
 	ModelTier              string
+	ModelTierReason        string
+	ModelRequirements      []string
+	EscalationTriggers     []string
 	ModelRoute             string
 	ProofCheck             bool
 	NoCheckReason          string
@@ -353,6 +356,12 @@ func parseManifestSlices(path string) ([]manifestSlice, error) {
 			current.Verification = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "verification:")))
 		case strings.HasPrefix(trimmed, "model_tier:"):
 			current.ModelTier = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_tier:")))
+		case strings.HasPrefix(trimmed, "model_tier_reason:"):
+			current.ModelTierReason = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_tier_reason:")))
+		case strings.HasPrefix(trimmed, "model_requirements:"):
+			current.ModelRequirements = parseInlineList(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_requirements:")))
+		case strings.HasPrefix(trimmed, "escalation_triggers:"):
+			current.EscalationTriggers = parseInlineList(strings.TrimSpace(strings.TrimPrefix(trimmed, "escalation_triggers:")))
 		case strings.HasPrefix(trimmed, "model_route:"):
 			current.ModelRoute = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_route:")))
 		case strings.HasPrefix(trimmed, "proof_check:"):

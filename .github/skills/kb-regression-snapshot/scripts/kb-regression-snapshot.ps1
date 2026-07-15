@@ -50,8 +50,20 @@ function Assert-FileChecksum($Check) {
 }
 
 function Assert-Cli($Check) {
-  $output = Invoke-Expression $Check.command 2>&1 | Out-String
-  $exit = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  # Native tools such as Python unittest write ordinary progress and summaries
+  # to stderr.  With the script-wide ErrorActionPreference=Stop, Windows
+  # PowerShell promotes that expected output to NativeCommandError before the
+  # declared exit-code contract can be evaluated.  Capture merged native output
+  # with non-terminating error semantics, then let expected_exit_code remain the
+  # authoritative pass/fail signal.
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    $output = Invoke-Expression $Check.command 2>&1 | Out-String
+    $exit = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
   if ($exit -ne [int]$Check.expected_exit_code) {
     throw "cli $($Check.command) expected exit $($Check.expected_exit_code) observed $exit"
   }
@@ -112,7 +124,7 @@ if ($Mode -eq "capture") {
   $out = Join-Path $SnapshotDir "$SliceId.json"
   $snapshot | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $out -Encoding UTF8
   "snapshot-capture: PASS $SliceId -> $out"
-  exit 0
+  return
 }
 
 $files = Get-ChildItem -Path $SnapshotDir -Filter "*.json" -File -ErrorAction SilentlyContinue |
@@ -125,4 +137,3 @@ foreach ($file in $files) {
   $count++
 }
 "snapshot-verify: PASS $count/$count snapshots"
-exit 0

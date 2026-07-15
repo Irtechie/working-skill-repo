@@ -203,6 +203,8 @@ Break the work into thin end-to-end slices. For each slice, determine:
 - **Model tier** - the `small` / `medium` / `large` correction and authority
   tier required if the first implementation attempt fails; Planner is a
   separate orchestration role
+- **Model tier reason** - one falsifiable explanation tied to uncertainty,
+  blast radius, coupling, reversibility, authority, or verification burden
 - **Model requirements** - capabilities, tools, context, risk, and proof shape the work-time selector must consider
 - **Escalation triggers** - observable conditions that require a higher tier
 - **Blocked by** - which other slices must complete first, or none
@@ -282,6 +284,11 @@ belongs in the receipt. Only run-scoped `require <model>` hard-pins.
 | `small` | narrow mechanical code edits, straightforward tests, local docs updates with clear examples | ambiguous architecture, cross-boundary behavior, user-visible workflows without stronger review |
 | `medium` | ordinary vertical slices, focused refactors, integration wiring with clear acceptance criteria | high-risk architecture/security/data migrations, unresolved product calls |
 | `large` | decomposition, hard debugging, architecture/security decisions, broad migrations, final synthesis/review | tasks with no executable proof path |
+
+Every runnable slice must include `model_tier_reason`, non-empty
+`model_requirements`, and observable `escalation_triggers`. A tier label without
+those fields fails `manifest-contract`. DDR remains testing-stage policy; do not
+describe the tier as a benchmark-proven model assignment.
 
 Legacy `tiny` remains readable as a `small`-lane hint only. When unsure, choose
 the higher correction tier. Subjective design direction, philosophy/policy
@@ -380,6 +387,9 @@ slices:
     test_level: unit
     functional_risk: none
     model_tier: medium
+    model_tier_reason: "<why this authority tier is required>"
+    model_requirements: ["<tools/context/risk/proof capability>"]
+    escalation_triggers: ["<observable reason to move higher or re-plan>"]
     proof_check:
       kind: command_exit
       command: "<narrowest deterministic command or artifact check for this slice>"
@@ -446,6 +456,9 @@ verification: tdd
 test_level: unit
 functional_risk: none
 model_tier: medium
+model_tier_reason: "<why this authority tier is required>"
+model_requirements: ["<tools/context/risk/proof capability>"]
+escalation_triggers: ["<observable reason to move higher or re-plan>"]
 proof_check:
   kind: command_exit
   command: "<narrowest deterministic command or artifact check for this slice>"

@@ -299,7 +299,7 @@ func TestSelectionRequiresValidatedCatalogAndRejectsUnsafeEndpointCandidates(t *
 		t.Fatalf("validated=%#v rejections=%#v err=%v", validated, rejections, err)
 	}
 	decision, err := SelectRoute(validated, broadRequest(TierMedium), publicPolicy(), RunOverride{}, AttemptLedger{}, now)
-	if err != nil || len(decision.Routes) != 0 || decision.Status != SelectionDegraded {
+	if err != nil || len(decision.Routes) != 0 || decision.Status != SelectionUnavailable {
 		t.Fatalf("unsafe candidate decision=%#v err=%v", decision, err)
 	}
 }
@@ -827,12 +827,27 @@ func TestCatalogMergeFingerprintAndCurrentFallbackPolicy(t *testing.T) {
 
 	noRoutes := catalogWithCurrent(now, nil)
 	decision, err := selectForTest(t, noRoutes, broadRequest(TierMedium), publicPolicy(), RunOverride{}, AttemptLedger{}, now)
-	if err != nil || decision.Status != SelectionDegraded {
-		t.Fatalf("current fallback decision=%#v err=%v", decision, err)
+	if err != nil || decision.Status != SelectionUnavailable {
+		t.Fatalf("unapproved current fallback decision=%#v err=%v", decision, err)
 	}
+	request := broadRequest(TierMedium)
+	request.AllowCurrent, request.CurrentReason = true, CurrentReasonNoQualifiedRoute
+	decision, err = selectForTest(t, noRoutes, request, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil || decision.Status != SelectionDegraded || decision.ExecutionOwner != "current-reasoner" || decision.CurrentReason != CurrentReasonNoQualifiedRoute {
+		t.Fatalf("approved current fallback decision=%#v err=%v", decision, err)
+	}
+	request.PlannedTier = TierLarge
+	belowTierCurrent := noRoutes
+	belowTierCurrent.Current.Route.Capability.Class = ClassMedium
+	decision, _ = selectForTest(t, belowTierCurrent, request, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if decision.Status != SelectionUnavailable {
+		t.Fatalf("below-tier current fallback decision=%#v", decision)
+	}
+	request = broadRequest(TierMedium)
+	request.AllowCurrent, request.CurrentReason = true, CurrentReasonNoQualifiedRoute
 	policy := publicPolicy()
 	policy.Project.DenyCurrentFallback = true
-	decision, _ = selectForTest(t, noRoutes, broadRequest(TierMedium), policy, RunOverride{}, AttemptLedger{}, now)
+	decision, _ = selectForTest(t, noRoutes, request, policy, RunOverride{}, AttemptLedger{}, now)
 	if decision.Status != SelectionUnavailable {
 		t.Fatalf("denied current fallback decision=%#v", decision)
 	}
@@ -1082,7 +1097,7 @@ func TestRouteDenialOverridesOtherwiseEligibleHostedRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("select denied route: %v", err)
 	}
-	if decision.Status != SelectionDegraded || len(decision.Routes) != 0 {
+	if decision.Status != SelectionUnavailable || len(decision.Routes) != 0 {
 		t.Fatalf("denied route was selected: %#v", decision)
 	}
 }

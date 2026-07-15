@@ -81,7 +81,7 @@ KB state system unless the repo already opted into `done.md`.
 6. **Load the context packet** - for a non-trivial slice, read its packet before broad repo search or delegation. When `cmd/kbcheck` exists, validate JSON packets with `go run ./cmd/kbcheck context-packet --packet <packet.json>`. Otherwise verify the required fields directly and record `packet-validator: unavailable`; the portable skills do not require the Go maintainer harness. If required source, constraint, proof, search-policy, or escalation data is missing, route back to `kb-plan` instead of making a cheap worker rediscover the repo. Legacy tiny/mechanical slices may use the plan itself when it records why no packet is needed.
 7. **Check status** - skip any slices already marked `done`. Resume from the first safe ready set.
 8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
-9. **Read optional execution policy** - next-lower AMR attempts are disabled by default while the pilot is unpromoted. Enable them only for an explicit pilot/opt-in or `amr.lower_tier_attempts: enabled`; otherwise start at the planned tier. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
+9. **Read optional execution policy** - next-lower AMR attempts are disabled by default while the pilot is unpromoted. Enable them only for an explicit pilot/opt-in or `amr.lower_tier_attempts: enabled`; otherwise start at the planned tier. AMR is optional and testing-stage; its absence or disabled state never blocks ordinary planned-tier work. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
 10. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
 11. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
 12. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
@@ -158,19 +158,21 @@ Resolve the router once per session without crawling the filesystem: use
 use `$HOME/.kb/bin/kbrouter` on POSIX or `$HOME\.kb\bin\kbrouter.exe` on
 Windows when present and executable. If neither exists, record
 `router-unavailable: binary-not-found` and use the planned-tier current-model
-path when policy permits. Never auto-download, auto-build, or search sibling
+path only after recording an allowed current-execution reason and verifying the
+capability floor. Never auto-download, auto-build, or search sibling
 repos/drives. A custom installer `--router-dir` must be placed on `PATH`.
 Use the resolved executable for every command below.
 
 1. `kbrouter models discover --run-root <run-root> --current-model <id> --json`
-2. `kbrouter models select --run-root <run-root> --run-id <run-id> --tier <planned-tier> [--attempt-tier <next-lower-tier>] --task-family <family> --tool <tool> --context-size <n> --risk <risk> [--override use|require|ignore --alias <alias>] --json`
+2. `kbrouter models select --run-root <run-root> --run-id <run-id> --tier <planned-tier> [--attempt-tier <next-lower-tier>] --task-family <family> --tool <tool> --context-size <n> --risk <risk> [--allow-current --current-reason reasoner-required|no-qualified-route] [--override use|require|ignore --alias <alias>] --json`
 3. For a routed decision, call `kbrouter dispatch` with the selected primary
    alias, optional next ordered alias, and unique direct-child packet/output/
    receipt/handoff names containing the slice ID.
 
 If discovery/select is missing, incompatible, or returns unavailable, record
 `router-unavailable: <reason>`. Use the returned `degraded-current` decision or
-the current model only when policy permits; `require` pauses that slice instead.
+the current model only with an allowed reason, a qualified capability floor,
+and policy permission; `require` pauses that slice instead.
 Pass `--attempt-tier` only after the current master establishes Step 2.6
 eligibility; the selector validates candidates but does not infer task
 suitability.
@@ -202,6 +204,12 @@ suitability.
   context, risk, or proof and never hard-pins a route.
 - A higher or planner-grade model may execute lower-tier work when it is
   independently eligible or explicitly requested by the user.
+- Worker dispatch is the default execution owner. The current reasoner may
+  execute only when the work-time decision records `reasoner-required` or
+  `no-qualified-route`, and the current route satisfies the planned tier,
+  tools, context, risk, and trust requirements. Router absence is not itself
+  permission: record the same decision in the slice receipt/notes before local
+  execution. Otherwise block or re-route the slice.
 - Security, auth, data-boundary, or process-boundary work must not be silently
   down-routed or sent to a less trusted destination.
 - `use <model>` prefers that route first when it satisfies the slice's bounded
@@ -478,7 +486,11 @@ This gate pairs with Step 3.6 (Diff-Scope Verification). The point is traceabili
 
 ### Step 3: Execute
 
-Use a fresh sub-agent when the platform supports delegated execution and the user has permitted it. Otherwise execute the slice locally while keeping the scope limited to this slice.
+Use a fresh delegated worker when an eligible route exists and the user permits
+delegation. Execute with the current reasoner only after the work-time owner
+decision records `reasoner-required` or `no-qualified-route` and verifies the
+planned capability floor. Do not silently convert missing routing support into
+local execution.
 
 Immediately before dispatch, choose the route for this ready slice from the
 live run catalog. Apply Step 2.6 once: use an explicitly eligible next-lower
@@ -728,7 +740,7 @@ KB work is resumable:
 
 - **Input from:** `kb-plan`
 - **Deepening:** Use `kb-research` only when a slice has a material unresolved uncertainty before execution.
-- **Execution engine:** Fresh sub-agents when available, local execution otherwise
+- **Execution engine:** Eligible delegated workers by default; current reasoner only with a recorded, capability-qualified runtime reason
 - **Verification:** Preserves and reruns protected test oracles for `tdd` slices; load standalone `tdd` only for explicit test-first coaching.
 - **Protected oracles:** When declared by `kb-plan`, freezes behavior tests, fixtures, scorers, snapshots, or contracts before implementation so the target cannot move silently
 - **Deterministic checks:** Invokes `kb-check` before a slice is marked done

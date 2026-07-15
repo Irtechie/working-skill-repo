@@ -125,9 +125,15 @@ slices:
   - id: slice-001
     status: pending
     model_tier: small
+    model_tier_reason: "bounded mechanical work"
+    model_requirements: ["bounded edit", "objective proof"]
+    escalation_triggers: ["scope expands"]
   - id: slice-002
     status: pending
     model_tier: giant
+    model_tier_reason: "invalid tier fixture"
+    model_requirements: ["bounded edit"]
+    escalation_triggers: ["scope expands"]
 gate_ledger: []
 ---
 `)
@@ -137,6 +143,29 @@ gate_ledger: []
 	}
 	if result.OK || !hasManifestIssue(result.Issues, "invalid-model-tier") {
 		t.Fatalf("expected invalid model tier issue, got %#v", result)
+	}
+}
+
+func TestManifestContractRequiresModelTierJustification(t *testing.T) {
+	path := writeManifest(t, `
+---
+model_tier_contract:
+  allowed: [small, medium, large]
+slices:
+  - id: slice-001
+    status: pending
+    model_tier: medium
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range []string{"missing-model-tier-reason", "missing-model-requirements", "missing-escalation-triggers"} {
+		if !hasManifestIssue(result.Issues, code) {
+			t.Fatalf("missing %s issue: %#v", code, result)
+		}
 	}
 }
 
@@ -246,6 +275,9 @@ slices:
     status: pending
     verification: integration
     model_tier: small
+    model_tier_reason: "bounded compatibility fixture"
+    model_requirements: ["objective proof"]
+    escalation_triggers: ["scope expands"]
     model_route: hosted-sonnet
     proof_check:
       type: command
@@ -276,6 +308,9 @@ slices:
     status: pending
     verification: integration
     model_tier: small
+    model_tier_reason: "bounded route-free fixture"
+    model_requirements: ["objective proof"]
+    escalation_triggers: ["scope expands"]
     proof_check:
       type: command
 gate_ledger: []
