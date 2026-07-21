@@ -46,7 +46,7 @@ func DiscoverChecks(root string) ([]Check, error) {
 		checks = append(checks, Check{Name: "pytest", Args: []string{"python", "-m", "pytest"}, Reason: "Python test config detected", Required: true, Confidence: "deterministic-local"})
 	}
 	if exists(root, "go.mod") {
-		checks = append(checks, Check{Name: "go-test", Args: []string{"go", "test", "./..."}, Reason: "Go module detected", Required: true, Confidence: "deterministic-local"})
+		checks = append(checks, Check{Name: "go-test", Args: []string{"go", "test", "-buildvcs=false", "./..."}, Reason: "Go module detected", Required: true, Confidence: "deterministic-local"})
 	}
 	checks = append(checks, dotnetChecks(root)...)
 	if exists(root, "Makefile") {

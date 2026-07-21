@@ -89,7 +89,7 @@ func TestCoreListPrintsNativeChecks(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected list to pass, got %d", code)
 	}
-	if !strings.Contains(out.String(), "go-test") || !strings.Contains(out.String(), "go test ./...") || strings.Contains(out.String(), "kb-check.ps1 -All") {
+	if !strings.Contains(out.String(), "go-test") || !strings.Contains(out.String(), "go test -buildvcs=false ./...") || strings.Contains(out.String(), "kb-check.ps1 -All") {
 		t.Fatalf("unexpected core list: %q", out.String())
 	}
 }
