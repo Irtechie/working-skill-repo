@@ -36,16 +36,16 @@ type approvedCatalog struct {
 }
 
 type approvedCatalogEntry struct {
-	ID              string                 `json:"id"`
-	Status          string                 `json:"status"`
-	Source          map[string]string      `json:"source"`
-	MarketplacePath string                 `json:"marketplacePath"`
-	SHA256          string                 `json:"sha256"`
-	ApprovedBy      string                 `json:"approvedBy"`
-	ApprovedAt      string                 `json:"approvedAt"`
-	ApprovalReason  string                 `json:"approvalReason"`
-	Evidence        map[string][]string    `json:"evidence"`
-	Extra           map[string]interface{} `json:"-"`
+	ID                 string                 `json:"id"`
+	Status             string                 `json:"status"`
+	Source             map[string]string      `json:"source"`
+	MarketplacePath    string                 `json:"marketplacePath"`
+	SHA256             string                 `json:"sha256"`
+	ApprovedBy         string                 `json:"approvedBy"`
+	ApprovedAt         string                 `json:"approvedAt"`
+	ApprovalReason     string                 `json:"approvalReason"`
+	PromotionException string                 `json:"promotionException,omitempty"`
+	Evidence           map[string]interface{} `json:"evidence"`
 }
 
 func runMarketplacePromoteCommand(root string, opts options, stdout, stderr io.Writer) int {
@@ -146,7 +146,7 @@ func promoteMarketplaceSkill(root, configPath string, opts options) (marketplace
 		ApprovedBy:      opts.approvedBy,
 		ApprovedAt:      time.Now().Format("2006-01-02"),
 		ApprovalReason:  opts.approvalReason,
-		Evidence: map[string][]string{
+		Evidence: map[string]interface{}{
 			"proofCommands": {
 				fmt.Sprintf("kbcheck marketplace-promote --source %s --skill-id %s --approved", filepath.ToSlash(sourceSkillFile), skillID),
 				fmt.Sprintf("kbcheck marketplace-firebreak --config %s", filepath.ToSlash(configPath)),

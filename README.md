@@ -286,7 +286,7 @@ development harness. The repository is intentionally larger than the installed
 runtime surface.
 
 The installed runtime surface is intentionally smaller than the repository:
-about 38 skills plus 52 reviewer/specialist agents.
+44 skills plus the reviewer/specialist agent catalog.
 
 Installed/runtime surface:
 
@@ -439,6 +439,7 @@ KB proof-spine integration status as of July 9, 2026:
 | `kb-compact` | Memory, docs, or output have gone too verbose |
 | `klfg` | Deprecated alias to `kb-complete` |
 | `repo-critic` | Claims-vs-code evidence review before a claim ships |
+| `safe-shell-quoting` | Run fragile PowerShell, Bash, or mixed-shell quoting from validated temporary script files |
 
 ## Installed Skills
 
@@ -457,6 +458,7 @@ Execution lanes:
 - `kb-architecture-deepening`, `kb-plan`, `kb-work`, `kb-finalize`, `kb-complete`
 - `kb-ship`, `kb-land`, `kb-finish`, `kb-epic`, `kb-task`, `kb-goal`,
   `kb-first-principles`, `klfg`
+- `safe-shell-quoting` - file-backed execution and validated cleanup for quote-heavy shell commands
 
 Verification and gates:
 

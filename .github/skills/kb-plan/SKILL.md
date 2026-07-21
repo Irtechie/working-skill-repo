@@ -25,37 +25,14 @@ Break work into independently executable **vertical slices** (tracer bullets). E
 
 ## Interaction Method
 
-Default to non-interactive planning when the source material is clear. Use the platform's blocking question tool only when an answer changes behavior, scope, acceptance criteria, risk, or verification.
+`kb-gate` owns blocking-question policy. Record safe, reversible assumptions;
+route unresolved `ask-now`, `research-first`, or material scope/architecture/
+safety/verification decisions back through that gate.
 
-When assumptions are safe and reversible, record them in the manifest instead of stopping. Ask one concise question only for material uncertainty.
-
-Planning cannot launder brainstorm ambiguity. If the source contains unresolved
-`ask-now` or `research-first` items, a non-empty `Resolve Before Planning`
-section, or unlabeled material assumptions that affect scope, acceptance
-criteria, architecture direction, safety, or verification, stop and route back
-to `kb-brainstorm`/`kb-gate`. Only `safe-assumption`,
-`defer-to-planning`, and `parked` items may cross into planning, and each must
-be recorded in the manifest.
-
-Phase boundary: `kb-plan` produces a manifest and slice plans. It does not
-automatically invoke `kb-work` unless the user explicitly asked for execution or
-an orchestrator such as `klfg`, `kb-epic`, or `kb-goal` called it.
-
-Execution intent includes phrases such as "go straight to work", "just build it", "don't ask many questions", "continue until done", "run it", or a handoff from `kb-task`, `kb-brainstorm`, or `klfg` that says to continue. In those cases, write the manifest and slice plans first, then immediately invoke `kb-work <manifest-path>`. Never skip manifest creation.
-
-Without execution intent, ask once after the manifest is valid:
-
-```text
-Plan is ready: <manifest-path>
-Continue with `kb-work <manifest-path>` now?
-```
-
-If the user says yes, invoke `kb-work <manifest-path>`. If the user says no, or
-the host cannot invoke the next skill, stop and print:
-
-```text
-Next command: `kb-work <manifest-path>`
-```
+Always produce the manifest and slice plans first. Continue directly to
+`kb-work <manifest-path>` when the user requested execution or an orchestrator
+called planning. Otherwise ask once whether to continue; if not, print the
+exact next command.
 
 ## Input
 
@@ -164,32 +141,10 @@ as `kb-brainstorm <requirements-path>`.
 
 ### 1.5. Research (Parallel)
 
-Run lightweight research to ground slice design in reality:
-
-- `repo-research-analyst`: similar features, routes, components, tests, commands, conventions.
-- `learnings-researcher`: relevant `docs/solutions/`, prior fixes, and known failures.
-- Local memory check: `docs/context/PROJECT.md`, `docs/context/landmines.md` when present, relevant `docs/context/architecture/*`, and `docs/context/research/*`.
-
-If `docs/context/landmines.md` exists, read only `Active Landmines`. Any relevant active landmine must become an explicit planning constraint, risk, guardrail, or verification requirement in the slice plan. Do not copy resolved/archive landmines into new plans unless the current work reopens the same failure mode.
-
-Run independent agents/reads/searches in parallel when the platform supports it. If named agents are unavailable, do the same work with native search/read tools.
-
-**Research decision:** Based on findings, decide if external research is needed.
-
-- **High-risk topics** (security, payments, external APIs, data privacy) → always research externally
-- **Strong local patterns exist** → skip external research
-- **Unfamiliar territory** → research externally
-
-**If external research is warranted**, use `kb-research` and write a reusable research note before finalizing slices.
-
-Optional specialist checks before finalizing slices:
-
-- `spec-flow-analyzer` when the feature has multi-step user flows or unclear edge cases.
-- `security-sentinel` or `security-reviewer` when auth, permissions, secrets, public endpoints, payments, PII, external callbacks, or user input are involved.
-- `adversarial-reviewer` when the plan is architecture-shaping, high-risk, or large enough that assumption/cascade failures are likely.
-- `architecture-strategist` when subsystem boundaries, framework migration, or long-term architecture direction are being set.
-
-Carry research findings forward into slice plans — each slice should reference relevant patterns, gotchas, and file paths discovered here.
+Use the `kb-map` context already loaded. When material uncertainty remains—
+especially security, payments, external APIs, privacy, or unfamiliar framework
+behavior—invoke `kb-research` and point affected slices to its evidence. Carry
+relevant active landmines into constraints and verification.
 
 ### 2. Draft Vertical Slices
 
@@ -502,151 +457,10 @@ oracle cannot be known until implementation reveals the interface, leave
 
 ### 5. Update Todo and Handoffs
 
-After generating plan files, update `todo.md` — the human-visible live execution board.
-Create or update a compact handoff file under `docs/handoffs/active/` only when a future session needs a restart packet.
-
-**If `todo.md` doesn't exist**, create it with this template:
-
-```markdown
-# Todo
-
-## Rules
-
-**Conventions:** these match the KB skill spec. Keep them inline here; do not split into `todo_rules.md`, `todo-rules.md`, or any separate rules file.
-
-**This file is the single source of truth for active work** — not chat history, not session SQL, and not stale manifests. Any agent should be able to claim a row from here cold.
-
-**Status markers** (applied to individual rows):
-
-| Marker | Meaning |
-|--------|---------|
-| ⬜ pending | Ready when blockers clear |
-| 🔧 in_progress | Agent claimed and actively working |
-| ✅ done | Complete and verified — move summary to `todo-done.md` promptly |
-| 🔒 blocked | Cannot proceed — explain in `## Blocked` with `Depends on:` |
-| ⊘ skipped | Intentionally skipped with reason |
-| 🛑 human-required | Needs human action (HITL) — also surface under `## Human Required` |
-
-**Section icons** (section headers, not row markers):
-
-- 💡 Feature Ideas — not yet brainstormed; a human promotes to active
-- 📋 Queued Improvements — approved but not yet planned
-- 🧊 Parked / Cold Storage — intentionally out of bounds today; never auto-runs, human-promote only
-- 🛑 Human Required — items only a person can complete (logins, approvals, decisions)
-- 📝 Work Log — short dated entries for cross-session visibility
-
-**Task metadata** lines under a row when relevant: `Task ID:`, `Ready: yes|no`, `Depends on:`, `Discovered from:`, `Validation:`.
-
-**Promotion rules:**
-- Newly discovered work goes to 🧊 Parked / Cold Storage first. Never auto-execute from there.
-- Items stalled because another agent, dependency, tool failure, or missing input must finish first go to 🔒 Blocked, not Parked.
-- Human-required work must not be silently folded into generic blocked notes.
-- Detailed handoffs live under `docs/handoffs/`; link them here instead of pasting content.
-- Refresh cold or parked work older than 72 hours before execution.
-- Keep this file current and small. When all active todos are done, check the handoff queue.
-
-## Objective
-
-## Current Focus
-
-## Current Truth
-
-## Active Work
-
-## Handoff Queue
-
-| Handoff | Status | Route | Created | Stale Check | Link |
-|---|---|---|---|---|---|
-
-## Human Required
-
-## Parked / Cold Storage
-
-## Blocked
-
-## Work Log
-```
-
-**If `todo-done.md` doesn't exist**, create it with this template:
-
-```markdown
-# Completed Work
-
-> Archive of completed items from `todo.md`. Most recent at top.
-
-## YYYY-MM-DD
-- <feature or slice group> — <compact outcome, important proof, commit/link if available>
-```
-
-**Add an active work section** for the new KB workflow:
-
-```markdown
-### <Feature Name> (kb-YYYY-MM-DD-name)
-
-Source: `docs/brainstorms/<file>.md`
-Manifest: `docs/plans/<manifest>.md`
-
-| # | Slice | Blocked By | Verification | Status |
-|---|-------|------------|--------------|--------|
-| 1 | <title> | - | tdd | ⬜ pending |
-| 2 | <title> | slice-001 | tdd | ⬜ pending |
-
-Done criteria: All N slices done or skipped with reason. Archive a compact summary to `todo-done.md`, then remove this feature section and routine work-log entries from `todo.md`.
-```
-
-**If a restart packet is needed**, create `docs/handoffs/active/YYYY-MM-DD-<feature>.md`:
-
-```markdown
-# <Feature Handoff>
-
-Created: YYYY-MM-DD
-Last refreshed: YYYY-MM-DD
-Status: active
-Suggested route: kb-work
-
-## Intent
-
-## Current State
-
-## Next Agent Action
-
-## Human Required
-
-## Pointers
-
-- Project map: docs/context/PROJECT.md
-- Manifest: docs/plans/<manifest>.md
-- Todo: todo.md
-
-## Staleness Check
-
-Refresh before execution if older than 72 hours.
-
-## Completion Criteria
-```
-
-Use `Suggested route: kb-work` only when the handoff links the generated KB manifest. If a handoff is created before slice planning exists, set `Suggested route: kb-plan` and state that execution must wait for a manifest.
-
-**Board status markers** (superset of manifest statuses):
-
-| Marker | Meaning |
-|--------|---------|
-| ⬜ pending | Ready when blockers clear |
-| 🔧 in_progress | Agent claimed and actively working |
-| ✅ done | Complete and verified |
-| 🔒 blocked | Cannot proceed — reason noted |
-| ⊘ skipped | Intentionally skipped with reason |
-| 🛑 human-required | Needs human action (HITL) |
-
-**Standing sections** (add once, keep across features):
-
-- **💡 Feature Ideas** — not yet brainstormed, human promotes to active
-- **📋 Queued Improvements** — approved but not yet planned
-- **🧊 Parked / Cold Storage** — intentionally out of bounds today; only a human promotes back to active
-- **🛑 Human Required** — items only a person can complete (logins, approvals, decisions)
-- **📝 Work Log** — short dated entries for cross-session visibility
-
-Omit empty sections. These conventions are defined inline in the top `## Rules` section of `todo.md`; do not create or depend on `todo_rules.md` or `todo-rules.md`.
+Update the existing `todo.md` with a compact manifest pointer and slice status.
+If project memory is missing, route to `kb-map`; `kb-map-bootstrap` owns the
+templates and layout. Create an active handoff only when another session needs
+a restart packet, and link the manifest instead of copying its contents.
 
 ### 6. Validate Output
 
@@ -656,15 +470,6 @@ Omit empty sections. These conventions are defined inline in the top `## Rules` 
 - Confirm the manifest has a `plan-to-work` gate with `status: passed` or `status: blocked`; never leave it absent or pending.
 - Confirm every generated plan path is listed in the manifest.
 - Confirm the manifest body table matches the YAML frontmatter.
-
-### 6. Optional Commit
-
-Commit only when the user explicitly asked for it. Stage only the generated manifest and slice plan files, never the whole `docs/plans/` directory:
-
-```bash
-git add docs/plans/YYYY-MM-DD-000-kb-<name>-manifest.md docs/plans/YYYY-MM-DD-001-<type>-<name>-plan.md todo.md docs/handoffs/active/YYYY-MM-DD-<feature>.md
-git commit -m "kb-plan: decompose <feature> into N vertical slices"
-```
 
 ## Success Criteria
 

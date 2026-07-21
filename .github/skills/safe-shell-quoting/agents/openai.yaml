@@ -1,0 +1,4 @@
+interface:
+  display_name: "Safe Shell Quoting"
+  short_description: "Run fragile shell commands from temp files"
+  default_prompt: "Use $safe-shell-quoting to run this quote-heavy shell task safely."
