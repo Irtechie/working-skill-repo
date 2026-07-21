@@ -147,7 +147,7 @@ func promoteMarketplaceSkill(root, configPath string, opts options) (marketplace
 		ApprovedAt:      time.Now().Format("2006-01-02"),
 		ApprovalReason:  opts.approvalReason,
 		Evidence: map[string]interface{}{
-			"proofCommands": {
+			"proofCommands": []string{
 				fmt.Sprintf("kbcheck marketplace-promote --source %s --skill-id %s --approved", filepath.ToSlash(sourceSkillFile), skillID),
 				fmt.Sprintf("kbcheck marketplace-firebreak --config %s", filepath.ToSlash(configPath)),
 			},
