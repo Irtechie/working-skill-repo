@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/Irtechie/working-skill-repo/internal/graphrouting"
 )
 
 type manifestGate struct {
@@ -187,8 +189,11 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 
 	issues := []manifestContractIssue{}
 	modelTierContract := manifestHasModelTierContract(path)
+	modelSelectionContract := manifestHasTopLevelKey(path, "model_selection_contract")
 	objectiveContract := manifestHasObjectiveContract(path)
 	contextPacketContract := manifestHasTopLevelKey(path, "context_packet_contract")
+	impactPacketContract := manifestHasTopLevelKey(path, "impact_packet_contract")
+	workspaceIsolationContract := manifestHasTopLevelKey(path, "workspace_isolation_contract")
 	if objectiveContract && !manifestHasTopLevelKey(path, "done_check") {
 		issues = append(issues, manifestContractIssue{Code: "missing-done-check", Message: "objective_contract requires a top-level done_check"})
 	}
@@ -211,8 +216,48 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 				}
 			}
 		}
+		if impactPacketContract {
+			requiresPacket := slice.Status == "pending" || slice.Status == "in_progress"
+			if requiresPacket && slice.ImpactPacketPath == "" && slice.NoImpactPacketReason == "" {
+				issues = append(issues, manifestContractIssue{Code: "missing-impact-packet", SliceID: slice.ID, Message: "pending/in_progress graph-aware slice requires impact_packet_path or no_impact_packet_reason"})
+			}
+			if slice.ImpactPacketPath != "" {
+				packetPath := slice.ImpactPacketPath
+				if !filepath.IsAbs(packetPath) {
+					packetPath = filepath.Join(manifestRepoRoot(path), filepath.FromSlash(packetPath))
+				}
+				packet, err := graphrouting.Load(packetPath)
+				if err != nil {
+					issues = append(issues, manifestContractIssue{Code: "missing-impact-packet-file", SliceID: slice.ID, Message: err.Error()})
+				} else if result := graphrouting.Validate(packet); !result.OK {
+					issues = append(issues, manifestContractIssue{Code: "invalid-impact-packet", SliceID: slice.ID, Message: strings.Join(result.Issues, "; ")})
+				}
+			}
+		}
 		if modelTierContract && !validModelTier(slice.ModelTier) {
 			issues = append(issues, manifestContractIssue{Code: "invalid-model-tier", SliceID: slice.ID, Message: "slice must set model_tier to tiny, small, medium, or large"})
+		}
+		if modelSelectionContract {
+			if strings.TrimSpace(slice.ModelTierReason) == "" {
+				issues = append(issues, manifestContractIssue{Code: "missing-model-tier-reason", SliceID: slice.ID, Message: "model_selection_contract requires model_tier_reason"})
+			}
+			if len(slice.ModelRequirements) == 0 {
+				issues = append(issues, manifestContractIssue{Code: "missing-model-requirements", SliceID: slice.ID, Message: "model_selection_contract requires non-empty model_requirements"})
+			}
+			if len(slice.EscalationTriggers) == 0 {
+				issues = append(issues, manifestContractIssue{Code: "missing-escalation-triggers", SliceID: slice.ID, Message: "model_selection_contract requires observable escalation_triggers"})
+			}
+		}
+		if workspaceIsolationContract && requiresWorkspaceIsolationFields(slice) {
+			if !validWorkspaceMode(slice.WorkspaceMode) {
+				issues = append(issues, manifestContractIssue{Code: "invalid-workspace-mode", SliceID: slice.ID, Message: "workspace_isolation_contract requires workspace_mode shared-serial or worktree-required"})
+			}
+			if len(slice.ConflictDomains) == 0 {
+				issues = append(issues, manifestContractIssue{Code: "missing-conflict-domains", SliceID: slice.ID, Message: "workspace_isolation_contract requires conflict_domains"})
+			}
+			if slice.WorkspaceMode == "worktree-required" && len(slice.SharedResources) == 0 {
+				issues = append(issues, manifestContractIssue{Code: "missing-shared-resources", SliceID: slice.ID, Message: "worktree-required slices must declare shared_resources for serialization or isolation"})
+			}
 		}
 		if objectiveContract && requiresProofCheck(slice) {
 			if slice.NoCheckReason != "" {
@@ -333,6 +378,24 @@ func requiresProofCheck(slice manifestSlice) bool {
 func validNoCheckException(slice manifestSlice) bool {
 	switch slice.Verification {
 	case "verification-only", "none":
+		return true
+	default:
+		return false
+	}
+}
+
+func requiresWorkspaceIsolationFields(slice manifestSlice) bool {
+	switch slice.Status {
+	case "skipped", "parked", "human-required":
+		return false
+	default:
+		return true
+	}
+}
+
+func validWorkspaceMode(value string) bool {
+	switch value {
+	case "shared-serial", "worktree-required":
 		return true
 	default:
 		return false

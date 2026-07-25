@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "packet_id": "evidence-graph-routing-stale",
+  "repository": {
+    "identity": "git:file:///E:/working-skill-repo",
+    "root": ".",
+    "vcs": "git",
+    "revision": "oldfixture",
+    "dirty_fingerprint": "unknown",
+    "worktree_fingerprint": "main:oldfixture",
+    "freshness": "stale",
+    "freshness_explanation": "Fixture intentionally represents a stale provider index."
+  },
+  "seeds": {
+    "files": ["cmd/kbcheck/main.go"],
+    "symbols": []
+  },
+  "edges": [
+    {
+      "from": "cmd/kbcheck.run",
+      "to": "internal/graphrouting.Validate",
+      "type": "calls",
+      "evidence": "exact",
+      "confidence": "exact",
+      "provenance": "stale optional provider",
+      "span": {"path": "cmd/kbcheck/main.go", "start_line": 190, "end_line": 230},
+      "limitations": [],
+      "load_bearing": true,
+      "metadata": {"provider": "stale-provider", "query": "old index"}
+    }
+  ],
+  "direct_impact": [
+    {
+      "path": "cmd/kbcheck/main.go",
+      "symbol": "run",
+      "reason": "Stale provider claims this is impacted.",
+      "confidence": "high",
+      "edges": ["cmd/kbcheck.run->internal/graphrouting.Validate"]
+    }
+  ],
+  "reverse_impact": [],
+  "tests": ["internal/graphrouting/contract_test.go"],
+  "docs": [".github/skills/kb-map/references/graph-routing.md"],
+  "fallback": {
+    "mode": "authoritative-provider",
+    "reason": "Invalid fixture: stale provider must not remain authoritative."
+  },
+  "budget": {
+    "max_edges": 64,
+    "max_bytes": 12000,
+    "truncated": false
+  },
+  "limitations": ["Invalid fixture for stale fallback enforcement."],
+  "generated_by": "kbcheck graph-route fixture",
+  "generated_at": "2026-07-19T00:00:00Z"
+}

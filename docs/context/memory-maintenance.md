@@ -1,6 +1,6 @@
 # Memory Maintenance
 
-Last deep review: never
+Last deep review: 2026-07-21
 
 ## Counters Since Last Review
 
@@ -32,6 +32,18 @@ Scope hierarchy: `workflow/domain → project → global`. Default = narrowest o
 
 Canonical reference: `docs/context/architecture/kb-learning-model.md`.
 
+## Graphify Preflight
+
+graphify-size-check: 2026-07-21 code_files=1797 project_md_bytes=9276 decision=use reason=repo is well above the 200-code-file threshold and graphify.exe is installed; keep ordinary kb-map lookup doc-first and use graph-assisted refresh only for structural traversal work
+
+Notes:
+
+- `graphify.exe` is available at the user Python Scripts path. [verified]
+- `uv` is not installed on this workstation. [verified]
+- Existing graph-routing proof remains fixture-first through
+  `cmd\kbcheck` and `evals\graph-routing\`; no checked-in live provider packet is
+  treated as authoritative. [verified]
+
 ## Active Signals
 
 | Date | Type | Area | Issue | Suggested Action | Status |
@@ -57,6 +69,9 @@ Canonical reference: `docs/context/architecture/kb-learning-model.md`.
 | 2026-07-12 | stale-doc | AMR benchmark README | The benchmark README advertised hosted model aliases, legacy unpaired qualification, and executable attended runs that no longer matched the fail-closed implementation. | Rewrote the README around no-paid conformance, artifact-derived paired grading, dry-run preview, and disabled provider execution. | closed |
 | 2026-07-12 | overlap | evaluation proof semantics | GHCP AIC artifact binding overlapped the existing proof-spine digest solution across problem, root cause, solution, and prevention. | Updated the existing proof-spine solution instead of creating a duplicate. | closed |
 | 2026-07-12 | repeated-rediscovery | digest labels versus evidence | The proof-spine had already established semantic digests, but the first benchmark draft again treated self-authored hashes and booleans as authority. | Generalized the solution guidance and added scoped model-routing/evaluation instincts. | closed |
+| 2026-07-19 | provider-boundary | evidence graph routing | Graph routing now has optional exact-symbol and structural/flow adapters plus deterministic fixtures. The durable maintenance risk is stale provider evidence being mistaken for proof or distributed locking. | Keep `graph-routing-lifecycle-selftest` and `graph-routing-eval --require-ready` green; refresh packet/provider docs when a real provider is promoted beyond fixtures. | closed |
+| 2026-07-21 | stale-doc | repo memory layout | `PROJECT.md` and the architecture index lacked dedicated route docs for `kbcheck`, `kbrouter`, the full skill inventory, and the graph-routing surface. | Refreshed the route map, eval map, testing ops, and added focused architecture docs. | closed |
+| 2026-07-21 | unknown-surface | CI/release automation | Release/install proof exists in local Node and Go commands, but `.github/workflows/` is empty and the durable owner of external CI is not documented here. | Decide whether local-only proof is intentional or document/add the checked-in workflow source of truth. | open |
 
 ## Closed Signals
 

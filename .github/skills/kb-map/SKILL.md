@@ -186,6 +186,34 @@ Do not use `rg`, glob, or whole-repo search to find the standard memory files. U
 `PROJECT.md` is the routing surface. For large or structural subsystems, it may
 point to the graph instead of listing every relevant source file.
 
+When graph routing is used, consume a provider-neutral impact packet rather than
+provider-specific output. A valid packet records repository identity, revision,
+dirty/worktree freshness, seed files/symbols, typed edges, source spans,
+direct/reverse impact, tests/docs, confidence, limitations, and the exact
+fallback path. Validate packet files with:
+
+```powershell
+go run ./cmd/kbcheck graph-route --packet <packet.json>
+```
+
+File-native packets are valid without Graphify, SCIP, CCE, MCP, a daemon, or a
+vector store. Optional providers can add candidate evidence, but stale or
+unsupported provider output must downgrade to a named fallback and source
+inspection. LLM-inferred edges are never exact evidence.
+
+When task intent needs structural expansion, select a bounded traversal recipe
+before broad search. Recipes name seed kinds, typed edge order, direction,
+depth/edge/byte budgets, stop conditions, limitations, and fallback proof.
+Graphify output, when present, is a structural snapshot only: stale revisions,
+multigraph collapse, inferred edges, and missing source spans downgrade or fail
+closed before impact claims.
+
+Return graph route context as a compact summary for downstream skills:
+`packet_id`, repository revision/freshness, fallback mode and reason, seed
+files/symbols, evidence counts, direct/reverse impact files, tests/docs,
+limitations, and the selected traversal recipe when one was used. Do not pass
+raw dense provider output to `kb-plan` or `kb-work`.
+
 Use one orientation path, not both:
 
 - If `PROJECT.md` points to an architecture doc or a small source file list,

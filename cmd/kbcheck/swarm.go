@@ -17,11 +17,19 @@ type manifestSlice struct {
 	Status                 string
 	Verification           string
 	ModelTier              string
+	ModelTierReason        string
+	ModelRequirements      []string
+	EscalationTriggers     []string
 	ModelRoute             string
 	ProofCheck             bool
 	NoCheckReason          string
 	ContextPacketPath      string
 	NoPacketReason         string
+	ImpactPacketPath       string
+	NoImpactPacketReason   string
+	WorkspaceMode          string
+	ConflictDomains        []string
+	SharedResources        []string
 	CanContinueOtherSlices bool
 	HITL                   bool
 }
@@ -336,6 +344,10 @@ func parseManifestSlices(path string) ([]manifestSlice, error) {
 			current = &manifestSlice{
 				ID:                     cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmedLeft, "- id:"))),
 				Blockers:               []string{},
+				ModelRequirements:      []string{},
+				EscalationTriggers:     []string{},
+				ConflictDomains:        []string{},
+				SharedResources:        []string{},
 				CanContinueOtherSlices: true,
 			}
 			continue
@@ -353,6 +365,12 @@ func parseManifestSlices(path string) ([]manifestSlice, error) {
 			current.Verification = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "verification:")))
 		case strings.HasPrefix(trimmed, "model_tier:"):
 			current.ModelTier = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_tier:")))
+		case strings.HasPrefix(trimmed, "model_tier_reason:"):
+			current.ModelTierReason = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_tier_reason:")))
+		case strings.HasPrefix(trimmed, "model_requirements:"):
+			current.ModelRequirements = parseInlineList(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_requirements:")))
+		case strings.HasPrefix(trimmed, "escalation_triggers:"):
+			current.EscalationTriggers = parseInlineList(strings.TrimSpace(strings.TrimPrefix(trimmed, "escalation_triggers:")))
 		case strings.HasPrefix(trimmed, "model_route:"):
 			current.ModelRoute = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "model_route:")))
 		case strings.HasPrefix(trimmed, "proof_check:"):
@@ -364,6 +382,16 @@ func parseManifestSlices(path string) ([]manifestSlice, error) {
 			current.ContextPacketPath = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "context_packet_path:")))
 		case strings.HasPrefix(trimmed, "no_packet_reason:"):
 			current.NoPacketReason = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "no_packet_reason:")))
+		case strings.HasPrefix(trimmed, "impact_packet_path:"):
+			current.ImpactPacketPath = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "impact_packet_path:")))
+		case strings.HasPrefix(trimmed, "no_impact_packet_reason:"):
+			current.NoImpactPacketReason = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "no_impact_packet_reason:")))
+		case strings.HasPrefix(trimmed, "workspace_mode:"):
+			current.WorkspaceMode = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "workspace_mode:")))
+		case strings.HasPrefix(trimmed, "conflict_domains:"):
+			current.ConflictDomains = parseInlineList(strings.TrimSpace(strings.TrimPrefix(trimmed, "conflict_domains:")))
+		case strings.HasPrefix(trimmed, "shared_resources:"):
+			current.SharedResources = parseInlineList(strings.TrimSpace(strings.TrimPrefix(trimmed, "shared_resources:")))
 		case strings.HasPrefix(trimmed, "can_continue_other_slices:"):
 			current.CanContinueOtherSlices = parseBool(strings.TrimSpace(strings.TrimPrefix(trimmed, "can_continue_other_slices:")))
 		case strings.HasPrefix(trimmed, "hitl:"):
@@ -467,9 +495,10 @@ func reverseStrings(values []string) {
 }
 
 type scopeLeaseEntry struct {
-	SliceID string `json:"slice_id"`
-	Path    string `json:"path"`
-	Status  string `json:"status"`
+	SliceID    string `json:"slice_id"`
+	OwnerToken string `json:"owner_token,omitempty"`
+	Path       string `json:"path"`
+	Status     string `json:"status"`
 }
 
 type scopeLeaseResult struct {
@@ -479,8 +508,9 @@ type scopeLeaseResult struct {
 }
 
 type activeLease struct {
-	Path    string `json:"path"`
-	SliceID string `json:"slice_id"`
+	Path       string `json:"path"`
+	SliceID    string `json:"slice_id"`
+	OwnerToken string `json:"owner_token,omitempty"`
 }
 
 type scopeCollision struct {
@@ -580,7 +610,11 @@ func computeScopeLease(path string) (scopeLeaseResult, error) {
 
 	activeStates := map[string]bool{"active": true, "claimed": true, "writing": true}
 	releaseStates := map[string]bool{"done": true, "skipped": true, "requeued": true, "released": true}
-	owners := map[string]string{}
+	type leaseOwner struct {
+		SliceID    string
+		OwnerToken string
+	}
+	owners := map[string]leaseOwner{}
 	collisions := []scopeCollision{}
 
 	for _, entry := range entries {
@@ -590,7 +624,7 @@ func computeScopeLease(path string) (scopeLeaseResult, error) {
 		pathKey := normalizeLeasePath(entry.Path)
 		status := strings.ToLower(entry.Status)
 		if releaseStates[status] {
-			if owners[pathKey] == entry.SliceID {
+			if owner, ok := owners[pathKey]; ok && owner.SliceID == entry.SliceID && (entry.OwnerToken == "" || entry.OwnerToken == owner.OwnerToken) {
 				delete(owners, pathKey)
 			}
 			continue
@@ -598,16 +632,17 @@ func computeScopeLease(path string) (scopeLeaseResult, error) {
 		if !activeStates[status] {
 			continue
 		}
-		if owner, ok := owners[pathKey]; ok && owner != entry.SliceID {
-			collisions = append(collisions, scopeCollision{Path: pathKey, Owner: owner, Contender: entry.SliceID})
+		ownerToken := strings.TrimSpace(entry.OwnerToken)
+		if owner, ok := owners[pathKey]; ok && (owner.SliceID != entry.SliceID || (owner.OwnerToken != "" && ownerToken != "" && owner.OwnerToken != ownerToken)) {
+			collisions = append(collisions, scopeCollision{Path: pathKey, Owner: owner.SliceID, Contender: entry.SliceID})
 			continue
 		}
-		owners[pathKey] = entry.SliceID
+		owners[pathKey] = leaseOwner{SliceID: entry.SliceID, OwnerToken: ownerToken}
 	}
 
 	active := make([]activeLease, 0, len(owners))
-	for path, sliceID := range owners {
-		active = append(active, activeLease{Path: path, SliceID: sliceID})
+	for path, owner := range owners {
+		active = append(active, activeLease{Path: path, SliceID: owner.SliceID, OwnerToken: owner.OwnerToken})
 	}
 	sort.Slice(active, func(i, j int) bool { return active[i].Path < active[j].Path })
 	return scopeLeaseResult{OK: len(collisions) == 0, ActiveLeases: active, Collisions: collisions}, nil

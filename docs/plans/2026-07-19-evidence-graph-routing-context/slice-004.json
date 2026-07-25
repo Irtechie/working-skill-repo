@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "evidence-graph-routing-slice-004",
+  "task_id": "evidence-graph-routing",
+  "objective": "Normalize optional exact-symbol index evidence into the impact packet",
+  "memory_files": ["todo.md", "docs/context/PROJECT.md"],
+  "source_files": ["docs/plans/2026-07-19-004-integration-exact-symbol-adapter-plan.md", "docs/brainstorms/2026-07-19-evidence-graph-routing-requirements.md", ".github/skills/kb-map/references/graph-routing.md", "README.md"],
+  "prefetch": ["Read the slice-001 packet contract before adapter code", "Acquire a disjoint worktree lease before editing", "Use checked-in fixtures rather than downloading indexers"],
+  "constraints": ["Exact symbols outrank candidates", "No auto-install or daemon", "Unavailable/stale index falls back explicitly", "Source locations stay attached"],
+  "out_of_scope": ["Language-server lifecycle", "Global code host", "Flow analysis", "Vector retrieval"],
+  "acceptance_criteria": ["Definitions/references/implementations resolve in fixtures", "Same-spelling scopes remain distinct", "Stale revision is rejected", "Missing adapter preserves base lookup"],
+  "proof_targets": ["go test ./internal/graphrouting -run 'ExactSymbol|SCIP|Fallback'"],
+  "model_tier": "medium",
+  "model_tier_reason": "Provider boundary is settled and fixture proof can reject an incorrect adapter",
+  "allowed_tools": ["view", "rg", "apply_patch", "go test"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Required dependency appears", "Symbol identity is unstable", "Cross-repo claims exceed evidence", "Source verification would be bypassed"]
+}

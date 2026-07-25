@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "promotion": {
+    "min_impact_recall": 1.0,
+    "max_false_positive_per_token": 0.01,
+    "require_zero_safety_failures": true,
+    "require_optional_provider_free": true
+  },
+  "fixtures": [
+    {
+      "id": "symbol-impact",
+      "kind": "symbol-impact",
+      "path": "evals/graph-routing/fixtures/symbol-impact.json"
+    },
+    {
+      "id": "stale-index",
+      "kind": "stale-index",
+      "path": "evals/graph-routing/fixtures/stale-index.json"
+    },
+    {
+      "id": "multisession-race",
+      "kind": "multisession-race",
+      "path": "evals/graph-routing/fixtures/multisession-race.json"
+    }
+  ]
+}

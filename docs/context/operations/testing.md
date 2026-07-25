@@ -1,290 +1,165 @@
 # Testing Operations
 
-Checked: 2026-07-09
+Checked: 2026-07-21
 
-## Current Commands
+## Fast Contributor Commands
 
 ```powershell
 git status --short
 git diff --check
+npm run test
+go build ./...
+go vet ./...
 go run ./cmd/kbcheck core --list
 go run ./cmd/kbcheck core
-go run ./cmd/kbcheck local-release
-go run ./cmd/kbcheck dishonest-completion-selftest
-go run ./cmd/kbcheck manifest-contract --manifest <manifest>
-go run ./cmd/kbcheck run-state --history <history>
-go run ./cmd/kbcheck doctor
-go run ./cmd/kbcheck sense --check <check.json> --trace .kb/trace.jsonl
-go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl
-go run ./cmd/kbcheck trace-verify --trace .kb/trace.jsonl
-go run ./cmd/kbcheck learning-adoption --result-path <results.json>
-go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet-valid.json
-go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
-go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
-go run ./cmd/kbcheck provider-hygiene --include-user
-go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
-go run ./cmd/amrbench run --dry-run --experiment-id <id> --routes <routes.json> --context baseline --mode direct --task <task> --model <runtime-model> --max-ai-credits 5
-go run ./cmd/amrbench grade-paired --config evals/amr-model-benchmark/config.json --results <paired-run-refs.jsonl>
-go test ./...
 ```
 
-## Skill Quality Contract
+Use this set for ordinary repo-local validation.
 
-The cross-runtime quality contract lives in `config/skill-quality.json`.
-It defines:
-
-- Codex and GHCP instruction surfaces.
-- Skill lint budgets and allowlists.
-- Route/complexity eval locations.
-- Required and optional sync targets.
-
-The private marketplace contract lives in `config/skill-marketplace.json`. It
-records `<agent-marketplace>` as the approved catalog root and defines the
-project-local-first promotion policy for learned skills and reusable pipelines.
-`go run ./cmd/kbcheck marketplace-firebreak` enforces the quarantine boundary:
-active skill roots, approved catalog paths, and loadable skill links must never
-resolve into `<agent-marketplace>/quarantine`. This is a blocking `core` gate,
-not a naming convention.
-
-The approved `atv-security` marketplace skill also has a dependency
-vulnerability proof harness:
-
-```powershell
-osv-scanner scan source -r <repo-or-scope-path> --format json --output-file docs/security/osv-YYYY-MM-DD.json
-```
-
-Run it when dependency manifests or lockfiles are in scope and `osv-scanner` is
-available. If the scanner is not installed, record `skipped-unavailable` and the
-official install command instead of using model judgment as proof.
-
-`cmd/kbcheck` discovers this repo as a skill repo when `.github/skills` and
-`config/skill-quality.json` exist. The skill-repo quality harness is Go-native.
-
-The sync drift report is read-only: it never copies files. It exits nonzero for
-required-target drift and is part of the blocking `local-release` gate, not the
-fresh-clone contributor `core` gate.
-Current policy expects required roots to match the working skill root. ATV
-scaffold/plugin roots may report warning-only differences unless the current
-change explicitly ships that packaging surface.
-
-```powershell
-go run ./cmd/kbcheck skill-sync-report
-go run ./cmd/kbcheck skill-sync-report --verbose-optional
-```
-
-Default output prints required issues in detail and summarizes any optional ATV
-scaffold/plugin differences. Current expected state is full match across
-working, global, and ATV `.github` roots; ATV scaffold/plugin roots may report
-warning-only differences unless the current change explicitly ships that
-surface. Use `--verbose-optional` when reviewing a deliberate packaging
-exception.
-
-## Current Result
-
-2026-07-09 local caveat resolved: on this Windows workstation with `go version
-go1.26.2 windows/amd64`, module-scoped Go commands timed out with no output:
-
-```powershell
-go list ./cmd/kbcheck
-go list -buildvcs=false ./cmd/kbcheck
-go test ./cmd/kbcheck -run TestProofAcceptsRedThenGreenTrace -count=1
-go test -buildvcs=false ./cmd/kbcheck -run TestProofAcceptsRedThenGreenTrace -count=1
-go run ./cmd/kbcheck core --list
-```
-
-The workaround was:
-
-```powershell
-go env -w GOTOOLCHAIN=go1.25.4+auto
-```
-
-After that, `go list ./cmd/kbcheck`, the targeted proof-spine test, and
-`go run ./cmd/kbcheck core --list` returned normally.
-
-If the timeout recurs, narrow non-Go proof for snapshot-path only changes is:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .github\skills\kb-regression-snapshot\scripts\kb-regression-snapshot.ps1 verify
-rg -n "\.atv/snapshots|\.atv\\snapshots" .github\skills README.md docs\context\PROJECT.md docs\context\architecture\kb-workflow.md
-git diff --check
-```
-
-Do not expand `cmd/kbcheck` harness behavior while module-scoped Go commands are
-timing out; first fix the toolchain or use a bounded replacement runner.
-
-`go run ./cmd/kbcheck core --list` now reports contributor-safe skill-repo
-checks when run here:
-
-- `skill-lint`
-- `go-test`
-- `route-complexity-eval`
-- `skill-eval`
-- `skill-eval-manifest-selftest`
-- `skill-eval-baseline-selftest`
-- `skill-eval-codex-dry-run`
-- `skill-eval-ghcp-dry-run`
-- `skill-eval-observed-trace-dry-run`
-- `skill-eval-quality`
-- `kb-pipeline-selftest`
-- `skill-surface-report`
-- `skill-marketplace-firebreak`
-- `skill-marketplace-firebreak-selftest`
-- `marketplace-promotion-selftest`
-- `kb-release-gate-selftest`
-- `skill-surface-minimality-selftest`
-- `skill-surface-minimality`
-- `dishonest-completion-selftest`
-- `kb-doctor-selftest`
-- `kb-run-state-selftest`
-- `manifest-contract-selftest`
-`go run ./cmd/kbcheck core` runs every discovered check and exits nonzero when a
-required check fails.
-Expected current warnings:
-
-- hot-path skill size warnings.
-
-All tracked skill roots should report matches before release or propagation.
-
-The release gate is intentionally separate from `core` because it composes the
-core check with sync drift, line-ending, and optional report surfaces:
+## Canonical Release / Sync Commands
 
 ```powershell
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbcheck live-release
+go run ./cmd/kbcheck skill-sync-report
+go run ./cmd/kbcheck skill-sync-report --verbose-optional
+go run ./cmd/kbcheck doctor
+go run ./cmd/kbcheck doctor --fix
 ```
 
-`local-release` is the pre-sync proof command and includes
-`skill-sync-report`. When the canonical model-routing evidence artifact exists,
-it also revalidates the fixed no-paid routing proof. The current honest state is
-`not-promoted`: zero supported cohorts, no live/efficiency evidence, next-lower
-attempts disabled, and correction dispatch limited to validation plus refusal.
-`live-release` is explicit and
-may call authenticated Codex/GHCP CLIs; unavailable live surfaces must be labeled
-`skipped-explicit`, not silently treated as verified.
+`core` is contributor-safe. `local-release` adds blocking sync drift and release
+surfaces. `live-release` is explicit because it may call authenticated CLIs.
 
-The AMR benchmark is stricter than `live-release`: deterministic conformance and
-dry-run preview are available, but every non-dry provider run is currently
-refused until a trusted human-approval verifier exists. Do not treat the local
-approval template, route catalog, deterministic fixtures, or simulated paired
-rows as authority to spend credits or promote a route.
-
-Landmine lifecycle changes are verified with the same structural gate:
-
-```powershell
-git diff --check
-go run ./cmd/kbcheck core
-```
-
-`docs/context/landmines.md` must contain owner, evidence, fix condition, and
-verification fields for active entries. Generic advice should not be recorded as
-an active landmine.
-
-Generated `learned-*` skills require explicit human approval before they are
-committed or synced from this portable bundle. The default prompt is:
+## `kbcheck core --list` Current Checks
 
 ```text
-Promote these generated learned-* skills and allow them to be committed or
-synced from this portable bundle? yes/no
+test
+go-test
+context-packet-selftest
+cross-model-benchmark-validate
+dishonest-completion-selftest
+execution-telemetry-selftest
+graph-routing-eval
+graph-routing-lifecycle-selftest
+kb-doctor-selftest
+kb-pipeline-selftest
+kb-release-gate-selftest
+kb-run-state-selftest
+kb-work-ready-set-selftest
+kb-work-scope-lease-selftest
+kb-work-slice-lease-selftest
+kbrouter-catalog-tests
+manifest-contract-selftest
+marketplace-promotion-selftest
+provider-hygiene
+provider-hygiene-selftest
+review-reference-guard
+route-complexity-eval
+skill-eval
+skill-eval-baseline-selftest
+skill-eval-codex-dry-run
+skill-eval-ghcp-dry-run
+skill-eval-manifest-selftest
+skill-eval-observed-trace-dry-run
+skill-eval-quality
+skill-lint
+skill-marketplace-firebreak
+skill-marketplace-firebreak-selftest
+skill-surface-minimality
+skill-surface-minimality-selftest
+skill-surface-report
+workflow-governor-selftest
 ```
+
+## Targeted Commands By Surface
+
+### Package / installer
+
+```powershell
+npm run test
+npm run test:install:core
+npm run test:install:full
+node ./bin/check-release-tag.mjs --tag v<package-version>
+```
+
+### Workflow proof and state
+
+```powershell
+go run ./cmd/kbcheck manifest-contract --manifest <manifest>
+go run ./cmd/kbcheck run-state --history <history>
+go run ./cmd/kbcheck sense --check <check.json> --trace .kb/trace.jsonl
+go run ./cmd/kbcheck trace-verify --trace .kb/trace.jsonl
+go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl
+go run ./cmd/kbcheck learning-adoption --result-path <results.json>
+go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet-valid.json
+go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
+```
+
+### Graph / model routing
+
+```powershell
+go run ./cmd/kbcheck graph-route --packet <packet.json>
+go run ./cmd/kbcheck graph-routing-lifecycle-selftest
+go run ./cmd/kbcheck graph-routing-eval --require-ready
+go test ./cmd/kbrouter -run Catalog|Doctor|Policy
+go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
+```
+
+### Skill / route evals
+
+```powershell
+go run ./cmd/kbcheck route-eval
+go run ./cmd/kbcheck skill-eval
+go run ./cmd/kbcheck skill-eval-claims
+go run ./cmd/kbcheck skill-eval-quality
+go run ./cmd/kbcheck skill-eval-regression
+go run ./cmd/kbcheck eval-run-codex --fixture-id tiny-typo-fix --dry-run
+go run ./cmd/kbcheck eval-run-ghcp --fixture-id tiny-typo-fix --dry-run
+go run ./cmd/kbcheck eval-run-live-corpus --dry-run
+go run ./cmd/kbcheck skill-eval-wrap --fixture-id tiny-typo-fix --dry-run --sealed
+```
+
+### AMR benchmark
+
+```powershell
+go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
+go run ./cmd/amrbench run --dry-run --experiment-id <id> --routes <routes.json> --context baseline --mode direct --task <task> --model <runtime-model>
+go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>
+```
+
+## Skill Quality Contract
+
+`config/skill-quality.json` is the source of truth for:
+
+- supported instruction surfaces
+- skill lint budgets and long-skill allowlists
+- route-complexity fixture roots
+- review-reference ownership
+- required and optional sync targets
+
+`config/skill-marketplace.json` is the source of truth for marketplace
+promotion, quarantine firebreak rules, and global-install boundaries.
+
+## Operational Notes
+
+- `skill-sync-report` is read-only. If a global copy is newer, merge back into
+  the repo first; do not overwrite it blindly.
+- `provider-hygiene --include-user` is the explicit user-global inspection mode.
+  Plain `provider-hygiene` remains repo-local.
+- `graph-routing-eval --require-ready` is fixture proof, not live-provider proof.
+- `model-routing-release` validates evidence boundaries; a green result does not
+  mean live AMR is promoted.
+- `.github/workflows\` is currently empty, so local CLI commands are the only
+  checked-in deterministic proof surface for release/install behavior.
 
 ## Eval Mapping
 
-`kb-eval-map` is the bootstrap-owned setup skill for repo-native evals. It
-creates or updates `docs/context/eval-map.md`, detects the app pattern and
-existing harnesses, chooses the right proof surface, and scaffolds one real smoke
-eval only when the primary workflow is known and safe to run.
+`kb-eval-map` owns repo-native eval documentation in this repo:
 
-Runtime proof still belongs to:
-
-- `kb-check` for deterministic commands;
-- `kb-functional-test` for per-slice proof-level classification;
-- `kb-qa` for browser/API/CLI workflow checks;
-- `kb-regression-snapshot` for replaying previous passing behavior;
-- `kb-complete` for final machine-verifiable proof.
-
-Eval frameworks such as Langfuse, Braintrust, LangSmith, DeepEval, or Promptfoo
-are optional adapters/exporters unless the target repo is an LLM/agent app where
-prompt/output datasets are the native proof surface.
-
-## Implemented Harness
-
-All current harness commands are native `cmd/kbcheck` commands:
-
-- `skill-lint` validates required skill frontmatter, conflict markers,
-  configured line budgets, allowlisted long skills, and referenced local files.
-- `route-eval` validates route-complexity fixtures, computes deterministic
-  complexity tiers, and checks over/under-planning guard coverage.
-- `skill-eval`, `skill-eval-claims`, `skill-eval-quality`, and
-  `skill-eval-regression` score captured result JSON, trace evidence, claim
-  artifacts, rubric quality, baselines, and protected verifier-file hashes.
-- `eval-run-codex`, `eval-run-ghcp`, `eval-run-live-corpus`, and
-  `skill-eval-wrap` provide dry-run/live adapters and observed-trace wrapping.
-- `release-selftest` proves profile selection, explicit-live skip labeling, and
-  required-check failure propagation through the Go release path.
-- `pipeline` and `pipeline-selftest` create/read coded pipeline spike runs
-  under `.atv/pipeline-runs/` and reject unknown pipeline IDs.
-- `ready-set` and `scope-lease` prove KB manifest DAG ready-set selection and
-  bounded-swarm write-overlap guards.
-- `surface-report` and `minimality` report loaded skill surface and static
-  skill/agent minimality classifications.
-- `marketplace-firebreak`, `marketplace-firebreak-selftest`,
-  `marketplace-promote`, and `marketplace-promote-selftest` enforce quarantine
-  boundaries and prove the reviewed promotion path.
-- `skill-sync-report` validates required skill-copy hashes across the working
-  repo, Codex global, Copilot global, and shared agents global; it is
-  release-blocking through `local-release`.
-- `doctor` reports the same configured install drift and `doctor --fix` repairs
-  only missing or marker-proven stale required copies from this repo source.
-- `dishonest-completion-selftest` validates negative fixtures for vacuous-green
-  proof, missing slice proof checks, receipt-is-not-work-proof claims, and
-  route-history oscillation.
-- `manifest-contract` validates objective `done_check`, per-slice
-  `proof_check`/`no_check_reason`, route-neutral planning, inert legacy
-  `model_route` hints, and terminal gate proof.
-- `run-state` validates `.kb/runs/<goal>/route-history.jsonl` for oscillation,
-  repeated low confidence, and no-progress loops.
-- `sense`, `accept`, and `trace-verify` implement the failure-first proof spine:
-  a runnable check must be observed RED, then GREEN, with an intact trace before
-  a repair claim is accepted.
-- `learning-adoption` scores measured learning changes and blocks promotion
-  unless the candidate has enough samples, no right-to-wrong regressions, no
-  holdout leakage, and a meaningful net gain.
-- `context-packet` validates vendor-neutral bounded worker inputs and optional
-  authority boundaries.
-- `execution-telemetry` validates a separate typed runtime-result artifact.
-  Host adapters may emit it when real usage data is available; model-authored
-  output is not treated as measured usage.
-- `model-routing-release --cohort initial-pilot --evidence
-  docs/results/2026-07-10-session-model-routing-initial-pilot.json` validates
-  strict no-paid evidence and reruns fixed local selector/refusal/fallback
-  proofs. Green means the artifact is honest, not that AMR or a live cohort was
-  promoted.
-- `provider-hygiene` rejects Phoenix activation in repo or standard user
-  provider configs while allowing CCE as an opt-in adapter. User-global config
-  is inspected only with `--include-user`; `core` remains repo-local.
-
-For unattended runners, `skill-sync-report` is a release blocker, not a cleanup
-task. Required drift means source and deployed runner behavior disagree. If a
-global copy is newer, merge useful drift back into the repo first, prove it, and
-only then sync outward from the repo source.
-
-## Remaining Harness Growth
-
-The current harness covers the core planned eval stack. Remaining growth areas:
-
-- route skills have decision tables and escalation rules;
-- execution skills name deterministic proof requirements;
-- lazy references exist and are linked only when needed;
-- broader live Codex/GHCP corpus covers more than the initial fixture;
-- optional dashboard exporters can be added after local reports stay stable.
-
-`kb-eval-map` scaffolded smoke evals must record pass-command, pass-result,
-negative-check, negative-command, negative-result=failed-as-expected, and
-reverted=true evidence before reporting success.
+- `docs/context/eval-map.md` = inventory + app-pattern classification
+- `docs/context/operations/testing.md` = canonical commands
 
 ## Route Eval Seeds
-
-Minimum prompt matrix:
 
 | Prompt Shape | Expected Route |
 |---|---|

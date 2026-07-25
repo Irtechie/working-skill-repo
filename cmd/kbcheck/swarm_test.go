@@ -181,6 +181,18 @@ func TestScopeLeaseCollisionAndRelease(t *testing.T) {
 	if !result.OK || result.ActiveLeases[0].SliceID != "slice-002" {
 		t.Fatalf("expected released path, got %#v", result)
 	}
+
+	sameSliceDifferentOwner := writeLedger(t, []scopeLeaseEntry{
+		{SliceID: "slice-001", OwnerToken: "owner-a", Path: "src/shared.ts", Status: "active"},
+		{SliceID: "slice-001", OwnerToken: "owner-b", Path: "src/shared.ts", Status: "active"},
+	})
+	result, err = computeScopeLease(sameSliceDifferentOwner)
+	if err != nil {
+		t.Fatalf("computeScopeLease returned error: %v", err)
+	}
+	if result.OK || len(result.Collisions) != 1 {
+		t.Fatalf("expected same-slice owner collision, got %#v", result)
+	}
 }
 
 func TestReadySetAndScopeLeaseCommands(t *testing.T) {

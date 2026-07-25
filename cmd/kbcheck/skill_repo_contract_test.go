@@ -25,6 +25,7 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 		"kb-release-gate-selftest",
 		"kb-run-state-selftest",
 		"kb-work-ready-set-selftest",
+		"kb-work-slice-lease-selftest",
 		"kb-work-scope-lease-selftest",
 		"provider-hygiene",
 		"provider-hygiene-selftest",

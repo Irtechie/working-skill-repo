@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "expected_impact": [
+    "src/api/payments.go",
+    "src/payments/charge.go",
+    "src/payments/generated_serializer.go",
+    "config/payments.yaml",
+    "src/api/payments_test.go",
+    "docs/payments.md"
+  ],
+  "retrieved": [
+    "src/api/payments.go",
+    "src/payments/charge.go",
+    "src/payments/generated_serializer.go",
+    "config/payments.yaml",
+    "src/api/payments_test.go",
+    "docs/payments.md"
+  ],
+  "required_tests": [
+    "src/api/payments_test.go"
+  ],
+  "required_docs": [
+    "docs/payments.md"
+  ],
+  "retrieved_tokens": 900,
+  "uncited_exact_edges": [],
+  "hidden_dynamic_limitations": false
+}

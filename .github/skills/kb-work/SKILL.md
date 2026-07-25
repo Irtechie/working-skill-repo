@@ -81,10 +81,30 @@ KB state system unless the repo already opted into `done.md`.
 6. **Load the context packet** - for a non-trivial slice, read its packet before broad repo search or delegation. When `cmd/kbcheck` exists, validate JSON packets with `go run ./cmd/kbcheck context-packet --packet <packet.json>`. Otherwise verify the required fields directly and record `packet-validator: unavailable`; the portable skills do not require the Go maintainer harness. If required source, constraint, proof, search-policy, or escalation data is missing, route back to `kb-plan` instead of making a cheap worker rediscover the repo. Legacy tiny/mechanical slices may use the plan itself when it records why no packet is needed.
 7. **Check status** - skip any slices already marked `done`. Resume from the first safe ready set.
 8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
-9. **Read optional execution policy** - next-lower AMR attempts are disabled by default while the pilot is unpromoted. Enable them only for an explicit pilot/opt-in or `amr.lower_tier_attempts: enabled`; otherwise start at the planned tier. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
+9. **Read optional execution policy** - next-lower AMR attempts are disabled by default while the pilot is unpromoted. Enable them only for an explicit pilot/opt-in or `amr.lower_tier_attempts: enabled`; otherwise start at the planned tier. AMR is optional and testing-stage; its absence or disabled state never blocks ordinary planned-tier work. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
 10. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
 11. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
-12. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
+12. **Acquire local slice ownership before board projection or mutation:** for every mutating slice, acquire a slice lease before setting `todo.md` or the manifest to `in_progress`:
+
+   ```powershell
+   go run ./cmd/kbcheck slice-lease --action acquire --slice-id <slice-id> --run-id <run-id> --owner-token <opaque-token> --file <path> [--prefix <path>] [--resource <kind:value>] --json
+   ```
+
+   The lease state defaults under the Git common directory so sibling worktrees coordinate. Separate clones and machines are out of scope. A failed acquisition leaves the board and manifest unchanged; serialize, requeue, or wait rather than racing. Renew with the returned generation during long work, and release with the same owner token/generation when the slice is done, skipped, blocked, or requeued. Wrong-token renew/release/recover must fail closed.
+13. **Resolve workspace mode:** if the slice declares `workspace_mode:
+    worktree-required`, if a dirty shared checkout would put user work at risk,
+    or if another mutating slice is active, load
+    `references/worktree-isolation.md` and prepare an isolated worktree through
+    `go run ./cmd/kbcheck worktree --action prepare ...`. The coordinator alone
+    integrates receipts and updates canonical lifecycle files. Workers return
+    commit/diff/proof receipts; they do not edit `todo.md`, the manifest, or
+    handoffs in their isolated checkout.
+14. **Load impact packet summary when present:** validate freshness and fallback
+    before using graph evidence. A stale or missing packet blocks
+    graph-dependent claims but permits explicit file-native source inspection.
+    Packet and routing receipts are orientation evidence; they cannot mark a
+    slice done or replace the slice's functional proof.
+15. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
 
 After initial execution starts, do not ask before moving from one safe ready set
 to the next.
@@ -119,7 +139,10 @@ Active handoff files under `docs/handoffs/active/` are restart packets. Create o
 **Multi-agent rules:**
 - Before claiming a slice, re-read `todo.md`. If another agent set it to 🔧, do not claim it.
 - The board is the source of truth — not chat history, not the manifest. If the board says done, it's done.
-- Update the board BEFORE starting work (claim) and AFTER completing work (release). This prevents two agents from working the same slice.
+- Acquire the atomic slice lease BEFORE starting work, then update the board BEFORE mutation and AFTER completing work. This prevents two agents from working the same slice.
+- Isolated workers never directly project canonical lifecycle status. The
+  coordinator serializes integration, reruns proof after merge, and then updates
+  `todo.md`, the manifest, and active handoff.
 - Also update the manifest to stay in sync, but if they conflict, the board wins.
 - Do not use root **Work Log** as a permanent archive. During execution, add notes only when they help a later agent resume: blockers, verification commands, durable memory impacts, or non-obvious decisions. Routine "slice complete" and verification-success notes belong in `todo-done.md` at feature completion, not in `todo.md`.
 - Blocked is not parked. Use `🔒 blocked` for dependencies, another-agent waits, tool failures, or missing inputs. Use `🧊 Parked / Cold Storage` only for work a human intentionally deferred out of scope.
@@ -449,7 +472,10 @@ This gate catches entropy between slices. It cannot be skipped, overridden, or d
 
 Before executing the slice, load the declared scope forecast and keep a live ledger of actual files touched. `expected_files` guides the first pass; it is not a literal allowlist.
 
-1. **Read `expected_files`** from the slice plan's frontmatter.
+1. **Read `expected_files`** from the slice plan's frontmatter. Also read any
+   impact packet summary carried by the manifest or slice plan: files, symbols,
+   tests, docs, conflict domains, limitations, freshness, and fallback. Treat it
+   as a forecast and provenance source, not an allowlist.
 2. **If `expected_files` is empty or missing**, route back to `kb-plan` to repair the slice plan before execution. Do not execute from a phase list or raw task with no file forecast.
 3. **Expand the forecast with convention-matched test files.** For each entry in `expected_files`, automatically include its corresponding test file based on project naming conventions:
 
@@ -467,7 +493,7 @@ Before executing the slice, load the declared scope forecast and keep a live led
    | Finding | Action |
    |---------|--------|
    | File is listed in `expected_files` or is a convention-matched test | Proceed with the edit. |
-   | File is not listed, but current code shows it is directly required for this slice's acceptance criteria | Proceed, and add a manifest note: `scope-discovery: <file> - <why required>`. |
+   | File is not listed, but current code or an impact packet shows it is directly required for this slice's acceptance criteria | Proceed, and add a manifest note: `scope-discovery: <file> - <why required/provenance>`. |
    | File is generated by the repo's normal tooling, formatter, snapshot, lockfile, or test convention | Proceed, and add a manifest note: `scope-discovery: <file> - generated/tooling`. |
    | File would change product scope, architecture direction, dependencies, migrations, auth/security boundaries, destructive behavior, or another slice's promised behavior | STOP for HITL or route back to `kb-plan` to amend the manifest before editing. |
    | File is opportunistic cleanup or unrelated improvement | Do not edit. Park it in `todo.md` or a follow-up note. |
@@ -480,7 +506,7 @@ This gate pairs with Step 3.6 (Diff-Scope Verification). The point is traceabili
 
 Use a fresh sub-agent when the platform supports delegated execution and the user has permitted it. Otherwise execute the slice locally while keeping the scope limited to this slice.
 
-Immediately before dispatch, choose the route for this ready slice from the
+Immediately before dispatch, acquire the slice lease and choose the route for this ready slice from the
 live run catalog. Apply Step 2.6 once: use an explicitly eligible next-lower
 `attempt_tier`, or begin at the planned `model_tier`. A failed attempt goes to
 the planned tier as separate ordinary execution using the correction packet as
@@ -496,6 +522,8 @@ Quoting sanity rule: when shell commands, file operations, or test assertions in
 - Do not construct CSS selectors through mixed-quote string concatenation. Use template literals or parameterized locator helpers.
 
 Use `references/execution-prompt.md` as the per-slice execution prompt/checklist. Load it only when starting a slice. When that slice runs Go inside a workspace sandbox, also load `references/go-sandbox.md`; its environment applies to Go shell invocations, never the agent launcher.
+When the slice uses a Git worktree, also load
+`references/worktree-isolation.md` and follow its receipt/integration checklist.
 
 ### Step 3.1: Protected Oracle Gate
 
@@ -542,7 +570,7 @@ After a slice completes, verify that the files actually changed are explainable 
 
    This produces the list of files modified by this slice relative to the branch baseline.
 
-2. **Load the forecast scope** from the slice plan's `expected_files` frontmatter field plus any `scope-discovery:` notes recorded during execution. Also load any `protected_oracles` and their recorded hashes.
+2. **Load the forecast scope** from the slice plan's `expected_files` frontmatter field, impact packet summary, plus any `scope-discovery:` notes recorded during execution. Also load any `protected_oracles` and their recorded hashes.
 
 3. **Compare and enforce:**
 
@@ -550,8 +578,8 @@ After a slice completes, verify that the files actually changed are explainable 
 
    | Finding | Action |
    |---------|--------|
-   | Changed file is forecast, convention-matched, generated/tooling output, or recorded `scope-discovery` | Proceed. |
-   | Changed file is unforecast but directly required by the acceptance criteria and was not noticed before editing | Record `scope-discovery: <file> - <why required>` before proceeding. |
+   | Changed file is forecast, impact-packet-cited, convention-matched, generated/tooling output, or recorded `scope-discovery` | Proceed. |
+   | Changed file is unforecast but directly required by the acceptance criteria and was not noticed before editing | Record `scope-discovery: <file> - <why required/provenance>` before proceeding. |
    | Changed file expands product scope, architecture direction, dependencies, migrations, auth/security boundaries, destructive behavior, or another slice's promised behavior | STOP. Amend the manifest through `kb-plan` or get HITL before proceeding. |
    | Changed file is unrelated cleanup or opportunistic improvement | Revert or park as follow-up before proceeding. |
    | Forecast files were not changed | Treat as a completeness signal, not a failure. If the slice still satisfies acceptance criteria, record `scope-forecast-unused: <file> - <why not needed>`. |
@@ -635,6 +663,10 @@ After the slice completes:
    contract. If any proof is missing, leave the slice `blocked` and set
    `allowed_next_action` to the missing proof step.
 
+   Worker receipts, route receipts, graph packets, and lease receipts are
+   supporting evidence only. The coordinator reruns proof after integration
+   before setting a slice to `done`.
+
    For manifests with `objective_contract: true`, run
    `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>` after
    adding the slice gate and before changing the slice status to `done`. A
@@ -662,10 +694,20 @@ After the slice completes:
    - For durable changes, add a manifest note: `memory-impact: durable; areas=<areas>; docs=<candidate docs>; refresh=pending`.
    - If the affected doc is obvious and small, update it now. Otherwise leave `refresh=pending` for Step 5.
 
-5. **Optional commit**
+5. **Release or renew ownership**
+   - Renew long-running active leases before expiry with the same owner token and current generation.
+   - For isolated worktree slices, integrate first with
+     `kbcheck worktree --action integrate`, rerun the slice proof on the
+     integration branch, then release with `kbcheck worktree --action release`.
+     Release refuses dirty or unintegrated worktrees and never uses force.
+   - Release the lease after manifest and board status are updated for `done`,
+     `blocked`, `parked`, `skipped`, or `requeued`.
+   - If release fails because the generation or owner token differs, STOP: another coordinator may have changed ownership state.
+
+6. **Optional commit**
    - If the user asked for commits, stage only the manifest file for status updates and commit it separately.
 
-6. Continue to the next runnable slice.
+7. Continue to the next runnable slice.
 
 ### Step 5: Completion
 

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "index_revision": "abc123",
+  "worktree_revision": "def456",
+  "dirty_fingerprint": "dirty:src/api/payments.go",
+  "accepted_as_authoritative": false,
+  "fallback_mode": "file-native",
+  "optional_provider_status": "skipped-unavailable"
+}

@@ -290,6 +290,78 @@ gate_ledger: []
 	}
 }
 
+func TestManifestContractRequiresModelSelectionMetadataWhenEnabled(t *testing.T) {
+	path := writeManifest(t, `
+---
+objective_contract: true
+done_check:
+  type: command
+model_tier_contract:
+  allowed: [small, medium, large]
+model_selection_contract:
+  timing: work-time
+slices:
+  - id: slice-001
+    status: pending
+    verification: integration
+    model_tier: medium
+    proof_check:
+      type: command
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-model-tier-reason") ||
+		!hasManifestIssue(result.Issues, "missing-model-requirements") ||
+		!hasManifestIssue(result.Issues, "missing-escalation-triggers") {
+		t.Fatalf("expected model selection metadata issues, got %#v", result)
+	}
+}
+
+func TestManifestContractValidatesWorkspaceIsolationIntent(t *testing.T) {
+	valid := writeManifest(t, `
+---
+workspace_isolation_contract:
+  coordinator_owned_lifecycle: true
+slices:
+  - id: slice-001
+    status: pending
+    workspace_mode: worktree-required
+    conflict_domains: [file:src/a.go]
+    shared_resources: [git:integration-owner]
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(valid)
+	if err != nil || !result.OK {
+		t.Fatalf("expected valid workspace isolation fields, result=%#v err=%v", result, err)
+	}
+
+	invalid := writeManifest(t, `
+---
+workspace_isolation_contract:
+  coordinator_owned_lifecycle: true
+slices:
+  - id: slice-001
+    status: pending
+    workspace_mode: live-edit
+    conflict_domains: []
+gate_ledger: []
+---
+`)
+	result, err = validateManifestContract(invalid)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-workspace-mode") ||
+		!hasManifestIssue(result.Issues, "missing-conflict-domains") {
+		t.Fatalf("expected workspace isolation issues, got %#v", result)
+	}
+}
+
 func TestManifestContractModelRouteDoesNotSubstituteForProofCheck(t *testing.T) {
 	path := writeManifest(t, `
 ---
@@ -406,5 +478,74 @@ gate_ledger: []
 	result, err := validateManifestContract(path)
 	if err != nil || !result.OK {
 		t.Fatalf("expected valid packet-backed manifest, result=%#v err=%v", result, err)
+	}
+}
+
+func TestManifestContractValidatesOptionalImpactPacketContract(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), "{}")
+	writeFile(t, filepath.Join(root, "impact.json"), `{
+	  "schema_version": 1,
+	  "packet_id": "impact",
+	  "repository": {
+	    "identity": "git:file:///fixture",
+	    "root": ".",
+	    "vcs": "git",
+	    "revision": "abc123",
+	    "dirty_fingerprint": "clean",
+	    "worktree_fingerprint": "main:abc123",
+	    "freshness": "fresh"
+	  },
+	  "seeds": {"files": ["src/api/payments.go"]},
+	  "edges": [],
+	  "direct_impact": [],
+	  "reverse_impact": [],
+	  "tests": [],
+	  "docs": [],
+	  "fallback": {"mode": "file-native", "reason": "fixture fallback"},
+	  "budget": {"max_edges": 10, "max_bytes": 1000, "truncated": false},
+	  "limitations": ["fixture"],
+	  "generated_by": "test",
+	  "generated_at": "2026-07-19T00:00:00Z"
+	}`)
+	manifestDir := filepath.Join(root, "docs", "plans")
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(manifestDir, "manifest.md")
+	writeFile(t, path, `---
+impact_packet_contract:
+  optional: true
+slices:
+  - id: slice-001
+    status: pending
+    impact_packet_path: impact.json
+  - id: slice-002
+    status: pending
+    no_impact_packet_reason: "file-native fallback only"
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil || !result.OK {
+		t.Fatalf("expected valid impact packet manifest, result=%#v err=%v", result, err)
+	}
+
+	missing := filepath.Join(manifestDir, "missing-impact.md")
+	writeFile(t, missing, `---
+impact_packet_contract:
+  optional: true
+slices:
+  - id: slice-001
+    status: pending
+gate_ledger: []
+---
+`)
+	result, err = validateManifestContract(missing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-impact-packet") {
+		t.Fatalf("expected missing impact packet issue, got %#v", result)
 	}
 }

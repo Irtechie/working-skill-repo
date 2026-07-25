@@ -37,11 +37,17 @@ Usage:
   kbcheck learning-adoption --result-path <path> [--root <path>]
   kbcheck context-packet --packet <path> [--root <path>] [--json]
   kbcheck context-packet-selftest
+  kbcheck graph-route --packet <path> [--root <path>] [--json]
+  kbcheck graph-routing-lifecycle-selftest [--root <path>]
+  kbcheck graph-routing-eval [--root <path>] [--require-ready] [--json]
   kbcheck execution-telemetry --telemetry <path> [--receipt <path> --evidence-envelope <path>] [--root <path>] [--json]
   kbcheck execution-telemetry-selftest
   kbcheck model-routing-release --cohort <name> --evidence <path> [--root <path>]
   kbcheck provider-hygiene [--root <path>] [--include-user] [--json]
   kbcheck provider-hygiene-selftest
+  kbcheck slice-lease --action acquire|status|renew|release|recover [--root <path>] [--state-root <path>] [--json]
+  kbcheck slice-lease-selftest
+  kbcheck worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
@@ -88,8 +94,13 @@ Commands:
   accept         Prove a check went red->green and is green now.
   learning-adoption  Score held-out learning promotion eligibility.
   dishonest-completion-selftest  Validate false-done rejection fixtures.
-  scope-lease    Validate observed active slice/file write leases.
-  doctor        Report or repair configured skill install drift.
+	scope-lease    Validate observed active slice/file write leases.
+	slice-lease    Atomically acquire and release local slice ownership.
+	worktree       Prepare, integrate, and safely release isolated slice worktrees.
+	graph-route    Validate provider-neutral graph/evidence impact packets.
+	graph-routing-lifecycle-selftest  Validate graph routing lifecycle invariants.
+	graph-routing-eval  Score graph routing correctness and local concurrency safety fixtures.
+	doctor        Report or repair configured skill install drift.
 `
 
 type processRunner func(root string, check Check) CheckResult
@@ -154,11 +165,25 @@ type options struct {
 	cohort               string
 	evidencePath         string
 	allowQuarantine      bool
+	sliceLeaseAction     string
+	sliceLeaseStateRoot  string
+	sliceID              string
+	ownerToken           string
+	leaseGeneration      int64
+	leaseTTL             time.Duration
+	leaseFiles           []string
+	leasePrefixes        []string
+	leaseResources       []string
+	baseSHA              string
+	worktreePath         string
+	branchName           string
+	repoIdentity         string
 	codexSkillsRoot      string
 	copilotSkillsRoot    string
 	agentsSkillsRoot     string
 	approved             bool
 	includeUser          bool
+	requireReady         bool
 }
 
 func main() {
@@ -217,6 +242,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runContextPacketCommand(root, opts, stdout, stderr)
 	case "context-packet-selftest":
 		return runContextPacketSelftest(stdout, stderr)
+	case "graph-route":
+		return runGraphRouteCommand(root, opts, stdout, stderr)
+	case "graph-routing-lifecycle-selftest":
+		return runGraphRoutingLifecycleSelftest(root, stdout, stderr)
+	case "graph-routing-eval":
+		return runGraphRoutingEvalCommand(root, opts, stdout, stderr)
 	case "execution-telemetry":
 		return runExecutionTelemetryCommand(root, opts, stdout, stderr)
 	case "execution-telemetry-selftest":
@@ -227,6 +258,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runProviderHygieneCommand(root, opts, stdout, stderr)
 	case "provider-hygiene-selftest":
 		return runProviderHygieneSelftest(stdout, stderr)
+	case "slice-lease":
+		return runSliceLeaseCommand(root, opts, stdout, stderr)
+	case "slice-lease-selftest":
+		return runSliceLeaseSelftest(stdout, stderr)
+	case "worktree":
+		return runWorktreeCommand(root, opts, stdout, stderr)
 	case "scope-lease":
 		return runScopeLeaseCommand(root, opts, stdout, stderr)
 	case "scope-lease-selftest":
@@ -309,10 +346,11 @@ func parse(args []string) (options, error) {
 		"ready-set": true, "ready-set-selftest": true, "manifest-contract": true, "manifest-contract-selftest": true, "gate-ledger": true,
 		"run-state": true, "run-state-selftest": true,
 		"sense": true, "trace-verify": true, "accept": true, "learning-adoption": true,
-		"context-packet": true, "context-packet-selftest": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
+		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-routing-release": true,
-		"scope-lease":           true, "scope-lease-selftest": true,
+		"slice-lease":           true, "slice-lease-selftest": true, "worktree": true,
+		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
 		"marketplace-promote": true, "marketplace-promote-selftest": true,
@@ -388,12 +426,14 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.cohort, "cohort", "", "model-routing release cohort")
 	fs.StringVar(&opts.evidencePath, "evidence", "", "model-routing release evidence path")
 	fs.BoolVar(&opts.allowQuarantine, "allow-quarantine", false, "accept status=quarantined as advanceable")
+	registerSliceLeaseFlags(fs, &opts)
 	home, _ := os.UserHomeDir()
 	fs.StringVar(&opts.codexSkillsRoot, "codex-skills-root", filepath.Join(home, ".codex", "skills"), "Codex skills root")
 	fs.StringVar(&opts.copilotSkillsRoot, "copilot-skills-root", filepath.Join(home, ".copilot", "skills"), "Copilot skills root")
 	fs.StringVar(&opts.agentsSkillsRoot, "agents-skills-root", filepath.Join(home, ".agents", "skills"), "Agents skills root")
 	fs.BoolVar(&opts.approved, "approved", false, "confirm human-approved marketplace promotion")
 	fs.BoolVar(&opts.includeUser, "include-user", false, "include standard user-global provider configs")
+	fs.BoolVar(&opts.requireReady, "require-ready", false, "fail when readiness thresholds are not met")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, err
 	}
@@ -460,11 +500,22 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	if opts.command != "context-packet" && opts.packetPath != "" {
-		return options{}, fmt.Errorf("--packet is only supported for context-packet")
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "worktree"
+	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
+		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
 	}
-	if opts.command == "context-packet" && opts.packetPath == "" {
-		return options{}, fmt.Errorf("context-packet requires --packet")
+	if leaseFlagCommand && opts.sliceLeaseAction == "" {
+		return options{}, fmt.Errorf("%s requires --action", opts.command)
+	}
+	if opts.command == "worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
+		return options{}, fmt.Errorf("slice lease state and claim flags are only supported for slice-lease")
+	}
+	packetCommands := map[string]bool{"context-packet": true, "graph-route": true}
+	if !packetCommands[opts.command] && opts.packetPath != "" {
+		return options{}, fmt.Errorf("--packet is only supported for context-packet and graph-route")
+	}
+	if packetCommands[opts.command] && opts.packetPath == "" {
+		return options{}, fmt.Errorf("%s requires --packet", opts.command)
 	}
 	if opts.command != "execution-telemetry" && (opts.telemetryPath != "" || opts.receiptPath != "" || opts.evidenceEnvelopePath != "") {
 		return options{}, fmt.Errorf("--telemetry, --receipt, and --evidence-envelope are only supported for execution-telemetry")

@@ -23,6 +23,9 @@ degraded fallback policy>
 Router commands:
 <exact discover command, exact select command, and exact dispatch command with slice-unique artifact names; or router-unavailable reason>
 
+Slice lease:
+<exact slice-lease acquire command, owner token source, generation, renewal/release command, or non-mutating/no-lease reason>
+
 Execution policy:
 <lower-tier attempts enabled|disabled, attempt eligibility evidence, exact proof,
 and escalation triggers>
@@ -75,8 +78,9 @@ Instructions:
    - functional: workflow/API/CLI/UI path is proven from public surface.
    - verification-only: build/check proves no regression.
 13. Run relevant deterministic checks first, then broader checks when practical.
-14. Stage only files changed for this slice.
-15. Commit only if the user asked for commits.
+14. Release or renew the slice lease with the same owner token and current generation before handing back the slice.
+15. Stage only files changed for this slice.
+16. Commit only if the user asked for commits.
 
 Do not modify other slices' files unless required for this slice.
 Do not add scope beyond what the plan specifies.

@@ -192,7 +192,7 @@ func TestRunProcessCheckFailsClosedOnOversizedOutput(t *testing.T) {
 
 func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
 	if os.Getenv("KBCHECK_GRANDCHILD_CHILD") == "1" {
-		time.Sleep(7 * time.Second)
+		time.Sleep(25 * time.Second)
 		if err := os.WriteFile(os.Getenv("KBCHECK_GRANDCHILD_SENTINEL"), []byte("survived"), 0o600); err != nil {
 			os.Exit(2)
 		}
@@ -207,7 +207,7 @@ func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
 		if err := os.WriteFile(os.Getenv("KBCHECK_GRANDCHILD_READY"), []byte("started"), 0o600); err != nil {
 			os.Exit(4)
 		}
-		time.Sleep(20 * time.Second)
+		time.Sleep(30 * time.Second)
 		return
 	}
 
@@ -219,7 +219,7 @@ func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
 	result := runProcessCheck(t.TempDir(), Check{
 		Name:    "grandchild-timeout-helper",
 		Args:    []string{os.Args[0], "-test.run=^TestRunProcessCheckTimeoutKillsGrandchild$"},
-		Timeout: 5 * time.Second,
+		Timeout: 15 * time.Second,
 	})
 	if result.ExitCode != 124 {
 		t.Fatalf("grandchild helper did not time out: %+v", result)

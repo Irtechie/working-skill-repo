@@ -158,11 +158,20 @@ Break the work into thin end-to-end slices. For each slice, determine:
 - **Model tier** - the `small` / `medium` / `large` correction and authority
   tier required if the first implementation attempt fails; Planner is a
   separate orchestration role
+- **Model tier reason** - one falsifiable explanation tied to uncertainty,
+  blast radius, coupling, reversibility, authority, or verification burden
 - **Model requirements** - capabilities, tools, context, risk, and proof shape the work-time selector must consider
 - **Escalation triggers** - observable conditions that require a higher tier
+- **Workspace isolation intent** - `shared-serial` or `worktree-required`,
+  conflict domains, and shared resources. Plans record intent only, never live
+  paths, branch names, session IDs, cleanup state, or owner tokens.
 - **Blocked by** - which other slices must complete first, or none
 - **HITL flag** - does this need human judgment? Most should be `false` if the brainstorm was thorough.
 - **Expected files** - best current forecast of files this slice may create or modify, with operation type. Used by `kb-work` as an orientation and review-scope seed, not as a literal allowlist.
+- **Impact forecast** - when `kb-map` provided an impact packet, carry forward
+  impacted files/symbols, tests, docs, freshness, fallback, and limitations.
+  Stale or missing graph evidence must become an explicit file-native fallback,
+  not a silent confidence claim.
 - **Context packet** - for non-trivial slices, the bounded execution payload:
   memory/source files already checked, deterministic prefetch, constraints,
   acceptance/proof targets, planned correction tier, allowed tools/search
@@ -175,6 +184,10 @@ Each entry in `expected_files` should specify:
   - `scope` — one-line description of what specifically changes (for `edit` operations)
 
 This helps agents start surgically instead of rediscovering the whole repo. It cannot perfectly predict implementation reality; `kb-work` records discovered files in the scope ledger when current code requires touching files not forecast here.
+
+Impact forecasts are also forecasts. They guide conflict domains, proof
+selection, and review scope, but they do not replace source reading or
+functional proof.
 
 When the consuming repo includes `cmd/kbcheck`, validate a JSON packet with:
 
@@ -238,11 +251,41 @@ belongs in the receipt. Only run-scoped `require <model>` hard-pins.
 | `medium` | ordinary vertical slices, focused refactors, integration wiring with clear acceptance criteria | high-risk architecture/security/data migrations, unresolved product calls |
 | `large` | decomposition, hard debugging, architecture/security decisions, broad migrations, final synthesis/review | tasks with no executable proof path |
 
+Every runnable slice must include `model_tier_reason`, non-empty
+`model_requirements`, and observable `escalation_triggers`. A tier label without
+those fields fails `manifest-contract`. DDR remains testing-stage policy; do not
+describe the tier as a benchmark-proven model assignment.
+
 Legacy `tiny` remains readable as a `small`-lane hint only. When unsure, choose
 the higher correction tier. Subjective design direction, philosophy/policy
 judgment, unresolved architecture, weak proof, and security/auth/data-boundary
 decisions start at the planned tier or require HITL. Straightforward code is
 not enough by itself to justify a lower-tier attempt.
+
+### Workspace Isolation Contract
+
+For manifests that may execute mutating slices concurrently, add
+`workspace_isolation_contract` to the manifest and give each runnable slice:
+
+- `workspace_mode: shared-serial` when the coordinator should run the slice in
+  the current checkout, one mutator at a time.
+- `workspace_mode: worktree-required` when the slice may run beside another
+  mutating slice, the source checkout is dirty, or isolation is explicitly part
+  of the acceptance criteria.
+- `conflict_domains` describing files, prefixes, generated outputs, graph/index
+  namespaces, browser/port/database resources, skills, or lifecycle surfaces.
+- `shared_resources` for anything that must be serialized or explicitly
+  namespaced, such as `git:integration-owner`, `graph:index`,
+  `browser:4110`, or `sync:global-skills`.
+
+The planner does not choose a worktree path, branch, session, cleanup command,
+or integration order. `kb-work` resolves those from live Git state after it
+acquires the atomic slice lease.
+
+If graph routing is part of the plan, add `impact_packet_contract` only when
+the manifest can point to packet files or explicit `no_impact_packet_reason`
+fallbacks. Keep legacy manifests readable by omitting that opt-in contract when
+no packet is available.
 
 ### Objective Done Contract
 
@@ -335,6 +378,12 @@ slices:
     test_level: unit
     functional_risk: none
     model_tier: medium
+    model_tier_reason: "<why this authority tier is required>"
+    model_requirements: ["<tools/context/risk/proof capability>"]
+    escalation_triggers: ["<observable reason to move higher or re-plan>"]
+    workspace_mode: shared-serial
+    conflict_domains: ["<file:path-or-resource>"]
+    shared_resources: ["git:integration-owner"]
     proof_check:
       kind: command_exit
       command: "<narrowest deterministic command or artifact check for this slice>"
@@ -401,6 +450,12 @@ verification: tdd
 test_level: unit
 functional_risk: none
 model_tier: medium
+model_tier_reason: "<why this authority tier is required>"
+model_requirements: ["<tools/context/risk/proof capability>"]
+escalation_triggers: ["<observable reason to move higher or re-plan>"]
+workspace_mode: shared-serial
+conflict_domains: ["<file:path-or-resource>"]
+shared_resources: ["git:integration-owner"]
 proof_check:
   kind: command_exit
   command: "<narrowest deterministic command or artifact check for this slice>"

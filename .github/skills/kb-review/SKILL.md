@@ -165,6 +165,12 @@ If a desired persona does not exist as a runtime agent type, use `code-review` w
 
 Every review spawns all 4 always-on personas plus the 2 shared learning/runtime agents, then adds whichever cross-cutting and stack-specific conditionals fit the diff. The model naturally right-sizes: a small config change triggers 0 conditionals = 6 reviewers. A Rails auth feature might trigger security + reliability + kieran-rails + dhh-rails = 10 reviewers.
 
+When the plan or manifest includes an impact packet or impact forecast, include
+it in review scope. Reviewers must check missed consumers, tests, docs, conflict
+domains, and unexplained scope growth against the actual diff. Graph or lease
+receipts are not proof that behavior works; they only explain why files were in
+scope.
+
 ## Protected Artifacts
 
 The following paths are compound-engineering pipeline artifacts and must never be flagged for deletion, removal, or gitignore by any reviewer:

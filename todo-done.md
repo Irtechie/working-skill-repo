@@ -2,6 +2,30 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-21
+
+- KB memory bootstrap refresh - refreshed `docs/context/PROJECT.md`,
+  `docs/context/eval-map.md`, `docs/context/operations/testing.md`, and
+  `docs/context/memory-maintenance.md`; added dedicated architecture docs for
+  skills, `kbcheck`, `kbrouter`, and graph routing; recorded the
+  `graphify-size-check` decision; and verified routeable source-of-truth pointers
+  for install, test, routing, eval, and handoff surfaces. Proof:
+  `go run ./cmd/kbcheck core --list`, `go build ./...`, `go vet ./...`,
+  `npm run test`, and `git diff --check`.
+
+## 2026-07-19
+
+- Evidence-backed graph routing and multi-session worktree isolation - added a
+  provider-neutral impact packet contract, optional exact-symbol and
+  structural/flow adapters, atomic slice leases, local worktree isolation,
+  lifecycle integration through `kb-map`/`kb-plan`/`kb-work`/`kb-review`, and
+  deterministic routing/concurrency fixtures. Required Codex, Copilot, and
+  shared-agent skill roots now hash-match the repo source. Proof:
+  `graph-routing-lifecycle-selftest`, `graph-routing-eval --require-ready`,
+  `skill-sync-report`, `go run ./cmd/kbcheck core` (36 checks), `go run
+  ./cmd/kbcheck local-release`, manifest contract, and `git diff --check`
+  passed.
+
 ## 2026-07-12
 
 - GHCP AIC deterministic readiness - added exact bounded leaf-call accounting,

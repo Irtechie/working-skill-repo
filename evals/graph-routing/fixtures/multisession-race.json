@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "same_slice_claims": [
+    {
+      "owner": "worker-a",
+      "acquired": true
+    },
+    {
+      "owner": "worker-b",
+      "acquired": false
+    }
+  ],
+  "disjoint_worktrees_integrated_serially": true,
+  "dirty_checkout_preserved": true,
+  "force_cleanup_used": false,
+  "prefix_collisions": [
+    {
+      "first": "internal/graphrouting",
+      "second": "internal/graphrouting/recipe.go",
+      "rejected": true
+    },
+    {
+      "first": "evals/graph-routing",
+      "second": "evals/graph-routing/generated",
+      "rejected": true
+    }
+  ],
+  "optional_provider_status": "skipped-unavailable"
+}

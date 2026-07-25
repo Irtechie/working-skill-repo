@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "evidence-graph-routing-slice-001",
+  "task_id": "evidence-graph-routing",
+  "objective": "Define and prove a provider-neutral evidence and impact packet with file-native fallback",
+  "memory_files": ["todo.md", "docs/context/PROJECT.md", "docs/context/landmines.md"],
+  "source_files": ["docs/brainstorms/2026-07-19-evidence-graph-routing-requirements.md", ".github/skills/kb-map/SKILL.md", ".github/skills/kb-map/references/graph-routing.md", "cmd/kbcheck/context_packet.go", "cmd/kbcheck/manifest_contract.go"],
+  "prefetch": ["Compare kb-map across working and required global skill roots before editing", "Read only the listed route and validator files before broader search"],
+  "constraints": ["File-native fallback remains complete", "Optional providers cannot mint authority", "Every load-bearing edge has provenance and freshness", "Do not edit neighboring ATV repositories"],
+  "out_of_scope": ["Provider adapters", "Worktree creation", "Vector database", "Daemon or MCP requirement"],
+  "acceptance_criteria": ["Valid file-native packet passes", "Stale or uncited evidence fails or downgrades explicitly", "Output is compact and source-citable", "Existing doc-first lookup remains compatible"],
+  "proof_targets": ["go test ./internal/graphrouting ./cmd/kbcheck -run 'GraphRoute|ImpactPacket'"],
+  "model_tier": "large",
+  "model_tier_reason": "Cross-skill architecture contract controls every later adapter and lifecycle consumer",
+  "allowed_tools": ["view", "rg", "apply_patch", "go test", "go run"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Mandatory provider or daemon appears", "Freshness cannot fail closed", "Compatibility requires weakening source proof"]
+}

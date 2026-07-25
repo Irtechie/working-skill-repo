@@ -73,6 +73,17 @@ The runner must:
 
 If any snapshot fails, STOP. Mark the current slice `🔒 blocked` with the failing snapshot path, check type, expected value, observed value, and log/trace path. Do not edit implementation files until the regression is resolved, parked by the human, or explicitly skipped.
 
+When a repo is accessed through a Windows junction, subst drive, or other alias,
+run verification from the canonical Git worktree path when snapshot commands use
+path containment or symlink checks. Record the canonical path used. Do not
+rewrite snapshots merely because an alias path fails.
+
+For isolated worktree slices, snapshot verification runs before worktree
+preparation in the coordinator checkout. Snapshot capture after integration runs
+from the source checkout after the coordinator has rerun proof. Workers may
+return snapshot specs or artifacts in their receipts, but coordinator capture is
+the authoritative cross-slice replay surface.
+
 ## Output
 
 Capture:

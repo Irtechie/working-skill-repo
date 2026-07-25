@@ -1,0 +1,111 @@
+{
+  "id": "pass-evidence-graph-routing",
+  "fixture_id": "skill-bundle-change",
+  "expected_result": "pass",
+  "actual": {
+    "route": "kb-plan",
+    "user_questions": 0,
+    "artifacts": [
+      "manifest with graph routing lifecycle contract",
+      "sync proof pending for release slice",
+      "check output from graph-routing-lifecycle-selftest"
+    ],
+    "proof": [
+      "git diff --check",
+      "kb-check -All graph routing lifecycle proof",
+      "skill-sync-report deferred to the distribution slice"
+    ]
+  },
+  "trace": {
+    "files_read": [
+      ".github/skills/kb-map/SKILL.md",
+      ".github/skills/kb-plan/SKILL.md",
+      ".github/skills/kb-work/SKILL.md",
+      ".github/skills/kb-review/SKILL.md",
+      "docs/context/architecture/kb-workflow.md"
+    ],
+    "commands": [
+      "go run ./cmd/kbcheck graph-routing-lifecycle-selftest",
+      "go test ./cmd/kbcheck -run ManifestContract",
+      "git diff --check"
+    ],
+    "tools": [
+      "shell",
+      "apply_patch"
+    ]
+  },
+  "claim_checks": [
+    {
+      "type": "file_exists",
+      "path": ".github/skills/kb-work/SKILL.md",
+      "expected": true,
+      "claim": "kb-work skill exists"
+    },
+    {
+      "type": "command_ran",
+      "contains": "graph-routing-lifecycle-selftest",
+      "expected": true,
+      "claim": "Lifecycle proof command ran"
+    }
+  ],
+  "lifecycle": {
+    "schema_version": 1,
+    "packet": {
+      "packet_id": "evidence-graph-routing-lifecycle",
+      "freshness": "fresh",
+      "fallback_mode": "file-native",
+      "evidence_counts": {
+        "exact": 2,
+        "structural": 3,
+        "heuristic": 1
+      },
+      "impact": [
+        "src/api/payments.go",
+        "src/payments/charge.go",
+        "src/api/payments_test.go",
+        "docs/payments.md"
+      ]
+    },
+    "plan": {
+      "impact_forecast": [
+        "src/api/payments.go",
+        "src/payments/charge.go",
+        "src/api/payments_test.go",
+        "docs/payments.md"
+      ],
+      "expected_files": [
+        "src/api/payments.go",
+        "src/payments/charge.go"
+      ],
+      "expected_files_are_forecast": true,
+      "workspace_mode": "shared-serial",
+      "conflict_domains": [
+        "file:src/api",
+        "file:src/payments",
+        "lifecycle:manifest"
+      ],
+      "coordinator_owns_lifecycle_files": true
+    },
+    "work": {
+      "lease_acquired": true,
+      "worker_can_mark_done": false,
+      "functional_proof_required": true,
+      "receipt_can_replace_proof": false,
+      "observed_files": [
+        {
+          "path": "src/api/payments.go",
+          "provenance": "expected file"
+        },
+        {
+          "path": "src/api/payments_test.go",
+          "provenance": "impact packet test edge"
+        }
+      ]
+    },
+    "review": {
+      "missed_impact": [],
+      "unexplained_growth": [],
+      "receipt_only_verdict": false
+    }
+  }
+}

@@ -299,6 +299,35 @@ destructive approval, blocked/human-required work, scope failures, QA/repair
 exhaustion, dependency deadlock, observed overlap that cannot be safely
 serialized, or explicit user stop.
 
+Workspace isolation has two parts. The plan records durable intent:
+`workspace_mode`, conflict domains, shared resources, and integration
+dependencies. It does not record live paths, branches, sessions, cleanup state,
+or owner tokens. At work time, `kb-work` acquires an atomic slice lease under
+the Git common directory, prepares a slice worktree when isolation is required,
+and writes a repo-local receipt. Workers return commit/diff/proof receipts. One
+coordinator serializes integration into the source checkout, reruns proof after
+merge, updates `todo.md` and the manifest, and releases only clean integrated
+worktrees without force.
+
+The lease boundary is local. It covers sessions and sibling worktrees that share
+the same Git common directory. Separate clones, machines, or copied checkouts
+must not be treated as sharing ownership state unless a future distributed
+coordinator is explicitly implemented and proved.
+
+Graph routing has the same evidence boundary. `kb-map` may return a compact
+impact packet summary with packet ID, repository freshness, fallback, evidence
+counts, impacted files/symbols, tests/docs, limitations, and a selected
+traversal recipe. `kb-plan` records those as forecasts and conflict domains.
+`kb-work` reconciles observed files against the forecast and records provenance
+for necessary expansion. `kb-review` checks missed consumers/tests/docs and
+unexplained scope growth. A graph packet, worker receipt, route receipt, or
+lease receipt never replaces source verification or the slice proof command.
+
+Exact-symbol and structural/flow providers are adapters. They can raise
+confidence when fresh and source-citable, but stale, unavailable, or heuristic
+results fall back to file-native inspection and must be labeled with their
+limitations.
+
 `kb-work` is not finalized when slices pass. It must invoke `kb-finalize` after
 all runnable slices are done or intentionally skipped.
 

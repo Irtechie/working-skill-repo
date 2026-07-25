@@ -73,6 +73,25 @@ active and verified separately.
 
 Graph output is candidate evidence, not final truth.
 
+- `kb-map` consumes provider-neutral impact packets, not raw provider output.
+  Validate packets with `go run ./cmd/kbcheck graph-route --packet <packet.json>`.
+- Packet fields must include repository identity, revision, dirty/worktree
+  freshness, seed files/symbols, typed edges, source spans, direct/reverse
+  impact, tests/docs, confidence, limitations, budget, and fallback mode.
+- Evidence classes are distinct: `exact`, `observed`, `structural`,
+  `heuristic`, and `llm-inferred`. LLM-inferred edges are never exact.
+- Exact-symbol evidence from an optional SCIP/LSP-grade index has precedence
+  over structural, heuristic, semantic, or inferred candidates when the index
+  matches repository identity, revision, and worktree fingerprint.
+- Optional exact-symbol adapters consume already-produced index snapshots only.
+  They must not download tools, start language servers, or require a daemon.
+- Missing, unsupported, stale, or fingerprint-mismatched exact-symbol indexes
+  must return an explicit `file-native` fallback packet rather than failing base
+  lookup or claiming provider authority.
+- Load-bearing exact or observed edges require source spans. Missing repo
+  identity, revision, freshness, or source provenance fails closed.
+- Stale or unsupported providers must set an explicit non-authoritative fallback
+  such as `file-native`; they must not produce authoritative packets.
 - Verify load-bearing callers, callees, and impact edges against source files
   before writing `PROJECT.md`, architecture docs, or todos.
 - If graphify coverage is sparse, fall back to normal source inspection for
@@ -80,6 +99,29 @@ Graph output is candidate evidence, not final truth.
   `docs/context/memory-maintenance.md`.
 - Do not duplicate dense graph output in `PROJECT.md`. Keep `PROJECT.md` as a
   router and point structural traversal to named `graph_route` entries.
+
+## Traversal Recipes
+
+Select a task-shaped recipe before expanding structural or flow evidence. The
+protected recipe fixture lives at `evals/graph-routing/traversal-recipes.json`
+and covers:
+
+- API changes: implementation, config, tests, docs, and downstream consumers.
+- Bugs: observed calls first, then static calls, refs, tests, and config.
+- Deletions: reverse refs, config registrations, build/test/doc edges.
+- Security flow: bounded source, guard, sink, and supporting call/config edges.
+- UI behavior: component, route, state, generated output, tests, and docs.
+
+Recipe output must preserve typed edges such as `CALLS_STATIC`,
+`CALLS_OBSERVED`, `REFERENCES`, `IMPLEMENTS`, `OVERRIDES`, `READS_CONFIG`,
+`GENERATES`, `BUILDS`, `TESTS`, and `DOCUMENTS`. Inferred provider edges remain
+heuristic and cannot claim exact confidence.
+
+Graphify output is optional structural evidence. It must match repository
+identity, revision, and worktree fingerprint. Missing output, stale output,
+multigraph collapse risk, dynamic dispatch gaps, generated code, reflection,
+dependency injection, aliases, and missing library models must stay visible as
+fallbacks or limitations.
 
 Suggested `PROJECT.md` row:
 

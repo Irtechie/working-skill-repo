@@ -12,6 +12,21 @@ Determine the diff to review using this priority order:
 
 The scope step in the SKILL.md handles discovery and passes you the resolved diff. You do not need to run git commands yourself.
 
+## Impact Forecast Comparison
+
+When the caller provides an impact packet, impact forecast, or
+`scope-discovery:` ledger, compare it with the actual diff:
+
+- Forecasted impacted consumers, tests, docs, and conflict domains that are not
+  touched or explicitly dismissed are review targets.
+- Files changed outside `expected_files` are valid only when they are cited by
+  impact evidence, convention, generated/tooling behavior, or a recorded
+  `scope-discovery:` explanation.
+- Unexplained growth is a finding, not an automatic failure. Ask for a concrete
+  explanation, missing test/doc update, or plan amendment.
+- Stale graph packets, route receipts, worker receipts, and lease receipts do
+  not replace source reading or functional proof.
+
 ## Finding Classification Tiers
 
 Every finding you report falls into one of three tiers based on its relationship to the diff:

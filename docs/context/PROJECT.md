@@ -1,157 +1,150 @@
 # Project Map
 
-Bootstrap: 2026-05-29
+Bootstrap: 2026-07-21
 Bootstrap confidence: mixed
+
+## Legend
+
+- `[verified]` directly checked in repo files or commands during this refresh
+- `[inferred]` strongly implied by adjacent repo evidence but not executed end-to-end
+- `[unknown]` visible gap or unmapped surface that still needs confirmation
 
 ## What This Is
 
-Portable standalone skill bundle for KB workflow skills, reviewer agents, root `AGENTS.md`, Copilot instructions, and native Go validation tooling. This repo is the source of truth and syncs only into Codex, Copilot, and shared-agent global installs.
+[verified] Portable KB workflow bundle plus its maintainer harness:
+
+- `.github\skills\*\SKILL.md` and `.github\agents\*.agent.md` define the KB,
+  CE, review, todo, and learning lanes.
+- `cmd\kbcheck`, `cmd\kbrouter`, and `cmd\amrbench` provide native Go proof,
+  model-routing, and AMR benchmark CLIs.
+- `bin\kb-install.mjs`, `package.json`, and `scripts\install-kb.ps1` provide
+  installer and sync surfaces.
+- `evals\` contains deterministic fixture corpora for route selection, skill
+  scoring, graph routing, model routing, dishonest completion, and AMR
+  conformance.
+
+There is no product app runtime here. The repo proves skill behavior, routing,
+install/sync hygiene, and benchmark claims.
 
 ## How To Run
 
-There is no app runtime. Optional context providers may accelerate lookup later,
-but they are not part of the required runtime, install path, or release gate.
+[verified] Use one of the supported install paths:
 
-Use repo inspection and deterministic scripts:
+```powershell
+npx github:Irtechie/working-skill-repo --target all --profile core
+npx github:Irtechie/working-skill-repo --target all --profile full
+npx github:Irtechie/working-skill-repo --target repo --repo <path-to-project> --profile core
+powershell -ExecutionPolicy Bypass -File scripts\install-kb.ps1 -Target all
+```
 
-```shell
-git status --short
-ls .github/skills
+[verified] Contributor-maintainer entrypoints:
+
+```powershell
 go run ./cmd/kbcheck core --list
+go run ./cmd/kbcheck core
+go run ./cmd/kbcheck local-release
+go run ./cmd/kbrouter --help
+go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
+```
+
+## How To Test
+
+[verified] Canonical proof lives in `docs/context/operations/testing.md`. Fast
+anchors:
+
+```powershell
+npm run test
+go build ./...
+go vet ./...
 go run ./cmd/kbcheck core
 go run ./cmd/kbcheck local-release
 git diff --check
 ```
 
-On macOS/Linux, use the same Go entrypoint. CI runs the Go package tests and
-core gate on Windows, macOS, and Linux.
-
-## How To Test
-
-Primary testing today is structural:
-
-- `git diff --check`
-- `go test ./...` when the Go wrapper is touched
-- skill inventory and frontmatter checks
-- hash drift comparison across install targets
-- targeted route/eval prompts run manually against scratch repos
-
-The canonical quality command is now:
-
-```shell
-go run ./cmd/kbcheck core
-```
-
-It runs skill lint, route-complexity fixture validation, and read-only sync
-drift reporting from the shared Codex/GHCP contract in
-`config/skill-quality.json`.
-
 ## Current Architecture
 
-See `docs/context/architecture/README.md`.
+[verified] Start at `docs/context/architecture/README.md`. The most common next
+docs are:
+
+- `docs/context/architecture/skills.md`
+- `docs/context/architecture/kbcheck.md`
+- `docs/context/architecture/kbrouter.md`
+- `docs/context/architecture/graph-routing.md`
 
 ## Subsystem Index
 
-| Area | Read This | Use When | Confidence |
-|---|---|---|---|
-| Skill bundle layout | `docs/context/architecture/README.md` | Locating skills, agents, scripts, and install targets | verified |
-| Eval map | `docs/context/eval-map.md` | Understanding repo-native eval surfaces, canonical commands, and open eval gaps | verified |
-| Testing and verification | `docs/context/operations/testing.md` | Finding current checks, eval-map ownership, and harness gaps | verified |
-| GHCP AIC falsification benchmark | `docs/context/architecture/ghcp-aic-benchmark.md`; `docs/context/eval-map.md` | Running deterministic no-paid readiness, understanding paired grading, approval boundaries, or cleaning up temporary Podman | verified |
-| Private skill marketplace | `docs/context/architecture/private-skill-marketplace.md`; `config/skill-marketplace.json` | Deciding when project-local learned skills or pipelines can be promoted into the private reusable catalog | verified |
-| Landmines | `docs/context/landmines.md` | Checking active repo-specific traps with owner/fix/proof fields | verified |
-| Epics | `docs/context/epics/` | Coordinating multi-workstream skill-bundle initiatives | verified |
-| 2026 quality audit | `docs/context/research/2026-05-29-skill-repo-gap-audit.md` | Understanding current gaps and recommended priorities | verified |
-| Agent Skills Git distribution | `docs/context/research/2026-05-30-agent-skills-git-distribution.md` | Deciding canonical source, global installs, ATV policy, and deterministic sync scripts | verified |
-| Drift and propagation | `AGENTS.md`; `README.md`; `docs/context/memory-maintenance.md` | Syncing skills across global installs | verified |
-| ATV upstream resync | `docs/context/epics/atv-upstream-resync.md`; `docs/context/research/2026-05-31-atv-upstream-skill-delta.md` | Understanding original ATV imports, rejected KB deletions, and workflow skill handling | verified |
+| Area | Read This | Next File | Use When | Confidence |
+|---|---|---|---|---|
+| Skill system and user-facing lanes | `docs/context/architecture/skills.md` | `.github/skills/<skill>/SKILL.md` | You need a skill purpose, trigger, alias, or workflow owner | [verified] |
+| Deterministic proof and release gates | `docs/context/architecture/kbcheck.md` | `cmd/kbcheck/main.go` | You need canonical checks, selftests, or release-blocking commands | [verified] |
+| Model routing and optional private routes | `docs/context/architecture/kbrouter.md` | `cmd/kbrouter/main.go` | You need route discovery, selection, approval, or project/user preference behavior | [verified] |
+| Graph routing packet/eval surface | `docs/context/architecture/graph-routing.md` | `config/graph-route.schema.json` | You need graph packets, graphify rules, lifecycle/eval fixtures, or traversal recipes | [verified] |
+| Eval harness inventory | `docs/context/eval-map.md` | `docs/context/operations/testing.md` | You need existing proof surfaces and exact harness commands | [verified] |
+| Installer and sync flow | `docs/context/operations/skill-bundle-maintenance.md` | `bin/kb-install.mjs` | You need install targets, router install behavior, or sync/drift rules | [verified] |
+| Workflow operating model | `docs/context/architecture/kb-workflow.md` | `AGENTS.md` | You need the fresh-session loop, phase ownership, or artifact lifecycle | [verified] |
+| Learning model | `docs/context/architecture/kb-learning-model.md` | `docs/context/kb/instincts/` | You need instinct scope, promotion, or `.kb` vs tracked state rules | [verified] |
+| AMR benchmark / GHCP AIC harness | `docs/context/architecture/ghcp-aic-benchmark.md` | `cmd/amrbench/main.go` | You need no-paid conformance, paired grading, or approval boundary details | [verified] |
+| Marketplace and promotion policy | `docs/context/architecture/private-skill-marketplace.md` | `config/skill-marketplace.json` | You need approved-vs-quarantine rules or promotion prerequisites | [verified] |
+| Active work and blockers | `todo.md` | linked plans/goals/handoffs | You need current work, blockers, or queued improvements | [verified] |
+| Plan / brainstorm / handoff lifecycle | `todo.md` | `docs/brainstorms/`, `docs/plans/`, `docs/handoffs/` | You need where active requirements, manifests, or restart packets live | [verified] |
+| Root JS asset purpose | `README.md` | root `avatar-*.js`, `custom-avatars-query-*.js` | You need to decide whether the checked-in JS artifacts are intentional runtime assets or leftover build output | [unknown] |
 
 ## Current Work Pointers
 
 - Active board: `todo.md`
-- Active landmines: `docs/context/landmines.md`
-- Audit note: `docs/context/research/2026-05-29-skill-repo-gap-audit.md`
+- Completed board: `todo-done.md`
+- Active handoffs: `docs/handoffs/active/`
+- Active plans: `docs/plans/`
+- Goals: `docs/context/goals/`
 - Maintenance signals: `docs/context/memory-maintenance.md`
 
 ## Known Sharp Edges
 
-- Portable repo hygiene conflicts with the normal KB bootstrap requirement unless this repo's own memory is treated as skill-bundle maintenance.
-- `kb-check` finds skill-repo checks through `config/skill-quality.json`; Codex, Copilot, and shared-agent global skill roots must stay hash-synced.
-- `kb-eval-map` is now the bootstrap-owned setup skill for repo-native eval surfaces; consuming repos still need their own `docs/context/eval-map.md`.
-- Some skills are long enough to make route-start context expensive; lazy references are used inconsistently.
-- `kb-work` is now bounded-swarm oriented: independent ready slices may run in
-  isolated contexts, but shared-checkout mutation and observed write overlap
-  serialize. `expected_files` remains a forecast, not proof of disjointness.
-- Go-native validator migration is complete for the skill-repo harness:
-  `cmd/kbcheck` owns the default quality/release/eval/marketplace gates.
-  `core` is contributor-safe and repo-local; `local-release` is the pre-sync
-  gate that blocks on required sync drift. Remaining `.ps1` files are narrow
-  installer or skill helpers, not top-level gate dependencies. See
-  `docs/context/epics/go-native-validator-port.md`.
-- Required global skill roots should hash-match before release.
-- The GHCP AIC harness is deterministically ready through
-  `amrbench conformance --no-paid --require-ready`. Paid provider execution is
-  hard-disabled; `run --dry-run` is the only attended-preview surface until a
-  trusted human-approval verifier exists.
-- Planner economy uses vendor-neutral context packets validated by
-  `kbcheck context-packet`; existing manifests, goal ledgers, run state, and
-  proof traces remain the lifecycle state spine.
-- `kbcheck provider-hygiene` rejects Phoenix activation and treats CCE as an
-  optional adapter. `surface-report` reports base and conditional skill costs
-  separately.
-- `kb-finish` is the explicit plan-to-PR lane: it recovers missing
-  plan/work/complete phases, then `kb-ship` commits intentional files, pushes a
-  topic branch, and creates or updates a PR without merging.
-- Original ATV `upstream/main` is authoritative for ATV-native changes to
-  inspect, not a mirror target. Upstream KB deletions are rejected because KB is
-  this repo's overlay; superseded workflow skills such as `lfg`, `slfg`, and
-  `workflows-*` stay out unless the app uses them.
-- Focused review-skill merge check found the useful upstream `ce-review`
-  mechanics already present in local references. Keep KB caller names rather
-  than reviving old CE/LFG entry points.
-- `<agent-marketplace>` is a private approved catalog, not a global install.
-  Project-local learned skills and pipelines must prove reuse value before
-  promotion; public imports land in quarantine first.
-- `atv-security` is approved as the single trusted ATV security skill installed
-  globally and mirrored in `<agent-marketplace>\skills\atv-security`. Its
-  pinned SHA256 is recorded in
-  `<agent-marketplace>\catalog\approved-skills.json`.
-- ATV security A06 dependency checks prefer OSV Scanner machine evidence when
-  `osv-scanner` is installed. If unavailable, record `skipped-unavailable`
-  rather than inventing vulnerability findings from version age alone.
+- [verified] `core` is contributor-safe and repo-local; sync drift blocks only in
+  `local-release`.
+- [verified] `kbcheck` owns the maintainer gate surface now; PowerShell here is
+  installer/helper scope, not the main quality gate.
+- [verified] Graph routing is optional-provider safe. `graph-route` validates
+  provider-neutral packets; stale or unavailable providers must fall back.
+- [verified] `kbrouter` stores route preference and optional private routes
+  outside repo-authored manifests; planning records tiers, not concrete models.
+- [verified] `cmd/amrbench run` remains non-dry blocked until a trusted
+  human-approval verifier exists.
+- [verified] `.github/workflows\` is currently empty; proof is local CLI-driven
+  plus repo docs, not checked-in GitHub Actions.
+- [inferred] Some long hot-path skills still depend on lazy reference discipline
+  to keep startup cost acceptable; keep using the rent audit before trimming.
 
 ## Research Index
 
+Use `docs/context/research/README.md`, then jump to:
+
 - `docs/context/research/2026-05-29-skill-repo-gap-audit.md`
 - `docs/context/research/2026-05-30-agent-skills-git-distribution.md`
-- `docs/context/research/2026-05-31-atv-upstream-skill-delta.md`
-- `docs/context/eval-map.md`
+- `docs/context/research/2026-07-09-project-model-routing-surfaces.md`
 
 ## Do Not Repeat
 
 - Do not bootstrap consuming-project memory inside this repo.
 - Do not sync over global copies without reviewing drift first.
-- Do not remove reviewer agents until an eval proves no workflow dispatches them.
+- Do not treat optional providers or dry-run previews as proof of live support.
 
 ## Maintenance Notes
 
-Use `docs/context/memory-maintenance.md` for stale map, drift, and skill-quality gaps.
+Use `docs/context/memory-maintenance.md` for graphify preflight history, stale
+map signals, drift-risk notes, and unresolved documentation gaps.
 
 ## Learning Model
 
-Learning is kb-native. Durable instincts are git-tracked under `docs/context/kb/`; ephemeral run artifacts are git-ignored under `.kb/`.
+[verified] Durable KB learning is tracked under `docs/context/kb/`; ephemeral
+run artifacts live under `.kb/`.
 
 | Path | Tier | Tracked |
 |---|---|---|
 | `docs/context/kb/instincts/project.yaml` | project + global instincts | yes |
 | `docs/context/kb/instincts/scoped/<scope>.yaml` | workflow/domain instincts | yes |
-| `docs/context/kb/instincts/archive/` | decayed instincts | yes |
-| `docs/context/kb/kb-completions.txt` | kb-complete counter | yes |
+| `docs/context/kb/kb-completions.txt` | completion counter | yes |
 | `.kb/observations.jsonl` | passive observation feed | no |
 | `.kb/snapshots/` | regression snapshots | no |
-
-Scope hierarchy: `workflow/domain → project → global`. Default = narrowest owning scope. Pull = active scope + all ancestors, never siblings. Promotion = nearest common ancestor when the same lesson recurs across sibling scopes. Landmines = instant one-shot at owning scope.
-
-**X pipeline's lessons are not visible to Y pipeline unless promoted to a shared ancestor.**
 
 Canonical reference: `docs/context/architecture/kb-learning-model.md`.

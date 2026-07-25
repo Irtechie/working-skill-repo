@@ -131,6 +131,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"manifest-contract-selftest", "KB manifest phase/gate proof contract selftest detected"},
 		{"kb-run-state-selftest", "KB run-state route-history guard selftest detected"},
 		{"kb-work-ready-set-selftest", "KB work ready-set dispatch selftest detected"},
+		{"kb-work-slice-lease-selftest", "KB work atomic slice lease selftest detected"},
 		{"kb-work-scope-lease-selftest", "KB work scope lease overlap selftest detected"},
 		{"kbrouter-catalog-tests", "KB model route catalog CLI conformance tests detected"},
 		{"kb-pipeline-selftest", "KB coded pipeline spike selftest detected"},
@@ -145,6 +146,8 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"dishonest-completion-selftest", "dishonest completion rejection fixtures detected"},
 		{"workflow-governor-selftest", "KB workflow governor question/phase gate contract detected"},
 		{"context-packet-selftest", "context packet and usage telemetry contract detected"},
+		{"graph-routing-lifecycle-selftest", "graph routing map-plan-work-review lifecycle contract detected"},
+		{"graph-routing-eval", "graph routing correctness and local concurrency readiness fixtures detected"},
 		{"execution-telemetry-selftest", "execution telemetry contract detected"},
 		{"provider-hygiene", "optional provider and Phoenix activation hygiene detected"},
 		{"provider-hygiene-selftest", "provider hygiene negative selftest detected"},
@@ -165,6 +168,14 @@ func skillRepoChecks(root string) ([]Check, error) {
 				Name: "kb-work-scope-lease-selftest", Args: []string{"kbcheck", "scope-lease-selftest"},
 				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
 				Run: func(root string) CheckResult { return runNativeSelftest(runScopeLeaseSelftest) },
+			})
+			continue
+		}
+		if pc.Name == "kb-work-slice-lease-selftest" {
+			checks = append(checks, Check{
+				Name: "kb-work-slice-lease-selftest", Args: []string{"kbcheck", "slice-lease-selftest"},
+				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
+				Run: func(root string) CheckResult { return runNativeSelftest(runSliceLeaseSelftest) },
 			})
 			continue
 		}
@@ -218,6 +229,8 @@ func skillRepoChecks(root string) ([]Check, error) {
 			"marketplace-promotion-selftest":    {"marketplace-promote-selftest"},
 			"workflow-governor-selftest":        {"workflow-governor-selftest"},
 			"context-packet-selftest":           {"context-packet-selftest"},
+			"graph-routing-lifecycle-selftest":  {"graph-routing-lifecycle-selftest"},
+			"graph-routing-eval":                {"graph-routing-eval", "--require-ready"},
 			"execution-telemetry-selftest":      {"execution-telemetry-selftest"},
 			"provider-hygiene":                  {"provider-hygiene"},
 			"provider-hygiene-selftest":         {"provider-hygiene-selftest"},

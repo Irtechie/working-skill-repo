@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "provider": "scip-fixture",
+  "repository": {
+    "identity": "git:file:///fixture",
+    "root": ".",
+    "revision": "abc123",
+    "worktree_fingerprint": "main:abc123"
+  },
+  "symbols": [
+    {
+      "id": "go github.com/example/payments Charge",
+      "name": "Charge",
+      "kind": "function",
+      "span": {
+        "path": "src/payments/charge.go",
+        "start_line": 12,
+        "end_line": 27
+      }
+    },
+    {
+      "id": "go github.com/example/payments Charge definition",
+      "name": "Charge",
+      "kind": "definition",
+      "span": {
+        "path": "src/payments/charge.go",
+        "start_line": 12,
+        "end_line": 27
+      }
+    },
+    {
+      "id": "go github.com/example/api createPayment",
+      "name": "createPayment",
+      "kind": "reference",
+      "span": {
+        "path": "src/api/payments.go",
+        "start_line": 44,
+        "end_line": 45
+      }
+    },
+    {
+      "id": "go github.com/example/payments StripeCharger.Charge",
+      "name": "StripeCharger.Charge",
+      "kind": "method",
+      "span": {
+        "path": "src/payments/stripe.go",
+        "start_line": 31,
+        "end_line": 49
+      }
+    },
+    {
+      "id": "go github.com/example/refunds Charge",
+      "name": "Charge",
+      "kind": "function",
+      "span": {
+        "path": "src/refunds/charge.go",
+        "start_line": 9,
+        "end_line": 21
+      }
+    },
+    {
+      "id": "go github.com/example/refunds issueRefund",
+      "name": "issueRefund",
+      "kind": "reference",
+      "span": {
+        "path": "src/api/refunds.go",
+        "start_line": 38,
+        "end_line": 39
+      }
+    }
+  ],
+  "relations": [
+    {
+      "from": "go github.com/example/payments Charge",
+      "to": "go github.com/example/payments Charge definition",
+      "type": "defines",
+      "span": {
+        "path": "src/payments/charge.go",
+        "start_line": 12,
+        "end_line": 27
+      }
+    },
+    {
+      "from": "go github.com/example/payments Charge",
+      "to": "go github.com/example/api createPayment",
+      "type": "references",
+      "span": {
+        "path": "src/api/payments.go",
+        "start_line": 44,
+        "end_line": 45
+      }
+    },
+    {
+      "from": "go github.com/example/payments Charge",
+      "to": "go github.com/example/payments StripeCharger.Charge",
+      "type": "implements",
+      "span": {
+        "path": "src/payments/stripe.go",
+        "start_line": 31,
+        "end_line": 49
+      }
+    },
+    {
+      "from": "go github.com/example/refunds Charge",
+      "to": "go github.com/example/refunds issueRefund",
+      "type": "references",
+      "span": {
+        "path": "src/api/refunds.go",
+        "start_line": 38,
+        "end_line": 39
+      }
+    }
+  ],
+  "diagnostics": []
+}

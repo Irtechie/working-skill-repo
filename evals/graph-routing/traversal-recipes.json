@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "recipes": [
+    {
+      "id": "api-change",
+      "intent": "api-change",
+      "seed_kinds": ["handler", "endpoint", "public function"],
+      "edge_order": ["CALLS_STATIC", "IMPLEMENTS", "REFERENCES", "READS_CONFIG", "TESTS", "DOCUMENTS"],
+      "direction": "forward-then-reverse",
+      "max_depth": 3,
+      "max_edges": 40,
+      "max_bytes": 24000,
+      "stop_conditions": ["public boundary reached", "budget exhausted", "source span missing"],
+      "limitations": ["dynamic dispatch and generated serializers require source verification"],
+      "fallback": "file-native rg over handlers, serializers, tests, and docs"
+    },
+    {
+      "id": "bug",
+      "intent": "bug",
+      "seed_kinds": ["failing test", "stack frame", "changed function"],
+      "edge_order": ["CALLS_OBSERVED", "CALLS_STATIC", "REFERENCES", "TESTS", "READS_CONFIG"],
+      "direction": "observed-first",
+      "max_depth": 4,
+      "max_edges": 50,
+      "max_bytes": 30000,
+      "stop_conditions": ["failing assertion explained", "high-uncertainty dynamic boundary", "budget exhausted"],
+      "limitations": ["observed traces are preferred when available; static call edges can miss reflection"],
+      "fallback": "file-native stack trace, test name, and changed-file lookup"
+    },
+    {
+      "id": "deletion",
+      "intent": "deletion",
+      "seed_kinds": ["file", "symbol", "config key"],
+      "edge_order": ["REFERENCES", "READS_CONFIG", "BUILDS", "TESTS", "DOCUMENTS"],
+      "direction": "reverse",
+      "max_depth": 2,
+      "max_edges": 35,
+      "max_bytes": 20000,
+      "stop_conditions": ["all reverse refs exhausted", "ambiguous generated code", "budget exhausted"],
+      "limitations": ["generated references and runtime registrations must be verified outside the graph"],
+      "fallback": "file-native exact text and config registration search"
+    },
+    {
+      "id": "security-flow",
+      "intent": "security-flow",
+      "seed_kinds": ["source", "guard", "sink"],
+      "edge_order": ["SOURCE", "GUARD", "SINK", "CALLS_STATIC", "READS_CONFIG"],
+      "direction": "bounded-flow",
+      "max_depth": 5,
+      "max_edges": 60,
+      "max_bytes": 36000,
+      "stop_conditions": ["sink reached", "sanitizer or guard reached", "library model missing", "budget exhausted"],
+      "limitations": ["whole-program taint is not assumed; missing library models remain visible"],
+      "fallback": "file-native source, guard, sink, and test lookup"
+    },
+    {
+      "id": "ui-behavior",
+      "intent": "ui-behavior",
+      "seed_kinds": ["component", "route", "event handler"],
+      "edge_order": ["REFERENCES", "GENERATES", "CALLS_STATIC", "TESTS", "DOCUMENTS"],
+      "direction": "component-to-state-to-tests",
+      "max_depth": 3,
+      "max_edges": 45,
+      "max_bytes": 26000,
+      "stop_conditions": ["component boundary reached", "state owner reached", "budget exhausted"],
+      "limitations": ["template compilation and runtime event wiring require rendered UI verification"],
+      "fallback": "file-native component, route, state, and rendered-test lookup"
+    }
+  ]
+}
