@@ -43,6 +43,20 @@ The core loop is six skills:
 
 Everything else is an internal phase, compatibility alias, or optional depth.
 
+## Learning Wiki
+
+The generated [KB Learning Wiki](docs/learning-wiki/index.html) turns the
+repository's scoped instincts, compounded solutions, goal ledgers, and research
+into one searchable human view. It is a read-only projection: edit the linked
+YAML or Markdown source, then regenerate it with:
+
+```shell
+npm run wiki:build
+```
+
+This preserves the learning model's narrow-scope and promotion rules instead of
+creating a second manually maintained knowledge store.
+
 Optional `kb-configure` writes portable per-project execution policy. Most users
 never need it. Planned-tier execution is the default; substantive next-lower
 Adaptive Model Routing (AMR) attempts are disabled until explicit pilot/opt-in
@@ -320,6 +334,12 @@ Do not commit or auto-start provider-specific hook/config files such as
 `.mcp.json` or `.claude/settings.json`. Keep the enabled tool set narrow and
 prefer deterministic CLI prefetch for data the agent will always need.
 
+Graph routing follows this adapter boundary. `kb-map` may use file-native,
+SCIP-style exact-symbol, or structural/flow recipe evidence to return an impact
+packet, but the packet is a forecast with citations and freshness metadata, not
+a proof result. Optional providers can improve recall; they must fail closed to
+file-native lookup when unavailable or stale.
+
 Phoenix is credited prior art for specific proof and recovery mechanics. KB's
 routing and vertical slicing were developed independently. The current bundle
 does not require a Phoenix runtime, while focused MCP interoperability remains a
@@ -436,7 +456,7 @@ KB proof-spine integration status as of July 9, 2026:
 | `kb-land` | Internal merge/direct integration and post-integration sync phase |
 | `kb-finish` | Deprecated alias to `kb-complete` |
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
-| `kb-compact` | Memory, docs, or output have gone too verbose |
+| `kb-compact` | Memory, docs, or output need compact, action-first organization |
 | `klfg` | Deprecated alias to `kb-complete` |
 | `repo-critic` | Claims-vs-code evidence review before a claim ships |
 | `safe-shell-quoting` | Run fragile PowerShell, Bash, or mixed-shell quoting from validated temporary script files |
@@ -449,7 +469,7 @@ Routing and memory:
 - `kb-goal` - durable objective lane across sessions and KB routes
 - `kb-map` - project-memory lookup, refresh, and project-root anchoring
 - `kb-map-bootstrap` - expensive deep index plus standard memory layout
-- `kb-compact` - compress memory/docs/output without losing technical truth
+- `kb-compact` - organize action/state/details and compress without losing technical truth
 - `kb-handoff` - compact a session into a restart packet
 
 Execution lanes:
@@ -605,6 +625,16 @@ For unattended runners, required sync drift is a release blocker. The repo is
 the source of truth; globals are deployed copies. If a global copy contains
 newer useful behavior, merge it back into this repo first, prove it here, then
 sync outward.
+Graph-routing release proof is local and provider-neutral:
+
+```shell
+go run ./cmd/kbcheck graph-routing-lifecycle-selftest
+go run ./cmd/kbcheck graph-routing-eval --require-ready
+```
+
+These checks prove packet lifecycle handling, optional-provider fallback,
+readiness metrics, and local concurrency fixtures. They do not claim
+cross-machine locking or live-provider coverage.
 `live-release` is explicit:
 
 ```shell
@@ -838,6 +868,9 @@ Compound Engineering workflow.
 
 It also borrows useful ideas from:
 
+- [AYGHRI's i-have-adhd](https://github.com/ayghri/i-have-adhd), especially
+  action-first responses, bounded primary lists, and visible progress; KB keeps
+  these conditional so brevity cannot hide proof, blockers, risk, or safety.
 - [ATV-Phoenix](https://github.com/All-The-Vibes/ATV-Phoenix), especially the
   self-healing proof spine around objective sensing, trace verification, and
   failure-first acceptance. Credit for the self-healing concepts adopted in KB

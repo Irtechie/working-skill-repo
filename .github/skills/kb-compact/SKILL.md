@@ -1,6 +1,6 @@
 ---
 name: kb-compact
-description: Compress KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Use when the user says "compact", "fewer words", "make this terse", "token diet", "every token pays rent", or when KB docs are getting too large for routine session startup.
+description: Compress and organize KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Use when the user says "compact", "fewer words", "make this terse", "organize the response", "token diet", "every token pays rent", or when KB docs are getting too large for routine session startup.
 argument-hint: "[file path, response, or doc area to compact]"
 ---
 
@@ -31,6 +31,18 @@ Do not change:
 - **Surgical**: compact only the requested section.
 
 Default to Lite for durable docs and Full for chat/status output.
+
+## Response Shape
+
+For chat or status output:
+
+1. Lead with the outcome or next action, never an announcement.
+2. For active work, show `Done | Next | Blocked` only when it improves
+   orientation; do not restate unchanged state every turn.
+3. Keep the primary surface to five ranked items. Put optional depth under
+   `Details` or `Later`; never hide protected facts to satisfy the cap.
+4. Give time estimates only when grounded in observed work or a known wait.
+5. End when complete. Do not manufacture a user action or closing recap.
 
 ## Workflow
 

@@ -29,6 +29,14 @@ Run these in parallel to collect data:
 6. **Steering memory** — Read any current goal or manifest steering-memory path
    named by the caller, such as a `Live Steering` ledger section or
    `docs/context/operations/steering/<slug>.md`
+7. **Curated external evidence** — When the caller supplies papers, meeting
+   discussions, or other external sources, first turn them into a bounded
+   evidence summary that:
+   - records source identity and date;
+   - separates direct findings from interpretation;
+   - removes private names, quotes, links, and unrelated details;
+   - pairs claimed improvements with counterevidence and limits;
+   - routes domain-specific lessons to the narrowest owning scope.
 
 ### Step 2: Analyze Patterns
 
@@ -63,9 +71,10 @@ Look for recurring patterns across the evidence:
 - Controller-selection guidance for recurring goals
 - Durable "do this next time" feedback repeated across runs
 
-Do not learn from raw transcripts, unclassified PR comments, or one-off
-instructions. If feedback only applied to the current PR, leave it out of
-project instincts.
+Do not learn directly from raw transcripts, unclassified PR comments, or
+one-off instructions. A transcript may only contribute after the relevant
+claims have been curated as external evidence under Step 1. If feedback only
+applied to the current PR, leave it out of project instincts.
 
 ### Step 2.5: Apply Recency Decay
 

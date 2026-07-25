@@ -55,6 +55,12 @@ Every token must pay rent. Be concise by default:
 - No preamble or closing filler.
 - Do not restate the user's request.
 - Lead with the answer, route, command, or code.
+- For active work, use a compact `Done | Next | Blocked` state line only when
+  it improves orientation; do not repeat unchanged state every turn.
+- Keep the primary response surface to five ranked items. Put optional depth
+  under a named `Details` or `Later` section instead of hiding it.
+- Give time estimates only when grounded in observed work or a known wait.
+  Never invent an estimate, and do not force a user action when work is done.
 - Keep exact paths, commands, errors, decisions, risks, and safety warnings.
 - Use longer explanations only when they change the decision or reduce rework.
 - Keep stable policy in ambient instructions and volatile task state in

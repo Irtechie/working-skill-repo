@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KB Learning Wiki</title>
+  <script>
+    (() => {
+      const param = new URLSearchParams(window.location.search).get("scoutTheme");
+      const theme =
+        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --cp-bg: #f7f4ef;
+      --cp-bg-elevated: #fcfbf8;
+      --cp-surface: #ffffff;
+      --cp-surface-soft: #f5f5f5;
+      --cp-border: #dedede;
+      --cp-border-strong: #919191;
+      --cp-text: #242424;
+      --cp-text-muted: #5c5c5c;
+      --cp-text-soft: #6f6f6f;
+      --cp-accent: #b11f4b;
+      --cp-accent-hover: #9a1a41;
+      --cp-accent-soft: rgba(177, 31, 75, 0.08);
+      --cp-accent-fg: #ffffff;
+      --cp-success: #16a34a;
+      --cp-danger: #dc2626;
+      --cp-warning: #f59e0b;
+      --cp-link: #0078d4;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+      --cp-overlay: rgba(255, 255, 255, 0.8);
+      --cp-panel: rgba(255, 255, 255, 0.86);
+      --cp-panel-strong: rgba(255, 255, 255, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.55);
+      --cp-highlight: rgba(177, 31, 75, 0.12);
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --cp-bg: #3d3b3a;
+      --cp-bg-elevated: #343231;
+      --cp-surface: #292929;
+      --cp-surface-soft: #2e2e2e;
+      --cp-border: #474747;
+      --cp-border-strong: #5f5f5f;
+      --cp-text: #dedede;
+      --cp-text-muted: #919191;
+      --cp-text-soft: #b0b0b0;
+      --cp-accent: #fd8ea1;
+      --cp-accent-hover: #fb7b91;
+      --cp-accent-soft: rgba(253, 142, 161, 0.14);
+      --cp-accent-fg: #1a1a1a;
+      --cp-success: #4ade80;
+      --cp-danger: #f87171;
+      --cp-warning: #fbbf24;
+      --cp-link: #4da6ff;
+      --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+      --cp-overlay: rgba(41, 41, 41, 0.88);
+      --cp-panel: rgba(41, 41, 41, 0.72);
+      --cp-panel-strong: rgba(41, 41, 41, 0.96);
+      --cp-sheen: rgba(255, 255, 255, 0.04);
+      --cp-highlight: rgba(253, 142, 161, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--cp-bg);
+      color: var(--cp-text);
+      font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    a { color: var(--cp-link); }
+    button, input, select { font: inherit; }
+    .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky; top: 0; height: 100vh; padding: 24px 20px;
+      background: var(--cp-bg-elevated); border-right: 1px solid var(--cp-border);
+    }
+    .brand { display: flex; gap: 12px; align-items: center; margin-bottom: 28px; }
+    .brand-mark {
+      display: grid; place-items: center; width: 36px; height: 36px;
+      border-radius: 10px; background: var(--cp-accent); color: var(--cp-accent-fg); font-weight: 700;
+    }
+    .brand strong, .brand span { display: block; }
+    .brand span { color: var(--cp-text-muted); font-size: 12px; margin-top: 2px; }
+    nav { display: grid; gap: 4px; }
+    nav a {
+      padding: 10px 12px; border-radius: 10px; color: var(--cp-text-muted);
+      text-decoration: none; font-weight: 600;
+    }
+    nav a:hover { background: var(--cp-accent-soft); color: var(--cp-accent); }
+    .sidebar-note {
+      position: absolute; left: 20px; right: 20px; bottom: 20px;
+      color: var(--cp-text-muted); font-size: 12px; line-height: 1.5;
+    }
+    main { min-width: 0; }
+    .hero {
+      padding: 48px clamp(24px, 5vw, 72px) 36px;
+      background: var(--cp-bg-elevated); border-bottom: 1px solid var(--cp-border);
+    }
+    .hero-row { display: flex; justify-content: space-between; gap: 24px; align-items: end; }
+    h1 { margin: 6px 0 12px; font-size: clamp(36px, 5vw, 64px); letter-spacing: -0.04em; }
+    h2 { margin: 4px 0 8px; font-size: 28px; }
+    h3 { margin: 10px 0 8px; font-size: 18px; }
+    p { line-height: 1.55; }
+    .hero p { max-width: 760px; color: var(--cp-text-muted); font-size: 18px; }
+    .eyebrow {
+      margin: 0; color: var(--cp-accent); font-size: 12px;
+      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .controls {
+      display: grid; grid-template-columns: minmax(220px, 1fr) 220px; gap: 12px;
+      margin-top: 28px; max-width: 760px;
+    }
+    input, select {
+      width: 100%; padding: 11px 12px; color: var(--cp-text);
+      background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 10px;
+    }
+    .content { padding: 32px clamp(24px, 5vw, 72px) 72px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat, .pipeline, .knowledge-card {
+      background: var(--cp-surface); border: 1px solid var(--cp-border);
+      border-radius: 16px; box-shadow: var(--cp-shadow);
+    }
+    .stat { padding: 20px; }
+    .stat strong { display: block; font-size: 32px; }
+    .stat span { color: var(--cp-text-muted); }
+    .pipeline { padding: 24px; margin-bottom: 36px; overflow-x: auto; }
+    .pipeline-track { display: flex; min-width: 780px; align-items: center; gap: 10px; margin-top: 20px; }
+    .pipeline-step {
+      flex: 1; min-height: 92px; padding: 14px; border: 1px solid var(--cp-border);
+      border-radius: 10px; background: var(--cp-surface-soft);
+    }
+    .pipeline-step strong, .pipeline-step span { display: block; }
+    .pipeline-step span { color: var(--cp-text-muted); font-size: 12px; margin-top: 6px; }
+    .arrow { color: var(--cp-accent); font-weight: 700; }
+    .wiki-section { scroll-margin-top: 20px; margin-top: 52px; }
+    .section-heading { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 18px; }
+    .section-heading p { margin: 0; color: var(--cp-text-muted); max-width: 760px; }
+    .count {
+      min-width: 42px; padding: 8px 10px; text-align: center;
+      border-radius: 10px; background: var(--cp-accent-soft); color: var(--cp-accent); font-weight: 700;
+    }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .knowledge-card { padding: 20px; min-width: 0; }
+    .knowledge-card[hidden] { display: none; }
+    .card-topline, .meter-row, .knowledge-card footer {
+      display: flex; justify-content: space-between; gap: 12px; align-items: center;
+    }
+    .status {
+      padding: 4px 8px; border-radius: 10px; background: var(--cp-surface-soft);
+      color: var(--cp-text-muted); font-size: 12px;
+    }
+    .status-current { color: var(--cp-success); }
+    .status-review { color: var(--cp-warning); }
+    .status-archive { color: var(--cp-danger); }
+    .trigger { color: var(--cp-text-muted); font-style: italic; }
+    .meter-row { flex-wrap: wrap; color: var(--cp-text-muted); font-size: 12px; margin-top: 18px; }
+    .meter { height: 5px; margin: 8px 0 18px; overflow: hidden; border-radius: 10px; background: var(--cp-surface-soft); }
+    .meter span { display: block; height: 100%; background: var(--cp-accent); }
+    details { border-top: 1px solid var(--cp-border); padding-top: 12px; }
+    summary { cursor: pointer; color: var(--cp-link); }
+    li { margin: 8px 0; color: var(--cp-text-muted); line-height: 1.45; }
+    .knowledge-card footer {
+      margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--cp-border);
+      color: var(--cp-text-muted); font-size: 12px;
+    }
+    .empty { color: var(--cp-text-muted); }
+    .no-results {
+      display: none; padding: 24px; margin-top: 20px; text-align: center;
+      border: 1px dashed var(--cp-border-strong); border-radius: 16px; color: var(--cp-text-muted);
+    }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--cp-border); }
+      nav { grid-template-columns: repeat(3, 1fr); }
+      .sidebar-note { display: none; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      nav { grid-template-columns: 1fr 1fr; }
+      .hero-row { display: block; }
+      .controls, .stats { grid-template-columns: 1fr; }
+      .section-heading { align-items: start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">KB</div>
+        <div><strong>Learning Wiki</strong><span>Generated knowledge map</span></div>
+      </div>
+      <nav aria-label="Wiki sections">
+        <a href="#overview">Overview</a>
+        <a href="#instincts">Instincts</a>
+        <a href="#solutions">Solutions</a>
+        <a href="#goals">Goals</a>
+        <a href="#research">Research</a>
+        <a href="#governance">Governance</a>
+      </nav>
+      <p class="sidebar-note">Read-only projection. Edit the linked YAML or Markdown source, then run <code>npm run wiki:build</code>.</p>
+    </aside>
+    <main>
+      <header class="hero">
+        <div class="hero-row">
+          <div>
+            <p class="eyebrow">Repository intelligence</p>
+            <h1>What this project has learned.</h1>
+            <p>Browse evidence-backed instincts, durable solutions, active goals, and research without flattening the scope hierarchy that keeps agent memory safe.</p>
+          </div>
+        </div>
+        <div class="controls">
+          <input id="search" type="search" placeholder="Search behavior, evidence, title, or source..." aria-label="Search wiki">
+          <select id="scope" aria-label="Filter by scope">
+            <option value="">All scopes</option>
+            <option value="kbcheck/proof-spine">kbcheck/proof-spine</option><option value="model-routing/evaluation">model-routing/evaluation</option><option value="model-routing/orchestration">model-routing/orchestration</option><option value="project">project</option><option value="skill-bundle/provider-hygiene">skill-bundle/provider-hygiene</option>
+          </select>
+        </div>
+      </header>
+      <div class="content">
+        <section id="overview" aria-labelledby="overview-title">
+          <div class="stats">
+            <div class="stat"><strong>13</strong><span>active instincts</span></div>
+            <div class="stat"><strong>6</strong><span>compounded solutions</span></div>
+            <div class="stat"><strong>6</strong><span>goal ledgers</span></div>
+            <div class="stat"><strong>0</strong><span>need review</span></div>
+          </div>
+          <div class="pipeline" id="governance">
+            <p class="eyebrow">Learning lifecycle</p>
+            <h2 id="overview-title">Evidence becomes authority slowly.</h2>
+            <p>Ordinary lessons stay local. They move upward only through recurrence and measured adoption.</p>
+            <div class="pipeline-track">
+              <div class="pipeline-step"><strong>Evidence</strong><span>Git, proof, research, curated feedback</span></div>
+              <span class="arrow">-&gt;</span>
+              <div class="pipeline-step"><strong>Steering</strong><span>Changes the next run without claiming permanence</span></div>
+              <span class="arrow">-&gt;</span>
+              <div class="pipeline-step"><strong>Scoped instinct</strong><span>Atomic trigger and behavior at the owning scope</span></div>
+              <span class="arrow">-&gt;</span>
+              <div class="pipeline-step"><strong>Promotion</strong><span>Sibling recurrence plus adoption proof</span></div>
+              <span class="arrow">-&gt;</span>
+              <div class="pipeline-step"><strong>Evolved skill</strong><span>Reusable behavior with explicit authority</span></div>
+            </div>
+          </div>
+        </section>
+
+    <section id="latest" class="wiki-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">latest</p>
+          <h2>Latest learning</h2>
+          <p>The most recently observed instincts across all scopes.</p>
+        </div>
+        <span class="count">4</span>
+      </div>
+      <div class="card-grid">
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>bound-fanout-with-observed-cost</h3>
+      <p class="trigger">when considering multiple concurrent agent or model attempts for one workflow</p>
+      <p>pre-register the maximum branch count, per-branch budget, aggregate budget, and stop condition from observed telemetry; never authorize fan-out from an agent&#39;s self-estimated token cost</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>Bai et al., arXiv:2604.22750v2 (2026-04-29): same-task token use varied by up to 30x, frontier models underpredicted consumption, and prediction correlation reached only 0.39</li><li>Curated ATV Community Call and Hack &amp; Furious evidence (2026-05-18 through 2026-07-22): participants treated swarms as selective rather than universal and identified large-scale parallel development as unsolved</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>fanin-valid-evidence-not-agent-consensus</h3>
+      <p class="trigger">when concurrent agent branches return findings or changes for integration</p>
+      <p>reject invalid branches first, then aggregate proof-bound evidence through deterministic checks and explicit conflict resolution; do not treat majority vote, fluent agreement, or self-reported success as authority</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>Curated ATV Hack &amp; Furious evidence (2026-07-14): review swarms evaluated distinct risk surfaces and resolved findings before distributed work merged to main</li><li>docs/context/kb/instincts/scoped/model-routing/evaluation.yaml: evaluation authority comes from hash-bound protected artifacts, and invalid evaluation evidence stops correction or promotion</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>fanout-by-independent-proof-boundaries</h3>
+      <p class="trigger">when a workflow has several isolated hypotheses, artifacts, chunks, or review dimensions with independent proof</p>
+      <p>fan out by non-overlapping ownership and give each branch its own bounded context and oracle; use duplicate attempts only for an explicitly designed stochastic evaluation</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>Curated ATV Hack &amp; Furious evidence (2026-07-14): the concrete successful swarm example assigned specialized security, privacy, PII, review-comment, and test-failure audits rather than duplicating one undifferentiated task</li><li>Curated ATV Community Call evidence (2026-07-21 through 2026-07-22): multi-agent discussion emphasized document chunking, load management, and workflow/data segmentation</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>optimize-cost-per-valid-result</h3>
+      <p class="trigger">when comparing direct, routed, speculative, or multi-agent execution strategies</p>
+      <p>compare total input, output, retry, correction, fan-in, and failed-attempt cost per deterministically valid result; do not infer efficiency from output tokens, billed model price, or nominal parallel speed alone</p>
+      <div class="meter-row">
+        <span>60% confidence</span>
+        <span>supported</span>
+        <span>2 observations</span>
+      </div>
+      <div class="meter" aria-label="60 percent confidence">
+        <span style="width: 60%"></span>
+      </div>
+      <details>
+        <summary>Evidence (3)</summary>
+        <ul><li>Bai et al., arXiv:2604.22750v2 (2026-04-29): agentic coding used about 1000x the tokens of code reasoning/chat, input tokens drove cost, and higher token use did not imply higher accuracy</li><li>docs/results/2026-07-13-qwen-sol-exploratory-cost.md: Qwen plus Sol fallback added 106.4% token workload while producing no valid result, leaving cost per success undefined</li><li>Curated ATV Community Call and Hack &amp; Furious evidence (2026-07-09 through 2026-07-21): cost discussions centered on measured token consumption and business outcome rather than model invocation count</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article></div>
+    </section>
+
+    <section id="instincts" class="wiki-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">instincts</p>
+          <h2>Instinct catalog</h2>
+          <p>Atomic learned behaviors. Scope controls who inherits them; confidence is evidence strength, not permission to promote.</p>
+        </div>
+        <span class="count">13</span>
+      </div>
+      <div class="card-grid">
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>bound-fanout-with-observed-cost</h3>
+      <p class="trigger">when considering multiple concurrent agent or model attempts for one workflow</p>
+      <p>pre-register the maximum branch count, per-branch budget, aggregate budget, and stop condition from observed telemetry; never authorize fan-out from an agent&#39;s self-estimated token cost</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>Bai et al., arXiv:2604.22750v2 (2026-04-29): same-task token use varied by up to 30x, frontier models underpredicted consumption, and prediction correlation reached only 0.39</li><li>Curated ATV Community Call and Hack &amp; Furious evidence (2026-05-18 through 2026-07-22): participants treated swarms as selective rather than universal and identified large-scale parallel development as unsolved</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>fanin-valid-evidence-not-agent-consensus</h3>
+      <p class="trigger">when concurrent agent branches return findings or changes for integration</p>
+      <p>reject invalid branches first, then aggregate proof-bound evidence through deterministic checks and explicit conflict resolution; do not treat majority vote, fluent agreement, or self-reported success as authority</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>Curated ATV Hack &amp; Furious evidence (2026-07-14): review swarms evaluated distinct risk surfaces and resolved findings before distributed work merged to main</li><li>docs/context/kb/instincts/scoped/model-routing/evaluation.yaml: evaluation authority comes from hash-bound protected artifacts, and invalid evaluation evidence stops correction or promotion</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>fanout-by-independent-proof-boundaries</h3>
+      <p class="trigger">when a workflow has several isolated hypotheses, artifacts, chunks, or review dimensions with independent proof</p>
+      <p>fan out by non-overlapping ownership and give each branch its own bounded context and oracle; use duplicate attempts only for an explicitly designed stochastic evaluation</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>Curated ATV Hack &amp; Furious evidence (2026-07-14): the concrete successful swarm example assigned specialized security, privacy, PII, review-comment, and test-failure audits rather than duplicating one undifferentiated task</li><li>Curated ATV Community Call evidence (2026-07-21 through 2026-07-22): multi-agent discussion emphasized document chunking, load management, and workflow/data segmentation</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>optimize-cost-per-valid-result</h3>
+      <p class="trigger">when comparing direct, routed, speculative, or multi-agent execution strategies</p>
+      <p>compare total input, output, retry, correction, fan-in, and failed-attempt cost per deterministically valid result; do not infer efficiency from output tokens, billed model price, or nominal parallel speed alone</p>
+      <div class="meter-row">
+        <span>60% confidence</span>
+        <span>supported</span>
+        <span>2 observations</span>
+      </div>
+      <div class="meter" aria-label="60 percent confidence">
+        <span style="width: 60%"></span>
+      </div>
+      <details>
+        <summary>Evidence (3)</summary>
+        <ul><li>Bai et al., arXiv:2604.22750v2 (2026-04-29): agentic coding used about 1000x the tokens of code reasoning/chat, input tokens drove cost, and higher token use did not imply higher accuracy</li><li>docs/results/2026-07-13-qwen-sol-exploratory-cost.md: Qwen plus Sol fallback added 106.4% token workload while producing no valid result, leaving cost per success undefined</li><li>Curated ATV Community Call and Hack &amp; Furious evidence (2026-07-09 through 2026-07-21): cost discussions centered on measured token consumption and business outcome rather than model invocation count</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/orchestration" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/orchestration</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>widen-parallelism-only-after-proof</h3>
+      <p class="trigger">when deciding whether to add more agent branches, retries, or stronger-model passes</p>
+      <p>start with the smallest qualified execution shape and widen only when valid paired evidence shows incremental accuracy or risk reduction justifies the marginal aggregate cost</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>Bai et al., arXiv:2604.22750v2 (2026-04-29): accuracy often peaked at intermediate token cost and saturated at higher consumption</li><li>Curated ATV Community Call evidence (2026-05-18): swarms were described as useful for some projects and long-running work, not as a universal default</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-22</span>
+        <a href="../context/kb/instincts/scoped/model-routing/orchestration.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/evaluation" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/evaluation</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>derive-evaluation-authority-from-bound-artifacts</h3>
+      <p class="trigger">when an evaluation field can change readiness, cost, correctness, pairing, support, or promotion</p>
+      <p>derive the field from hash-bound protected artifacts and recompute it in the validator; never authorize from caller-authored booleans or digest labels</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>2026-07-12 GHCP AIC review: self-authored route_match, oracle_intact, context hashes, and promotion summaries were replaced or made unable to promote</li><li>docs/solutions/logic-errors/proof-spine-digest-check-semantics-2026-07-05.md updated with evaluation-harness artifact binding</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-12</span>
+        <a href="../context/kb/instincts/scoped/model-routing/evaluation.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/evaluation" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/evaluation</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>fail-closed-when-paid-approval-is-not-trusted</h3>
+      <p class="trigger">when a model benchmark can spend credits but the runtime cannot independently verify human approval</p>
+      <p>hard-disable provider execution and expose only a zero-spend dry-run approval preview until a trusted approval adapter exists</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (1)</summary>
+        <ul><li>2026-07-12 final security review: local approval JSON remained self-authorizing, so cmd/amrbench run now refuses every non-dry execution before config, profile, secret, or provider access</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-12</span>
+        <a href="../context/kb/instincts/scoped/model-routing/evaluation.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="model-routing/evaluation" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">model-routing/evaluation</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>stop-escalation-on-invalid-evaluation-evidence</h3>
+      <p class="trigger">when a model attempt has process, telemetry, route, accounting, application, isolation, or proof-infrastructure invalidity</p>
+      <p>classify the arm invalid and stop before fallback, correction, grading, or promotion; only a valid model failure may escalate</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (1)</summary>
+        <ul><li>2026-07-12 GHCP AIC review: missing OTel and route mismatch previously could trigger correction; phase validity now gates phaseCanCorrect</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-12</span>
+        <a href="../context/kb/instincts/scoped/model-routing/evaluation.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="skill-bundle/provider-hygiene" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">skill-bundle/provider-hygiene</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>keep-provider-audits-semantic-and-opt-in</h3>
+      <p class="trigger">when adding checks for optional MCP servers, hooks, context engines, or provider-specific runtime configuration</p>
+      <p>keep contributor gates repo-local, make user-global inspection explicit, parse enabled provider entries semantically, and distinguish optional adapters from forbidden active dependencies</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (3)</summary>
+        <ul><li>docs/solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md</li><li>cmd/kbcheck/provider_hygiene_test.go covers optional CCE, active/escaped Phoenix, and disabled JSON/TOML entries</li><li>2026-07-09 multi-agent review caught machine-dependent core and substring-based false positives before completion</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-09</span>
+        <a href="../context/kb/instincts/scoped/skill-bundle/provider-hygiene.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="project" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">project</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>separate-contributor-and-release-gates</h3>
+      <p class="trigger">when adding or changing a repo quality gate that depends on global installs, sibling repos, authenticated tools, or deployment state</p>
+      <p>keep the contributor core gate repo-local and put environment-dependent sync or release checks in an explicit release gate</p>
+      <div class="meter-row">
+        <span>44% confidence</span>
+        <span>emerging</span>
+        <span>2 observations</span>
+      </div>
+      <div class="meter" aria-label="44 percent confidence">
+        <span style="width: 44%"></span>
+      </div>
+      <details>
+        <summary>Evidence (2)</summary>
+        <ul><li>2026-06-10 skill-bundle cleanup: moved skill-sync-report out of core and kept it blocking in local-release after core failed on missing Codex global skills</li><li>2026-07-09 provider-hygiene review: moved user-global MCP/config inspection behind --include-user so core stayed repo-local</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-09</span>
+        <a href="../context/kb/instincts/project.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="kbcheck/proof-spine" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">kbcheck/proof-spine</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>digest-all-proof-check-semantics</h3>
+      <p class="trigger">when adding or changing a proof-spine check field that can affect the sensor result</p>
+      <p>include that field in the proof check digest and add a regression test proving the digest changes when the field changes</p>
+      <div class="meter-row">
+        <span>50% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="50 percent confidence">
+        <span style="width: 50%"></span>
+      </div>
+      <details>
+        <summary>Evidence (1)</summary>
+        <ul><li>2026-07-05 Phoenix proof spine merge review: timeout_ms initially changed command behavior without changing the check digest; fixed in cmd/kbcheck/proof_spine.go and covered in cmd/kbcheck/proof_spine_test.go</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-05</span>
+        <a href="../context/kb/instincts/scoped/kbcheck-proof-spine.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="project" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">project</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>keep-reusable-skills-domain-generic</h3>
+      <p class="trigger">when updating a reusable skill because one project exposed a failure</p>
+      <p>generalize the fix into domain-neutral rules, using the failing project only as evidence; avoid naming project-specific files, app subsystems, languages, vendors, or one-off technologies unless the skill is explicitly for that domain</p>
+      <div class="meter-row">
+        <span>59% confidence</span>
+        <span>emerging</span>
+        <span>3 observations</span>
+      </div>
+      <div class="meter" aria-label="59 percent confidence">
+        <span style="width: 59%"></span>
+      </div>
+      <details>
+        <summary>Evidence (3)</summary>
+        <ul><li>commit 51f384b: removed app/framework-specific examples from kb-map and kb-map-bootstrap after bootstrap coverage tactics became too tied to one app</li><li>user correction 2026-05-25: skill fixes must benefit every app, e.g. say coding language/runtime instead of Python when the skill is not Python-specific</li><li>2026-07-01 live steering learning loop: mined HumanLayer design-control-loop for portable control-loop and feedback-steering mechanics while explicitly rejecting Bun, CodeLayer, and GitHub Actions defaults</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-01</span>
+        <a href="../context/kb/instincts/project.yaml">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="instinct" data-scope="project" data-state="current">
+      <div class="card-topline">
+        <span class="eyebrow">project</span>
+        <span class="status status-current">current</span>
+      </div>
+      <h3>use-steering-memory-before-instinct-promotion</h3>
+      <p class="trigger">when repeated agent work receives feedback that should affect future runs but has not yet proven itself as a project-wide convention</p>
+      <p>record the feedback in goal steering memory or docs/context/operations/steering before promoting it to scored instincts or learned skills</p>
+      <div class="meter-row">
+        <span>47% confidence</span>
+        <span>emerging</span>
+        <span>1 observation</span>
+      </div>
+      <div class="meter" aria-label="47 percent confidence">
+        <span style="width: 47%"></span>
+      </div>
+      <details>
+        <summary>Evidence (1)</summary>
+        <ul><li>2026-07-01 live steering learning loop: added feedback classification routes current-only, steering-memory, observation, landmine-candidate, and instinct-evidence to prevent one-off PR comments from becoming durable instincts</li></ul>
+      </details>
+      <footer>
+        <span>Seen 2026-07-01</span>
+        <a href="../context/kb/instincts/project.yaml">Source</a>
+      </footer>
+    </article></div>
+    </section>
+
+    <section id="solutions" class="wiki-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">solutions</p>
+          <h2>Compounded solutions</h2>
+          <p>Human-readable explanations of solved problems and reusable guidance.</p>
+        </div>
+        <span class="count">6</span>
+      </div>
+      <div class="card-grid">
+    <article class="knowledge-card" data-kind="solution" data-scope="workflow-issues" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">solution</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Keep Optional Provider State Out of Repo-Local Gates</h3>
+      <p>Phoenix had been removed from the repo, but a stale user-level Copilot MCP entry and globally installed Phoenix skills could still activate it. CCE is an owned context engine that should remain available as an opt-in adapter. The first</p>
+      <footer>
+        <span>2026-07-09</span>
+        <a href="../solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="solution" data-scope="logic-errors" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">solution</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Proof spine digests must include all check semantics</h3>
+      <p>`kbcheck accept` relies on a check digest to decide whether prior RED/GREEN trace events apply to the current check. If the digest omits a field that changes the check&#39;s behavior, an agent can accidentally reuse proof from a different check.</p>
+      <footer>
+        <span>2026-07-05</span>
+        <a href="../solutions/logic-errors/proof-spine-digest-check-semantics-2026-07-05.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="solution" data-scope="docs/solutions/workflow-issues" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">solution</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Live Steering Complements Post-Work Learning</h3>
+      <p>The HumanLayer `design-control-loop` skill exposed a useful gap in KB: KB was strong after work completed (`kb-complete`, `learn`, `evolve`, memory refresh), but it had weaker in-flight steering for repeated work. A scheduled or repeated</p>
+      <footer>
+        <span>2026-07-01</span>
+        <a href="../solutions/workflow-issues/live-steering-learning-loop-2026-07-01.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="solution" data-scope="docs/solutions/workflow-issues" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">solution</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Keep Contributor Core Gates Separate From Release Sync Gates</h3>
+      <p>The skill bundle used `go run ./cmd/kbcheck core` as its front-door quality gate, but `core` also ran `skill-sync-report`. That made a valid fresh or partially installed environment fail on missing global skill roots before the</p>
+      <footer>
+        <span>2026-06-10</span>
+        <a href="../solutions/workflow-issues/contributor-core-vs-release-sync-gates-2026-06-10.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="solution" data-scope="workflow-issues" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">solution</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Review Reference Closed Contract</h3>
+      <p>Date: 2026-06-10</p>
+      <footer>
+        <span>2026-06-10</span>
+        <a href="../solutions/workflow-issues/review-reference-closed-contract-2026-06-10.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="solution" data-scope="workflow-issues" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">solution</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Review Reference Drift Guard</h3>
+      <p>Date: 2026-06-10</p>
+      <footer>
+        <span>2026-06-10</span>
+        <a href="../solutions/workflow-issues/review-reference-drift-guard-2026-06-10.md">Source</a>
+      </footer>
+    </article></div>
+    </section>
+
+    <section id="goals" class="wiki-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">goals</p>
+          <h2>Goal ledgers</h2>
+          <p>Long-lived objectives, current state, blockers, and terminal proof.</p>
+        </div>
+        <span class="count">6</span>
+      </div>
+      <div class="card-grid">
+    <article class="knowledge-card" data-kind="goal" data-scope="goals" data-state="complete">
+      <div class="card-topline">
+        <span class="eyebrow">goal</span>
+        <span class="status">complete</span>
+      </div>
+      <h3>Finish Skill Repo Hardening</h3>
+      <p>Status: complete Created: 2026-07-09 Last updated: 2026-07-09</p>
+      <footer>
+        <span>goals</span>
+        <a href="../context/goals/finish-skill-repo-hardening.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="goal" data-scope="goals" data-state="blocked">
+      <div class="card-topline">
+        <span class="eyebrow">goal</span>
+        <span class="status">blocked</span>
+      </div>
+      <h3>GHCP AIC Falsification</h3>
+      <p>Status: blocked Created: 2026-07-12 Last updated: 2026-07-12</p>
+      <footer>
+        <span>goals</span>
+        <a href="../context/goals/ghcp-aic-falsification.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="goal" data-scope="goals" data-state="complete">
+      <div class="card-topline">
+        <span class="eyebrow">goal</span>
+        <span class="status">complete</span>
+      </div>
+      <h3>KB-Native, Component-Scoped Learning (de-atv)</h3>
+      <p>Status: complete Created: 2026-07-01 Last updated: 2026-07-01</p>
+      <footer>
+        <span>goals</span>
+        <a href="../context/goals/kb-native-scoped-learning.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="goal" data-scope="goals" data-state="complete">
+      <div class="card-topline">
+        <span class="eyebrow">goal</span>
+        <span class="status">complete</span>
+      </div>
+      <h3>Live Steering Learning Loop</h3>
+      <p>Status: complete Created: 2026-07-01 Last updated: 2026-07-01</p>
+      <footer>
+        <span>goals</span>
+        <a href="../context/goals/live-steering-learning-loop.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="goal" data-scope="goals" data-state="complete">
+      <div class="card-topline">
+        <span class="eyebrow">goal</span>
+        <span class="status">complete</span>
+      </div>
+      <h3>RTK-Inspired Token Efficiency</h3>
+      <p>Status: complete Created: 2026-06-21 Last updated: 2026-06-21</p>
+      <footer>
+        <span>goals</span>
+        <a href="../context/goals/rtk-inspired-token-efficiency.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="goal" data-scope="goals" data-state="active">
+      <div class="card-topline">
+        <span class="eyebrow">goal</span>
+        <span class="status">active</span>
+      </div>
+      <h3>Session Model Routing</h3>
+      <p>Status: active Created: 2026-07-10 Last updated: 2026-07-10</p>
+      <footer>
+        <span>goals</span>
+        <a href="../context/goals/session-model-routing.md">Source</a>
+      </footer>
+    </article></div>
+    </section>
+
+    <section id="research" class="wiki-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">research</p>
+          <h2>Research library</h2>
+          <p>External evidence and comparisons that can inform work without automatically becoming authority.</p>
+        </div>
+        <span class="count">12</span>
+      </div>
+      <div class="card-grid">
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Cross-Runtime Token Efficiency</h3>
+      <p>Checked: 2026-07-09 Budget mode: standard</p>
+      <footer>
+        <span>2026-07-09</span>
+        <a href="../context/research/2026-07-09-cross-runtime-token-efficiency.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Session Model Discovery and Routing Surfaces</h3>
+      <p>Checked: 2026-07-09 Budget mode: standard</p>
+      <footer>
+        <span>2026-07-09</span>
+        <a href="../context/research/2026-07-09-project-model-routing-surfaces.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>ATV-Phoenix Self-Heal Comparison</h3>
+      <p>Checked: 2026-07-09 Budget mode: standard</p>
+      <footer>
+        <span>2026-07-05</span>
+        <a href="../context/research/2026-07-05-atv-phoenix-self-heal-comparison.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Dexhorthy / HumanLayer Agent Harness Research</h3>
+      <p>Checked: 2026-07-05 Budget mode: standard</p>
+      <footer>
+        <span>2026-07-05</span>
+        <a href="../context/research/2026-07-05-dexhorthy-humanlayer-agent-harness-research.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>HumanLayer Pinned Repos Planner Economy Research</h3>
+      <p>Checked: 2026-07-05 Budget mode: deep</p>
+      <footer>
+        <span>2026-07-05</span>
+        <a href="../context/research/2026-07-05-humanlayer-pinned-repos-planner-economy.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Skill Bundle Cleanup Audit Refresh</h3>
+      <p>Date: 2026-06-10 Source: pasted external audit</p>
+      <footer>
+        <span>2026-06-10</span>
+        <a href="../context/research/2026-06-10-skill-bundle-cleanup-audit-refresh.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Architecture Deepening vs Deslop vs Thermo-Nuclear</h3>
+      <p>Checked: 2026-05-31 Budget mode: lean</p>
+      <footer>
+        <span>2026-05-31</span>
+        <a href="../context/research/2026-05-31-architecture-deepening-vs-deslop-thermo.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>ATV Upstream Skill Delta</h3>
+      <p>Date: 2026-05-31</p>
+      <footer>
+        <span>2026-05-31</span>
+        <a href="../context/research/2026-05-31-atv-upstream-skill-delta.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Narrow Lane Deletion Safety</h3>
+      <p>Checked: 2026-05-31</p>
+      <footer>
+        <span>2026-05-31</span>
+        <a href="../context/research/2026-05-31-narrow-lane-deletion-safety.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Agent Skills Git Distribution</h3>
+      <p>Checked: 2026-05-30 Budget mode: lean</p>
+      <footer>
+        <span>2026-05-30</span>
+        <a href="../context/research/2026-05-30-agent-skills-git-distribution.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Skill Repo Gap Audit</h3>
+      <p>Checked: 2026-05-29 Budget mode: standard</p>
+      <footer>
+        <span>2026-05-29</span>
+        <a href="../context/research/2026-05-29-skill-repo-gap-audit.md">Source</a>
+      </footer>
+    </article>
+    <article class="knowledge-card" data-kind="research" data-scope="research" data-state="reference">
+      <div class="card-topline">
+        <span class="eyebrow">research</span>
+        <span class="status">reference</span>
+      </div>
+      <h3>Research Index</h3>
+      <p>Open the source document for details.</p>
+      <footer>
+        <span>research</span>
+        <a href="../context/research/README.md">Source</a>
+      </footer>
+    </article></div>
+    </section>
+        <div id="no-results" class="no-results">No knowledge entries match the current filters.</div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const search = document.getElementById("search");
+    const scope = document.getElementById("scope");
+    const cards = [...document.querySelectorAll(".knowledge-card")];
+    const noResults = document.getElementById("no-results");
+
+    function applyFilters() {
+      const query = search.value.trim().toLowerCase();
+      const selectedScope = scope.value;
+      let visible = 0;
+      for (const card of cards) {
+        const matchesQuery = !query || card.textContent.toLowerCase().includes(query);
+        const matchesScope = !selectedScope || card.dataset.scope === selectedScope;
+        card.hidden = !(matchesQuery && matchesScope);
+        if (!card.hidden) visible += 1;
+      }
+      noResults.style.display = visible === 0 ? "block" : "none";
+    }
+
+    search.addEventListener("input", applyFilters);
+    scope.addEventListener("change", applyFilters);
+  </script>
+</body>
+</html>

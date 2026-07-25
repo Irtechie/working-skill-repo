@@ -27,7 +27,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test ./bin/kb-install.test.mjs",
+    "test": "node --test ./bin/*.test.mjs",
+    "wiki:build": "node ./bin/kb-learning-wiki.mjs",
     "test:install:core": "node ./bin/kb-install.mjs --target all --profile core --install-root ./.tmp/node-install-core --router skip --yes",
     "test:install:full": "node ./bin/kb-install.mjs --target all --profile full --install-root ./.tmp/node-install-full --router skip --yes"
   },
