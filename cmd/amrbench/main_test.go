@@ -11,8 +11,8 @@ import (
 
 func TestParseOTelDeduplicatesLeafChatSpansAndConvertsAIC(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "otel.jsonl")
-	row := `{"type":"span","spanId":"one","name":"chat gpt-test","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"gpt-test","gen_ai.usage.input_tokens":100,"gen_ai.usage.output_tokens":25,"github.copilot.nano_aiu":2500000000}}`
-	aggregate := `{"type":"span","spanId":"agent","name":"invoke_agent","attributes":{"gen_ai.usage.input_tokens":100,"gen_ai.usage.output_tokens":25,"github.copilot.nano_aiu":2500000000}}`
+	row := `{"type":"span","traceId":"trace","spanId":"one","name":"chat gpt-test","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"gpt-test","gen_ai.usage.input_tokens":100,"gen_ai.usage.output_tokens":25,"github.copilot.nano_aiu":2500000000}}`
+	aggregate := `{"type":"span","traceId":"trace","spanId":"agent","name":"invoke_agent","attributes":{"gen_ai.usage.input_tokens":100,"gen_ai.usage.output_tokens":25,"github.copilot.nano_aiu":2500000000}}`
 	if err := os.WriteFile(path, []byte(row+"\n"+row+"\n"+aggregate+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -28,31 +28,23 @@ func TestParseOTelDeduplicatesLeafChatSpansAndConvertsAIC(t *testing.T) {
 func TestParseOTelRejectsPartialAICAndMissingActualModel(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "otel.jsonl")
 	rows := []string{
-		`{"type":"span","spanId":"one","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","github.copilot.nano_aiu":1000000000}}`,
-		`{"type":"span","spanId":"two","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual"}}`,
+		`{"type":"span","traceId":"trace","spanId":"one","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","github.copilot.nano_aiu":1000000000}}`,
+		`{"type":"span","traceId":"trace","spanId":"two","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual"}}`,
 	}
 	if err := os.WriteFile(path, []byte(strings.Join(rows, "\n")), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	usage, err := parseOTel(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if usage.AICAvailable || usage.AIC != 0 {
-		t.Fatalf("partial AIC was treated as exact: %+v", usage)
+	if _, err := parseOTel(path); err == nil {
+		t.Fatal("partial AIC was accepted")
 	}
 
 	missingActual := filepath.Join(t.TempDir(), "missing-actual.jsonl")
-	row := `{"type":"span","spanId":"one","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.request.model":"requested","github.copilot.nano_aiu":1000000000}}`
+	row := `{"type":"span","traceId":"trace","spanId":"one","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.request.model":"requested","github.copilot.nano_aiu":1000000000}}`
 	if err := os.WriteFile(missingActual, []byte(row), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	usage, err = parseOTel(missingActual)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(usage.ActualModels) != 0 || modelsMatch(usage.ActualModels, []string{"requested"}) {
-		t.Fatalf("missing response model was attributed: %+v", usage)
+	if _, err := parseOTel(missingActual); err == nil {
+		t.Fatal("missing response model was attributed")
 	}
 }
 
@@ -62,6 +54,37 @@ func TestModelsMatchRejectsMixedFallback(t *testing.T) {
 	}
 	if !modelsMatch([]string{"gpt-5.6-terra"}, []string{"gpt-5.6-terra"}) {
 		t.Fatal("exact model should match")
+	}
+}
+
+func TestConformanceNoPaidNeverConstructsLiveRunner(t *testing.T) {
+	root := t.TempDir()
+	configPath := filepath.Join(root, "config.json")
+	cfg := `{"schema_version":1,"models":[],"tasks":[],"qualification":{"minimum_samples":1,"qualify_pass_rate":0.8,"suspend_pass_rate":0.6}}`
+	if err := os.WriteFile(configPath, []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	liveConstructed := 0
+	original := constructLiveRunner
+	constructLiveRunner = func() modelRunner {
+		liveConstructed++
+		return nil
+	}
+	t.Cleanup(func() { constructLiveRunner = original })
+
+	var output bytes.Buffer
+	if err := runConformance([]string{"--config", configPath, "--no-paid", "--json"}, &output); err != nil {
+		t.Fatal(err)
+	}
+	if liveConstructed != 0 {
+		t.Fatalf("live runner constructed %d times", liveConstructed)
+	}
+	var report conformanceReport
+	if err := json.Unmarshal(output.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.PaidCalls != 0 || report.Runner != "disabled" {
+		t.Fatalf("report=%+v", report)
 	}
 }
 

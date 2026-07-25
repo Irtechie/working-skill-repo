@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Irtechie/working-skill-repo/internal/ghcpotel"
 	"github.com/Irtechie/working-skill-repo/internal/modelrouting"
 )
 
@@ -30,31 +31,32 @@ var executionAttestationRoot = func() (string, error) {
 var executionTelemetryNow = func() time.Time { return time.Now().UTC() }
 
 type executionTelemetry struct {
-	PacketID           string `json:"packet_id,omitempty"`
-	RunID              string `json:"run_id,omitempty"`
-	ProjectID          string `json:"project_id,omitempty"`
-	SliceID            string `json:"slice_id,omitempty"`
-	ContextPacketHash  string `json:"context_packet_hash,omitempty"`
-	SessionID          string `json:"session_id,omitempty"`
-	Runtime            string `json:"runtime,omitempty"`
-	RequestedRoute     string `json:"requested_route,omitempty"`
-	ActualRoute        string `json:"actual_route,omitempty"`
-	RequestedModel     string `json:"requested_model,omitempty"`
-	ActualModel        string `json:"actual_model,omitempty"`
-	Model              string `json:"model,omitempty"`
-	ReceiptStatus      string `json:"receipt_status,omitempty"`
-	PredictedTier      string `json:"predicted_tier,omitempty"`
-	ActualTier         string `json:"actual_tier,omitempty"`
-	Turns              int64  `json:"turns,omitempty"`
-	InputTokens        int64  `json:"input_tokens,omitempty"`
-	OutputTokens       int64  `json:"output_tokens,omitempty"`
-	CacheReadTokens    int64  `json:"cache_read_tokens,omitempty"`
-	CacheWriteTokens   int64  `json:"cache_write_tokens,omitempty"`
-	ReworkCount        int64  `json:"rework_count,omitempty"`
-	EscalationReason   string `json:"escalation_reason,omitempty"`
-	ProofResult        string `json:"proof_result,omitempty"`
-	PacketSufficiency  string `json:"packet_sufficiency,omitempty"`
-	EffectiveTokenMode string `json:"effective_token_model,omitempty"`
+	PacketID           string          `json:"packet_id,omitempty"`
+	RunID              string          `json:"run_id,omitempty"`
+	ProjectID          string          `json:"project_id,omitempty"`
+	SliceID            string          `json:"slice_id,omitempty"`
+	ContextPacketHash  string          `json:"context_packet_hash,omitempty"`
+	SessionID          string          `json:"session_id,omitempty"`
+	Runtime            string          `json:"runtime,omitempty"`
+	RequestedRoute     string          `json:"requested_route,omitempty"`
+	ActualRoute        string          `json:"actual_route,omitempty"`
+	RequestedModel     string          `json:"requested_model,omitempty"`
+	ActualModel        string          `json:"actual_model,omitempty"`
+	Model              string          `json:"model,omitempty"`
+	ReceiptStatus      string          `json:"receipt_status,omitempty"`
+	PredictedTier      string          `json:"predicted_tier,omitempty"`
+	ActualTier         string          `json:"actual_tier,omitempty"`
+	Turns              int64           `json:"turns,omitempty"`
+	InputTokens        int64           `json:"input_tokens,omitempty"`
+	OutputTokens       int64           `json:"output_tokens,omitempty"`
+	CacheReadTokens    int64           `json:"cache_read_tokens,omitempty"`
+	CacheWriteTokens   int64           `json:"cache_write_tokens,omitempty"`
+	ReworkCount        int64           `json:"rework_count,omitempty"`
+	EscalationReason   string          `json:"escalation_reason,omitempty"`
+	ProofResult        string          `json:"proof_result,omitempty"`
+	PacketSufficiency  string          `json:"packet_sufficiency,omitempty"`
+	EffectiveTokenMode string          `json:"effective_token_model,omitempty"`
+	GHCPAccounting     *ghcpotel.Usage `json:"ghcp_accounting,omitempty"`
 }
 
 type executionTelemetryEnvelopeFile struct {
@@ -130,6 +132,19 @@ func normalizeExecutionTelemetry(raw any, evidence *executionTelemetryEvidence) 
 	}
 	if usage.EffectiveTokenMode != "" && usage.EffectiveTokenMode != "raw-v1" {
 		return nil, fmt.Errorf("usage effective_token_model must be raw-v1")
+	}
+	if usage.GHCPAccounting != nil {
+		accounting := usage.GHCPAccounting
+		if accounting.SchemaVersion != ghcpotel.SchemaVersion {
+			return nil, fmt.Errorf("usage ghcp_accounting schema_version is invalid")
+		}
+		if accounting.AIUNano < 0 || accounting.InputTokens < 0 || accounting.OutputTokens < 0 ||
+			accounting.CacheReadTokens < 0 || accounting.CacheWriteTokens < 0 || accounting.Calls < 1 {
+			return nil, fmt.Errorf("usage ghcp_accounting counters are invalid")
+		}
+		if !accounting.AIUAvailable && accounting.AIUNano != 0 {
+			return nil, fmt.Errorf("usage ghcp_accounting unavailable AIU must not carry cost")
+		}
 	}
 	applyExecutionTelemetryEvidence(&usage, evidence)
 	return &usage, nil

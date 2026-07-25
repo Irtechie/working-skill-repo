@@ -154,6 +154,9 @@ type modelRoutingInstallProof struct {
 }
 
 func runModelRoutingReleaseCommand(root string, opts options, stdout, stderr io.Writer) int {
+	if opts.cohort == "ghcp-follow-on" {
+		return runGHCPFollowOnReleaseCommand(root, opts, stdout, stderr)
+	}
 	return runModelRoutingReleaseCommandWithRunner(root, opts, stdout, stderr, runModelRoutingProductionProof)
 }
 

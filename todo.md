@@ -75,7 +75,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
 | One-loop AMR cleanup, completion review, and image refresh | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
-| GHCP AIC/context falsification harness | 🔧 in_progress | P1 | `docs/plans/2026-07-11-040-kb-ghcp-aic-falsification-manifest.md` — session-routing baseline landed via PR #1; deterministic no-paid work authorized |
+| GHCP AIC/context falsification harness | 🛑 human-required | P1 | Goal: `docs/context/goals/ghcp-aic-falsification.md`; deterministic readiness and finalization passed with paid calls 0. Paid execution is hard-disabled; Qwen needs Plato/profile/probe, DS4 needs two Ready free Sparks, and a trusted approval verifier is required. Preview: `docs/results/2026-07-12-ghcp-aic-attended-preview.md` |
 | Invisible workflow UX: retire KLFG, preserve consent, report route/proof/AIC | 🔒 blocked | P1 | `docs/plans/2026-07-11-045-kb-invisible-workflow-ux-manifest.md` — waits for overlapping AMR/AIC work to stabilize and explicit plan-to-work consent |
 
 ## Queued Improvements

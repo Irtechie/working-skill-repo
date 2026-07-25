@@ -41,11 +41,11 @@ expected_files:
 protected_oracles:
   - path: cmd/amrbench/grade_test.go
     role: "paired correctness, all-inclusive AIU, family admission, and not-promoted oracle"
-    sha256: "filled after RED before implementation"
+    sha256: "3c5300b4d3fbaf9081eaaf024a035ba0117e2dd8d7fe64b40537e8578115e3db"
     update_policy: "requires explicit plan update"
   - path: cmd/kbcheck/model_routing_ghcp_release_test.go
     role: "GHCP follow-on promotion oracle that preserves the landed Codex-first cohort"
-    sha256: "filled after RED before implementation"
+    sha256: "60acbdedfc079d59c94997c3ff4b70d487cecfdebfa846fdcdddbbabfffa8dfb"
     update_policy: "requires explicit plan update"
 status: pending
 owner: agent
@@ -75,3 +75,9 @@ can_continue_other_slices: false
 
 No live canary/matrix, production partial reuse, adaptive routing, or change to
 the active Codex-first cohort.
+
+## Oracle Amendment
+
+Review proved that self-authored attended summaries could claim promotion. The
+GHCP oracle now requires deterministic no-paid evidence to remain not-promoted
+and fails attended promotion closed until an independent live verifier exists.

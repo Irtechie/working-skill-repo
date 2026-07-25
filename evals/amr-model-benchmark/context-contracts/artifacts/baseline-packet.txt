@@ -1,0 +1,5 @@
+AGENTS.md
+todo.md
+docs/context/PROJECT.md
+docs/context/eval-map.md
+slice context packet

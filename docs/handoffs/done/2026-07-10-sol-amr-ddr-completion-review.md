@@ -7,6 +7,13 @@ all affected skills. Remove duplicate DDR ownership and malformed tier rules.
 Make the default invisible and safe for new users while preserving concise
 advanced overrides. Edit skills/code only after the review; images are last.
 
+## Resolution — 2026-07-12
+
+Archived as complete. The keep/consolidate/delete verdict below landed in the
+session-routing baseline merged by PR #1 (`36736ec`); manifest 040 then completed
+the deterministic no-paid falsification harness. DDR is not a separate runtime
+or planner artifact, and AMR remains unpromoted pending attended evidence.
+
 ## Start
 
 ```text

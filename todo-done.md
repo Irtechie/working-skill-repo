@@ -2,6 +2,17 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-12
+
+- GHCP AIC deterministic readiness - added exact bounded leaf-call accounting,
+  hash-bound fixture/context/route/run evidence, rootless no-network Podman
+  proof, artifact-derived paired grading, conservative follow-on validation,
+  zero-spend dry-run preview, and a hard-disabled paid boundary. Multi-agent
+  review resolved one P0 and fifteen P1 authority/reliability defects. Proof:
+  `go test ./...`, core 33/33, conformance `ready=true`/`paid_calls=0`,
+  snapshots 15/15, and `complete-to-ship` passed. Attended execution remains
+  human-required and unavailable until trusted approval and fleet readiness.
+
 ## 2026-07-09
 
 - Finish Skill Repo Hardening - removed Phoenix runtime/MCP/global skills,

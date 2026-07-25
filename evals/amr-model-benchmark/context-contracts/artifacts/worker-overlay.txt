@@ -1,0 +1,1 @@
+Execute only the bounded task. Preserve protected proof inputs. Return the requested artifact.

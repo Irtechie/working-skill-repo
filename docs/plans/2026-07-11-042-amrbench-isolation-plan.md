@@ -53,7 +53,7 @@ expected_files:
 protected_oracles:
   - path: cmd/amrbench/main_test.go
     role: "no-paid isolation, oracle closure, route mismatch, and budget state-machine oracle"
-    sha256: "filled after RED before implementation"
+    sha256: "8ac3d397ab5ec204196880bc0f3fc216268e2f8fba6e80d85fd0031dc297a1ab"
     update_policy: "requires explicit plan update"
 status: pending
 owner: agent

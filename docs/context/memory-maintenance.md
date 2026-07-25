@@ -4,14 +4,14 @@ Last deep review: never
 
 ## Counters Since Last Review
 
-- Completed KB cycles: 13
-- Durable memory refreshes: 1 (current run; earlier history not reconstructed)
-- Closed handoffs: 1 (current run; earlier history not reconstructed)
-- Contradiction signals: 1
-- Overlap signals: 1
-- Stale-doc signals: 1
+- Completed KB cycles: 14
+- Durable memory refreshes: 2 (current run; earlier history not reconstructed)
+- Closed handoffs: 2 (current run; earlier history not reconstructed)
+- Contradiction signals: 2
+- Overlap signals: 2
+- Stale-doc signals: 2
 - Bloat signals: 0
-- Repeated-rediscovery signals: 1
+- Repeated-rediscovery signals: 2
 
 ## Instinct Roots
 
@@ -53,6 +53,10 @@ Canonical reference: `docs/context/architecture/kb-learning-model.md`.
 | 2026-07-09 | contradiction | completion state | A completed scoped-learning goal still pointed to `kb-work`, its manifest remained active/pending, and a resolved handoff remained active. | Reconciled goal/manifest statuses, moved the handoff to done, and reduced `todo.md` to active work only. | closed |
 | 2026-07-09 | overlap | provider gate guidance | Provider hygiene extends the existing contributor-core vs release/environment gate rule. | Added a focused provider solution and refreshed the canonical gate solution with a cross-link. | closed |
 | 2026-07-09 | repeated-rediscovery | optional provider boundary | CCE/Phoenix optionality had been described in docs but was not mechanically distinguished in local config. | Added semantic provider-hygiene checks, fixtures, and a scoped instinct. | closed |
+| 2026-07-12 | contradiction | GHCP AIC handoff state | The active no-paid handoff still described slice 002 blocked and slices 003-004 pending after the manifest recorded all slices done. | Refreshed the handoff to finalization/approval state and retained only the temporary Podman cleanup pointer. | closed |
+| 2026-07-12 | stale-doc | AMR benchmark README | The benchmark README advertised hosted model aliases, legacy unpaired qualification, and executable attended runs that no longer matched the fail-closed implementation. | Rewrote the README around no-paid conformance, artifact-derived paired grading, dry-run preview, and disabled provider execution. | closed |
+| 2026-07-12 | overlap | evaluation proof semantics | GHCP AIC artifact binding overlapped the existing proof-spine digest solution across problem, root cause, solution, and prevention. | Updated the existing proof-spine solution instead of creating a duplicate. | closed |
+| 2026-07-12 | repeated-rediscovery | digest labels versus evidence | The proof-spine had already established semantic digests, but the first benchmark draft again treated self-authored hashes and booleans as authority. | Generalized the solution guidance and added scoped model-routing/evaluation instincts. | closed |
 
 ## Closed Signals
 

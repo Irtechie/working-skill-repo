@@ -1,0 +1,4 @@
+slice context packet
+acceptance criteria
+proof command
+mutable and protected file contract

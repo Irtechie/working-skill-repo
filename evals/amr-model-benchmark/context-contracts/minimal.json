@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "variant": "minimal",
+  "development_corpus": ["retry-after-parser-dev", "canonical-cache-key-dev"],
+  "routing_corpus": ["retry-after-parser-holdout", "canonical-cache-key-holdout"],
+  "base_packet_hash": "9048e5d5feb1446d6f73cb3ebcb506a328c56cafe7f576e55147e6c1f4293854",
+  "base_packet_path": "artifacts/minimal-packet.txt",
+  "role_overlay_hashes": {
+    "worker": "e1e8759198992c030eab091e8b226099c7014ef5576f183740a72552ab630a3d",
+    "reviewer": "02377705345a0aec4226fcea7b618a2a8fcb3a3307d2a6444ddaa60f9dea3118"
+  },
+  "role_overlay_paths": {
+    "worker": "artifacts/worker-overlay.txt",
+    "reviewer": "artifacts/reviewer-overlay.txt"
+  },
+  "tools": ["apply_patch", "go test"],
+  "proof_command": "go test ./...",
+  "timeout_seconds": 90,
+  "stopping_rule": "one-pass-plus-proof",
+  "crossover_orders": [["baseline", "minimal"], ["minimal", "baseline"]],
+  "winner_rule": {
+    "minimum_median_reduction": 0.10,
+    "require_no_regression": true,
+    "require_lower_aggregate": true,
+    "confidence_level": 0.95
+  }
+}

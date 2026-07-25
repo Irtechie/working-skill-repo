@@ -32,11 +32,11 @@ expected_files:
 protected_oracles:
   - path: cmd/amrbench/context_test.go
     role: "corpus separation, comparison parity, and winner-rule behavior oracle"
-    sha256: "filled after RED before implementation"
+    sha256: "dc11a98ba48fe6a270f35536f2792059ee8873703fb460e1a315b3c330cc0538"
     update_policy: "requires explicit plan update"
   - path: evals/amr-model-benchmark/context-contract.schema.json
     role: "predeclared disjoint context A-B contract and winner-rule oracle"
-    sha256: "filled after RED before implementation"
+    sha256: "adc08ddc31d61a4930b91f8a2547605b3a222f9b3b12253fe1b0cfd7af1dea25"
     update_policy: "requires explicit plan update"
 status: pending
 owner: agent
@@ -62,3 +62,9 @@ can_continue_other_slices: false
 ## Scope Boundary
 
 No route matrix, adaptive policy, production skill trimming, or paid call.
+
+## Oracle Amendment
+
+Review required the schema to bind declared hashes to real packet and role
+overlay artifact paths with strict 64-hex SHA-256 values. The schema oracle was
+amended explicitly; the experiment controls and winner criteria were preserved.

@@ -92,6 +92,42 @@ func TestNormalizeExecutionTelemetryRequiresPacketID(t *testing.T) {
 	}
 }
 
+func TestNormalizeExecutionTelemetryKeepsExactGHCPAccountingProofNeutral(t *testing.T) {
+	usage, err := normalizeExecutionTelemetry(map[string]any{
+		"packet_id": "p1",
+		"runtime":   "ghcp",
+		"ghcp_accounting": map[string]any{
+			"schema_version":    "ghcp-otel-jsonl-v1",
+			"aiu_nano":          2_500_000_000,
+			"aiu_available":     true,
+			"input_tokens":      100,
+			"output_tokens":     25,
+			"cache_read_tokens": 50,
+			"calls":             1,
+			"actual_models":     []string{"actual"},
+			"requested_models":  []string{"requested"},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.GHCPAccounting == nil || usage.GHCPAccounting.AIUNano != 2_500_000_000 ||
+		usage.GHCPAccounting.Calls != 1 || usage.ReceiptStatus != "missing" ||
+		usage.ActualModel != "" || usage.ProofResult != "unknown" {
+		t.Fatalf("usage=%#v", usage)
+	}
+
+	if _, err := normalizeExecutionTelemetry(map[string]any{
+		"packet_id": "p1",
+		"ghcp_accounting": map[string]any{
+			"schema_version": "unknown",
+			"calls":          1,
+		},
+	}, nil); err == nil {
+		t.Fatal("unknown GHCP accounting schema passed")
+	}
+}
+
 func TestExecutionTelemetryCommandUsesReceiptEnvelopeEvidence(t *testing.T) {
 	root := privateTelemetryProjectRoot(t)
 	attestationRoot := filepath.Join(t.TempDir(), "host-attestations")

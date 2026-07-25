@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "variant",
+    "development_corpus",
+    "routing_corpus",
+    "base_packet_hash",
+    "base_packet_path",
+    "role_overlay_hashes",
+    "role_overlay_paths",
+    "tools",
+    "proof_command",
+    "timeout_seconds",
+    "stopping_rule",
+    "crossover_orders",
+    "winner_rule"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "variant": {"enum": ["baseline", "minimal"]},
+    "development_corpus": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "routing_corpus": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "base_packet_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "base_packet_path": {"type": "string", "minLength": 1},
+    "role_overlay_hashes": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}},
+    "role_overlay_paths": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+    "tools": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "proof_command": {"type": "string", "minLength": 1},
+    "timeout_seconds": {"type": "integer", "minimum": 1},
+    "stopping_rule": {"type": "string", "minLength": 1},
+    "crossover_orders": {"type": "array", "minItems": 2},
+    "winner_rule": {
+      "type": "object",
+      "required": ["minimum_median_reduction", "require_no_regression", "require_lower_aggregate", "confidence_level"]
+    }
+  },
+  "additionalProperties": false
+}

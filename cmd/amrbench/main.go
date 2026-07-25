@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,19 +12,49 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Irtechie/working-skill-repo/internal/ghcpotel"
 )
 
 const defaultConfig = "evals/amr-model-benchmark/config.json"
 
 type config struct {
-	SchemaVersion int           `json:"schema_version"`
-	Models        []modelSpec   `json:"models"`
-	Tasks         []taskSpec    `json:"tasks"`
-	Qualification qualification `json:"qualification"`
+	SchemaVersion    int                  `json:"schema_version"`
+	Models           []modelSpec          `json:"models"`
+	Cohorts          []cohortSpec         `json:"cohorts,omitempty"`
+	Tasks            []taskSpec           `json:"tasks"`
+	Qualification    qualification        `json:"qualification"`
+	Sandbox          sandboxSpec          `json:"sandbox"`
+	ContextContracts contextContractPaths `json:"context_contracts"`
+	Budget           budgetSpec           `json:"budget"`
+}
+
+type budgetSpec struct {
+	PerCallAIU    int `json:"per_call_ai_credits"`
+	PerArmAIU     int `json:"per_arm_ai_credits"`
+	ExperimentAIU int `json:"experiment_ai_credits"`
+}
+
+type contextContractPaths struct {
+	Baseline string `json:"baseline"`
+	Minimal  string `json:"minimal"`
+}
+
+type sandboxSpec struct {
+	GoImage   string `json:"go_image,omitempty"`
+	NodeImage string `json:"node_image,omitempty"`
+}
+
+type cohortSpec struct {
+	ID           string   `json:"id"`
+	PlannedTier  string   `json:"planned_tier"`
+	AttemptTier  string   `json:"attempt_tier"`
+	TaskFamilies []string `json:"task_families"`
 }
 
 type modelSpec struct {
@@ -36,16 +66,20 @@ type modelSpec struct {
 }
 
 type taskSpec struct {
-	ID            string   `json:"id"`
-	Family        string   `json:"family"`
-	PlannedTier   string   `json:"planned_tier"`
-	AttemptTier   string   `json:"attempt_tier,omitempty"`
-	Fixture       string   `json:"fixture"`
-	Prompt        string   `json:"prompt"`
-	Verify        []string `json:"verify"`
-	RequiredTests []string `json:"required_tests"`
-	AMREligible   bool     `json:"amr_eligible"`
-	IneligibleWhy string   `json:"ineligible_reason,omitempty"`
+	ID              string            `json:"id"`
+	Family          string            `json:"family"`
+	PlannedTier     string            `json:"planned_tier"`
+	AttemptTier     string            `json:"attempt_tier,omitempty"`
+	Fixture         string            `json:"fixture"`
+	Prompt          string            `json:"prompt"`
+	Verify          []string          `json:"verify"`
+	RequiredTests   []string          `json:"required_tests"`
+	AMREligible     bool              `json:"amr_eligible"`
+	IneligibleWhy   string            `json:"ineligible_reason,omitempty"`
+	MutablePaths    []string          `json:"mutable_paths,omitempty"`
+	ProofFiles      []string          `json:"proof_files,omitempty"`
+	ProofHashes     map[string]string `json:"proof_hashes,omitempty"`
+	SolutionFixture string            `json:"solution_fixture,omitempty"`
 }
 
 type qualification struct {
@@ -72,24 +106,30 @@ type localProfile struct {
 }
 
 type runResult struct {
-	SchemaVersion int           `json:"schema_version"`
-	RunID         string        `json:"run_id"`
-	Mode          string        `json:"mode"`
-	TaskID        string        `json:"task_id"`
-	TaskFamily    string        `json:"task_family"`
-	PlannedTier   string        `json:"planned_tier"`
-	AttemptTier   string        `json:"attempt_tier,omitempty"`
-	AttemptModel  string        `json:"attempt_model,omitempty"`
-	DriverModel   string        `json:"driver_model,omitempty"`
-	StartedAt     string        `json:"started_at"`
-	DurationMS    int64         `json:"duration_ms"`
-	FinalProof    proofResult   `json:"final_proof"`
-	Phases        []phaseResult `json:"phases"`
-	ChangedFiles  []string      `json:"changed_files"`
-	LinesAdded    int           `json:"lines_added"`
-	LinesDeleted  int           `json:"lines_deleted"`
-	Outcome       string        `json:"outcome"`
-	Workspace     string        `json:"workspace"`
+	SchemaVersion       int           `json:"schema_version"`
+	RunID               string        `json:"run_id"`
+	Mode                string        `json:"mode"`
+	TaskID              string        `json:"task_id"`
+	TaskFamily          string        `json:"task_family"`
+	Seed                int           `json:"seed"`
+	ContextContractHash string        `json:"context_contract_hash"`
+	ProofClosureHash    string        `json:"proof_closure_hash"`
+	ExperimentID        string        `json:"experiment_id"`
+	ApprovalHash        string        `json:"approval_hash"`
+	RouteCatalogHash    string        `json:"route_catalog_hash"`
+	PlannedTier         string        `json:"planned_tier"`
+	AttemptTier         string        `json:"attempt_tier,omitempty"`
+	AttemptModel        string        `json:"attempt_model,omitempty"`
+	DriverModel         string        `json:"driver_model,omitempty"`
+	StartedAt           string        `json:"started_at"`
+	DurationMS          int64         `json:"duration_ms"`
+	FinalProof          proofResult   `json:"final_proof"`
+	Phases              []phaseResult `json:"phases"`
+	ChangedFiles        []string      `json:"changed_files"`
+	LinesAdded          int           `json:"lines_added"`
+	LinesDeleted        int           `json:"lines_deleted"`
+	Outcome             string        `json:"outcome"`
+	Workspace           string        `json:"workspace"`
 }
 
 type phaseResult struct {
@@ -100,8 +140,11 @@ type phaseResult struct {
 	ModelMatch       bool        `json:"model_match"`
 	Runner           string      `json:"runner"`
 	ExitCode         int         `json:"exit_code"`
+	Valid            bool        `json:"valid"`
+	InvalidReason    string      `json:"invalid_reason,omitempty"`
 	DurationMS       int64       `json:"duration_ms"`
 	AIC              float64     `json:"aic,omitempty"`
+	AIUNano          int64       `json:"aiu_nano"`
 	AICAvailable     bool        `json:"aic_available"`
 	InputTokens      int64       `json:"input_tokens"`
 	CacheReadTokens  int64       `json:"cache_read_tokens"`
@@ -122,6 +165,15 @@ type proofResult struct {
 	SandboxImage string `json:"sandbox_image,omitempty"`
 }
 
+type phaseState struct {
+	SchemaVersion int    `json:"schema_version"`
+	Phase         string `json:"phase"`
+	Status        string `json:"status"`
+	ExitCode      int    `json:"exit_code,omitempty"`
+	Reason        string `json:"reason,omitempty"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
 type gradeRow struct {
 	Mode       string  `json:"mode"`
 	Route      string  `json:"route"`
@@ -137,6 +189,7 @@ type gradeRow struct {
 
 type otelUsage struct {
 	AIC              float64
+	AIUNano          int64
 	AICAvailable     bool
 	InputTokens      int64
 	OutputTokens     int64
@@ -155,6 +208,18 @@ type draftFile struct {
 	Content string `json:"content"`
 }
 
+type conformanceReport struct {
+	SchemaVersion   int                             `json:"schema_version"`
+	Ready           bool                            `json:"ready"`
+	NoPaid          bool                            `json:"no_paid"`
+	Runner          string                          `json:"runner"`
+	PaidCalls       int                             `json:"paid_calls"`
+	ReleaseDecision string                          `json:"release_decision"`
+	Containment     containmentReport               `json:"containment"`
+	Fixtures        map[string]fixtureQualification `json:"fixtures,omitempty"`
+	Issues          []string                        `json:"issues,omitempty"`
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		usage(os.Stderr)
@@ -167,7 +232,11 @@ func main() {
 	case "run":
 		err = runBenchmark(os.Args[2:], os.Stdout)
 	case "grade":
-		err = runGrade(os.Args[2:], os.Stdout)
+		err = errors.New("legacy unpaired grade is disabled; use grade-paired")
+	case "grade-paired":
+		err = runPairedGrade(os.Args[2:], os.Stdout)
+	case "conformance":
+		err = runConformance(os.Args[2:], os.Stdout)
 	default:
 		usage(os.Stderr)
 		os.Exit(2)
@@ -180,8 +249,100 @@ func main() {
 
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "amrbench list [--config path]")
-	fmt.Fprintln(w, "amrbench run --mode direct|amr --task id [--model alias | --attempt alias --driver alias] [--repeat N] [--config path] [--out path]")
-	fmt.Fprintln(w, "amrbench grade [--results path] [--config path]")
+	fmt.Fprintln(w, "amrbench run --dry-run --experiment-id id --routes path --context baseline|minimal --mode direct|amr --task id [--model id | --attempt id --driver id] [--repeat N] [--config path]")
+	fmt.Fprintln(w, "amrbench run without --dry-run is disabled until a trusted human-approval verifier exists")
+	fmt.Fprintln(w, "amrbench grade is disabled; use grade-paired")
+	fmt.Fprintln(w, "amrbench grade-paired --results path")
+	fmt.Fprintln(w, "amrbench conformance --config path --no-paid [--require-ready] [--json]")
+}
+
+func runConformance(args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("conformance", flag.ContinueOnError)
+	configPath := fs.String("config", defaultConfig, "benchmark config")
+	noPaid := fs.Bool("no-paid", false, "disable all model runners")
+	requireReady := fs.Bool("require-ready", false, "fail unless every deterministic gate is ready")
+	asJSON := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("conformance accepts no positional arguments")
+	}
+	if !*noPaid {
+		return errors.New("conformance requires --no-paid; live execution needs separate attended approval")
+	}
+	var cfg config
+	if err := readJSON(*configPath, &cfg); err != nil {
+		return err
+	}
+	if cfg.SchemaVersion != 1 {
+		return errors.New("invalid benchmark config schema")
+	}
+	configureSandboxImages(cfg.Sandbox)
+	runner := newDisabledRunner(nil, nil)
+	report := conformanceReport{
+		SchemaVersion:   1,
+		NoPaid:          true,
+		Runner:          runner.Name(),
+		ReleaseDecision: "not-promoted",
+		Containment:     inspectContainment(sandboxRuntime),
+		Fixtures:        map[string]fixtureQualification{},
+	}
+	if cfg.Budget.PerCallAIU <= 0 || cfg.Budget.PerArmAIU < cfg.Budget.PerCallAIU ||
+		cfg.Budget.ExperimentAIU < cfg.Budget.PerArmAIU {
+		report.Issues = append(report.Issues, "credit budget must define increasing positive per-call, per-arm, and experiment ceilings")
+	}
+	if cfg.ContextContracts.Baseline == "" || cfg.ContextContracts.Minimal == "" {
+		report.Issues = append(report.Issues, "context contracts are not configured")
+	} else {
+		baseline, baselineErr := loadContextContract(cfg.ContextContracts.Baseline)
+		minimal, minimalErr := loadContextContract(cfg.ContextContracts.Minimal)
+		switch {
+		case baselineErr != nil:
+			report.Issues = append(report.Issues, "baseline context contract: "+baselineErr.Error())
+		case minimalErr != nil:
+			report.Issues = append(report.Issues, "minimal context contract: "+minimalErr.Error())
+		case validateContextPair(baseline, minimal) != nil:
+			report.Issues = append(report.Issues, "context contract parity failed")
+		}
+	}
+	if !report.Containment.Ready {
+		report.Issues = append(report.Issues, report.Containment.Issues...)
+	}
+	for _, task := range cfg.Tasks {
+		if !task.AMREligible {
+			continue
+		}
+		if _, _, err := sandboxCommand(task.Verify); err != nil {
+			report.Issues = append(report.Issues, task.ID+": "+err.Error())
+			continue
+		}
+		qualified, err := qualifyFixture(fixtureSpec{
+			Root: task.Fixture, MutablePaths: task.MutablePaths, ProofFiles: task.ProofFiles,
+			ExpectedProofHashes: task.ProofHashes, SolutionRoot: task.SolutionFixture,
+			Verify: task.Verify, RequiredTests: task.RequiredTests,
+		})
+		if err != nil {
+			report.Issues = append(report.Issues, task.ID+": "+err.Error())
+			continue
+		}
+		report.Fixtures[task.ID] = qualified
+	}
+	report.Ready = len(report.Issues) == 0 && runner.Started() == 0
+	if *asJSON {
+		encoder := json.NewEncoder(out)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(report); err != nil {
+			return err
+		}
+	} else {
+		fmt.Fprintf(out, "conformance: ready=%t no_paid=%t runner=%s paid_calls=%d decision=%s issues=%d\n",
+			report.Ready, report.NoPaid, report.Runner, report.PaidCalls, report.ReleaseDecision, len(report.Issues))
+	}
+	if *requireReady && !report.Ready {
+		return fmt.Errorf("conformance is not ready: %s", strings.Join(report.Issues, "; "))
+	}
+	return nil
 }
 
 func runList(args []string, out io.Writer) error {
@@ -189,6 +350,9 @@ func runList(args []string, out io.Writer) error {
 	path := fs.String("config", defaultConfig, "benchmark config")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("list accepts no positional arguments")
 	}
 	cfg, err := loadConfig(*path)
 	if err != nil {
@@ -205,12 +369,26 @@ func runBenchmark(args []string, out io.Writer) error {
 	modelAlias := fs.String("model", "", "direct model alias")
 	attemptAlias := fs.String("attempt", "", "AMR attempt model alias")
 	driverAlias := fs.String("driver", "", "AMR correction/driver model alias")
+	modelRunner := fs.String("model-runner", "ghcp", "direct runner: ghcp or byok")
+	attemptRunner := fs.String("attempt-runner", "ghcp", "attempt runner: ghcp or byok")
+	driverRunner := fs.String("driver-runner", "ghcp", "driver runner: ghcp or byok")
+	modelProfile := fs.String("model-profile", "", "direct user-local BYOK profile")
+	attemptProfile := fs.String("attempt-profile", "", "attempt user-local BYOK profile")
+	driverProfile := fs.String("driver-profile", "", "driver user-local BYOK profile")
+	approvalPath := fs.String("approval", "", "attended approval receipt bound to the exact matrix")
+	experimentID := fs.String("experiment-id", "", "durable experiment budget identity")
+	contextVariant := fs.String("context", "baseline", "frozen context contract: baseline or minimal")
+	routesPath := fs.String("routes", "", "observed runtime route availability/tier catalog")
+	dryRun := fs.Bool("dry-run", false, "validate and emit the approval template without reserving credits or loading profiles")
 	repeat := fs.Int("repeat", 1, "number of independent runs")
 	outRoot := fs.String("out", ".kb/amr-model-benchmark", "result root")
 	profilesPath := fs.String("profiles", "", "user-local BYOK profiles")
-	maxCredits := fs.Int("max-ai-credits", 100, "per GHCP invocation credit ceiling")
+	maxCredits := fs.Int("max-ai-credits", 0, "per GHCP invocation credit ceiling (must not exceed config)")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("run accepts no positional arguments")
 	}
 	if *mode != "direct" && *mode != "amr" {
 		return errors.New("--mode must be direct or amr")
@@ -224,9 +402,23 @@ func runBenchmark(args []string, out io.Writer) error {
 	if *mode == "amr" && (*attemptAlias == "" || *driverAlias == "") {
 		return errors.New("amr mode requires --attempt and --driver")
 	}
+	if !*dryRun {
+		return errors.New("attended execution is disabled until a trusted human-approval verifier is implemented; use --dry-run")
+	}
 	cfg, err := loadConfig(*configPath)
 	if err != nil {
 		return err
+	}
+	configureSandboxImages(cfg.Sandbox)
+	if cfg.Budget.PerCallAIU <= 0 || cfg.Budget.PerArmAIU < cfg.Budget.PerCallAIU ||
+		cfg.Budget.ExperimentAIU < cfg.Budget.PerArmAIU {
+		return errors.New("benchmark config requires increasing positive per-call, per-arm, and experiment credit ceilings")
+	}
+	if *maxCredits == 0 {
+		*maxCredits = cfg.Budget.PerCallAIU
+	}
+	if *maxCredits < 1 || *maxCredits > cfg.Budget.PerCallAIU {
+		return fmt.Errorf("--max-ai-credits must be between 1 and configured per-call ceiling %d", cfg.Budget.PerCallAIU)
 	}
 	task, ok := findTask(cfg, *taskID)
 	if !ok {
@@ -238,43 +430,112 @@ func runBenchmark(args []string, out io.Writer) error {
 	if err := preflightProof(task.Verify); err != nil {
 		return fmt.Errorf("benchmark proof unavailable before dispatch: %w", err)
 	}
+	if err := validateTaskAdmission(cfg, task); err != nil {
+		return fmt.Errorf("benchmark admission failed before approval or dispatch: %w", err)
+	}
+	contextPath := cfg.ContextContracts.Baseline
+	if *contextVariant == "minimal" {
+		contextPath = cfg.ContextContracts.Minimal
+	} else if *contextVariant != "baseline" {
+		return errors.New("--context must be baseline or minimal")
+	}
+	contextHash, err := fileSHA256(contextPath)
+	if err != nil {
+		return err
+	}
+	selectedContext, err := loadContextPayload(contextPath)
+	if err != nil {
+		return err
+	}
+	proofClosureHash, err := hashStringMap(task.ProofHashes)
+	if err != nil {
+		return err
+	}
 	var direct, attempt, driver modelSpec
+	routes, routesHash, err := loadRuntimeRouteCatalog(*routesPath)
+	if err != nil {
+		return err
+	}
 	if *mode == "direct" {
-		direct, ok = findModel(cfg, *modelAlias)
-		if !ok {
-			return fmt.Errorf("unknown model alias %q", *modelAlias)
+		direct, err = resolveRuntimeModel(cfg, routes, *modelAlias, *modelRunner, *modelProfile, task.PlannedTier)
+		if err != nil {
+			return err
 		}
 	} else {
-		attempt, ok = findModel(cfg, *attemptAlias)
-		if !ok {
-			return fmt.Errorf("unknown attempt alias %q", *attemptAlias)
+		attempt, err = resolveRuntimeModel(cfg, routes, *attemptAlias, *attemptRunner, *attemptProfile, task.AttemptTier)
+		if err != nil {
+			return err
 		}
-		driver, ok = findModel(cfg, *driverAlias)
-		if !ok {
-			return fmt.Errorf("unknown driver alias %q", *driverAlias)
+		driver, err = resolveRuntimeModel(cfg, routes, *driverAlias, *driverRunner, *driverProfile, task.PlannedTier)
+		if err != nil {
+			return err
 		}
 		if attempt.Tier != task.AttemptTier {
 			return errors.New("AMR attempt model must exactly match the task attempt tier")
 		}
+
 		if driver.Tier != task.PlannedTier {
 			return errors.New("AMR driver model must exactly match the task planned tier")
 		}
 	}
-	profiles, err := loadProfiles(*profilesPath)
-	if err != nil {
-		return err
-	}
 	root, err := filepath.Abs(*outRoot)
 	if err != nil {
 		return err
+	}
+	expectedApproval := approvalReceipt{
+		ExperimentID: *experimentID, Mode: *mode, TaskID: task.ID, Repeat: *repeat,
+		ContextContractHash: contextHash,
+		RouteCatalogHash:    routesHash,
+		MaxAICreditsPerCall: *maxCredits, MaxAICreditsPerArm: cfg.Budget.PerArmAIU,
+		MaxExperimentCredits: cfg.Budget.ExperimentAIU,
+		DirectModel:          direct.Model, DirectRunner: direct.Runner, DirectProfile: direct.Profile,
+		AttemptModel: attempt.Model, AttemptRunner: attempt.Runner, AttemptProfile: attempt.Profile,
+		DriverModel: driver.Model, DriverRunner: driver.Runner, DriverProfile: driver.Profile,
+	}
+	if !experimentIDPattern.MatchString(*experimentID) {
+		return errors.New("--experiment-id must be 1-64 safe identifier characters")
+	}
+	if *dryRun {
+		configHash, err := fileSHA256(*configPath)
+		if err != nil {
+			return err
+		}
+		expectedApproval.SchemaVersion = 1
+		expectedApproval.ConfigSHA256 = configHash
+		encoder := json.NewEncoder(out)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(map[string]any{
+			"ready": true, "paid_calls": 0, "profiles_loaded": false,
+			"approval_template": expectedApproval,
+		})
+	}
+	approval, approvalHash, err := validateApproval(*approvalPath, *configPath, expectedApproval, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	ledgerRoot, err := budgetLedgerRoot()
+	if err != nil {
+		return err
+	}
+	if err := reserveDurableBudget(ledgerRoot, approval, approvalHash); err != nil {
+		return err
+	}
+	profiles := map[string]localProfile{}
+	if direct.Runner == "byok" || attempt.Runner == "byok" || driver.Runner == "byok" {
+		profiles, err = loadProfiles(*profilesPath)
+		if err != nil {
+			return err
+		}
 	}
 	resultsPath := filepath.Join(root, "results.jsonl")
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return err
 	}
 	var results []runResult
+	budget := newCreditBudget(cfg.Budget.PerCallAIU, cfg.Budget.PerArmAIU, cfg.Budget.ExperimentAIU)
 	for i := 0; i < *repeat; i++ {
-		result, err := executeRun(cfg, task, *mode, direct, attempt, driver, profiles, root, *maxCredits)
+		budget.BeginArm()
+		result, err := executeRun(cfg, task, i, contextHash, proofClosureHash, *experimentID, approvalHash, routesHash, selectedContext, *mode, direct, attempt, driver, profiles, root, budget, *maxCredits)
 		if err != nil {
 			return err
 		}
@@ -288,7 +549,23 @@ func runBenchmark(args []string, out io.Writer) error {
 	return encoder.Encode(results)
 }
 
-func executeRun(cfg config, task taskSpec, mode string, direct, attempt, driver modelSpec, profiles map[string]localProfile, root string, maxCredits int) (runResult, error) {
+func resolveRuntimeModel(cfg config, routes runtimeRouteCatalog, modelID, runner, profile, tier string) (modelSpec, error) {
+	_ = cfg
+	if strings.TrimSpace(modelID) == "" {
+		return modelSpec{}, errors.New("runtime model ID is required")
+	}
+	for _, route := range routes.Routes {
+		if route.ModelID == modelID && route.Runner == runner && route.Profile == profile {
+			if route.Tier != tier {
+				return modelSpec{}, fmt.Errorf("runtime model %q is tier %q, expected %q", modelID, route.Tier, tier)
+			}
+			return modelSpec{Alias: modelID, Model: modelID, Runner: runner, Tier: tier, Profile: profile}, nil
+		}
+	}
+	return modelSpec{}, fmt.Errorf("runtime model %q has no matching observed route evidence", modelID)
+}
+
+func executeRun(cfg config, task taskSpec, seed int, contextHash, proofClosureHash, experimentID, approvalHash, routeCatalogHash string, selectedContext contextPayload, mode string, direct, attempt, driver modelSpec, profiles map[string]localProfile, root string, budget *creditBudget, maxCredits int) (runResult, error) {
 	_ = cfg
 	start := time.Now()
 	runID := start.UTC().Format("20060102T150405.000000000Z") + "-" + task.ID + "-" + mode
@@ -302,41 +579,59 @@ func executeRun(cfg config, task taskSpec, mode string, direct, attempt, driver 
 	}
 	result := runResult{
 		SchemaVersion: 1, RunID: runID, Mode: mode, TaskID: task.ID, TaskFamily: task.Family,
+		Seed: seed, ContextContractHash: contextHash, ProofClosureHash: proofClosureHash,
+		ExperimentID: experimentID, ApprovalHash: approvalHash, RouteCatalogHash: routeCatalogHash,
 		PlannedTier: task.PlannedTier, AttemptTier: task.AttemptTier, StartedAt: start.UTC().Format(time.RFC3339Nano),
 		Workspace: workspace,
 	}
 	if mode == "direct" {
 		result.DriverModel = direct.Alias
-		phase, err := invokeModel(runDir, workspace, "direct", direct, profiles, directPrompt(task, workspace), task.Verify, task.RequiredTests, maxCredits)
+		if err := budget.Reserve("direct", maxCredits); err != nil {
+			return result, err
+		}
+		phase, err := invokeModel(runDir, workspace, "direct", direct, profiles, directPromptWithContext(task, workspace, selectedContext), task, maxCredits)
 		if err != nil {
 			return result, err
 		}
 		result.Phases = append(result.Phases, phase)
 		result.FinalProof = phase.Proof
-		if phase.Proof.Passed {
+		if !phase.Valid {
+			result.Outcome = "invalid-direct"
+		} else if phase.Proof.Passed {
 			result.Outcome = "passed-direct"
 		} else {
 			result.Outcome = "failed-direct"
 		}
 	} else {
 		result.AttemptModel, result.DriverModel = attempt.Alias, driver.Alias
-		first, err := invokeModel(runDir, workspace, "attempt", attempt, profiles, attemptPrompt(task, workspace), task.Verify, task.RequiredTests, maxCredits)
+		if err := budget.Reserve("attempt", maxCredits); err != nil {
+			return result, err
+		}
+		first, err := invokeModel(runDir, workspace, "attempt", attempt, profiles, attemptPromptWithContext(task, workspace, selectedContext), task, maxCredits)
 		if err != nil {
 			return result, err
 		}
 		result.Phases = append(result.Phases, first)
-		if first.Proof.Passed {
+		if !first.Valid {
+			result.FinalProof, result.Outcome = first.Proof, "invalid-attempt"
+		} else if first.Proof.Passed {
 			result.FinalProof, result.Outcome = first.Proof, "passed-attempt"
-		} else {
+		} else if phaseCanCorrect(first) {
 			diff := gitOutput(workspace, "diff", "--no-ext-diff", "--unified=3")
-			prompt := correctionPrompt(task, workspace, diff, first.Proof.Output)
-			second, err := invokeModel(runDir, workspace, "correction", driver, profiles, prompt, task.Verify, task.RequiredTests, maxCredits)
+			prompt := correctionPromptWithContext(task, workspace, diff, first.Proof.Output, selectedContext)
+			if err := budget.Reserve("correction", maxCredits); err != nil {
+				return result, err
+			}
+			second, err := invokeModel(runDir, workspace, "correction", driver, profiles, prompt, task, maxCredits)
 			if err != nil {
 				return result, err
 			}
+
 			result.Phases = append(result.Phases, second)
 			result.FinalProof = second.Proof
-			if second.Proof.Passed {
+			if !second.Valid {
+				result.Outcome = "invalid-correction"
+			} else if second.Proof.Passed {
 				result.Outcome = "passed-correction"
 			} else {
 				result.Outcome = "failed-correction"
@@ -353,7 +648,11 @@ func executeRun(cfg config, task taskSpec, mode string, direct, attempt, driver 
 	return result, nil
 }
 
-func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[string]localProfile, prompt string, verify, requiredTests []string, maxCredits int) (phaseResult, error) {
+func phaseCanCorrect(phase phaseResult) bool {
+	return phase.Valid && !phase.Proof.Passed
+}
+
+func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[string]localProfile, prompt string, task taskSpec, maxCredits int) (phaseResult, error) {
 	phaseDir := filepath.Join(runDir, phase)
 	if err := os.MkdirAll(phaseDir, 0o755); err != nil {
 		return phaseResult{}, err
@@ -361,6 +660,12 @@ func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[
 	stdoutPath := filepath.Join(phaseDir, "stdout.txt")
 	stderrPath := filepath.Join(phaseDir, "stderr.txt")
 	otelPath := filepath.Join(phaseDir, "otel.jsonl")
+	statePath := filepath.Join(phaseDir, "state.json")
+	if err := writeAtomicJSONFile(statePath, phaseState{
+		SchemaVersion: 1, Phase: phase, Status: "starting", UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}); err != nil {
+		return phaseResult{}, err
+	}
 	args := []string{
 		"-p", prompt,
 		"--model", model.Model,
@@ -389,8 +694,9 @@ func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[
 		env = configuredEnv
 	}
 	cmd.Env = env
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	stdout := newCappedBuffer(1 << 20)
+	stderr := newCappedBuffer(1 << 20)
+	cmd.Stdout, cmd.Stderr = stdout, stderr
 	start := time.Now()
 	if err := configureProcessTree(cmd); err != nil {
 		return phaseResult{}, err
@@ -411,14 +717,30 @@ func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[
 	select {
 	case runErr = <-wait:
 	case <-time.After(90 * time.Second):
-		_ = tree.Kill()
-		runErr = <-wait
-		if runErr == nil {
+		killErr := tree.Kill()
+		select {
+		case <-wait:
 			runErr = errors.New("model invocation timed out")
+			if killErr != nil {
+				runErr = fmt.Errorf("model invocation timed out; terminate process tree: %w", killErr)
+			}
+		case <-time.After(10 * time.Second):
+			_ = writeAtomicJSONFile(statePath, phaseState{
+				SchemaVersion: 1, Phase: phase, Status: "indeterminate",
+				Reason:    "model invocation timed out and process did not exit",
+				UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+			})
+			return phaseResult{}, fmt.Errorf("model invocation timed out and process did not exit")
 		}
 	}
 	duration := time.Since(start)
 	exitCode := exitCode(runErr)
+	if err := writeAtomicJSONFile(statePath, phaseState{
+		SchemaVersion: 1, Phase: phase, Status: "provider-finished", ExitCode: exitCode,
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}); err != nil {
+		return phaseResult{}, err
+	}
 	if writeErr := os.WriteFile(stdoutPath, stdout.Bytes(), 0o644); writeErr != nil {
 		return phaseResult{}, writeErr
 	}
@@ -426,44 +748,110 @@ func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[
 		return phaseResult{}, writeErr
 	}
 	usage, usageErr := parseOTel(otelPath)
-	if usageErr != nil && !os.IsNotExist(usageErr) {
-		return phaseResult{}, usageErr
-	}
-	applyErr := applyDraftResponse(workspace, stdout.String())
-	proof := runProof(workspace, verify, requiredTests)
-	if applyErr != nil {
-		proof.Passed = false
-		proof.Output = bounded("draft apply failed: "+applyErr.Error()+"\n"+proof.Output, 12000)
-	}
 	expectedModels := []string{model.Model}
 	if model.Runner == "byok" {
 		if profile, ok := profiles[model.Profile]; ok {
 			expectedModels = append(expectedModels, profile.ModelID, profile.WireModel)
 		}
 	}
-	return phaseResult{
+	modelMatch := usageErr == nil && modelsMatch(usage.ActualModels, expectedModels)
+	invalidReason := ""
+	switch {
+	case runErr != nil:
+		invalidReason = "provider process failed: " + runErr.Error()
+	case stdout.Overflowed() || stderr.Overflowed():
+		invalidReason = "provider output exceeded bounded capture"
+	case usageErr != nil:
+		invalidReason = "telemetry invalid: " + usageErr.Error()
+	case usage.Calls < 1 || !usage.AICAvailable:
+		invalidReason = "telemetry is incomplete or has no exact AIU"
+	case !modelMatch:
+		invalidReason = "observed model does not match requested route"
+	}
+	if invalidReason != "" {
+		if err := writeAtomicJSONFile(statePath, phaseState{
+			SchemaVersion: 1, Phase: phase, Status: "invalid", ExitCode: exitCode,
+			Reason: invalidReason, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		}); err != nil {
+			return phaseResult{}, err
+		}
+		return phaseResult{
+			Phase: phase, Model: model.Alias, RequestedModel: model.Model, ActualModels: usage.ActualModels,
+			ModelMatch: modelMatch, Runner: model.Runner, ExitCode: exitCode, Valid: false,
+			InvalidReason: invalidReason, DurationMS: duration.Milliseconds(), AIC: usage.AIC,
+			AIUNano: usage.AIUNano, AICAvailable: usage.AICAvailable, InputTokens: usage.InputTokens,
+			CacheReadTokens: usage.CacheReadTokens, CacheWriteTokens: usage.CacheWriteTokens,
+			OutputTokens: usage.OutputTokens, Calls: usage.Calls,
+			Proof:      proofResult{Passed: false, ExitCode: 2, Output: invalidReason},
+			StdoutPath: stdoutPath, StderrPath: stderrPath, OTelPath: otelPath,
+		}, nil
+	}
+	applyErr := applyDraftResponseAllowed(workspace, stdout.String(), task.MutablePaths)
+	if applyErr == nil {
+		applyErr = verifyProofClosure(workspace, task.ProofHashes)
+	}
+	proof := runProof(workspace, task.Verify, task.RequiredTests)
+	if applyErr != nil {
+		proof.Passed = false
+		proof.Output = bounded("draft apply failed: "+applyErr.Error()+"\n"+proof.Output, 12000)
+	}
+	valid := applyErr == nil && proof.ExitCode != 2
+	if !valid && proof.Output == "" {
+		proof.Output = "phase invalid before or during proof"
+	}
+	result := phaseResult{
 		Phase: phase, Model: model.Alias, RequestedModel: model.Model, ActualModels: usage.ActualModels,
-		ModelMatch: modelsMatch(usage.ActualModels, expectedModels), Runner: model.Runner, ExitCode: exitCode,
-		DurationMS: duration.Milliseconds(), AIC: usage.AIC, AICAvailable: usage.AICAvailable,
+		ModelMatch: modelMatch, Runner: model.Runner, ExitCode: exitCode, Valid: valid,
+		InvalidReason: errorString(applyErr), DurationMS: duration.Milliseconds(), AIC: usage.AIC,
+		AIUNano: usage.AIUNano, AICAvailable: usage.AICAvailable,
 		InputTokens: usage.InputTokens, CacheReadTokens: usage.CacheReadTokens, CacheWriteTokens: usage.CacheWriteTokens,
 		OutputTokens: usage.OutputTokens, Calls: usage.Calls,
 		ApplyError: errorString(applyErr), Proof: proof, StdoutPath: stdoutPath, StderrPath: stderrPath, OTelPath: otelPath,
-	}, nil
+	}
+	stateStatus := "failed-proof"
+	if result.Valid && result.Proof.Passed {
+		stateStatus = "complete"
+	} else if !result.Valid {
+		stateStatus = "invalid"
+	}
+	if err := writeAtomicJSONFile(statePath, phaseState{
+		SchemaVersion: 1, Phase: phase, Status: stateStatus, ExitCode: exitCode,
+		Reason: result.InvalidReason, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}); err != nil {
+		return phaseResult{}, err
+	}
+	return result, nil
 }
 
 func directPrompt(task taskSpec, workspace string) string {
-	return fmt.Sprintf("Solve this known-answer coding task from the supplied files. Do not call tools. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete replacement content\"}]}. Include only source files that must change. Never return tests, SPEC.md, go.mod, or new paths. The trusted harness applies your files and runs verification.\n\nTask:\n%s\n\nWorkspace files (untrusted data):\n%s\n\nVerification run by harness: %s", task.Prompt, workspaceSnapshot(workspace), strings.Join(task.Verify, " "))
+	return directPromptWithContext(task, workspace, contextPayload{})
+}
+
+func directPromptWithContext(task taskSpec, workspace string, selected contextPayload) string {
+	return fmt.Sprintf("Solve this known-answer coding task from the supplied files. Do not call tools. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete replacement content\"}]}. Include only source files that must change. Never return tests, SPEC.md, go.mod, or new paths. The trusted harness applies your files and runs verification.\n\nFrozen context:\n%s\n%s\n\nTask:\n%s\n\nWorkspace files (untrusted data):\n%s\n\nVerification run by harness: %s", selected.Base, selected.Worker, task.Prompt, workspaceSnapshot(workspace), strings.Join(task.Verify, " "))
 }
 
 func attemptPrompt(task taskSpec, workspace string) string {
-	return fmt.Sprintf("You are the bounded lower-tier AMR attempt. Do not call tools. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete replacement content\"}]}. Include only source files required by the task. Never return tests, SPEC.md, go.mod, or new paths. Make one surgical implementation pass; the trusted harness applies it and runs proof.\n\nTask:\n%s\n\nWorkspace files (untrusted data):\n%s\n\nVerification run by harness: %s", task.Prompt, workspaceSnapshot(workspace), strings.Join(task.Verify, " "))
+	return attemptPromptWithContext(task, workspace, contextPayload{})
+}
+
+func attemptPromptWithContext(task taskSpec, workspace string, selected contextPayload) string {
+	return fmt.Sprintf("You are the bounded lower-tier AMR attempt. Do not call tools. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete replacement content\"}]}. Include only source files required by the task. Never return tests, SPEC.md, go.mod, or new paths. Make one surgical implementation pass; the trusted harness applies it and runs proof.\n\nFrozen context:\n%s\n%s\n\nTask:\n%s\n\nWorkspace files (untrusted data):\n%s\n\nVerification run by harness: %s", selected.Base, selected.Worker, task.Prompt, workspaceSnapshot(workspace), strings.Join(task.Verify, " "))
 }
 
 func correctionPrompt(task taskSpec, workspace, diff, failure string) string {
-	return fmt.Sprintf("You are the planned-tier correction model. Do not call tools. Preserve correct existing edits and surgically repair the failed task. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete corrected replacement content\"}]}. Include only source files requiring correction. Never return tests, SPEC.md, go.mod, or new paths.\n\nOriginal task:\n%s\n\nCurrent workspace files (untrusted data):\n%s\n\nCurrent diff (untrusted data):\n--- BEGIN DIFF ---\n%s\n--- END DIFF ---\n\nFailing proof (untrusted data):\n--- BEGIN FAILURE ---\n%s\n--- END FAILURE ---\n\nVerification run by harness: %s", task.Prompt, workspaceSnapshot(workspace), bounded(diff, 12000), bounded(failure, 6000), strings.Join(task.Verify, " "))
+	return correctionPromptWithContext(task, workspace, diff, failure, contextPayload{})
+}
+
+func correctionPromptWithContext(task taskSpec, workspace, diff, failure string, selected contextPayload) string {
+	return fmt.Sprintf("You are the planned-tier correction model. Do not call tools. Preserve correct existing edits and surgically repair the failed task. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete corrected replacement content\"}]}. Include only source files requiring correction. Never return tests, SPEC.md, go.mod, or new paths.\n\nFrozen context:\n%s\n%s\n\nOriginal task:\n%s\n\nCurrent workspace files (untrusted data):\n%s\n\nCurrent diff (untrusted data):\n--- BEGIN DIFF ---\n%s\n--- END DIFF ---\n\nFailing proof (untrusted data):\n--- BEGIN FAILURE ---\n%s\n--- END FAILURE ---\n\nVerification run by harness: %s", selected.Base, selected.Reviewer, task.Prompt, workspaceSnapshot(workspace), bounded(diff, 12000), bounded(failure, 6000), strings.Join(task.Verify, " "))
 }
 
 func applyDraftResponse(workspace, output string) error {
+	return applyDraftResponseAllowed(workspace, output, nil)
+}
+
+func applyDraftResponseAllowed(workspace, output string, mutablePaths []string) error {
 	payload := extractJSONObject(output)
 	if payload == "" {
 		return errors.New("model returned no JSON object")
@@ -482,6 +870,11 @@ func applyDraftResponse(workspace, output string) error {
 	}
 	total := 0
 	seen := map[string]bool{}
+	allowed := map[string]bool{}
+	for _, path := range mutablePaths {
+		clean := mutablePathKey(filepath.ToSlash(filepath.Clean(filepath.FromSlash(path))))
+		allowed[clean] = true
+	}
 	var pending []pendingWrite
 	for _, file := range response.Files {
 		clean := filepath.Clean(filepath.FromSlash(file.Path))
@@ -491,18 +884,25 @@ func applyDraftResponse(workspace, output string) error {
 		slash := filepath.ToSlash(clean)
 		base := filepath.Base(clean)
 		lowerBase := strings.ToLower(base)
-		if strings.HasSuffix(lowerBase, "_test.go") || lowerBase == "verify.test.js" || strings.EqualFold(base, "go.mod") || strings.EqualFold(base, "go.sum") || strings.EqualFold(base, "SPEC.md") {
+		firstComponent := strings.Split(strings.ToLower(slash), "/")[0]
+		if firstComponent == ".git" || strings.EqualFold(base, ".gitattributes") ||
+			strings.HasSuffix(lowerBase, "_test.go") || lowerBase == "verify.test.js" ||
+			strings.EqualFold(base, "go.mod") || strings.EqualFold(base, "go.sum") || strings.EqualFold(base, "SPEC.md") {
 			return fmt.Errorf("protected file %q", file.Path)
 		}
-		if seen[strings.ToLower(slash)] {
+		if len(allowed) > 0 && !allowed[mutablePathKey(slash)] {
+			return fmt.Errorf("file is outside the mutable allowlist: %q", file.Path)
+		}
+		if seen[mutablePathKey(slash)] {
 			return fmt.Errorf("duplicate file %q", file.Path)
 		}
-		seen[strings.ToLower(slash)] = true
+		seen[mutablePathKey(slash)] = true
 		target := filepath.Join(workspace, clean)
 		info, err := os.Lstat(target)
 		if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("file must already exist and be regular: %q", file.Path)
 		}
+
 		total += len(file.Content)
 		if total > 1<<20 {
 			return errors.New("model response exceeds file-content limit")
@@ -519,15 +919,28 @@ func applyDraftResponse(workspace, output string) error {
 	}
 	var applied []pendingWrite
 	for _, write := range pending {
-		if err := os.WriteFile(write.target, write.content, write.mode); err != nil {
+		if err := writeAtomicFile(write.target, write.content, write.mode); err != nil {
+			var rollbackErr error
 			for _, prior := range applied {
-				_ = os.WriteFile(prior.target, originals[prior.target], prior.mode)
+				if restoreErr := writeAtomicFile(prior.target, originals[prior.target], prior.mode); restoreErr != nil && rollbackErr == nil {
+					rollbackErr = restoreErr
+				}
+			}
+			if rollbackErr != nil {
+				return fmt.Errorf("apply failed: %v; rollback failed: %w", err, rollbackErr)
 			}
 			return err
 		}
 		applied = append(applied, write)
 	}
 	return nil
+}
+
+func mutablePathKey(path string) string {
+	if runtime.GOOS == "windows" {
+		return strings.ToLower(path)
+	}
+	return path
 }
 
 func extractJSONObject(value string) string {
@@ -571,9 +984,9 @@ func runProof(workspace string, command, requiredTests []string) proofResult {
 	containerName := fmt.Sprintf("amrbench-%d-%d", os.Getpid(), time.Now().UnixNano())
 	args := proofContainerArgs(containerName, workspace, image, inner)
 	cmd := exec.Command(runtime, args...)
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "SYSTEMROOT=" + os.Getenv("SYSTEMROOT")}
-	var output bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &output, &output
+	cmd.Env = containerRuntimeEnvironment(os.Environ())
+	output := newCappedBuffer(2 << 20)
+	cmd.Stdout, cmd.Stderr = output, output
 	if err := configureProcessTree(cmd); err != nil {
 		return proofResult{Passed: false, ExitCode: 2, Output: err.Error(), SandboxImage: image}
 	}
@@ -592,16 +1005,29 @@ func runProof(workspace string, command, requiredTests []string) proofResult {
 	var runErr error
 	select {
 	case runErr = <-wait:
-	case <-time.After(2 * time.Minute):
-		_ = tree.Kill()
-		cleanup := exec.Command(runtime, "rm", "-f", containerName)
-		_ = cleanup.Run()
-		runErr = <-wait
-		if runErr == nil {
+	case <-time.After(4 * time.Minute):
+		killErr := tree.Kill()
+		cleanupContext, cancelCleanup := context.WithTimeout(context.Background(), 15*time.Second)
+		cleanup := exec.CommandContext(cleanupContext, runtime, "rm", "-f", containerName)
+		cleanupErr := cleanup.Run()
+		cancelCleanup()
+		select {
+		case <-wait:
 			runErr = errors.New("proof timed out")
+			if killErr != nil || cleanupErr != nil {
+				runErr = fmt.Errorf("proof timed out; kill=%v cleanup=%v", killErr, cleanupErr)
+			}
+		case <-time.After(10 * time.Second):
+			return proofResult{Passed: false, ExitCode: 2, Output: "proof timed out and process did not exit", SandboxImage: image}
 		}
 	}
 	code := exitCode(runErr)
+	if output.Overflowed() {
+		runErr = fmt.Errorf("proof output exceeded bounded capture")
+	}
+	if runErr != nil && output.Len() == 0 {
+		output.WriteString(runErr.Error())
+	}
 	passed := code == 0 && requiredTestEventsPresent(output.String(), requiredTests)
 	if code == 0 && !passed {
 		code = 3
@@ -612,9 +1038,9 @@ func runProof(workspace string, command, requiredTests []string) proofResult {
 
 func proofContainerArgs(containerName, workspace, image string, inner []string) []string {
 	args := []string{
-		"run", "--rm", "--network", "none", "--read-only",
+		"run", "--rm", "--pull", "never", "--network", "none", "--read-only",
 		"--name", containerName,
-		"--pids-limit", "128", "--memory", "512m", "--cpus", "1",
+		"--pids-limit", "256", "--memory", "1g", "--cpus", "2",
 		"--mount", "type=bind,src=" + workspace + ",dst=/workspace,readonly",
 		"--tmpfs", "/tmp:rw,noexec,nosuid,size=128m",
 		"--tmpfs", "/cache:rw,noexec,nosuid,size=512m",
@@ -632,7 +1058,19 @@ func sandboxRuntime() (string, error) {
 			return path, nil
 		}
 	}
+	if programFiles := os.Getenv("ProgramFiles"); programFiles != "" {
+		path := filepath.Join(programFiles, "RedHat", "Podman", "podman.exe")
+		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+			return path, nil
+		}
+	}
 	return "", errors.New("sandbox unavailable: install Docker/Podman or configure an equivalent network-disabled proof runner")
+}
+
+var configuredSandboxImages sandboxSpec
+
+func configureSandboxImages(images sandboxSpec) {
+	configuredSandboxImages = images
 }
 
 func sandboxCommand(command []string) (string, []string, error) {
@@ -644,7 +1082,7 @@ func sandboxCommand(command []string) (string, []string, error) {
 		if len(command) < 3 || command[1] != "test" {
 			return "", nil, errors.New("only go test proofs are supported")
 		}
-		inner := append([]string{"go", "test", "-json", "-count=1", "-timeout=45s"}, command[2:]...)
+		inner := append([]string{"go", "test", "-json", "-count=1", "-timeout=45s", "-p=1", "-vet=off"}, command[2:]...)
 		image, err := pinnedSandboxImage("AMRBENCH_GO_IMAGE")
 		return image, inner, err
 	case "node":
@@ -657,6 +1095,14 @@ func sandboxCommand(command []string) (string, []string, error) {
 
 func pinnedSandboxImage(envName string) (string, error) {
 	image := strings.TrimSpace(os.Getenv(envName))
+	if image == "" {
+		switch envName {
+		case "AMRBENCH_GO_IMAGE":
+			image = configuredSandboxImages.GoImage
+		case "AMRBENCH_NODE_IMAGE":
+			image = configuredSandboxImages.NodeImage
+		}
+	}
 	if image == "" || !strings.Contains(image, "@sha256:") {
 		return "", fmt.Errorf("%s must name an immutable image digest", envName)
 	}
@@ -699,54 +1145,21 @@ func parseOTel(path string) (otelUsage, error) {
 		return otelUsage{}, err
 	}
 	defer file.Close()
-	seen := map[string]bool{}
-	models := map[string]bool{}
-	allGitHubCallsPriced := true
-	var usage otelUsage
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
-	for scanner.Scan() {
-		var row map[string]any
-		if err := json.Unmarshal(scanner.Bytes(), &row); err != nil {
-			return otelUsage{}, fmt.Errorf("malformed OTel row: %w", err)
-		}
-		if stringValue(row["type"]) != "span" || !strings.HasPrefix(stringValue(row["name"]), "chat ") {
-			continue
-		}
-		spanID := stringValue(row["spanId"])
-		if spanID == "" || seen[spanID] {
-			continue
-		}
-		seen[spanID] = true
-		attrs, _ := row["attributes"].(map[string]any)
-		actual := stringValue(attrs["gen_ai.response.model"])
-		if actual != "" {
-			models[actual] = true
-		}
-		usage.Calls++
-		usage.InputTokens += int64(numberValue(attrs["gen_ai.usage.input_tokens"]))
-		usage.CacheReadTokens += int64(numberValue(attrs["gen_ai.usage.cache_read.input_tokens"]))
-		usage.CacheWriteTokens += int64(numberValue(attrs["gen_ai.usage.cache_creation.input_tokens"]))
-		usage.OutputTokens += int64(numberValue(attrs["gen_ai.usage.output_tokens"]))
-		if stringValue(attrs["gen_ai.provider.name"]) == "github" {
-			nanoRaw, exists := attrs["github.copilot.nano_aiu"]
-			if !exists {
-				allGitHubCallsPriced = false
-			} else {
-				usage.AIC += numberValue(nanoRaw) / 1e9
-			}
-		}
+	normalized, err := ghcpotel.Parse(file)
+	if err != nil {
+		return otelUsage{}, err
 	}
-	if usage.Calls > 0 && allGitHubCallsPriced {
-		usage.AICAvailable = true
-	} else if !allGitHubCallsPriced {
-		usage.AIC = 0
-	}
-	for model := range models {
-		usage.ActualModels = append(usage.ActualModels, model)
-	}
-	sort.Strings(usage.ActualModels)
-	return usage, scanner.Err()
+	return otelUsage{
+		AIC:              float64(normalized.AIUNano) / 1e9,
+		AIUNano:          normalized.AIUNano,
+		AICAvailable:     normalized.AIUAvailable,
+		InputTokens:      normalized.InputTokens,
+		OutputTokens:     normalized.OutputTokens,
+		CacheReadTokens:  normalized.CacheReadTokens,
+		CacheWriteTokens: normalized.CacheWriteTokens,
+		Calls:            normalized.Calls,
+		ActualModels:     normalized.ActualModels,
+	}, nil
 }
 
 func runGrade(args []string, out io.Writer) error {
@@ -755,6 +1168,9 @@ func runGrade(args []string, out io.Writer) error {
 	resultsPath := fs.String("results", ".kb/amr-model-benchmark/results.jsonl", "results JSONL")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("grade accepts no positional arguments")
 	}
 	cfg, err := loadConfig(*configPath)
 	if err != nil {
@@ -851,7 +1267,7 @@ func loadConfig(path string) (config, error) {
 	if err := readJSON(path, &cfg); err != nil {
 		return cfg, err
 	}
-	if cfg.SchemaVersion != 1 || len(cfg.Models) == 0 || len(cfg.Tasks) == 0 {
+	if cfg.SchemaVersion != 1 || (len(cfg.Models) == 0 && len(cfg.Cohorts) == 0) || len(cfg.Tasks) == 0 {
 		return cfg, errors.New("invalid benchmark config")
 	}
 	for _, task := range cfg.Tasks {
@@ -1009,8 +1425,18 @@ func copyDir(source, destination string) error {
 			return err
 		}
 		target := filepath.Join(destination, rel)
+		firstComponent := strings.Split(strings.ToLower(filepath.ToSlash(rel)), "/")[0]
+		if firstComponent == ".git" || strings.EqualFold(filepath.Base(rel), ".gitattributes") {
+			return fmt.Errorf("fixture Git control path is forbidden: %s", rel)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("fixture symlink is forbidden: %s", path)
+		}
 		if info.IsDir() {
 			return os.MkdirAll(target, info.Mode())
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("fixture special file is forbidden: %s", path)
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -1113,6 +1539,9 @@ func workspaceSnapshot(root string) string {
 		if info.IsDir() {
 			if info.Name() == ".git" {
 				return filepath.SkipDir
+			}
+			if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+				return nil
 			}
 			return nil
 		}

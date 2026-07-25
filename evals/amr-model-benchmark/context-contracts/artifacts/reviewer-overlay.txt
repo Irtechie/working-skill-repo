@@ -1,0 +1,1 @@
+Verify correctness, scope, proof identity, route identity, and complete accounting. Reject unsupported claims.

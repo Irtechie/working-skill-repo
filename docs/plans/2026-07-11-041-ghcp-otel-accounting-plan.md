@@ -44,7 +44,7 @@ expected_files:
 protected_oracles:
   - path: internal/ghcpotel/parser_test.go
     role: "strict complete leaf-call accounting and schema-drift oracle"
-    sha256: "filled after RED before implementation"
+    sha256: "35b9967ffbdaaad945435c470d79955bab798bb369898eb34b82d3dc0f5bf666"
     update_policy: "requires explicit plan update"
 status: pending
 owner: agent
@@ -69,3 +69,9 @@ can_continue_other_slices: false
 ## Scope Boundary
 
 No paid run, sandbox implementation, context experiment, or promotion decision.
+
+## Oracle Amendment
+
+The parser oracle was accepted RED before implementation. Its SHA was refreshed
+after repository line-ending/format normalization changed bytes without changing
+assertions; the full protected test content and failure criteria remain intact.

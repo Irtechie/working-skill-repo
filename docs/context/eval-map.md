@@ -25,6 +25,7 @@ Codex/GHCP the same workflow contract.
 | Worker context remains bounded and vendor-neutral | context packet JSON | `go run ./cmd/kbcheck context-packet --packet <packet.json>`; `context-packet-selftest` in core | Real host adapters expose usage inconsistently | P1 |
 | Optional providers do not become hidden runtime dependencies | repo and standard user provider configs | `go run ./cmd/kbcheck provider-hygiene`; provider-hygiene selftest in core | Host-specific plugin registries may need adapters later | P1 |
 | Model-routing release claims stay inside their evidence | `evals/model-routing/*.json` and release evidence JSON | `go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json` | Current evidence is deterministic, no-paid, and not promoted; live support and efficiency remain unqualified | P0 |
+| GHCP AMR benchmark is safe before spend | `cmd/amrbench`; `evals/amr-model-benchmark/` | `go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json`; `go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>` | Attended matrix remains approval-gated; deterministic evidence is always not-promoted | P0 |
 
 ## Existing Harnesses
 
@@ -53,6 +54,8 @@ Codex/GHCP the same workflow contract.
 - `go run ./cmd/kbcheck execution-telemetry --telemetry cmd/kbcheck/testdata/execution-telemetry-valid.json`
 - `go run ./cmd/kbcheck provider-hygiene --include-user`
 - `go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json`
+- `go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json`
+- `go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>`
 - `git diff --check`
 
 ## Canonical Commands
@@ -65,6 +68,7 @@ go run ./cmd/kbcheck manifest-contract --manifest <manifest>
 go run ./cmd/kbcheck run-state --history <history>
 go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl
 go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
+go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
 git diff --check
 ```
 

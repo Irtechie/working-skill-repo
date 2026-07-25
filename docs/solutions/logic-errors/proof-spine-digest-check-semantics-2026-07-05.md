@@ -1,6 +1,7 @@
 ---
 title: Proof spine digests must include all check semantics
 date: 2026-07-05
+last_updated: 2026-07-12
 category: logic-errors
 module: cmd/kbcheck proof spine
 problem_type: logic_error
@@ -59,7 +60,35 @@ when applicable, and timeout behavior.
 - Keep `accept` strict: RED-before-GREEN proof should fail closed when the check
   definition changes.
 
+### Apply the same rule to evaluation harnesses
+
+The GHCP AIC falsification harness exposed the same failure mode at a larger
+boundary: labels such as `route_match: true`, `oracle_intact: true`, or a
+`sha256:` prefix are not evidence unless the harness loads the referenced
+artifact and recomputes the claim.
+
+For paid or promotion-sensitive evaluations:
+
+- bind proof files, context packets, role overlays, route probes, and run
+  results to real artifact paths plus exact SHA-256 values;
+- derive paired grades from those bound run artifacts instead of caller-authored
+  booleans;
+- use the same admission function for no-paid conformance and any future live
+  execution;
+- reject changed, missing, extra, linked, or out-of-root proof inputs;
+- count exact nano-AIU only from complete leaf-call telemetry;
+- keep deterministic evidence `not-promoted`;
+- hard-disable paid execution when trusted human approval or independent live
+  verification does not yet exist.
+
+This turns the digest rule into a general principle: every field that can change
+readiness, cost, correctness, pairing, or promotion must either be recomputed
+from protected evidence or remain unable to authorize the next phase.
+
 ## Related Issues
 
 - `cmd/kbcheck/proof_spine.go`
 - `cmd/kbcheck/proof_spine_test.go`
+- `cmd/amrbench/`
+- `internal/ghcpotel/`
+- `evals/amr-model-benchmark/`

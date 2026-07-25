@@ -20,6 +20,9 @@ Reference docs:
   project memory, execution, verification, review agents, and token diet.
 - `docs/context/operations/skill-bundle-maintenance.md` - gates, sync targets,
   ATV upstream policy, marketplace promotion, security, and install snippets.
+- `docs/context/architecture/ghcp-aic-benchmark.md` - deterministic no-paid
+  model benchmark, exact accounting, fixture/context trust boundaries, paired
+  grading, disabled paid execution, and temporary Podman lifecycle.
 
 ## Main Workflow Lanes
 

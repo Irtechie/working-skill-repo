@@ -57,6 +57,7 @@ See `docs/context/architecture/README.md`.
 | Skill bundle layout | `docs/context/architecture/README.md` | Locating skills, agents, scripts, and install targets | verified |
 | Eval map | `docs/context/eval-map.md` | Understanding repo-native eval surfaces, canonical commands, and open eval gaps | verified |
 | Testing and verification | `docs/context/operations/testing.md` | Finding current checks, eval-map ownership, and harness gaps | verified |
+| GHCP AIC falsification benchmark | `docs/context/architecture/ghcp-aic-benchmark.md`; `docs/context/eval-map.md` | Running deterministic no-paid readiness, understanding paired grading, approval boundaries, or cleaning up temporary Podman | verified |
 | Private skill marketplace | `docs/context/architecture/private-skill-marketplace.md`; `config/skill-marketplace.json` | Deciding when project-local learned skills or pipelines can be promoted into the private reusable catalog | verified |
 | Landmines | `docs/context/landmines.md` | Checking active repo-specific traps with owner/fix/proof fields | verified |
 | Epics | `docs/context/epics/` | Coordinating multi-workstream skill-bundle initiatives | verified |
@@ -88,6 +89,10 @@ See `docs/context/architecture/README.md`.
   installer or skill helpers, not top-level gate dependencies. See
   `docs/context/epics/go-native-validator-port.md`.
 - Required global skill roots should hash-match before release.
+- The GHCP AIC harness is deterministically ready through
+  `amrbench conformance --no-paid --require-ready`. Paid provider execution is
+  hard-disabled; `run --dry-run` is the only attended-preview surface until a
+  trusted human-approval verifier exists.
 - Planner economy uses vendor-neutral context packets validated by
   `kbcheck context-packet`; existing manifests, goal ledgers, run state, and
   proof traces remain the lifecycle state spine.

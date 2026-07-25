@@ -1,0 +1,1 @@
+{"attributes":{"gen_ai.provider.name":"string","gen_ai.request.model":"string","gen_ai.response.model":"string","gen_ai.usage.input_tokens":"number","gen_ai.usage.output_tokens":"number","github.copilot.aiu":"number"},"name":"string","spanId":"string","traceId":"string","type":"string"}

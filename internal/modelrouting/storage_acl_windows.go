@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -209,12 +210,19 @@ func getWindowsFileDescriptor(path string, information uint32) ([]byte, error) {
 	if result != 0 || callErr != errorInsufficientBuffer || needed == 0 {
 		return nil, fmt.Errorf("query Windows ACL size: %w", callErr)
 	}
-	buffer := make([]byte, needed)
-	result, _, callErr = getFileSecurityW.Call(uintptr(unsafe.Pointer(pathPointer)), uintptr(information), uintptr(unsafe.Pointer(&buffer[0])), uintptr(needed), uintptr(unsafe.Pointer(&needed)))
-	if result == 0 {
-		return nil, fmt.Errorf("read Windows ACL: %w", callErr)
+	for attempt := 0; attempt < 3; attempt++ {
+		buffer := make([]byte, needed)
+		bufferSize := uint32(len(buffer))
+		result, _, callErr = getFileSecurityW.Call(uintptr(unsafe.Pointer(pathPointer)), uintptr(information), uintptr(unsafe.Pointer(&buffer[0])), uintptr(bufferSize), uintptr(unsafe.Pointer(&needed)))
+		if result != 0 {
+			return buffer, nil
+		}
+		if callErr != errorInsufficientBuffer || needed <= bufferSize {
+			return nil, fmt.Errorf("read Windows ACL: %w", callErr)
+		}
+		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
 	}
-	return buffer, nil
+	return nil, fmt.Errorf("read Windows ACL: descriptor size changed repeatedly")
 }
 
 func windowsDescriptor(sddl string) (uintptr, func(), error) {

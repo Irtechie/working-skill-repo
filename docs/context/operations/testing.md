@@ -22,6 +22,9 @@ go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet
 go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
 go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
 go run ./cmd/kbcheck provider-hygiene --include-user
+go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
+go run ./cmd/amrbench run --dry-run --experiment-id <id> --routes <routes.json> --context baseline --mode direct --task <task> --model <runtime-model> --max-ai-credits 5
+go run ./cmd/amrbench grade-paired --config evals/amr-model-benchmark/config.json --results <paired-run-refs.jsonl>
 go test ./...
 ```
 
@@ -158,6 +161,12 @@ attempts disabled, and correction dispatch limited to validation plus refusal.
 `live-release` is explicit and
 may call authenticated Codex/GHCP CLIs; unavailable live surfaces must be labeled
 `skipped-explicit`, not silently treated as verified.
+
+The AMR benchmark is stricter than `live-release`: deterministic conformance and
+dry-run preview are available, but every non-dry provider run is currently
+refused until a trusted human-approval verifier exists. Do not treat the local
+approval template, route catalog, deterministic fixtures, or simulated paired
+rows as authority to spend credits or promote a route.
 
 Landmine lifecycle changes are verified with the same structural gate:
 
