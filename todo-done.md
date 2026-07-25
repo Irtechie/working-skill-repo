@@ -2,6 +2,18 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-25
+
+- Orchestrator-directed DDR production path - planning now records minimum
+  execution capability; the active orchestrator chooses `current` or one
+  `delegated` worker; dispatch revalidates tier/task/tool/context/risk/trust;
+  native App and CLI/user-local catalogs remain separate; and normal work never
+  invokes AMR. AMR remains an unpromoted experimental benchmark. Required
+  Codex, Copilot, and shared-agent skills hash-match the source. Proof: affected
+  Go packages passed, independent review cleared all five findings, `core`
+  passed 36 checks, `skill-sync-report` reported 132 matches and 0 required
+  issues, and `local-release` passed.
+
 ## 2026-07-21
 
 - KB memory bootstrap refresh - refreshed `docs/context/PROJECT.md`,

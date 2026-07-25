@@ -13,21 +13,26 @@ import (
 
 type selectOptions struct {
 	commonOptions
-	runRoot, runID, tier, attemptTier, taskFamily, risk, override, alias, prefer string
-	tools                                                                        repeatFlag
-	contextSize                                                                  int
-	sensitive                                                                    bool
+	runRoot, runID, tier, attemptTier, executionOwner, ownerReason, tierReason string
+	taskFamily, risk, override, alias, prefer                                  string
+	tools                                                                      repeatFlag
+	contextSize                                                                int
+	sensitive                                                                  bool
 }
 
 type selectOutput struct {
-	Status       modelrouting.SelectionStatus `json:"status"`
-	PlannedTier  modelrouting.Tier            `json:"planned_tier"`
-	AttemptTier  modelrouting.Tier            `json:"attempt_tier"`
-	Preference   modelrouting.RoutePreference `json:"preference,omitempty"`
-	Aliases      []string                     `json:"aliases,omitempty"`
-	CurrentModel string                       `json:"current_model,omitempty"`
-	Fallback     string                       `json:"fallback,omitempty"`
-	ErrorClass   string                       `json:"error_class,omitempty"`
+	Status         modelrouting.SelectionStatus `json:"status"`
+	PlannedTier    modelrouting.Tier            `json:"planned_tier"`
+	AttemptTier    modelrouting.Tier            `json:"attempt_tier"`
+	ExecutionOwner modelrouting.ExecutionOwner  `json:"execution_owner"`
+	OwnerReason    string                       `json:"owner_reason"`
+	TierReason     string                       `json:"tier_reason"`
+	Preference     modelrouting.RoutePreference `json:"preference,omitempty"`
+	Alias          string                       `json:"alias,omitempty"`
+	Aliases        []string                     `json:"aliases,omitempty"`
+	CurrentModel   string                       `json:"current_model,omitempty"`
+	Fallback       string                       `json:"fallback,omitempty"`
+	ErrorClass     string                       `json:"error_class,omitempty"`
 }
 
 func runModelsSelect(args []string, stdout, stderr io.Writer) int {
@@ -38,7 +43,10 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&opts.runRoot, "run-root", "", "marked KB run root")
 	fs.StringVar(&opts.runID, "run-id", "", "KB run id")
 	fs.StringVar(&opts.tier, "tier", "", "small, medium, or large")
-	fs.StringVar(&opts.attemptTier, "attempt-tier", "", "optional caller-vetted lower initial tier")
+	fs.StringVar(&opts.attemptTier, "attempt-tier", "", "experimental AMR compatibility only; omitted by normal DDR")
+	fs.StringVar(&opts.executionOwner, "execution-owner", "", "orchestrator decision: current or delegated")
+	fs.StringVar(&opts.ownerReason, "owner-reason", "", "why the orchestrator retained or delegated execution")
+	fs.StringVar(&opts.tierReason, "tier-reason", "", "why this capability tier is required")
 	fs.StringVar(&opts.taskFamily, "task-family", "", "task family")
 	fs.Var(&opts.tools, "tool", "required tool; repeatable")
 	fs.IntVar(&opts.contextSize, "context-size", 0, "required context size")
@@ -58,8 +66,15 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "selection uses the fixed user-local trust root; custom --user-root is test-only")
 		return 2
 	}
-	if opts.runRoot == "" || opts.runID == "" || opts.tier == "" || opts.taskFamily == "" || len(opts.tools) == 0 || opts.contextSize <= 0 || opts.risk == "" {
-		fmt.Fprintln(stderr, "select requires complete run and work-request bindings")
+	if opts.runRoot == "" || opts.runID == "" || opts.tier == "" || opts.executionOwner == "" ||
+		strings.TrimSpace(opts.ownerReason) == "" || strings.TrimSpace(opts.tierReason) == "" ||
+		opts.taskFamily == "" || len(opts.tools) == 0 || opts.contextSize <= 0 || opts.risk == "" {
+		fmt.Fprintln(stderr, "select requires complete run, ownership, and work-request bindings")
+		return 2
+	}
+	owner := modelrouting.ExecutionOwner(strings.TrimSpace(opts.executionOwner))
+	if owner != modelrouting.ExecutionOwnerCurrent && owner != modelrouting.ExecutionOwnerDelegated {
+		fmt.Fprintln(stderr, "execution owner must be current or delegated")
 		return 2
 	}
 	prepared, err := prepareRunRoot(opts.projectRoot, opts.runRoot)
@@ -112,11 +127,23 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "unsupported route preference")
 		return 2
 	}
-	request := modelrouting.WorkRequest{PlannedTier: modelrouting.Tier(opts.tier), AttemptTier: modelrouting.Tier(opts.attemptTier), TaskFamily: opts.taskFamily, Tools: []string(opts.tools), ContextSize: opts.contextSize, Risk: modelrouting.RiskLevel(opts.risk), SensitiveData: opts.sensitive, ProjectID: policy.Project.ProjectID}
+	request := modelrouting.WorkRequest{
+		PlannedTier: modelrouting.Tier(opts.tier), AttemptTier: modelrouting.Tier(opts.attemptTier),
+		ExecutionOwner: owner, OwnerReason: strings.TrimSpace(opts.ownerReason), TierReason: strings.TrimSpace(opts.tierReason),
+		TaskFamily: opts.taskFamily, Tools: []string(opts.tools), ContextSize: opts.contextSize,
+		Risk: modelrouting.RiskLevel(opts.risk), SensitiveData: opts.sensitive, ProjectID: policy.Project.ProjectID,
+	}
 	decision, selectErr := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: mode, Alias: opts.alias, Prefer: preference}, modelrouting.AttemptLedger{}, time.Now())
-	out := selectOutput{Status: decision.Status, PlannedTier: decision.PlannedTier, AttemptTier: decision.AttemptTier, Preference: decision.Preference, CurrentModel: decision.Current.ModelID}
+	out := selectOutput{
+		Status: decision.Status, PlannedTier: decision.PlannedTier, AttemptTier: decision.AttemptTier,
+		ExecutionOwner: decision.ExecutionOwner, OwnerReason: decision.OwnerReason, TierReason: decision.TierReason,
+		Preference: decision.Preference, CurrentModel: decision.Current.ModelID,
+	}
 	for _, route := range decision.Routes {
 		out.Aliases = append(out.Aliases, route.Alias)
+	}
+	if len(out.Aliases) == 1 {
+		out.Alias = out.Aliases[0]
 	}
 	if decision.Status == modelrouting.SelectionDegraded {
 		out.Fallback = "current-model-degraded"
@@ -136,7 +163,9 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 	} else {
-		fmt.Fprintf(stdout, "selection: %s planned-tier=%s attempt-tier=%s preference=%s aliases=%s current=%s fallback=%s error=%s\n", out.Status, out.PlannedTier, out.AttemptTier, out.Preference, strings.Join(out.Aliases, ","), out.CurrentModel, out.Fallback, out.ErrorClass)
+		fmt.Fprintf(stdout, "selection: %s owner=%s owner-reason=%q planned-tier=%s tier-reason=%q attempt-tier=%s preference=%s alias=%s current=%s fallback=%s error=%s\n",
+			out.Status, out.ExecutionOwner, out.OwnerReason, out.PlannedTier, out.TierReason, out.AttemptTier,
+			out.Preference, out.Alias, out.CurrentModel, out.Fallback, out.ErrorClass)
 	}
 	if selectErr != nil {
 		return 1

@@ -321,6 +321,104 @@ gate_ledger: []
 	}
 }
 
+func TestManifestContractAcceptsOrchestratorDirectedModelSelectionContract(t *testing.T) {
+	path := writeManifest(t, `
+---
+model_tier_contract:
+  allowed: [small, medium, large]
+model_selection_contract:
+  timing: work-time
+  decision_owner: orchestrator
+  owner_choice: current-or-delegated
+  max_owner_decisions_per_slice: 1
+  catalog: active-host-plus-user-local
+  delegated_fallback: same-tier-then-higher
+  automatic_downward_routing: false
+  amr_required: false
+  automatic_cross_owner_fallback: false
+slices:
+  - id: slice-001
+    status: pending
+    model_tier: medium
+    model_tier_reason: "bounded implementation needs repository reasoning"
+    model_requirements: ["apply_patch", "go test"]
+    escalation_triggers: ["scope expands beyond owned files"]
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.OK {
+		t.Fatalf("valid orchestrator-directed contract failed: %#v", result)
+	}
+}
+
+func TestManifestContractRejectsForcedAMROrCrossOwnerFallback(t *testing.T) {
+	path := writeManifest(t, `
+---
+model_selection_contract:
+  timing: work-time
+  decision_owner: worker
+  owner_choice: automatic
+  max_owner_decisions_per_slice: 3
+  catalog: remembered-model-names
+  delegated_fallback: lower-then-current
+  automatic_downward_routing: true
+  amr_required: true
+  automatic_cross_owner_fallback: true
+slices: []
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-model-selection-contract-field") {
+		t.Fatalf("forced AMR contract was accepted: %#v", result)
+	}
+}
+
+func TestManifestContractRejectsEachUnsafeRoutingMutation(t *testing.T) {
+	validContract := `
+---
+model_selection_contract:
+  timing: work-time
+  decision_owner: orchestrator
+  owner_choice: current-or-delegated
+  max_owner_decisions_per_slice: 1
+  catalog: active-host-plus-user-local
+  delegated_fallback: same-tier-then-higher
+  automatic_downward_routing: false
+  amr_required: false
+  automatic_cross_owner_fallback: false
+slices: []
+gate_ledger: []
+---
+`
+	mutations := map[string][2]string{
+		"catalog":                    {"catalog: active-host-plus-user-local", "catalog: remembered-model-names"},
+		"delegated-fallback":         {"delegated_fallback: same-tier-then-higher", "delegated_fallback: lower-then-current"},
+		"automatic-downward-routing": {"automatic_downward_routing: false", "automatic_downward_routing: true"},
+		"amr-required":               {"amr_required: false", "amr_required: true"},
+		"cross-owner-fallback":       {"automatic_cross_owner_fallback: false", "automatic_cross_owner_fallback: true"},
+	}
+	for name, mutation := range mutations {
+		t.Run(name, func(t *testing.T) {
+			path := writeManifest(t, strings.Replace(validContract, mutation[0], mutation[1], 1))
+			result, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.OK || !hasManifestIssue(result.Issues, "invalid-model-selection-contract-field") {
+				t.Fatalf("unsafe %s mutation was accepted: %#v", name, result)
+			}
+		})
+	}
+}
+
 func TestManifestContractValidatesWorkspaceIsolationIntent(t *testing.T) {
 	valid := writeManifest(t, `
 ---

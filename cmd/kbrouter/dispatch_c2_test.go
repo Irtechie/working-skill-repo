@@ -95,7 +95,7 @@ func TestC2DispatchRejectsVisibleCurrentRouteBeforeLaunch(t *testing.T) {
 	fixture.withFakeCodex(fake)
 
 	result := fixture.run("--route-alias", route.Alias)
-	if result.code == 0 || !strings.Contains(result.stderr, "current-model route is visible-only") {
+	if result.code == 0 || !strings.Contains(result.stderr, "not trusted/selectable") {
 		t.Fatalf("visible current route launched or failed unclearly, code=%d stdout=%s stderr=%s", result.code, result.stdout, result.stderr)
 	}
 	if _, err := os.Stat(fake.argsPath); !os.IsNotExist(err) {

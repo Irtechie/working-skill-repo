@@ -197,6 +197,9 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	if objectiveContract && !manifestHasTopLevelKey(path, "done_check") {
 		issues = append(issues, manifestContractIssue{Code: "missing-done-check", Message: "objective_contract requires a top-level done_check"})
 	}
+	if modelSelectionContract {
+		issues = append(issues, validateModelSelectionContract(path)...)
+	}
 	for _, slice := range slices {
 		if contextPacketContract {
 			requiresPacket := slice.Status == "pending" || slice.Status == "in_progress"
@@ -299,6 +302,77 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 		}
 	}
 	return manifestContractResult{OK: len(issues) == 0, Issues: issues}, nil
+}
+
+func validateModelSelectionContract(path string) []manifestContractIssue {
+	values, err := manifestNestedScalars(path, "model_selection_contract")
+	if err != nil {
+		return []manifestContractIssue{{Code: "invalid-model-selection-contract", Message: err.Error()}}
+	}
+	required := map[string]string{
+		"timing":                         "work-time",
+		"decision_owner":                 "orchestrator",
+		"owner_choice":                   "current-or-delegated",
+		"max_owner_decisions_per_slice":  "1",
+		"catalog":                        "active-host-plus-user-local",
+		"delegated_fallback":             "same-tier-then-higher",
+		"automatic_downward_routing":     "false",
+		"amr_required":                   "false",
+		"automatic_cross_owner_fallback": "false",
+	}
+	issues := []manifestContractIssue{}
+	for key, want := range required {
+		got, ok := values[key]
+		if !ok {
+			issues = append(issues, manifestContractIssue{
+				Code:    "missing-model-selection-contract-field",
+				Message: fmt.Sprintf("model_selection_contract requires %s: %s", key, want),
+			})
+			continue
+		}
+		if got != want {
+			issues = append(issues, manifestContractIssue{
+				Code:    "invalid-model-selection-contract-field",
+				Message: fmt.Sprintf("model_selection_contract %s is %q, expected %q", key, got, want),
+			})
+		}
+	}
+	return issues
+}
+
+func manifestNestedScalars(path, section string) (map[string]string, error) {
+	frontmatter, err := loadManifestFrontmatter(path)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(frontmatter, "\n")
+	start := -1
+	for index, line := range lines {
+		if countIndent(line) == 0 && strings.TrimSpace(line) == section+":" {
+			start = index
+			break
+		}
+	}
+	if start < 0 {
+		return nil, fmt.Errorf("manifest has no %s section", section)
+	}
+	values := map[string]string{}
+	for _, line := range lines[start+1:] {
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		if countIndent(line) == 0 {
+			break
+		}
+		if countIndent(line) != 2 {
+			continue
+		}
+		key, value, ok := splitYAMLKeyValue(strings.TrimSpace(line))
+		if ok {
+			values[key] = value
+		}
+	}
+	return values, nil
 }
 
 func manifestRepoRoot(path string) string {

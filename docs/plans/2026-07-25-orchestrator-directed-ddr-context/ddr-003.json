@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "packet_id": "ddr-003",
+  "task_id": "DDR-003",
+  "objective": "Verify, integrate, synchronize, and push the orchestrator-directed DDR change.",
+  "memory_files": ["docs/context/eval-map.md", "todo.md"],
+  "source_files": ["config/skill-quality.json", "README.md"],
+  "prefetch": ["changed skill hashes", "global install diffs", "git worktree state"],
+  "constraints": [
+    "preserve unrelated dirty files",
+    "merge useful global-only drift before copying",
+    "do not call a timed-out gate green"
+  ],
+  "out_of_scope": ["ATV repositories", "production fleet mutation"],
+  "acceptance_criteria": [
+    "focused proof recorded",
+    "release gate result recorded",
+    "approved copies hash-match",
+    "main is pushed when safe"
+  ],
+  "proof_targets": ["kbcheck core", "kbcheck local-release", "hash comparison", "git status"],
+  "model_tier": "large",
+  "model_tier_reason": "Release reconciliation requires repository ownership and dirty-baseline judgment.",
+  "allowed_tools": ["read", "search", "apply_patch", "test", "git"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["release gate timeout", "global drift conflict", "push rejection"]
+}

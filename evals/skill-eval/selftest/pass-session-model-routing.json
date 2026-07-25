@@ -2,48 +2,50 @@
   "id": "pass-session-model-routing",
   "fixture_id": "skill-bundle-change",
   "expected_result": "pass",
-  "eval_run_id": "session-model-routing-red",
+  "eval_run_id": "orchestrator-directed-ddr",
   "actual": {
     "route": "kb-plan",
     "user_questions": 0,
     "artifacts": [
-      "manifest notes for live model routing",
-      "one AMR attempt and fail-closed surgical correction handoff contract",
-      "explicit attempt without file-type inference",
-      "proof-failed correction handoff with independent hunk oracle",
-      "correction dispatch refused before live-checkout worker launch or receipt",
-      "no-oracle result routed to ordinary planned-tier execution",
-      "unsafe use override rejected by the full eligibility envelope",
-      "conditional once-per-project route-source preference with native-only silence",
+      "manifest minimum execution tier and tier reason",
+      "one orchestrator current-or-delegated ownership decision",
+      "current ownership retained even when a qualified worker exists",
+      "delegated ownership selects exactly one qualified route",
+      "no automatic downward or cross-owner fallback",
+      "active host and CLI catalogs remain distinct",
+      "AMR marked experimental and absent from normal work",
+      "deterministic proof remains authoritative",
       "sync proof reserved for the distribution slice",
       "check output"
     ],
     "proof": [
+      "focused selector ownership tests",
+      "focused public CLI ownership tests",
+      "manifest selection-contract tests",
       "git diff --check",
       "kb-check -All family proof via go run ./cmd/kbcheck skill-lint",
+      "kbcheck core",
+      "kbcheck local-release reserved for the distribution slice",
       "skill-sync-report deferred to the distribution slice"
     ]
   },
   "trace": {
     "files_read": [
-      "docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
-      ".github/skills/kb-goal/SKILL.md",
-      ".github/skills/kb-map/SKILL.md",
+      "docs/plans/2026-07-25-orchestrator-directed-ddr-context/ddr-001.json",
+      "docs/plans/2026-07-25-orchestrator-directed-ddr-context/ddr-002.json",
       ".github/skills/kb-plan/SKILL.md",
       ".github/skills/kb-work/SKILL.md",
       ".github/skills/kb-work/references/execution-prompt.md",
       ".github/skills/kb-functional-test/SKILL.md",
       ".github/skills/kb-configure/SKILL.md",
-      ".github/skills/kb-work/references/go-sandbox.md",
-      ".github/skills/kb-complete/SKILL.md",
       ".github/skills/kb-models/SKILL.md"
     ],
     "commands": [
       "go run ./cmd/kbcheck skill-lint",
-      "go test ./internal/modelrouting -run 'TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength|TestUseCannotBypassTierToolsContextOrRisk'",
-      "go test ./internal/modelrouting -run 'TestTrustedCorrectionFinalizerRejectsOmittedScopeBroadRewriteAndCallerProof|TestCorrectionPathsRejectWindowsADSDevicesTrailingNamesAndHardlinks|TestCorrectionPilotIneligibleRoutesToSeparateOrdinaryExecution'",
-      "go test ./cmd/kbrouter -run TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt",
-      "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
+      "go test ./internal/modelrouting -run 'TestSelectRouteCurrentOwnerWinsEvenWhenDelegatedWorkersExist|TestSelectRouteCurrentOwnerMustMeetCapabilityEnvelope|TestSelectRouteCurrentOwnerAcceptsVisibleOnlyActiveRoute|TestSelectRouteDelegatedOwnerChoosesExactlyOneAndNeverFallsBackToCurrent|TestSelectRouteRejectsMissingOrInvalidOwnershipMetadata'",
+      "go test ./cmd/kbrouter -run 'TestModelsSelectRequiresExplicitOwnershipDecision|TestModelsSelectUsesValidatedRunCatalogAndRunOnlyOverride'",
+      "go test ./cmd/kbcheck -run 'TestManifestContractAcceptsOrchestratorDirectedModelSelectionContract|TestManifestContractRejectsForcedAMROrCrossOwnerFallback|TestManifestContractRejectsEachUnsafeRoutingMutation|TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces'",
+      "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-25-orchestrator-directed-ddr-context/ddr-001.json",
       "git diff --check"
     ],
     "tools": [
@@ -60,68 +62,67 @@
     },
     {
       "type": "file_read",
-      "contains": ".github/skills/kb-map/SKILL.md",
+      "contains": ".github/skills/kb-plan/SKILL.md",
       "expected": true,
-      "claim": "The run verified normal map and bootstrap remain routing-question free"
+      "claim": "The run verified planning stores capability and proof without a model assignment"
     },
     {
       "type": "file_read",
-      "contains": ".github/skills/kb-plan/SKILL.md",
+      "contains": ".github/skills/kb-work/SKILL.md",
       "expected": true,
-      "claim": "The run verified planner output remains model and transport neutral"
+      "claim": "The run verified one owner-first DDR decision"
     },
     {
       "type": "file_read",
       "contains": ".github/skills/kb-configure/SKILL.md",
       "expected": true,
-      "claim": "The run inspected the beginner opt-out policy"
+      "claim": "The run verified AMR configuration is experimental-only"
     },
     {
       "type": "file_read",
       "contains": ".github/skills/kb-work/references/execution-prompt.md",
       "expected": true,
-      "claim": "The run inspected the canonical attempt/correction packet"
+      "claim": "The worker prompt prohibits AMR in normal work"
     },
     {
       "type": "command_ran",
       "path": "",
-      "contains": "TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength",
+      "contains": "TestSelectRouteCurrentOwnerWinsEvenWhenDelegatedWorkersExist",
       "expected": true,
-      "claim": "Behavioral selector proof covered explicit attempts without file-type inference"
+      "claim": "Behavioral selector proof covered orchestrator retention despite an eligible worker"
     },
     {
       "type": "command_ran",
       "path": "",
-      "contains": "TestCorrectionPilotIneligibleRoutesToSeparateOrdinaryExecution",
+      "contains": "TestSelectRouteDelegatedOwnerChoosesExactlyOneAndNeverFallsBackToCurrent",
       "expected": true,
-      "claim": "Behavioral correction proof covered no-oracle ordinary planned-tier fallback"
+      "claim": "Behavioral selector proof covered one worker and no cross-owner fallback"
     },
     {
       "type": "command_ran",
       "path": "",
-      "contains": "TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt",
+      "contains": "TestManifestContractRejectsForcedAMROrCrossOwnerFallback",
       "expected": true,
-      "claim": "Functional CLI proof refused correction before live-checkout worker launch or receipt"
+      "claim": "Manifest proof rejects forced AMR and silent owner changes"
     }
   ],
   "trace_rules": {
     "required_files_read": [
-      ".github/skills/kb-goal/SKILL.md",
-      ".github/skills/kb-map/SKILL.md",
       ".github/skills/kb-plan/SKILL.md",
       ".github/skills/kb-work/SKILL.md",
       ".github/skills/kb-work/references/execution-prompt.md",
       ".github/skills/kb-functional-test/SKILL.md",
       ".github/skills/kb-configure/SKILL.md",
-      ".github/skills/kb-complete/SKILL.md",
       ".github/skills/kb-models/SKILL.md"
     ],
     "required_commands": [
       "go run ./cmd/kbcheck skill-lint",
-      "TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength",
-      "TestCorrectionPilotIneligibleRoutesToSeparateOrdinaryExecution",
-      "TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt",
-      "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-10-session-model-routing-context/slice-005.json",
+      "TestSelectRouteCurrentOwnerWinsEvenWhenDelegatedWorkersExist",
+      "TestSelectRouteDelegatedOwnerChoosesExactlyOneAndNeverFallsBackToCurrent",
+      "TestModelsSelectRequiresExplicitOwnershipDecision",
+      "TestManifestContractRejectsForcedAMROrCrossOwnerFallback",
+      "TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces",
+      "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-25-orchestrator-directed-ddr-context/ddr-001.json",
       "git diff --check"
     ],
     "forbidden_commands": [

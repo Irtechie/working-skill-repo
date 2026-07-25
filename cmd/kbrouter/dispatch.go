@@ -59,17 +59,20 @@ func (f *repeatFlag) Set(value string) error {
 }
 
 type dispatchReport struct {
-	Status                string            `json:"status"`
-	RouteAlias            string            `json:"route_alias"`
-	PlannedTier           modelrouting.Tier `json:"planned_tier,omitempty"`
-	AttemptTier           modelrouting.Tier `json:"attempt_tier,omitempty"`
-	ProviderReportedModel string            `json:"provider_reported_model,omitempty"`
-	SessionID             string            `json:"session_id,omitempty"`
-	Attempt               int               `json:"attempt"`
-	Attribution           string            `json:"attribution"`
-	ReceiptPath           string            `json:"receipt_path,omitempty"`
-	OutputPath            string            `json:"output_path,omitempty"`
-	HandoffPath           string            `json:"handoff_path,omitempty"`
+	Status                string                      `json:"status"`
+	RouteAlias            string                      `json:"route_alias"`
+	ExecutionOwner        modelrouting.ExecutionOwner `json:"execution_owner"`
+	OwnerReason           string                      `json:"owner_reason"`
+	TierReason            string                      `json:"tier_reason"`
+	PlannedTier           modelrouting.Tier           `json:"planned_tier,omitempty"`
+	AttemptTier           modelrouting.Tier           `json:"attempt_tier,omitempty"`
+	ProviderReportedModel string                      `json:"provider_reported_model,omitempty"`
+	SessionID             string                      `json:"session_id,omitempty"`
+	Attempt               int                         `json:"attempt"`
+	Attribution           string                      `json:"attribution"`
+	ReceiptPath           string                      `json:"receipt_path,omitempty"`
+	OutputPath            string                      `json:"output_path,omitempty"`
+	HandoffPath           string                      `json:"handoff_path,omitempty"`
 }
 
 type dispatchPacket struct {
@@ -78,6 +81,9 @@ type dispatchPacket struct {
 	TaskID         string                         `json:"task_id"`
 	RunID          string                         `json:"run_id"`
 	SliceID        string                         `json:"slice_id"`
+	ExecutionOwner modelrouting.ExecutionOwner    `json:"execution_owner"`
+	OwnerReason    string                         `json:"owner_reason"`
+	TierReason     string                         `json:"tier_reason"`
 	ModelTier      modelrouting.Tier              `json:"model_tier"`
 	AttemptTier    modelrouting.Tier              `json:"attempt_tier,omitempty"`
 	TaskFamily     string                         `json:"task_family"`
@@ -400,19 +406,22 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 			outputStatus = "containment-failed"
 		}
 		output := map[string]any{
-			"status":         outputStatus,
-			"route_alias":    req.RouteAlias,
-			"planned_tier":   packet.ModelTier,
-			"attempt_tier":   attemptTier,
-			"attempt":        req.Attempt,
-			"exit_code":      result.exitCode,
-			"timeout":        result.timeout,
-			"output_bounded": result.overflow,
-			"stdout_sha256":  modelrouting.SHA256Bytes([]byte(result.stdout)),
-			"stderr_sha256":  modelrouting.SHA256Bytes([]byte(result.stderr)),
-			"attribution":    string(attribution),
-			"session_id":     evidence.SessionID,
-			"actual_model":   evidence.Model,
+			"status":          outputStatus,
+			"route_alias":     req.RouteAlias,
+			"execution_owner": packet.ExecutionOwner,
+			"owner_reason":    packet.OwnerReason,
+			"tier_reason":     packet.TierReason,
+			"planned_tier":    packet.ModelTier,
+			"attempt_tier":    attemptTier,
+			"attempt":         req.Attempt,
+			"exit_code":       result.exitCode,
+			"timeout":         result.timeout,
+			"output_bounded":  result.overflow,
+			"stdout_sha256":   modelrouting.SHA256Bytes([]byte(result.stdout)),
+			"stderr_sha256":   modelrouting.SHA256Bytes([]byte(result.stderr)),
+			"attribution":     string(attribution),
+			"session_id":      evidence.SessionID,
+			"actual_model":    evidence.Model,
 		}
 		if err := writeRunJSON(prepared, attemptOutputPath, output); err != nil {
 			return lastReport, fmt.Errorf("write output summary: %w", err)
@@ -462,7 +471,14 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 				return lastReport, fmt.Errorf("record dispatcher-owned route attestation: %w", err)
 			}
 		}
-		lastReport = dispatchReport{Status: "observation-only", RouteAlias: req.RouteAlias, PlannedTier: packet.ModelTier, AttemptTier: attemptTier, ProviderReportedModel: evidence.Model, SessionID: evidence.SessionID, Attempt: req.Attempt, Attribution: string(attribution), ReceiptPath: attemptReceiptPath, OutputPath: attemptOutputPath, HandoffPath: handoffPath}
+		lastReport = dispatchReport{
+			Status: "observation-only", RouteAlias: req.RouteAlias,
+			ExecutionOwner: packet.ExecutionOwner, OwnerReason: packet.OwnerReason, TierReason: packet.TierReason,
+			PlannedTier: packet.ModelTier, AttemptTier: attemptTier,
+			ProviderReportedModel: evidence.Model, SessionID: evidence.SessionID,
+			Attempt: req.Attempt, Attribution: string(attribution),
+			ReceiptPath: attemptReceiptPath, OutputPath: attemptOutputPath, HandoffPath: handoffPath,
+		}
 		if result.exitCode == 0 && !result.timeout {
 			return lastReport, nil
 		}
@@ -557,9 +573,10 @@ func decodeDispatchPacket(data []byte, runID, sliceID string) (dispatchPacket, e
 		return dispatchPacket{}, fmt.Errorf("decode dispatch packet: %w", err)
 	}
 	if packet.SchemaVersion != 1 || packet.PacketID == "" || packet.TaskID == "" || packet.RunID == "" || packet.SliceID == "" ||
+		packet.ExecutionOwner != modelrouting.ExecutionOwnerDelegated || strings.TrimSpace(packet.OwnerReason) == "" || strings.TrimSpace(packet.TierReason) == "" ||
 		packet.ModelTier == "" || packet.TaskFamily == "" || packet.ContextSize <= 0 || packet.Risk == "" ||
 		len(packet.AllowedTools) == 0 || len(packet.ProofTargets) == 0 || len(packet.Redaction) == 0 || !packet.BoundedContext {
-		return dispatchPacket{}, fmt.Errorf("dispatch packet missing required bounded contract fields")
+		return dispatchPacket{}, fmt.Errorf("dispatch packet missing required delegated ownership or bounded contract fields")
 	}
 	if packet.RunID != runID || packet.SliceID != sliceID {
 		return dispatchPacket{}, fmt.Errorf("dispatch packet does not match run/slice")
@@ -818,7 +835,12 @@ func validProfileNameForDispatch(value string) bool {
 }
 
 func routeFromValidatedCatalog(validated modelrouting.ValidatedCatalog, policy modelrouting.PolicyContext, alias string, packet dispatchPacket) (modelrouting.Route, error) {
-	request := modelrouting.WorkRequest{PlannedTier: packet.ModelTier, AttemptTier: packet.AttemptTier, TaskFamily: packet.TaskFamily, Tools: packet.AllowedTools, ContextSize: packet.ContextSize, Risk: packet.Risk, ProjectID: policy.Project.ProjectID}
+	request := modelrouting.WorkRequest{
+		PlannedTier: packet.ModelTier, AttemptTier: packet.AttemptTier,
+		ExecutionOwner: packet.ExecutionOwner, OwnerReason: packet.OwnerReason, TierReason: packet.TierReason,
+		TaskFamily: packet.TaskFamily, Tools: packet.AllowedTools, ContextSize: packet.ContextSize,
+		Risk: packet.Risk, ProjectID: policy.Project.ProjectID,
+	}
 	decision, err := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: modelrouting.OverrideRequire, Alias: alias}, modelrouting.AttemptLedger{}, time.Now())
 	if err != nil {
 		if errors.Is(err, modelrouting.ErrRequiredRouteUnavailable) {

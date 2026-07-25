@@ -16,19 +16,20 @@ Context packet:
 <validated packet, or explicit small legacy/no-packet reason>
 
 Route request:
-<planned correction/authority tier, optional explicit runtime attempt_tier,
-saved user-local project source priority, allowed fallback, user overrides, and current-model
-degraded fallback policy>
+<required tier and tier reason, execution_owner current|delegated, owner reason,
+saved user-local project source priority, user overrides, and active host
+surface>
 
 Router commands:
-<exact discover command, exact select command, and exact dispatch command with slice-unique artifact names; or router-unavailable reason>
+<current/no-router reason; exact native host target and tool call; or exact
+kbrouter discover, delegated-select, and dispatch commands with slice-unique
+artifact names>
 
 Slice lease:
 <exact slice-lease acquire command, owner token source, generation, renewal/release command, or non-mutating/no-lease reason>
 
 Execution policy:
-<lower-tier attempts enabled|disabled, attempt eligibility evidence, exact proof,
-and escalation triggers>
+<one owner decision, capability evidence, exact proof, and escalation triggers>
 
 Instructions:
 1. Read the plan completely.
@@ -39,33 +40,29 @@ Instructions:
 4. Use the packet's files and deterministic prefetch before broad search.
    Escalate when an escalation trigger fires or the packet is insufficient;
    do not silently expand authority.
-5. Treat model routing as live dispatch, not a plan commitment. Request the
-   chosen route immediately before execution and keep slice authority bounded.
-   Use `attempt_tier` only when the current master explicitly established bounded
-   intent, scope, authority, proof, trust, and escalation triggers; never infer
-   it from “code” or a file extension.
+5. Treat model routing as an owner-first live decision, not a plan commitment.
+   The current orchestrator records exactly one owner immediately before
+   execution: retain `current` when its reasoning, context, tools, trust, or
+   authority are required; otherwise choose `delegated`.
 6. Apply user-local project source priority (`automatic`, `self-hosted-first`, or
-   `native-first`) only among eligible live routes. Plans never choose a model,
-   alias, adapter, endpoint, or transport. Source preference never grants
-   attempt eligibility; only run-scoped `require <model>` hard-pins.
+   `native-first`) only among eligible delegated routes. Plans never choose a
+   model, alias, adapter, endpoint, or transport. Only run-scoped
+   `require <model>` hard-pins.
 7. Record the actual route and provenance only from dispatcher or host evidence.
+   Inspect the active host's exact callable-agent schema and the live CLI/user
+   catalog; never infer callable aliases from model memory or merge App-only and
+   CLI-only catalogs.
    If the host cannot prove the selected model/session, report provenance as
    `unknown`/`unavailable`.
-8. Run the exact deterministic proof after an AMR attempt. A passing attempt is
-   kept without a stronger-model rewrite. Proof—not model self-review or a
-   routing receipt—is the acceptance oracle.
-9. If proof fails, prepare the planned-tier-or-higher correction packet with independently accepted
-   result, failed criterion and location, smallest allowed change, invariants,
-   relevant interfaces, exact proof result, compact current diff, attempt
-   ledger, `corrective_diff_only: true`, and focused/regression proof to rerun.
-   Preserve only hunks with a machine-verifiable hunk-local acceptance oracle.
-   Without that oracle or when failure is not localizable, abort the surgical
-   pilot path and record separate ordinary planned-tier execution; do not infer
-   broadened authority.
-   Treat this as a handoff only. Automatic correction dispatch into the live
-   checkout is disabled until an isolated workspace, host-owned proof runner,
-   and compare-and-swap apply path exist. Fall back to ordinary planned-tier
-   execution and claim no preserved-work savings.
+8. For `current`, validate current capability and execute without searching
+   workers first. For native host delegation, call the exact native target
+   directly. For CLI/user-local delegation, use `kbrouter` and select exactly
+   one qualified same-tier or higher route. Do not send App targets through
+   `kbrouter`, route downward, or silently fall back across owners.
+9. Run the exact deterministic proof. Proof—not model self-review or a routing
+   receipt—is the acceptance oracle. If proof fails, use ordinary bounded repair
+   under the same owner. Re-plan, block, or record a new explicit ownership
+   decision if the required authority changes.
 10. For files marked `op: edit` in expected_files:
    - Read the current file content first.
    - Make only the change described in the `scope` field.
@@ -85,4 +82,5 @@ Instructions:
 Do not modify other slices' files unless required for this slice.
 Do not add scope beyond what the plan specifies.
 Do not stage unrelated dirty or untracked files.
+Do not invoke AMR or pass `attempt_tier` during normal KB work.
 ```

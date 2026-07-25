@@ -102,9 +102,9 @@ Skip or defer functional tests only when the change is dead-code removal, local 
 
 ## Proof Classification Only
 
-This skill classifies the proof required. It does not lower a slice's planned
-correction tier, select an implementation attempt, or decide whether a worker's
-result passes.
+This skill classifies the proof required. It does not change a slice's minimum
+execution tier, select an execution owner, or decide whether a worker's result
+passes.
 
 The classification task itself is eligible for small/mini models when the
 platform supports model-tiered subagents.
@@ -118,12 +118,12 @@ Good mini-model tasks:
 
 Do not use a mini model as the final proof of behavior. The proof is the command, test, browser probe, screenshot, or failing/passing output. Escalate to a stronger model when classification depends on architecture, auth/security, flaky async behavior, complex UI state, or repeated failures.
 
-When a slice declares `model_tier`, preserve it as the planned
-correction/authority tier. `kb-work` alone decides whether the already-bounded
-slice and this objective proof make one lower-tier implementation attempt safe.
-“This is code” is not evidence. Subjective UX/design, philosophy/policy,
-unresolved architecture, security/auth/data boundaries, and proof that cannot
-reject a bad implementation remain ineligible for a lower-tier attempt.
+When a slice declares `model_tier`, preserve it as the minimum execution
+capability. `kb-work` alone decides whether the current orchestrator retains the
+slice or delegates it once to one qualified same-tier-or-higher worker. “This is
+code” is not evidence for delegation. Subjective UX/design, philosophy/policy,
+unresolved architecture, security/auth/data boundaries, and weak proof normally
+require current-orchestrator ownership or HITL.
 
 ## Test Quality Audit
 

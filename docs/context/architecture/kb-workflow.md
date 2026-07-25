@@ -240,14 +240,17 @@ to bounce between lanes.
 
 `kb-plan` produces vertical slices with expected files, verification,
 dependencies, test level, functional risk, model tier, and HITL flags. Model
-tier records planned correction/authority (`small`, `medium`, `large`; legacy
+tier records minimum execution capability (`small`, `medium`, `large`; legacy
 `tiny` maps to `small`). It never lowers the executable proof requirement and
-does not freeze the first worker.
+does not freeze a worker.
 
 Plans contain tier, requirements, risk, and proof only. They never name a model,
 route alias, source preference, adapter, endpoint, or transport. The current
-master chooses eligible host-native routes automatically and records the actual
-route in the receipt. Only run-scoped `require <model>` hard-pins.
+orchestrator decides once whether its own reasoning, accumulated context, tools,
+trust, or authority require `current` execution. Otherwise it chooses
+`delegated` and selects exactly one qualified same-tier-or-higher worker. The
+receipt records that owner and the actual route. Only run-scoped
+`require <model>` hard-pins a delegated route.
 
 Ordinary map/bootstrap and native-only work ask no routing questions. Explicit
 `kb-models` setup may add user-local OpenAI-compatible/LiteLLM routes whose
@@ -257,37 +260,36 @@ uses `automatic` when no project source choice is saved. Only explicit setup or
 configuration offers `automatic`, `self-hosted-first`, or `native-first`. Save
 only that source preference through user-local `kb-models`; connection details remain local.
 
-Adaptive Model Routing (AMR) is automatic: `kb-work` uses the live `kbrouter`
-catalog and the current master to run one proof-triggered attempt/correction
-loop. For settled intent, bounded scope and authority, objective proof, safe
-trust/destination, and exact escalation triggers, the driver may explicitly
-request one next-lower `attempt_tier`. The selector validates that requested
-route; it does not infer suitability from “code,” file extensions, or price.
+Host-native and CLI/local delegation are distinct executable branches:
 
 ```text
-plan correction tier + bounded packet + objective proof
-  -> eligible? one next-lower attempt : planned-tier start
-  -> proof passes? keep result
-  -> proof fails? prepare planned-tier surgical correction handoff
-  -> no isolated correction runner? fail closed; record ordinary planned-tier execution
+required tier + bounded packet
+  -> current reasoning/context/tools/authority required? current execution
+  -> native host target chosen? invoke the exact callable-agent schema directly
+  -> CLI or user-local target chosen? kbrouter discover/select/dispatch
+  -> deterministic proof accepts or rejects the result
 ```
 
-Deterministic proof is the validator. The planned-tier model is correction
-authority, not a mandatory reviewer of passing work. Failure handoff carries
-the accepted result, exact failed criterion/location, smallest allowed change,
-preserved invariants, relevant interfaces, proof result, compact diff, attempt
-ledger, and focused/regression checks. The current runtime does not dispatch
-that handoff into the live checkout: isolation, host-owned proof, and
-compare-and-swap apply are required first. A full-file rewrite is forbidden unless
-the failure cannot be localized or the plan/interface/authority boundary
-changes.
+The active host's callable schema is authoritative for native targets. For
+example, a Codex App schema may expose Sol and Terra. `kbrouter` is authoritative
+for Codex CLI and user-local routes, where a live CLI may expose
+`gpt-5.4-mini`. The orchestrator never infers callable targets from model
+memory, never merges identities by display name, and never treats an App-only
+target as CLI-callable or vice versa.
 
-No routing file means planned-tier AMR selection is automatic while substantive
-next-lower attempts remain disabled until explicit pilot/opt-in or promotion. Normal work
-asks no routing questions. `kb-configure` may disable attempts, while
-advanced run-scoped `use`, `require`, `prefer self-hosted` (`prefer local`
-shorthand), `prefer native`, and `ignore model routing` controls remain
-available through `kb-models`.
+Deterministic proof is the validator. A selected owner repairs ordinary bounded
+failures without silently handing the slice to the other owner. If required
+authority changes, `kb-work` re-plans, blocks, or records a new explicit
+ownership decision. Delegated selection may move sideways to a qualified
+same-tier route or upward before dispatch, but it never routes downward
+automatically or falls back to current.
+
+Adaptive Model Routing (AMR) remains an unpromoted experimental benchmark.
+Normal work never passes `attempt_tier`, never requires a lower-tier trial, and
+never consumes an AMR experiment flag. `kb-configure` can opt a separate
+benchmark in or out. Advanced run-scoped `use`, `require`,
+`prefer self-hosted` (`prefer local` shorthand), `prefer native`, and
+`ignore model routing` controls remain available through `kb-models`.
 
 `kb-work` executes the safe ready set from the slice dependency DAG. Once
 execution starts, it does not ask before each slice. The default WIP is every

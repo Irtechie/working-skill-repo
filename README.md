@@ -58,11 +58,11 @@ This preserves the learning model's narrow-scope and promotion rules instead of
 creating a second manually maintained knowledge store.
 
 Optional `kb-configure` writes portable per-project execution policy. Most users
-never need it. Planned-tier execution is the default; substantive next-lower
-Adaptive Model Routing (AMR) attempts are disabled until explicit pilot/opt-in
-or promotion. When enabled, AMR makes at most one attempt before proof. Failure
-produces a bounded handoff followed by separate ordinary planned-tier execution,
-not automatic correction. Optional user-local `kb-models` state saves
+never need it. Orchestrator-directed DDR is the default: the current
+orchestrator either retains a slice or delegates it once to one qualified
+same-tier-or-higher worker. Adaptive Model Routing (AMR) remains an unpromoted
+experiment and is never required by ordinary work. Optional user-local
+`kb-models` state saves
 `automatic`, `self-hosted-first`, or `native-first` source preference without
 configuring model-by-model plan mappings.
 
@@ -106,20 +106,20 @@ This repo is two things:
 2. A development harness that tests whether the bundle, routes, sync targets,
    eval fixtures, marketplace rules, and release gates still match the claims.
 
-## How Planning, Routing, And AMR Fit Together
+## How Planning And Routing Fit Together
 
 KB separates three decisions that agents often blur together:
 
-1. **Planning sets authority.** `kb-plan` classifies each slice as small,
-   medium, or large from difficulty, risk, required tools/context, and the proof
-   needed to accept it. The plan does not freeze a model, provider, endpoint,
-   transport, or source preference.
-2. **Work-time routing chooses an available worker.** Immediately before a
-   slice runs, `kb-work` considers what the active host can actually invoke and
-   any optional user-local routes. The current master selects a bounded,
-   dispatch-qualified worker at the planned tier, a qualified same-tier route,
-   or a higher tier. It never assumes another host's catalog and never infers a
-   downward route.
+1. **Planning sets minimum capability.** `kb-plan` classifies each slice as
+   small, medium, or large from difficulty, risk, required tools/context, and
+   the proof needed to accept it. The plan does not freeze a model, provider,
+   endpoint, transport, or source preference.
+2. **The orchestrator chooses the owner once.** Immediately before a slice
+   runs, `kb-work` decides whether its own reasoning, accumulated context,
+   tools, trust, or authority require `current` execution. Otherwise it selects
+   exactly one qualified same-tier-or-higher worker for `delegated` execution.
+   It never assumes another host's catalog, routes downward automatically, or
+   silently falls back across owners.
 3. **Proof accepts the result.** A routing receipt records what ran; it does not
    make the work correct. Tests, lint, browser assertions, API probes, or another
    objective check remain authoritative.
@@ -127,22 +127,26 @@ KB separates three decisions that agents often blur together:
 ### Difficulty-Driven Routing (DDR)
 
 DDR is shorthand for that decision pattern, not a separate command or artifact
-created by `kb-plan`. Planning records difficulty and proof; execution discovers
-the live catalog and chooses from evidence.
+created by `kb-plan`. Planning records required capability and proof; execution
+records `current` or `delegated` ownership and chooses from live evidence.
 
 ![KB difficulty-driven model selection](docs/assets/kb-model-selection.png)
 
 The model labels in the diagram are illustrative snapshots. They are not a
-durable shared catalog. A new user can use KB with zero model setup because the
-active host already knows its own models. Advanced users can add local or
-external OpenAI-compatible/LiteLLM routes through user-local `kb-models` state,
-then save a project preference such as `automatic`, `self-hosted-first`, or
-`native-first`. Credentials and private endpoints never enter plans or shared
-skills.
+durable shared catalog. Routing reads the active host's exact callable-agent
+schema and the live CLI/user-local catalog; it does not rely on a model's memory
+of available model names. App-only aliases and CLI-only aliases remain distinct
+unless an adapter proves them callable. Native App targets are invoked through
+the App's exact delegation tool; CLI and user-local targets go through
+`kbrouter`. Advanced users can add local or external OpenAI-compatible/LiteLLM
+routes through user-local `kb-models` state, then save a project preference such
+as `automatic`, `self-hosted-first`, or `native-first`. Credentials and private
+endpoints never enter plans or shared skills.
 
 Local route setup is intentionally small. Add one user-local route, approve it
 for the current project if it is private, then let work-time routing decide
-whether it is eligible:
+whether it is eligible. See [LOCAL_MODELS.example.md](LOCAL_MODELS.example.md)
+for the full user-local state and host-surface contract.
 
 ```powershell
 kbrouter models add --scope user --alias local.coder --model <model-id> --endpoint http://127.0.0.1:4000/v1 --hosting self-hosted --retention none --training-use no --trust-provenance "user-local LiteLLM"
@@ -159,16 +163,16 @@ Run-only controls remain explicit:
 
 - `use <model>` prefers an eligible route for this run;
 - `require <model>` hard-pins it or fails;
-- `ignore model routing` stays on the current driver;
-- fallback goes same tier, then higher tier, then the current model in degraded
-  mode—never automatically downward.
+- `ignore model routing` explicitly chooses current execution;
+- delegated fallback may choose another qualified same-tier or higher worker,
+  but never silently switches to the current orchestrator.
 
 ### Adaptive Model Routing (AMR)
 
-AMR is a narrower, optional optimization inside this system. If a task was
-planned at medium but is settled, bounded, and objectively provable, an enabled
-pilot may try exactly one dispatch-qualified next-lower-tier worker. It is not a
-general instruction to use cheaper models for all code.
+AMR is a separate experimental benchmark. It may evaluate a bounded
+next-lower-tier attempt under controlled proof, but normal `kb-work` does not
+invoke it, require it, or pass `attempt_tier`. It is not a general instruction
+to use cheaper models for code.
 
 ![Adaptive Model Routing workflow](docs/assets/kb-routing-workflow.png)
 
@@ -177,14 +181,9 @@ design with browser assertions. Philosophy, speculative product/design work,
 unresolved architecture, subjective intent, sensitive boundaries, and weak
 proof are bad candidates and begin at the planned tier.
 
-If focused proof passes, KB keeps the result and continues ordinary QA,
-regression, and review. If it fails, lower-tier retries stop. The driver receives
-the exact failed criterion, location/hunk, invariants, accepted diff, ledger, and
-proof output so the planned-tier authority can correct the smallest necessary
-surface. Automatic live-checkout correction is currently disabled; failure uses
-separate ordinary planned-tier execution. AMR is disabled by default and makes
-no savings claim until worker + proof + repair repeatedly beats direct execution
-without reducing correctness.
+AMR results do not control production routing. Promotion would require repeated
+independent evidence that worker, proof, and repair beat direct execution
+without reducing correctness. Until then, it makes no production savings claim.
 
 ## What Makes This Different
 
@@ -195,26 +194,20 @@ without reducing correctness.
 - `kb-plan` decomposes clear work into vertical slices with verification
   contracts.
 - `kb-work` executes manifest slices using ready-set and scope-lease rules.
-- At execution time, the current master may choose a dispatch-qualified worker
-  from the bounded live catalog; otherwise it uses the planned-tier current-model
-  path. Durable plans contain tier/proof, never model or transport advice. The
-  current master chooses host-native routes
-  automatically. `kb-models` configures optional user-local
-  OpenAI-compatible/LiteLLM extras; no generic MCP model dispatch is claimed.
+- At execution time, the current orchestrator reasons first and records one
+  owner: retain the slice or delegate to exactly one qualified worker. Durable
+  plans contain tier/proof, never model or transport advice. Host-native routes
+  come from and execute through the active callable schema. `kb-models`
+  configures optional user-local OpenAI-compatible/LiteLLM extras for
+  `kbrouter`; no generic MCP model dispatch is claimed.
   Ordinary work silently uses `automatic` when the project has no saved choice.
   Explicit setup may save `automatic`, `self-hosted-first`, or `native-first`.
   Connection details stay user-local, the receipt records
   what actually ran; only a route-bound receipt linked to proof establishes
   `dispatch-proven`, and only `require <model>` hard-pins.
-- A plan tier is correction authority, not the validator. For settled, bounded,
-  objectively provable work, an enabled AMR pilot may try the next lower tier.
-  Deterministic proof accepts the result or produces a bounded correction
-  handoff. Automatic correction dispatch is currently disabled: without an
-  isolated workspace and compare-and-swap apply runner, it would risk changing
-  the live checkout before validation. Failed attempts therefore record
-  separate ordinary planned-tier execution and no preserved-work savings.
-  Subjective intent, weak proof, sensitive
-  boundaries, and unresolved architecture start at the planned tier.
+- A plan tier is minimum execution capability, not the validator. Deterministic
+  proof accepts the result. AMR stays outside the normal path until separately
+  promoted from controlled evidence.
 - `kb-finalize` runs internal review, proof, follow-up cleanup, learning, and
   memory refresh.
 - `kb-complete` is the single user-facing state-aware orchestrator through
@@ -239,23 +232,24 @@ routes, gates, and checks exist in code and skills. It does not claim measured
 token savings.
 
 Model selection follows the same split. `kb-plan` records the slice difficulty,
-risk, tools, context, and proof without freezing a model name. `kb-work`
-starts from the active host's own live catalog, then merges optional user-local
-OpenAI-compatible/LiteLLM extras. Extra origin, hosting class, and trust are
-independent: an extra may be self-hosted, provider-hosted, or unknown. Selection
-falls sideways and then upward; it never infers a downward fallback. Routing
-receipts are attribution evidence, while deterministic work proof remains the
-acceptance authority. Endpoints, auth references, approvals, and personal
-source priority stay user-local.
+risk, tools, context, and proof without freezing a model name. `kb-work` reads
+the active host's exact callable schema, then merges optional user-local
+OpenAI-compatible/LiteLLM extras for delegated selection. Extra origin, hosting
+class, and trust are independent: an extra may be self-hosted, provider-hosted,
+or unknown. The orchestrator chooses `current` or `delegated` once; delegated
+selection falls sideways and then upward and never crosses back to current
+silently. Routing receipts are attribution evidence, while deterministic work
+proof remains the acceptance authority. Endpoints, auth references, approvals,
+and personal source priority stay user-local.
 
 Current evidence is deliberately conservative:
 
 | Surface | Status |
 | --- | --- |
-| Planned-tier/current-model execution and ordinary proof | Supported skill fallback |
-| Selector, handoff validation, correction refusal, and fallback mechanics | Deterministic conformance only |
+| Orchestrator-owned current execution and ordinary proof | Supported |
+| Owner-first selector and one-worker delegated selection | Deterministic conformance |
 | Codex CLI plus a trusted OpenAI-compatible/LiteLLM route | Candidate; live support not qualified |
-| Next-lower AMR attempts | Disabled by default; not promoted |
+| Next-lower AMR attempts | Experimental only; not in normal work |
 | Automatic surgical correction | Unsupported; fails closed before worker launch or mutation |
 | GHCP, exact Codex App attribution, TinyBoss, generic MCP, direct chat-completions worker | Parked |
 

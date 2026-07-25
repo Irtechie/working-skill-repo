@@ -54,9 +54,65 @@ func TestDispatchCodexExecArgvProfileModelAndProofUnknown(t *testing.T) {
 	if report.Status != "observation-only" || report.Attribution != "exact" {
 		t.Fatalf("dispatch must not self-credit even with exact host evidence: %#v", report)
 	}
+	if report.ExecutionOwner != modelrouting.ExecutionOwnerDelegated || report.OwnerReason == "" || report.TierReason == "" {
+		t.Fatalf("dispatch report lost delegated ownership envelope: %#v", report)
+	}
 	receipt := decodeReceipt(t, fixture.receiptPath)
 	if receipt.WorkProof.Result != modelrouting.ProofUnknown || receipt.RouteEvidence.ProviderReportedModel != "large-model" || receipt.RouteEvidence.SessionID != sessionID {
 		t.Fatalf("receipt should bind host evidence but keep proof unknown: %#v", receipt)
+	}
+}
+
+func TestDispatchPacketRequiresExplicitDelegatedOwnership(t *testing.T) {
+	base := dispatchPacketForTest{
+		SchemaVersion: 1, PacketID: "packet-owner", TaskID: "task-owner",
+		RunID: "run-owner", SliceID: "slice-owner",
+		ExecutionOwner: "delegated", OwnerReason: "bounded worker execution", TierReason: "large capability required",
+		ModelTier: "large", TaskFamily: "code", ContextSize: 8192, Risk: "broad",
+		AllowedTools: []string{"codex-harness"}, ProofTargets: []string{"go test ./cmd/kbrouter"},
+		Redaction: map[string]any{"bounded": true}, BoundedContext: true,
+	}
+	for name, mutate := range map[string]func(*dispatchPacketForTest){
+		"missing owner":        func(packet *dispatchPacketForTest) { packet.ExecutionOwner = "" },
+		"current owner":        func(packet *dispatchPacketForTest) { packet.ExecutionOwner = "current" },
+		"missing owner reason": func(packet *dispatchPacketForTest) { packet.OwnerReason = "" },
+		"missing tier reason":  func(packet *dispatchPacketForTest) { packet.TierReason = " " },
+	} {
+		t.Run(name, func(t *testing.T) {
+			packet := base
+			mutate(&packet)
+			data, err := json.Marshal(packet)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := decodeDispatchPacket(data, packet.RunID, packet.SliceID); err == nil || !strings.Contains(err.Error(), "delegated ownership") {
+				t.Fatalf("ownerless/non-delegated packet accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestDirectDispatchCannotBypassDelegatedCapabilityEnvelope(t *testing.T) {
+	for name, mutate := range map[string]func(*modelrouting.Route){
+		"tier":    func(route *modelrouting.Route) { route.Capability.Class = modelrouting.ClassSmall },
+		"task":    func(route *modelrouting.Route) { route.Capability.TaskFamily = "text" },
+		"tools":   func(route *modelrouting.Route) { route.Capability.Tools = []string{"apply_patch"} },
+		"context": func(route *modelrouting.Route) { route.Capability.ContextSize = 1024 },
+		"risk":    func(route *modelrouting.Route) { route.Capability.Risk = modelrouting.RiskNormal },
+	} {
+		t.Run(name, func(t *testing.T) {
+			fixture := newDispatchFixture(t, "capability-envelope-"+name)
+			base := fixture.route("codex.large", "large-model", modelrouting.ClassLarge)
+			route := base
+			mutate(&route)
+			fixture.installCatalog(route)
+			fixture.trustRoutes(route)
+			fixture.withFakeCodex(fixture.fakeCodex(fakeCodexSpec{}))
+			result := fixture.run("--route-alias", route.Alias)
+			if result.code == 0 || !strings.Contains(result.stderr, "not trusted/selectable") {
+				t.Fatalf("%s capability bypassed: code=%d stderr=%s stdout=%s", name, result.code, result.stderr, result.stdout)
+			}
+		})
 	}
 }
 
@@ -64,7 +120,9 @@ func TestDispatchPreservesAttemptAndPlannedCorrectionTiers(t *testing.T) {
 	fixture := newDispatchFixture(t, "attempt-tier")
 	fixture.writePacket(dispatchPacketForTest{
 		SchemaVersion: 1, PacketID: "packet-attempt-tier", TaskID: "task-attempt-tier",
-		RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004", ModelTier: "medium", AttemptTier: "small",
+		RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004",
+		ExecutionOwner: "delegated", OwnerReason: "bounded worker execution", TierReason: "attempt fixture capability floor",
+		ModelTier: "medium", AttemptTier: "small",
 		TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
 		ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true,
 	})
@@ -92,7 +150,9 @@ func TestDispatchPreservesAttemptAndPlannedCorrectionTiers(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			invalid := dispatchPacketForTest{
 				SchemaVersion: 1, PacketID: "packet-invalid-attempt", TaskID: "task-invalid-attempt",
-				RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004", ModelTier: tiers[0], AttemptTier: tiers[1],
+				RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004",
+				ExecutionOwner: "delegated", OwnerReason: "bounded worker execution", TierReason: "attempt fixture capability floor",
+				ModelTier: tiers[0], AttemptTier: tiers[1],
 				TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
 				ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true,
 			}
@@ -157,6 +217,7 @@ func TestDispatchCorrectionPacketRefusesBeforeWorkerLaunchOrReceipt(t *testing.T
 	}
 	fixture.writePacket(dispatchPacketForTest{
 		SchemaVersion: 1, PacketID: "packet-correction-link", TaskID: "task-correction-link", RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004",
+		ExecutionOwner: "delegated", OwnerReason: "bounded worker execution", TierReason: "correction fixture capability floor",
 		ModelTier: "medium", TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
 		ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true, Correction: &correction,
 	})
@@ -252,7 +313,9 @@ func TestDispatchRejectsPacketWithoutCodexHarnessAuthority(t *testing.T) {
 	fixture := newDispatchFixture(t, "bad-authority")
 	fixture.writePacket(dispatchPacketForTest{
 		SchemaVersion: 1, PacketID: "packet-bad-authority", TaskID: "task-bad-authority",
-		RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004", ModelTier: "large",
+		RunID: filepath.Base(fixture.runRoot), SliceID: "slice-004",
+		ExecutionOwner: "delegated", OwnerReason: "bounded worker execution", TierReason: "fixture capability floor",
+		ModelTier:  "large",
 		TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"apply_patch"},
 		ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true,
 	})
@@ -291,6 +354,7 @@ func TestDispatchForgedChildEvidenceIsObservationOnlyAndDoesNotFallbackOnExitZer
 
 func TestFallbackUsesFreshFallbackRouteModelAndNeverDownward(t *testing.T) {
 	fixture := newDispatchFixture(t, "fallback-model")
+	fixture.writeDelegatedPacket("small", "")
 	small := fixture.route("codex.small", "small-model", modelrouting.ClassSmall)
 	large := fixture.route("codex.large", "large-model", modelrouting.ClassLarge)
 	fixture.installCatalog(small, large)
@@ -319,7 +383,7 @@ func TestFallbackUsesFreshFallbackRouteModelAndNeverDownward(t *testing.T) {
 	down.trustRoutes(large, small)
 	down.withFakeCodex(down.fakeCodex(fakeCodexSpec{exitCode: 7}))
 	result = down.run("--route-alias", large.Alias, "--fallback-route-alias", small.Alias)
-	if result.code == 0 || !strings.Contains(result.stderr, "downward fallback") {
+	if result.code == 0 || (!strings.Contains(result.stderr, "downward fallback") && !strings.Contains(result.stderr, "not trusted/selectable")) {
 		t.Fatalf("downward fallback accepted, code=%d stderr=%s stdout=%s", result.code, result.stderr, result.stdout)
 	}
 }
@@ -438,6 +502,9 @@ type dispatchPacketForTest struct {
 	TaskID         string                         `json:"task_id"`
 	RunID          string                         `json:"run_id"`
 	SliceID        string                         `json:"slice_id"`
+	ExecutionOwner string                         `json:"execution_owner"`
+	OwnerReason    string                         `json:"owner_reason"`
+	TierReason     string                         `json:"tier_reason"`
 	ModelTier      string                         `json:"model_tier"`
 	AttemptTier    string                         `json:"attempt_tier,omitempty"`
 	TaskFamily     string                         `json:"task_family"`
@@ -476,7 +543,9 @@ func newDispatchFixture(t *testing.T, name string) dispatchFixture {
 	}
 	fixture.writePacket(dispatchPacketForTest{
 		SchemaVersion: 1, PacketID: "packet-" + name, TaskID: "task-" + name,
-		RunID: filepath.Base(runRoot), SliceID: "slice-004", ModelTier: "large",
+		RunID: filepath.Base(runRoot), SliceID: "slice-004",
+		ExecutionOwner: "delegated", OwnerReason: "bounded worker execution", TierReason: "fixture capability floor",
+		ModelTier:  "large",
 		TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
 		ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true,
 	})
@@ -492,6 +561,17 @@ func (f dispatchFixture) writePacket(packet dispatchPacketForTest) {
 	if err := os.WriteFile(f.packetPath, data, 0o600); err != nil {
 		f.t.Fatal(err)
 	}
+}
+
+func (f dispatchFixture) writeDelegatedPacket(modelTier, attemptTier string) {
+	f.writePacket(dispatchPacketForTest{
+		SchemaVersion: 1, PacketID: "packet-" + filepath.Base(f.runRoot), TaskID: "task-" + filepath.Base(f.runRoot),
+		RunID: filepath.Base(f.runRoot), SliceID: "slice-004",
+		ExecutionOwner: "delegated", OwnerReason: "bounded worker execution", TierReason: modelTier + " capability floor",
+		ModelTier: modelTier, AttemptTier: attemptTier,
+		TaskFamily: "code", ContextSize: 8192, Risk: "broad", AllowedTools: []string{"codex-harness"},
+		ProofTargets: []string{"go test ./cmd/kbrouter"}, Redaction: map[string]any{"bounded": true}, BoundedContext: true,
+	})
 }
 
 func (f dispatchFixture) run(extra ...string) dispatchCommandResult {

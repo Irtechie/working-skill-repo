@@ -134,6 +134,8 @@ Read the brainstorm/PRD/description. Extract:
 - Question Gate state: unresolved `ask-now`/`research-first` blockers, safe
   assumptions, deferred planning questions, and parked forbidden claims.
 
+Planning cannot launder brainstorm ambiguity.
+
 If the source has unresolved `ask-now` or `research-first` items, stop before
 decomposition. Write or update the `brainstorm-to-plan` gate as `blocked` or
 `needs-human` and set `allowed_next_action` to the smallest repair action, such
@@ -174,7 +176,7 @@ Break the work into thin end-to-end slices. For each slice, determine:
   not a silent confidence claim.
 - **Context packet** - for non-trivial slices, the bounded execution payload:
   memory/source files already checked, deterministic prefetch, constraints,
-  acceptance/proof targets, planned correction tier, allowed tools/search
+  acceptance/proof targets, minimum execution tier, allowed tools/search
   policy, and escalation triggers. Tiny doc-only or mechanical slices may omit it with a
   one-line reason.
 
@@ -232,13 +234,13 @@ and any objective-contract fields. If any proof is missing, set
 
 ### Model Tier Contract
 
-`model_tier` records the slice's planned correction/authority tier, not a
-permanent worker assignment and not a proof level. Verification requirements
-stay the same regardless of tier. `kb-work` may make one explicit lower-tier
-attempt at run time when the plan already provides settled intent, bounded
-scope and authority, an objective proof that can reject a bad result, and exact
-escalation triggers. The plan does not record `attempt_tier` or decide that
-execution policy.
+`model_tier` records the minimum execution capability the orchestrator judges
+necessary for the slice. It is not a permanent worker assignment and not a
+proof level. Verification requirements stay the same regardless of tier.
+`kb-work` decides whether the current orchestrator must retain execution because
+its reasoning, context, tools, or authority are required, or whether one
+qualified worker may execute the bounded slice. The plan does not record a
+model, route alias, provider, or `attempt_tier`.
 
 The planner never chooses a native model, extra-route alias, provider, adapter,
 endpoint, or transport. The current master resolves live native routes and any
@@ -253,14 +255,14 @@ belongs in the receipt. Only run-scoped `require <model>` hard-pins.
 
 Every runnable slice must include `model_tier_reason`, non-empty
 `model_requirements`, and observable `escalation_triggers`. A tier label without
-those fields fails `manifest-contract`. DDR remains testing-stage policy; do not
-describe the tier as a benchmark-proven model assignment.
+those fields fails `manifest-contract`. The reason must state why that minimum
+capability is needed, not merely name a task type.
 
 Legacy `tiny` remains readable as a `small`-lane hint only. When unsure, choose
-the higher correction tier. Subjective design direction, philosophy/policy
-judgment, unresolved architecture, weak proof, and security/auth/data-boundary
-decisions start at the planned tier or require HITL. Straightforward code is
-not enough by itself to justify a lower-tier attempt.
+the higher tier. Subjective design direction, philosophy/policy judgment,
+unresolved architecture, weak proof, and security/auth/data-boundary decisions
+normally require the current orchestrator or HITL. Straightforward code is not
+enough by itself to justify delegation or a lower tier.
 
 ### Workspace Isolation Contract
 
@@ -303,9 +305,10 @@ not an agent assertion.
   resolves and chooses the actual route at dispatch time and records it in the
   run receipt. Legacy `model_route` values may remain readable as hints only.
 
-In the manifest template, `automatic_downgrade: false` forbids a selector from
-inventing a lower tier. It does not forbid `kb-work` from explicitly requesting
-one work-time `attempt_tier` after the bounded eligibility gate passes.
+In the manifest template, the model selection contract makes ownership
+explicit. It forbids automatic downward routing and silent fallback between the
+current orchestrator and delegated execution. AMR experiments are separate from
+normal manifest execution.
 
 If no honest objective-level check exists yet, do not fake one. Either plan a
 slice that creates the check first, or record a human-approved exception before
@@ -336,9 +339,14 @@ model_tier_contract:
   default: medium
 model_selection_contract:
   timing: work-time
-  catalog: host-native-plus-user
-  fallback: same-tier-then-higher-then-current
-  automatic_downgrade: false
+  decision_owner: orchestrator
+  owner_choice: current-or-delegated
+  max_owner_decisions_per_slice: 1
+  catalog: active-host-plus-user-local
+  delegated_fallback: same-tier-then-higher
+  automatic_downward_routing: false
+  automatic_cross_owner_fallback: false
+  amr_required: false
 gate_ledger:
   - gate_id: brainstorm-to-plan
     owner_skill: kb-brainstorm
@@ -480,8 +488,8 @@ The plan body should include:
 
 - What to build, expressed as end-to-end behavior
 - Acceptance criteria
-- Planned correction/authority tier and why it is sufficient if proof rejects
-  an initial attempt
+- Minimum execution tier and why its reasoning, context, tools, trust, and
+  authority are sufficient for the slice
 - Expected files (must match `expected_files` in frontmatter as the initial forecast; actual touched files may expand during `kb-work` when justified by the acceptance criteria and recorded in the scope ledger)
 - Test scenarios specific enough for TDD or integration verification
 - Proof check: the command, artifact, browser/API/CLI assertion, or accepted

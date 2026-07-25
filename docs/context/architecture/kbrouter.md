@@ -2,9 +2,10 @@
 
 ## Purpose
 
-`cmd\kbrouter` discovers callable routes, selects a worker by planned tier and
-risk, stores optional user/project route preferences, and enforces attended
-approval for sensitive route use.
+`cmd\kbrouter` discovers callable routes and applies an owner-first DDR
+decision: validate current execution or select exactly one delegated worker by
+required tier and risk. It stores optional user/project route preferences and
+enforces attended approval for sensitive route use.
 
 ## Read First
 
@@ -21,7 +22,7 @@ approval for sensitive route use.
 | `dispatch` | Execute a route-bound worker with run/slice context |
 | `models show` | Print current user catalog + project policy |
 | `models discover` | Probe and save a run-scoped redacted catalog |
-| `models select` | Pick a route for a planned tier / task family / risk |
+| `models select` | Validate current ownership or pick one delegated route for a required tier / task family / risk |
 | `models priority` | Save or clear project source preference (`automatic`, `self-hosted-first`, `native-first`) |
 | `models add` | Add an optional route definition at user or project scope |
 | `models remove` | Remove a route alias |
@@ -34,9 +35,15 @@ approval for sensitive route use.
 
 ## Source-of-Truth Rules
 
-- Planning stores tiers (`small`, `medium`, `large`), not concrete models.
-- Route choice happens at work time from live host capability plus optional
-  user/project config.
+- Planning stores minimum capability tiers (`small`, `medium`, `large`), not
+  concrete models.
+- The orchestrator chooses `current` or `delegated` once at work time.
+- `kbrouter` selects Codex CLI and optional user-local routes only. Native App
+  targets execute through the active host's exact callable-agent tool and do
+  not enter this catalog. App and CLI identities remain distinct unless an
+  explicit adapter proves a route callable.
+- Delegated selection returns one qualified same-tier-or-higher route. It does
+  not automatically route downward or fall back to current.
 - User-local and project-local route state is runtime configuration, not a repo
   source-of-truth replacement for manifests or proof.
 
@@ -63,3 +70,4 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
 - Discovery can probe trusted OpenAI-compatible endpoints, but only when the
   explicit probe path is chosen.
 - Route receipts record what ran; proof still belongs to downstream checks.
+- AMR remains an experimental benchmark and is not part of normal selection.

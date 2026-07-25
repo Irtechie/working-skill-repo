@@ -101,7 +101,7 @@ project files.
 
 - Inspect without mutation: `kbrouter models show` or `kbrouter models doctor`.
 - Discover for one run: `kbrouter models discover --run-root <run-root> --current-model <id>`.
-- Select without mutation: `kbrouter models select --run-root <run-root> --run-id <id> --tier <small|medium|large> [--attempt-tier <next-lower-tier>] --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] --json`. `--tier` is the planned correction/authority tier. `--attempt-tier` is a work-time request only and is never written into a planner manifest.
+- Select without mutation: `kbrouter models select --run-root <run-root> --run-id <id> --tier <small|medium|large> --tier-reason <reason> --execution-owner <current|delegated> --owner-reason <reason> --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] --json`. `--tier` is the minimum execution capability. Normal work never passes `--attempt-tier`.
 - Add reusable routes only with explicit user scope: `kbrouter models add --scope user ...`. Production user state always lives under the operating-system user's `~/.kb`; a repository cannot redirect credential-consuming commands to its own catalog.
 - Approve endpoint/auth use for the current canonical project with attended `kbrouter models approve --alias <alias>`. `add --approve-endpoint` is the one-step attended equivalent. Both require a live console confirmation bound to the canonical project path, route fingerprint, endpoint origin, auth environment-variable name, and expiry. Redirected/noninteractive approval is refused. Approvals have fixed expiries and live in user-local `trust.json`, never in the route catalog or project.
 - Revoke approval with `kbrouter models revoke --alias <alias>` or record a project-bound denial with `kbrouter models deny --alias <alias>`.
@@ -114,13 +114,14 @@ project files.
 ## Rules
 
 - Never ask a general Small/Medium/Large/Planner questionnaire.
-- Discover the live catalog and select an eligible route automatically for
-  ordinary planned-tier execution. Automatic discovery is not AMR: do not pass
-  `--attempt-tier` or make a lower-tier attempt unless portable project policy
-  explicitly enables the pilot/opt-in and `kb-work` admits the slice.
-- When an enabled bounded attempt is actually used, show at most one compact
-  line: `Trying Small for a bounded, objectively proved change; Medium
-  correction fallback.`
+- The active orchestrator chooses exactly one owner for ordinary work:
+  `current` when its reasoning, context, tools, trust, or authority are needed;
+  otherwise `delegated`.
+- For delegated work, discover the active host schema and live user-local
+  catalog, then select exactly one qualified same-tier or higher route. Do not
+  automatically route downward or fall back to current.
+- AMR remains a separate experimental benchmark. Normal `kb-work` never passes
+  `--attempt-tier` and never requires an AMR trial.
 - Do not create user or project catalog files during ordinary startup, `show`, `doctor`, or `discover`.
 - Plain `use <model>`, `require <model>`, and `ignore model routing` are
   natural-language, run-scoped overrides passed to `models select`; they are
@@ -131,25 +132,21 @@ project files.
   priority is user-local and keyed by canonical project identity; tracked
   project policy contains only non-secret narrowing constraints. Neither chooses
   transport or maintains a static hosted-model version list.
-- `use <model>` overrides saved user-local project source preference for the run, tries that model first
-  when eligible, then keeps the ordinary safe fallback ladder.
+- `use <model>` overrides saved user-local project source preference for a
+  delegated run and selects that model when eligible.
 - `require <model>` is a run-scoped exact pin: if unavailable, pause only that
-  slice instead of silently substituting another route. It bypasses any enabled
-  lower-tier attempt. It is the only hard pin, but never bypasses trust,
+  slice instead of silently substituting another route. It is the only hard pin,
+  but never bypasses trust,
   destination, retention, credential, tool, filesystem, or proof boundaries.
 - `prefer self-hosted` (`prefer local` shorthand) or `prefer native` is a
   run-scoped source preference inside trust, destination, authority, tools,
   context, proof, and risk constraints.
-- `ignore model routing` uses the current model and ordinary proof gates only;
-  it bypasses lower-tier attempts.
-- `kb-work` decides whether a lower-tier attempt is safe before passing
-  `--attempt-tier`. The selector validates requested candidates; it never infers
-  eligibility from “code,” file extensions, price, or a declared model class.
-- Failed attempt proof produces a surgical planned-tier correction handoff.
-  Do not dispatch it into the live checkout: the current runtime has no isolated
-  correction workspace or compare-and-swap apply path. Record separate ordinary
-  planned-tier execution and no preserved-work savings.
-  Route receipts do not validate work.
+- `ignore model routing` is an explicit current-owner decision and still
+  requires current capability validation and ordinary proof gates.
+- Never infer callable aliases from model memory. Use the exact host-native
+  agent schema for native delegation and the live CLI/user-local catalog for CLI
+  and local routes. Do not conflate App-only and CLI-only aliases.
+- Route receipts do not validate work. Deterministic proof remains authoritative.
 - Keep endpoints and auth environment-variable names in user-local storage only.
 - Tracked project files may contain stable alias narrowing constraints only;
   they must not contain personal source priority, model IDs, endpoints, auth

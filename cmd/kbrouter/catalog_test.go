@@ -673,16 +673,19 @@ func TestApprovedPrivateRouteSurvivesRedactedRunCatalogSelection(t *testing.T) {
 		}
 	}
 	request := modelrouting.WorkRequest{
-		PlannedTier: modelrouting.TierLarge,
-		TaskFamily:  "code",
-		Tools:       []string{"apply_patch"},
-		ContextSize: 1,
-		Risk:        modelrouting.RiskNormal,
-		ProjectID:   policy.Project.ProjectID,
+		PlannedTier:    modelrouting.TierLarge,
+		ExecutionOwner: modelrouting.ExecutionOwnerDelegated,
+		OwnerReason:    "approved route delegation",
+		TierReason:     "test requires large capability",
+		TaskFamily:     "code",
+		Tools:          []string{"apply_patch"},
+		ContextSize:    1,
+		Risk:           modelrouting.RiskNormal,
+		ProjectID:      policy.Project.ProjectID,
 	}
 	decision, err := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{Mode: modelrouting.OverrideRequire, Alias: redacted.Alias}, modelrouting.AttemptLedger{}, time.Now())
-	if err != nil || len(decision.Routes) == 0 || decision.Routes[0].Alias != redacted.Alias {
-		t.Fatalf("approved redacted route not selectable: decision=%#v err=%v", decision, err)
+	if !errors.Is(err, modelrouting.ErrRequiredRouteUnavailable) || decision.Status != modelrouting.SelectionUnavailable {
+		t.Fatalf("approval alone bypassed missing capability evidence: decision=%#v err=%v", decision, err)
 	}
 
 	tampered := report.Catalog
@@ -706,6 +709,60 @@ func TestApprovedPrivateRouteSurvivesRedactedRunCatalogSelection(t *testing.T) {
 	}
 	if !rejected {
 		t.Fatalf("source-removal tamper was accepted: %#v", tamperedRejections)
+	}
+}
+
+func TestDiscoveredCurrentRouteCanRetainExplicitCurrentOwnership(t *testing.T) {
+	userRoot := t.TempDir()
+	report, err := discoverCatalog(discoverOptions{
+		commonOptions:      commonOptions{userRoot: userRoot, projectRoot: "."},
+		currentModel:       "gpt-5.5",
+		adapterTimeout:     time.Second,
+		sessionTimeout:     2 * time.Second,
+		codexModelsFixture: filepath.Join("testdata", "codex-models.json"),
+	})
+	if err != nil {
+		t.Fatalf("discover current model: %v", err)
+	}
+	if report.Catalog.Current.Route == nil {
+		t.Fatal("discovery omitted active current route")
+	}
+	current := report.Catalog.Current
+	policy := modelrouting.PolicyContext{
+		Project: modelrouting.ProjectPolicy{
+			ProjectID:           "project-current",
+			AllowedDestinations: []string{"current"},
+			MaxRetention:        modelrouting.RetentionSession,
+		},
+		Trusted:               modelrouting.UserTrust{ProjectID: "project-current"},
+		TrustedCurrentModelID: current.ModelID,
+		TrustedCurrentSurface: current.Surface,
+	}
+	policy.TrustedCurrentRouteState, err = modelrouting.ComputeRouteStateFingerprint(*current.Route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validated, _, err := modelrouting.ValidateCatalogForSelection(report.Catalog, policy, nil, time.Now(), modelrouting.CatalogSourceRun)
+	if err != nil {
+		t.Fatalf("validate discovered catalog: %v", err)
+	}
+	request := modelrouting.WorkRequest{
+		PlannedTier:    modelrouting.TierLarge,
+		ExecutionOwner: modelrouting.ExecutionOwnerCurrent,
+		OwnerReason:    "orchestrator reasoning required",
+		TierReason:     "large reasoning task",
+		TaskFamily:     "code",
+		Tools:          []string{"apply_patch", "go test"},
+		ContextSize:    8192,
+		Risk:           modelrouting.RiskBroad,
+		ProjectID:      policy.Project.ProjectID,
+	}
+	decision, err := modelrouting.SelectRoute(validated, request, policy, modelrouting.RunOverride{}, modelrouting.AttemptLedger{}, time.Now())
+	if err != nil {
+		t.Fatalf("select current owner: %v", err)
+	}
+	if decision.Status != modelrouting.SelectionCurrent || decision.Current.ModelID != current.ModelID || len(decision.Routes) != 0 {
+		t.Fatalf("discovered current owner was not retained: %#v", decision)
 	}
 }
 

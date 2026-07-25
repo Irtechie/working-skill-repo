@@ -2,19 +2,30 @@ package modelrouting
 
 import (
 	"sort"
+	"strings"
 	"time"
 )
 
 type WorkRequest struct {
-	PlannedTier   Tier
-	AttemptTier   Tier
-	TaskFamily    string
-	Tools         []string
-	ContextSize   int
-	Risk          RiskLevel
-	SensitiveData bool
-	ProjectID     string
+	PlannedTier    Tier
+	AttemptTier    Tier
+	ExecutionOwner ExecutionOwner
+	OwnerReason    string
+	TierReason     string
+	TaskFamily     string
+	Tools          []string
+	ContextSize    int
+	Risk           RiskLevel
+	SensitiveData  bool
+	ProjectID      string
 }
+
+type ExecutionOwner string
+
+const (
+	ExecutionOwnerCurrent   ExecutionOwner = "current"
+	ExecutionOwnerDelegated ExecutionOwner = "delegated"
+)
 
 type OverrideMode string
 
@@ -42,18 +53,22 @@ type SelectionStatus string
 
 const (
 	SelectionRouted      SelectionStatus = "routed"
+	SelectionCurrent     SelectionStatus = "current"
 	SelectionIgnored     SelectionStatus = "ignored"
 	SelectionUnavailable SelectionStatus = "unavailable"
 	SelectionDegraded    SelectionStatus = "degraded-current"
 )
 
 type SelectionDecision struct {
-	Status      SelectionStatus
-	Routes      []Route
-	Current     CurrentModel
-	PlannedTier Tier
-	AttemptTier Tier
-	Preference  RoutePreference
+	Status         SelectionStatus
+	Routes         []Route
+	Current        CurrentModel
+	PlannedTier    Tier
+	AttemptTier    Tier
+	ExecutionOwner ExecutionOwner
+	OwnerReason    string
+	TierReason     string
+	Preference     RoutePreference
 }
 
 func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyContext, override RunOverride, ledger AttemptLedger, now time.Time) (SelectionDecision, error) {
@@ -61,61 +76,89 @@ func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyConte
 	decision := selectionDecisionForRequest(req)
 	decision.Preference = normalizedRoutePreference(override.Prefer)
 	if override.Mode == OverrideIgnore {
+		decision.ExecutionOwner = ExecutionOwnerCurrent
+		decision.OwnerReason = "user-required"
+		if !validWorkRequest(req) {
+			decision.Status = SelectionUnavailable
+			return decision, ErrInvalidWorkRequest
+		}
+		if !currentEligible(catalog.Current, req, policy, now) {
+			decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+			return decision, nil
+		}
 		decision.Status, decision.Current = SelectionIgnored, catalog.Current
 		return decision, nil
 	}
 	if req.ProjectID == "" {
-		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+		decision.Status = SelectionUnavailable
 		return decision, ErrInvalidWorkRequest
 	}
-	if !validTierRequest(req) || !validRoutePreference(override.Prefer) {
-		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+	if !validWorkRequest(req) || !validRoutePreference(override.Prefer) {
+		decision.Status = SelectionUnavailable
 		return decision, ErrInvalidWorkRequest
 	}
-	completeEnvelope := validWorkRequest(req)
-	automatic := []Route(nil)
-	if completeEnvelope {
-		automatic = eligibleRoutes(catalog, req, policy, ledger, now)
-		automatic = preferEligibleRoutes(automatic, decision.Preference)
+	if req.ExecutionOwner == ExecutionOwnerCurrent {
+		if override.Mode == OverrideUse || override.Mode == OverrideRequire {
+			decision.Status = SelectionUnavailable
+			return decision, ErrInvalidWorkRequest
+		}
+		if !currentEligible(catalog.Current, req, policy, now) {
+			decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+			return decision, nil
+		}
+		decision.Status, decision.Current = SelectionCurrent, catalog.Current
+		return decision, nil
 	}
+	automatic := preferEligibleRoutes(eligibleRoutes(catalog, req, policy, ledger, now), decision.Preference)
 	if override.Mode == OverrideRequire {
-		if route, ok := explicitlySelectable(catalog, override.Alias, req, policy, ledger, now); ok {
+		route, ok := explicitlyDelegatedSelectable(catalog, override.Alias, req, policy, ledger, now)
+		if ok {
 			decision.Status, decision.Routes = SelectionRouted, []Route{route}
 			return decision, nil
 		}
-		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+		decision.Status = SelectionUnavailable
 		return decision, ErrRequiredRouteUnavailable
 	}
 	if override.Mode == OverrideUse {
-		if preferred, ok := preferredSelectable(catalog, override.Alias, req, policy, ledger, now, completeEnvelope); ok {
-			routes := []Route{preferred}
-			for _, route := range automatic {
-				if route.Alias != preferred.Alias {
-					routes = append(routes, route)
-				}
-			}
-			decision.Status, decision.Routes = SelectionRouted, routes
+		if preferred, ok := preferredSelectable(catalog, override.Alias, req, policy, ledger, now, true); ok {
+			decision.Status, decision.Routes = SelectionRouted, []Route{preferred}
 			return decision, nil
 		}
 	}
-	if !completeEnvelope {
-		decision.Status, decision.Current = SelectionUnavailable, catalog.Current
-		return decision, ErrInvalidWorkRequest
-	}
 	if len(automatic) > 0 {
-		decision.Status, decision.Routes = SelectionRouted, automatic
+		decision.Status, decision.Routes = SelectionRouted, automatic[:1]
 		return decision, nil
 	}
-	if currentFallbackAllowed(catalog.Current, req, policy, now) {
-		decision.Status, decision.Current = SelectionDegraded, catalog.Current
-		return decision, nil
-	}
-	decision.Status, decision.Current = SelectionUnavailable, catalog.Current
+	decision.Status = SelectionUnavailable
 	return decision, nil
+}
+
+// explicitlyDelegatedSelectable is the bounded first-dispatch compatibility
+// path. A trusted/selectable route may not have a prior dispatch receipt yet,
+// but an explicit delegated owner still must satisfy the complete task, tier,
+// tool, context, risk, trust, and route-binding envelope.
+func explicitlyDelegatedSelectable(catalog Catalog, alias string, req WorkRequest, policy PolicyContext, ledger AttemptLedger, now time.Time) (Route, bool) {
+	if alias == "" || ledger.Attempted(alias) {
+		return Route{}, false
+	}
+	floor := tierFloor(selectionAttemptTier(req))
+	for _, route := range catalog.Routes {
+		if route.Alias != alias || validateRouteSchema(route) != nil ||
+			!routeAllowedByPolicy(route, req, policy, now) ||
+			!readinessCumulativeThrough(route.Readiness, ReadinessSelectable) ||
+			!capabilityEnvelopeEligible(route, req, floor) {
+			continue
+		}
+		return route, true
+	}
+	return Route{}, false
 }
 
 func validWorkRequest(req WorkRequest) bool {
 	if !validTierRequest(req) {
+		return false
+	}
+	if !validExecutionOwner(req.ExecutionOwner) || strings.TrimSpace(req.OwnerReason) == "" || strings.TrimSpace(req.TierReason) == "" {
 		return false
 	}
 	if req.ProjectID == "" || req.TaskFamily == "" || len(req.Tools) == 0 || req.ContextSize <= 0 || !validRisk(req.Risk) {
@@ -132,6 +175,10 @@ func validWorkRequest(req WorkRequest) bool {
 		seen[tool] = struct{}{}
 	}
 	return true
+}
+
+func validExecutionOwner(owner ExecutionOwner) bool {
+	return owner == ExecutionOwnerCurrent || owner == ExecutionOwnerDelegated
 }
 
 func validTierRequest(req WorkRequest) bool {
@@ -163,19 +210,6 @@ func preferredSelectable(catalog Catalog, alias string, req WorkRequest, policy 
 	floor := tierFloor(selectionAttemptTier(req))
 	for _, route := range catalog.Routes {
 		if route.Alias != alias || validateRouteSchema(route) != nil || !routeAllowedByPolicy(route, req, policy, now) || !automaticEligible(route, req, floor, now) {
-			continue
-		}
-		return route, true
-	}
-	return Route{}, false
-}
-
-func explicitlySelectable(catalog Catalog, alias string, req WorkRequest, policy PolicyContext, ledger AttemptLedger, now time.Time) (Route, bool) {
-	if alias == "" || ledger.Attempted(alias) {
-		return Route{}, false
-	}
-	for _, route := range catalog.Routes {
-		if route.Alias != alias || validateRouteSchema(route) != nil || !hasReadiness(route.Readiness, ReadinessSelectable) || !routeAllowedByPolicy(route, req, policy, now) {
 			continue
 		}
 		return route, true
@@ -254,7 +288,10 @@ func routeMatchesPreference(route Route, preference RoutePreference) bool {
 }
 
 func selectionDecisionForRequest(req WorkRequest) SelectionDecision {
-	return SelectionDecision{PlannedTier: req.PlannedTier, AttemptTier: selectionAttemptTier(req)}
+	return SelectionDecision{
+		PlannedTier: req.PlannedTier, AttemptTier: selectionAttemptTier(req),
+		ExecutionOwner: req.ExecutionOwner, OwnerReason: req.OwnerReason, TierReason: req.TierReason,
+	}
 }
 
 func selectionAttemptTier(req WorkRequest) Tier {
@@ -329,16 +366,24 @@ func automaticEligible(route Route, req WorkRequest, floor CapabilityClass, now 
 	if evidence.ExpiresAt.IsZero() || !now.Before(evidence.ExpiresAt) {
 		return false
 	}
+	if !capabilityEnvelopeEligible(route, req, floor) {
+		return false
+	}
+	return true
+}
+
+func capabilityEnvelopeEligible(route Route, req WorkRequest, floor CapabilityClass) bool {
+	evidence := route.Capability
 	if evidence.RouteAlias != route.Alias || evidence.ModelID == "" || route.DisplayModelID == "" || evidence.ModelID != route.DisplayModelID {
 		return false
 	}
 	if classRank(evidence.Class) < classRank(floor) {
 		return false
 	}
-	if req.TaskFamily != "" && evidence.TaskFamily != req.TaskFamily {
+	if evidence.TaskFamily != req.TaskFamily {
 		return false
 	}
-	if req.ContextSize > 0 && (evidence.ContextSize <= 0 || evidence.ContextSize < req.ContextSize) {
+	if evidence.ContextSize <= 0 || evidence.ContextSize < req.ContextSize {
 		return false
 	}
 	if !validRisk(evidence.Risk) || !riskCovers(evidence.Risk, req.Risk) {
@@ -352,11 +397,46 @@ func automaticEligible(route Route, req WorkRequest, floor CapabilityClass, now 
 	return true
 }
 
-func currentFallbackAllowed(current CurrentModel, req WorkRequest, policy PolicyContext, now time.Time) bool {
+func currentEligible(current CurrentModel, req WorkRequest, policy PolicyContext, now time.Time) bool {
 	if policy.Project.DenyCurrentFallback || current.ModelID == "" || current.Route == nil || current.Route.DisplayModelID != current.ModelID {
 		return false
 	}
-	return validateRouteSchema(*current.Route) == nil && routeAllowedByPolicy(*current.Route, req, policy, now)
+	route := *current.Route
+	if validateRouteSchema(route) != nil || !routeAllowedByPolicy(route, req, policy, now) {
+		return false
+	}
+	evidence := route.Capability
+	// The current route is already executing inside the active host, so it does
+	// not need delegated dispatch readiness or proof. Validate every capability
+	// the host actually reports, but do not invent App-specific tool or context
+	// claims merely to retain work. Unknown dimensions remain bounded by the
+	// orchestrator's explicit current-owner decision.
+	if evidence.Class != ClassUnknown && classRank(evidence.Class) < classRank(tierFloor(req.PlannedTier)) {
+		return false
+	}
+	if evidence.TaskFamily != "" && evidence.TaskFamily != "unknown" && evidence.TaskFamily != req.TaskFamily {
+		return false
+	}
+	if evidence.ContextSize > 0 && evidence.ContextSize < req.ContextSize {
+		return false
+	}
+	if evidence.Risk != RiskUnknown && (!validRisk(evidence.Risk) || !riskCovers(evidence.Risk, req.Risk)) {
+		return false
+	}
+	if len(evidence.Tools) > 0 {
+		for _, tool := range req.Tools {
+			if !containsString(evidence.Tools, tool) {
+				return false
+			}
+		}
+	}
+	if evidence.Class == ClassUnknown && (evidence.TaskFamily == "" || evidence.TaskFamily == "unknown") &&
+		evidence.ContextSize == 0 && evidence.Risk == RiskUnknown && len(evidence.Tools) == 0 {
+		if route.TrustProvenance != "active orchestrator" || route.Destination != "current" {
+			return false
+		}
+	}
+	return true
 }
 
 func tierFloor(tier Tier) CapabilityClass {

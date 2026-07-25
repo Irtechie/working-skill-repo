@@ -76,12 +76,12 @@ KB state system unless the repo already opted into `done.md`.
 1. **Read the manifest** - parse the YAML frontmatter to get the ordered slice list.
 2. **Validate DAG** - confirm no cycles in blockers, all referenced slice IDs exist, and all slice files exist.
 3. **Validate gate ledger** - read `gate_ledger`. The `plan-to-work` gate must be `passed` and its `allowed_next_action` must name this manifest. Run `kb-gate/scripts/check_gate_ledger.py <manifest-path> --gate plan-to-work --allowed-next "kb-work <manifest-path>"` before execution. If the gate is absent, pending, blocked, stale, or the checker fails, stop and route to `kb-plan`/`kb-gate` to repair it before execution. Do not execute from a manifest that lacks a passing gate.
-4. **Validate objective contract** - when the manifest opts into `objective_contract: true`, it must have a top-level `done_check`, and every runnable slice must have `proof_check` or a valid `no_check_reason`. Do not require a durable `model_route` or `attempt_tier`: new plans record planned correction/authority difficulty and risk, while attempt selection happens immediately before dispatch from live evidence. Legacy `model_route` values may remain readable as hints only. When `cmd/kbcheck` exists, run `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>` before execution. Otherwise verify those fields and terminal slice gates directly, record `manifest-validator: unavailable`, and block on any missing/false `proof_check`, absent `done_check`, or unproved terminal status. The portable skills do not require the Go maintainer harness. If validation fails, route back to `kb-plan`/`kb-gate`; do not continue from a manifest that can self-report completion without objective proof.
+4. **Validate objective contract** - when the manifest opts into `objective_contract: true`, it must have a top-level `done_check`, and every runnable slice must have `proof_check` or a valid `no_check_reason`. Do not require a durable `model_route` or `attempt_tier`: new plans record minimum execution capability and risk, while the orchestrator chooses the execution owner immediately before dispatch from live evidence. Legacy `model_route` values may remain readable as hints only. When `cmd/kbcheck` exists, run `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>` before execution. Otherwise verify those fields and terminal slice gates directly, record `manifest-validator: unavailable`, and block on any missing/false `proof_check`, absent `done_check`, or unproved terminal status. The portable skills do not require the Go maintainer harness. If validation fails, route back to `kb-plan`/`kb-gate`; do not continue from a manifest that can self-report completion without objective proof.
 5. **Validate slice contracts** - each slice plan must have `expected_files`, `verification`, `blockers`, `status`, and acceptance criteria. New slice plans should also have `test_level`, `functional_risk`, `model_tier`, and `proof_check` or `no_check_reason`. New plans do not contain model names, route aliases, source preferences, adapters, endpoints, or transports. Treat legacy `tiny` or `model_route` fields as compatibility hints only; do not require them on new plans and do not freeze a provider/model in durable plan state. If core fields are missing, stop and route to `kb-plan`; do not infer a manifest from a phase list. If only `test_level` or `functional_risk` is missing on an older plan, invoke `kb-functional-test` to classify them before execution.
 6. **Load the context packet** - for a non-trivial slice, read its packet before broad repo search or delegation. When `cmd/kbcheck` exists, validate JSON packets with `go run ./cmd/kbcheck context-packet --packet <packet.json>`. Otherwise verify the required fields directly and record `packet-validator: unavailable`; the portable skills do not require the Go maintainer harness. If required source, constraint, proof, search-policy, or escalation data is missing, route back to `kb-plan` instead of making a cheap worker rediscover the repo. Legacy tiny/mechanical slices may use the plan itself when it records why no packet is needed.
 7. **Check status** - skip any slices already marked `done`. Resume from the first safe ready set.
 8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
-9. **Read optional execution policy** - next-lower AMR attempts are disabled by default while the pilot is unpromoted. Enable them only for an explicit pilot/opt-in or `amr.lower_tier_attempts: enabled`; otherwise start at the planned tier. AMR is optional and testing-stage; its absence or disabled state never blocks ordinary planned-tier work. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
+9. **Read optional execution policy** - normal work uses orchestrator-directed DDR: decide once whether the current orchestrator retains the slice or delegates it to one qualified worker. AMR is a separate testing-stage benchmark and is never enabled or required by ordinary `kb-work`. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
 10. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
 11. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
 12. **Acquire local slice ownership before board projection or mutation:** for every mutating slice, acquire a slice lease before setting `todo.md` or the manifest to `in_progress`:
@@ -174,50 +174,52 @@ re-planning the unit, or asking the smallest human question.
 
 Routing is a work-time decision, not a plan rewrite.
 
-For each run/ready slice, use the executable sequence:
+For each run/ready slice, choose one executable branch after recording the
+owner:
 
-Resolve the router once per session without crawling the filesystem: use
-`kbrouter`/`kbrouter.exe` when `command -v`/`Get-Command` succeeds; otherwise
-use `$HOME/.kb/bin/kbrouter` on POSIX or `$HOME\.kb\bin\kbrouter.exe` on
-Windows when present and executable. If neither exists, record
-`router-unavailable: binary-not-found` and use the planned-tier current-model
-path when policy permits. Never auto-download, auto-build, or search sibling
-repos/drives. A custom installer `--router-dir` must be placed on `PATH`.
-Use the resolved executable for every command below.
+1. **Current:** execute in the active orchestrator. Validate its tier, current
+   tool inventory, context, trust, destination, and risk from the active host
+   state. Do not invoke `kbrouter` or search workers first.
+2. **Native host delegation:** inspect the exact callable-agent schema exposed
+   by the active host, select one qualified opaque target, and invoke that
+   native delegation tool directly. Record the requested target, child/session
+   identity, and host attribution. Do not send an App target through
+   `kbrouter`.
+3. **CLI or user-local delegation:** resolve `kbrouter` once per session without
+   crawling the filesystem. Use `kbrouter`/`kbrouter.exe` from `PATH`, otherwise
+   the standard user-local binary path when executable. Never auto-download,
+   auto-build, or search sibling repos/drives. Then run:
+   - `kbrouter models discover --run-root <run-root> --current-model <id> --json`
+   - `kbrouter models select --run-root <run-root> --run-id <run-id> --tier <required-tier> --tier-reason <reason> --execution-owner delegated --owner-reason <reason> --task-family <family> --tool <tool> --context-size <n> --risk <risk> [--override use|require --alias <alias>] --json`
+   - `kbrouter dispatch` with the one selected alias and slice-unique packet,
+     output, receipt, and handoff names.
 
-1. `kbrouter models discover --run-root <run-root> --current-model <id> --json`
-2. `kbrouter models select --run-root <run-root> --run-id <run-id> --tier <planned-tier> [--attempt-tier <next-lower-tier>] --task-family <family> --tool <tool> --context-size <n> --risk <risk> [--override use|require|ignore --alias <alias>] --json`
-3. For a routed decision, call `kbrouter dispatch` with the selected primary
-   alias, optional next ordered alias, and unique direct-child packet/output/
-   receipt/handoff names containing the slice ID.
+If the selected branch is missing, incompatible, or unavailable, record the
+exact reason. Do not silently change owners. The orchestrator may make a new
+explicit ownership decision after reviewing the failure; `require` pauses that
+slice instead.
 
-If discovery/select is missing, incompatible, or returns unavailable, record
-`router-unavailable: <reason>`. Use the returned `degraded-current` decision or
-the current model only when policy permits; `require` pauses that slice instead.
-Pass `--attempt-tier` only after the current master establishes Step 2.6
-eligibility; the selector validates candidates but does not infer task
-suitability.
-
-- Discover or reuse exactly one run-scoped catalog before the first routed
-  slice. Reuse it while the host/configuration fingerprint is unchanged;
-  refresh it only when that fingerprint changes.
+- Reuse a native host schema or run-scoped CLI catalog only while its
+  host/configuration fingerprint is unchanged; refresh it when that fingerprint
+  changes.
 - Never ask a worker-tier, model-by-model, or source-priority question during
-  ordinary work. Merge what the active host can select with eligible user-local
-  extras; an unsaved source preference is `automatic`.
-- Treat `model_tier` as the planned correction/authority tier. New tiers are
+  ordinary work. Read the active host's exact callable agent schema and the live
+  CLI/user-local catalog as separate surfaces. An unsaved source preference is
+  `automatic`. Never infer a route from the orchestrator model's memory of
+  product or model names, merge identities by display name, or conflate
+  App-only aliases with CLI-only aliases.
+- Treat `model_tier` as the minimum execution capability. New tiers are
   `small`, `medium`, and `large`; `planner` is an orchestration/review role.
   Legacy `tiny` maps to the `small` lane as a compatibility hint only.
-- Before dispatch, decide whether this slice is eligible for one explicit
-  next-lower-tier attempt. Eligibility requires settled intent, bounded files,
-  interfaces and authority, an objective proof that can reject a bad result,
-  low destination/trust risk, and exact escalation triggers. Code or a file
-  extension alone is never eligibility.
-- If eligible and attempts are enabled, select the attempt route from live
-  evidence at the next lower tier. If not, begin at the planned tier. Within
-  either tier, try another qualified same-tier route before moving to the
-  planned tier, a higher tier, or the current model as policy permits. The
-  attempt is explicit runtime policy, not an inferred fallback or a durable
-  plan field.
+- Before dispatch, the current orchestrator reasons about the slice and records
+  exactly one owner: `current` when its reasoning, accumulated context, tools,
+  trust, or authority are required; otherwise `delegated` when one bounded
+  worker can complete the slice at the required tier.
+- For `current`, validate the active orchestrator against tier, current tools,
+  context, trust, destination, and risk. Do not search workers first.
+- For `delegated`, select exactly one qualified route at the required tier,
+  preferring a qualified same-tier route and then a higher tier. Do not
+  automatically route downward or fall back to the current model.
 - Apply the saved user-local project source priority only after eligibility. `automatic`
   lets the current master choose by evidence, `self-hosted-first` prefers
   eligible user-local extra routes, and `native-first` prefers eligible
@@ -227,15 +229,15 @@ suitability.
   independently eligible or explicitly requested by the user.
 - Security, auth, data-boundary, or process-boundary work must not be silently
   down-routed or sent to a less trusted destination.
-- `use <model>` prefers that route first when it satisfies the slice's bounded
-  eligibility, trust, and authority, then keeps safe fallback. It overrides the
+- `use <model>` prefers that route when delegated and it satisfies the slice's
+  capability, trust, and authority requirements. It overrides the
   saved user-local project source preference for this run.
-- `require <model>` bypasses automatic attempts and pauses only that slice if
-  the exact route is unavailable. It is the only hard pin.
+- `require <model>` pauses only that delegated slice if the exact route is
+  unavailable. It is the only hard pin.
 - `prefer self-hosted` (`prefer local` shorthand) or `prefer native` is a
   source preference inside trust and risk constraints.
-- `ignore model routing` bypasses attempts and uses the current model with
-  ordinary proof gates only.
+- `ignore model routing` is an explicit current-owner decision and still
+  requires current-route capability validation and ordinary proof gates.
 - A generic or named subagent spawn without an exact selector cannot claim the
   requested model. Record actual route/model/session only from dispatcher or
   host evidence; otherwise provenance is `unknown` or `unavailable`.
@@ -243,13 +245,10 @@ suitability.
   redone for telemetry. Investigate once, record what is knowable, then let
   independent proof govern completion.
 
-Show a compact preview only when routed slices exist. For a lower-tier attempt,
-show at most one plain line, for example
-`Trying Small for a bounded, objectively proved change; Medium correction fallback.` Otherwise group by
-the planned live route and bounded fallback path, for example
-`Medium — <preferred-route> -> <same-tier-route> -> current(degraded): 004, 007`.
-This preview is dispatch intent for the current ready set only. If nothing is
-routed, say nothing about models.
+Show a compact preview only when delegated slices exist, for example
+`Delegated Medium — <selected-route>: 004, 007`. This preview is dispatch
+intent for the current ready set only. Do not show candidate ladders. If the
+orchestrator retains every slice, say nothing about models.
 
 ## Ready-Set Ordering
 
@@ -348,100 +347,62 @@ decisions or repeated test failures.
 
 Model-tier boundaries:
 
-| Tier | Correction authority fits | Move higher when |
+| Tier | Minimum execution capability fits | Move higher when |
 |---|---|---|
 | `small` | narrow mechanical edits and straightforward tests with clear acceptance criteria | cross-boundary behavior, UI/API workflows, security/auth/data decisions |
 | `medium` | ordinary vertical slices and focused integration work | architecture/security migrations, multi-slice replanning, unclear product intent |
 | `large` | hard decomposition, architecture, broad debugging, final synthesis/review | proof is impossible or human-only input is required |
 
-The tier does not change the proof bar. It records the authority and capability
-required to correct or take over the slice if an initial attempt fails. It is
-not a claim that every first attempt must run at that tier.
+The tier does not change the proof bar. It records the minimum reasoning,
+authority, tools, and context capability required to execute the slice.
 
 Record actual runtime/model, turns, input/output/cache tokens, proof result, and
 packet sufficiency when the host exposes them. Missing host telemetry is
 `unavailable`, not zero. Raw values remain authoritative; weighted cost scores
 must be versioned and reported beside proof outcomes.
 
-### Step 2.6: Adaptive Model Routing (AMR)
+### Step 2.6: Orchestrator Ownership Decision (DDR)
 
-AMR owns one proof-triggered attempt and correction loop:
+Immediately before a ready slice runs, the current orchestrator makes one
+owner-first decision:
 
 ```text
-planned correction tier + bounded packet + objective proof
-  -> eligible? try one next-lower tier : begin at planned tier
-  -> deterministic proof passes? preserve result
-  -> proof fails? prepare bounded correction handoff; ordinary planned-tier execution
-  -> isolated correction runner unavailable? never dispatch into the live checkout
+required tier + bounded packet + active callable surface
+  -> current reasoning/context/tools/authority required? retain current
+  -> otherwise choose one qualified delegated worker
+  -> run deterministic proof
+  -> failure stays with that owner for ordinary bounded repair, or re-plan/block
 ```
 
-Immediately before a ready slice runs:
+1. Read the slice packet and required tier. Reason about ambiguity, accumulated
+   session context, tool access, trust, destination, authority, and risk. Code
+   alone does not imply delegation.
+2. Record `execution_owner: current|delegated`, an observable `owner_reason`,
+   and `tier_reason`.
+3. For `current`, validate the current route and execute without first searching
+   for a cheaper or lower-tier worker.
+4. For `delegated`, inspect the active host's exact callable-agent schema and
+   the live user-local CLI catalog. Select exactly one route that satisfies the
+   required tier, task family, tools, context, trust, destination, and risk.
+5. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
+   because the orchestrator has heard of it. Host-native and CLI catalogs are
+   distinct unless an adapter explicitly proves otherwise.
+6. Run the slice's narrowest deterministic proof. The route receipt proves
+   dispatch provenance only; it does not accept the work.
+7. On failure, use ordinary bounded repair under the same owner. If the required
+   authority changes, stop and make the change visible by re-planning or
+   recording a new explicit ownership decision. Never silently switch from a
+   worker to current or from current to a worker.
 
-1. Use the current master to decide attempt eligibility from the packet and
-   policy. The selector must not infer suitability from “code,” a file suffix,
-   or model price.
-2. If eligible for the explicit pilot, pass runtime `attempt_tier` to `kbrouter`
-   and select only a dispatch-qualified next-lower-tier route that satisfies tools, context, trust,
-   destination, and risk. Otherwise begin at `model_tier`. Apply the saved
-   user-local project source preference only among eligible live routes; plans provide no
-   model or transport hint.
-3. Run the slice's narrowest deterministic proof. Proof is the validator; the
-   planned-tier model is the correction authority, not the validator.
-4. If proof passes, keep the attempt without a stronger-model rewrite and
-   continue ordinary QA, regression, review, and completion gates.
-5. If proof fails, prepare a compact ordinary-fallback surgical handoff summary
-   for the planned-tier-or-higher authority containing:
+AMR remains an unpromoted experimental benchmark. Normal `kb-work` never passes
+`attempt_tier`, never requires a lower-tier trial, and never claims AMR savings.
+Experimental AMR commands and results live outside this production decision
+path.
 
-   ```yaml
-   accepted_result: "<what already satisfies the contract>"
-   failed_criterion: "<one observed failure>"
-   failure_location: "<file + symbol/line/hunk when known>"
-   allowed_change: "<smallest behavior/files/hunks>"
-   preserve_invariants: ["<interfaces, passing behavior, tests, user decisions>"]
-   relevant_interfaces: ["<callers/callees/schema/DOM/API>"]
-   proof:
-     command: "<exact command>"
-     exit: "<status>"
-     artifact: "<path/hash>"
-     failure: "<bounded excerpt>"
-   current_diff: "<compact diff or artifact reference>"
-   attempt_ledger: "<routes, receipts, results, no credentials>"
-   corrective_diff_only: true
-   proof_to_rerun: ["<focused proof>", "<regression proof>"]
-   ```
-
-6. This summary is an agent-facing handoff contract, not the typed
-   `internal/modelrouting.CorrectionPacket`, and it must never be serialized as
-   that packet or passed to `dispatch correction`. The typed envelope is a
-   future executable boundary that additionally requires a failed-proof routing
-   receipt, driver-owned authority hashes, bounded artifact references, and an
-   independent hunk-local oracle. Until a host-owned isolated workspace, proof
-   runner, and compare-and-swap apply path exist, automatic correction dispatch
-   must fail closed and the current driver performs separate ordinary
-   planned-tier execution from the original scope. Do not claim preserved-work
-   savings.
-7. A future isolated correction model may edit only the allowed behavior/hunks,
-   preserve only work with independent hunk-local acceptance, return the
-   corrective diff, and rerun focused plus regression proof. It must not rewrite
-   the whole file to improve style.
-8. When no hunk-local oracle exists, the defect is unlocalizable, an authority or
-   interface boundary changes, or focused correction fails, abort the surgical
-   pilot and record separate ordinary planned-tier execution, re-plan, or
-   request HITL. Never silently restart or claim preserved-work savings.
-
-An HTML implementation from an approved design with browser assertions may be
-eligible. Choosing the design, interpreting philosophy/policy, or implementing
-code without an adequate oracle is not. An explicit `require` pin or
-`ignore model routing` bypasses automatic lower-tier attempts; `use` and
-`prefer self-hosted`/`prefer local`/`prefer native` remain bounded by trust,
-authority, and proof.
-
-Record observable attempt/correction telemetry when available: planned tier,
-user-local project source preference, attempt tier/route, correction route, receipts,
-proof result, changed hunks, tokens/time, and escalation reason. Missing values
-are `unavailable`. The resolved actual route belongs in the receipt. Routing
-receipts remain telemetry; ordinary checks and protected oracles decide
-acceptance.
+Record observable ownership telemetry when available: required tier and reason,
+owner and reason, source preference, selected route, host surface, receipt,
+proof result, tokens/time, and escalation reason. Missing values are
+`unavailable`. Ordinary checks and protected oracles decide acceptance.
 
 Do not use `unit` just because it is cheaper. Use `unit` only when unit-level proof can fail for the user-facing bug or behavior. If a unit test could pass while the workflow is broken, require integration or functional proof.
 
@@ -506,13 +467,10 @@ This gate pairs with Step 3.6 (Diff-Scope Verification). The point is traceabili
 
 Use a fresh sub-agent when the platform supports delegated execution and the user has permitted it. Otherwise execute the slice locally while keeping the scope limited to this slice.
 
-Immediately before dispatch, acquire the slice lease and choose the route for this ready slice from the
-live run catalog. Apply Step 2.6 once: use an explicitly eligible next-lower
-`attempt_tier`, or begin at the planned `model_tier`. A failed attempt goes to
-the planned tier as separate ordinary execution using the correction packet as
-a bounded handoff. Do not dispatch automatic correction into the live checkout
-or claim preserved-work savings. Use a higher tier or current model only after
-the planned path cannot safely finish and policy permits.
+Immediately before dispatch, acquire the slice lease and apply Step 2.6 once.
+The orchestrator either retains the slice or dispatches it to the one selected
+worker. A failure does not silently change ownership; repair under the same
+owner, re-plan, or record a new explicit decision.
 
 Quoting sanity rule: when shell commands, file operations, or test assertions involve nested quotes, escaped quotes, or more than one quoting context, write the content to a temp file and execute/read that file instead of constructing the command inline.
 
@@ -741,8 +699,8 @@ Next: kb-finalize runs automatically for review, documentation, and learning.
 
 | Situation | Action |
 |-----------|--------|
-| Lower-tier AMR attempt fails proof | Prepare the compact surgical correction handoff, then run separate ordinary planned-tier execution; automatic live-checkout correction dispatch is disabled and preserved-work savings are not claimed |
-| No hunk-local oracle, unlocalizable defect, boundary expansion, or failed focused correction | Abort the surgical pilot and record separate ordinary planned-tier execution, re-plan, or request HITL; do not claim preserved-work savings |
+| Selected worker is unavailable before dispatch | Keep the slice unchanged; choose another delegated route explicitly or record a new current-owner decision |
+| Proof fails under the selected owner | Run ordinary bounded repair under the same owner; re-plan or block if the required authority changes |
 | Slice execution fails with progress possible | Run `kb-repair` or a bounded fix loop, then retry verification |
 | Slice execution fails with no progress | Mark only that slice blocked/parked, write resume packet, continue unrelated runnable slices |
 | Test suite fails after a slice | Run `kb-repair`; if stuck, mark affected slice blocked/parked and continue unrelated runnable slices |

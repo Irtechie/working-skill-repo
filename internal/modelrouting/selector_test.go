@@ -15,6 +15,131 @@ import (
 	"time"
 )
 
+func TestSelectRouteCurrentOwnerWinsEvenWhenDelegatedWorkersExist(t *testing.T) {
+	now := fixedNow()
+	req := broadRequest(TierLarge)
+	req.ExecutionOwner = ExecutionOwnerCurrent
+	req.OwnerReason = "reasoning-required"
+	catalog := catalogWithCurrent(now, []Route{
+		provenRoute("worker-large", ClassLarge, "openai", "codex", "named-agent", "worker-large", "code", now.Add(time.Hour)),
+	})
+
+	decision, err := selectForTest(t, catalog, req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Status != SelectionCurrent || decision.Current.ModelID != "current-gpt" || len(decision.Routes) != 0 {
+		t.Fatalf("current ownership was not retained: %#v", decision)
+	}
+	if decision.ExecutionOwner != ExecutionOwnerCurrent || decision.OwnerReason != req.OwnerReason || decision.TierReason != req.TierReason {
+		t.Fatalf("ownership receipt was lost: %#v", decision)
+	}
+}
+
+func TestSelectRouteCurrentOwnerMustMeetCapabilityEnvelope(t *testing.T) {
+	now := fixedNow()
+	catalog := catalogWithCurrent(now, nil)
+	catalog.Current.Route.Capability.Class = ClassSmall
+	req := broadRequest(TierLarge)
+	req.ExecutionOwner = ExecutionOwnerCurrent
+	req.OwnerReason = "reasoning-required"
+
+	decision, err := selectForTest(t, catalog, req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Status != SelectionUnavailable || decision.Current.ModelID != "current-gpt" {
+		t.Fatalf("under-qualified current model was accepted: %#v", decision)
+	}
+}
+
+func TestSelectRouteCurrentOwnerAcceptsVisibleOnlyActiveRoute(t *testing.T) {
+	now := fixedNow()
+	catalog := catalogWithCurrent(now, nil)
+	catalog.Current.Route.Readiness = []Readiness{ReadinessDiscovered}
+	req := broadRequest(TierLarge)
+	req.ExecutionOwner = ExecutionOwnerCurrent
+	req.OwnerReason = "context-required"
+
+	decision, err := selectForTest(t, catalog, req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Status != SelectionCurrent || decision.Current.ModelID != "current-gpt" {
+		t.Fatalf("visible-only active current route was rejected: %#v", decision)
+	}
+}
+
+func TestSelectRouteDelegatedOwnerChoosesExactlyOneAndNeverFallsBackToCurrent(t *testing.T) {
+	now := fixedNow()
+	req := broadRequest(TierMedium)
+	catalog := catalogWithCurrent(now, []Route{
+		provenRoute("worker-a", ClassMedium, "openai", "codex", "named-agent", "worker-a", "code", now.Add(2*time.Hour)),
+		provenRoute("worker-b", ClassMedium, "openai", "codex", "named-agent", "worker-b", "code", now.Add(time.Hour)),
+	})
+
+	decision, err := selectForTest(t, catalog, req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Status != SelectionRouted || len(decision.Routes) != 1 || decision.Current.ModelID != "" {
+		t.Fatalf("delegated ownership was not singular: %#v", decision)
+	}
+
+	decision, err = selectForTest(t, catalogWithCurrent(now, nil), req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Status != SelectionUnavailable || len(decision.Routes) != 0 || decision.Current.ModelID != "" {
+		t.Fatalf("delegated selection silently crossed to current: %#v", decision)
+	}
+}
+
+func TestSelectRouteRejectsMissingOrInvalidOwnershipMetadata(t *testing.T) {
+	now := fixedNow()
+	for name, mutate := range map[string]func(*WorkRequest){
+		"missing owner":       func(req *WorkRequest) { req.ExecutionOwner = "" },
+		"invalid owner":       func(req *WorkRequest) { req.ExecutionOwner = "automatic" },
+		"missing owner why":   func(req *WorkRequest) { req.OwnerReason = " " },
+		"missing tier reason": func(req *WorkRequest) { req.TierReason = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := broadRequest(TierMedium)
+			mutate(&req)
+			decision, err := selectForTest(t, catalogWithCurrent(now, nil), req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+			if !errors.Is(err, ErrInvalidWorkRequest) || decision.Status != SelectionUnavailable {
+				t.Fatalf("decision=%#v err=%v", decision, err)
+			}
+		})
+	}
+}
+
+func TestSelectRouteDoesNotInferDelegatedOwnerFromRequiredAlias(t *testing.T) {
+	now := fixedNow()
+	req := broadRequest(TierMedium)
+	req.ExecutionOwner, req.OwnerReason, req.TierReason = "", "", ""
+	route := declaredRoute("medium", ClassMedium, "openai", "codex", "named-agent", "medium-model", "code")
+	decision, err := selectForTest(t, catalogWithCurrent(now, []Route{route}), req, publicPolicy(), RunOverride{Mode: OverrideRequire, Alias: route.Alias}, AttemptLedger{}, now)
+	if !errors.Is(err, ErrInvalidWorkRequest) || decision.Status != SelectionUnavailable {
+		t.Fatalf("required alias silently activated legacy delegated ownership: decision=%#v err=%v", decision, err)
+	}
+}
+
+func TestSelectRouteExplicitDelegatedFirstDispatchStillRequiresFullEnvelope(t *testing.T) {
+	now := fixedNow()
+	req := broadRequest(TierMedium)
+	route := declaredRoute("medium", ClassMedium, "openai", "codex", "named-agent", "medium-model", "code")
+	decision, err := selectForTest(t, catalogWithCurrent(now, []Route{route}), req, publicPolicy(), RunOverride{Mode: OverrideRequire, Alias: route.Alias}, AttemptLedger{}, now)
+	if err != nil || decision.Status != SelectionRouted || len(decision.Routes) != 1 {
+		t.Fatalf("bounded first dispatch was rejected: decision=%#v err=%v", decision, err)
+	}
+	route.Capability.Tools = []string{"apply_patch"}
+	decision, err = selectForTest(t, catalogWithCurrent(now, []Route{route}), req, publicPolicy(), RunOverride{Mode: OverrideRequire, Alias: route.Alias}, AttemptLedger{}, now)
+	if !errors.Is(err, ErrRequiredRouteUnavailable) || decision.Status != SelectionUnavailable {
+		t.Fatalf("first dispatch bypassed tool envelope: decision=%#v err=%v", decision, err)
+	}
+}
+
 func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t *testing.T) {
 	now := fixedNow()
 	mediumA := provenRoute("medium-a", ClassMedium, "openai", "codex", "named-agent", "gpt-medium", "code", now.Add(time.Hour))
@@ -35,7 +160,7 @@ func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t
 	if err != nil {
 		t.Fatalf("select: %v", err)
 	}
-	assertAliases(t, decision, []string{"medium-a", "medium-b"})
+	assertAliases(t, decision, []string{"medium-a"})
 	if decision.PlannedTier != TierMedium || decision.AttemptTier != TierMedium {
 		t.Fatalf("decision tiers planned=%q attempt=%q", decision.PlannedTier, decision.AttemptTier)
 	}
@@ -66,15 +191,13 @@ func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t
 	if err != nil {
 		t.Fatalf("use attended: %v", err)
 	}
-	assertAliases(t, decision, []string{"medium-a", "medium-b"})
+	assertAliases(t, decision, []string{"medium-a"})
 
-	// `require` remains the exact attended pin and may select a trusted route
-	// without automatic capability evidence.
+	// `require` is exact, but cannot bypass the delegated capability envelope.
 	decision, err = selectForTest(t, catalog, req, policy, RunOverride{Mode: OverrideRequire, Alias: "attended"}, AttemptLedger{}, now)
-	if err != nil {
-		t.Fatalf("require attended: %v", err)
+	if !errors.Is(err, ErrRequiredRouteUnavailable) || decision.Status != SelectionUnavailable {
+		t.Fatalf("require unqualified attended decision=%#v err=%v", decision, err)
 	}
-	assertAliases(t, decision, []string{"attended"})
 
 	decision, err = selectForTest(t, catalog, req, policy, RunOverride{Mode: OverrideRequire, Alias: "missing"}, AttemptLedger{}, now)
 	if !errors.Is(err, ErrRequiredRouteUnavailable) || decision.Status != SelectionUnavailable {
@@ -97,7 +220,7 @@ func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t
 	if err != nil {
 		t.Fatalf("qualified escalation: %v", err)
 	}
-	assertAliases(t, decision, []string{"medium-b", "medium-a", "large-a"})
+	assertAliases(t, decision, []string{"medium-b"})
 }
 
 func TestSelectRouteAcceptsOnlyTheExactNextLowerAttemptTier(t *testing.T) {
@@ -141,12 +264,12 @@ func TestSelectRoutePreferenceReordersOnlyAlreadyEligibleSameTierRoutes(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAliases(t, decision, []string{"local", "hosted"})
+	assertAliases(t, decision, []string{"local"})
 	decision, err = selectForTest(t, catalogWithCurrent(now, []Route{hosted, local}), broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAliases(t, decision, []string{"hosted", "local"})
+	assertAliases(t, decision, []string{"hosted"})
 }
 
 func TestOriginHostingAndQualifiedProofRemainIndependent(t *testing.T) {
@@ -175,12 +298,12 @@ func TestOriginHostingAndQualifiedProofRemainIndependent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAliases(t, decision, []string{"self-hosted", "native", "private-provider"})
+	assertAliases(t, decision, []string{"self-hosted"})
 	decision, err = selectForTest(t, catalog, broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAliases(t, decision, []string{"native", "private-provider", "self-hosted"})
+	assertAliases(t, decision, []string{"native"})
 
 	qualified := declaredRoute("qualified", ClassMedium, "openai", "codex", "named-agent", "qualified-model", "code")
 	qualified.ManagementOrigin = OriginNative
@@ -215,7 +338,7 @@ func TestPlannerClassRequiresExplicitUseOrRequire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAliases(t, decision, []string{"planner", "large"})
+	assertAliases(t, decision, []string{"planner"})
 	decision, err = selectForTest(t, catalog, req, policy, RunOverride{Mode: OverrideRequire, Alias: "planner"}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatal(err)
@@ -299,7 +422,7 @@ func TestSelectionRequiresValidatedCatalogAndRejectsUnsafeEndpointCandidates(t *
 		t.Fatalf("validated=%#v rejections=%#v err=%v", validated, rejections, err)
 	}
 	decision, err := SelectRoute(validated, broadRequest(TierMedium), publicPolicy(), RunOverride{}, AttemptLedger{}, now)
-	if err != nil || len(decision.Routes) != 0 || decision.Status != SelectionDegraded {
+	if err != nil || len(decision.Routes) != 0 || decision.Status != SelectionUnavailable {
 		t.Fatalf("unsafe candidate decision=%#v err=%v", decision, err)
 	}
 }
@@ -826,15 +949,18 @@ func TestCatalogMergeFingerprintAndCurrentFallbackPolicy(t *testing.T) {
 	}
 
 	noRoutes := catalogWithCurrent(now, nil)
-	decision, err := selectForTest(t, noRoutes, broadRequest(TierMedium), publicPolicy(), RunOverride{}, AttemptLedger{}, now)
-	if err != nil || decision.Status != SelectionDegraded {
-		t.Fatalf("current fallback decision=%#v err=%v", decision, err)
+	currentRequest := broadRequest(TierMedium)
+	currentRequest.ExecutionOwner = ExecutionOwnerCurrent
+	currentRequest.OwnerReason = "reasoning-required"
+	decision, err := selectForTest(t, noRoutes, currentRequest, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil || decision.Status != SelectionCurrent {
+		t.Fatalf("current-owner decision=%#v err=%v", decision, err)
 	}
 	policy := publicPolicy()
 	policy.Project.DenyCurrentFallback = true
-	decision, _ = selectForTest(t, noRoutes, broadRequest(TierMedium), policy, RunOverride{}, AttemptLedger{}, now)
+	decision, _ = selectForTest(t, noRoutes, currentRequest, policy, RunOverride{}, AttemptLedger{}, now)
 	if decision.Status != SelectionUnavailable {
-		t.Fatalf("denied current fallback decision=%#v", decision)
+		t.Fatalf("denied current-owner decision=%#v", decision)
 	}
 }
 
@@ -891,8 +1017,8 @@ func TestRunFingerprintCoversEvidenceAndValidatedCatalogIsImmutable(t *testing.T
 		t.Fatalf("incomplete automatic request decision=%#v err=%v", decision, err)
 	}
 	decision, err = SelectRoute(validated, incomplete, publicPolicy(), RunOverride{Mode: OverrideRequire, Alias: "medium"}, AttemptLedger{}, now)
-	if err != nil || len(decision.Routes) != 1 || decision.Routes[0].Alias != "medium" {
-		t.Fatalf("attended incomplete request decision=%#v err=%v", decision, err)
+	if !errors.Is(err, ErrInvalidWorkRequest) || decision.Status != SelectionUnavailable {
+		t.Fatalf("incomplete attended request decision=%#v err=%v", decision, err)
 	}
 }
 
@@ -968,7 +1094,12 @@ func publicPolicy() PolicyContext {
 }
 
 func broadRequest(tier Tier) WorkRequest {
-	return WorkRequest{PlannedTier: tier, TaskFamily: "code", Tools: []string{"apply_patch", "go test"}, ContextSize: 4096, Risk: RiskBroad, ProjectID: "project-a"}
+	return WorkRequest{
+		PlannedTier: tier, ExecutionOwner: ExecutionOwnerDelegated,
+		OwnerReason: "bounded-delegation", TierReason: "fixture capability floor",
+		TaskFamily: "code", Tools: []string{"apply_patch", "go test"},
+		ContextSize: 4096, Risk: RiskBroad, ProjectID: "project-a",
+	}
 }
 
 func catalogWithCurrent(now time.Time, routes []Route) Catalog {
@@ -1082,7 +1213,7 @@ func TestRouteDenialOverridesOtherwiseEligibleHostedRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("select denied route: %v", err)
 	}
-	if decision.Status != SelectionDegraded || len(decision.Routes) != 0 {
+	if decision.Status != SelectionUnavailable || len(decision.Routes) != 0 {
 		t.Fatalf("denied route was selected: %#v", decision)
 	}
 }

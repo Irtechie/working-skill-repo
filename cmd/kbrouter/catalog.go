@@ -1418,12 +1418,15 @@ func currentRoute(model string) modelrouting.Route {
 		TrustProvenance:  "active orchestrator",
 		Readiness:        []modelrouting.Readiness{modelrouting.ReadinessDiscovered, modelrouting.ReadinessConfigured, modelrouting.ReadinessSelectable},
 		Capability: modelrouting.CapabilityEvidence{
-			Class:          modelrouting.ClassLarge,
+			// Discovery can identify the active model, but this adapter does not
+			// have an App capability schema. Keep those dimensions unknown
+			// instead of fabricating tool, context, or reasoning claims.
+			Class:          modelrouting.ClassUnknown,
 			Source:         modelrouting.EvidenceDeclared,
 			RouteAlias:     "current",
 			ModelID:        model,
-			TaskFamily:     "code",
-			Risk:           modelrouting.RiskBroad,
+			TaskFamily:     "unknown",
+			Risk:           modelrouting.RiskUnknown,
 			DispatchProven: false,
 		},
 	}

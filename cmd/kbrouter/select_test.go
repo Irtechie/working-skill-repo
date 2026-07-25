@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,7 +26,7 @@ func TestModelsSelectUsesValidatedRunCatalogAndRunOnlyOverride(t *testing.T) {
 	if err := saveDispatchTrustedState(fixture.userRoot, prepared, loadRunCatalogForTest(t, fixture.runRoot)); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--override", "use", "--alias", route.Alias, "--json")
+	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--execution-owner", "delegated", "--owner-reason", "bounded-delegation", "--tier-reason", "fixture medium capability", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--override", "use", "--alias", route.Alias, "--json")
 	if code != 0 {
 		t.Fatalf("select failed code=%d stderr=%s stdout=%s", code, stderr, stdout)
 	}
@@ -35,6 +36,22 @@ func TestModelsSelectUsesValidatedRunCatalogAndRunOnlyOverride(t *testing.T) {
 	}
 	if out.Status != modelrouting.SelectionRouted || len(out.Aliases) == 0 || out.Aliases[0] != route.Alias {
 		t.Fatalf("unexpected selection: %#v", out)
+	}
+	if out.ExecutionOwner != modelrouting.ExecutionOwnerDelegated || out.OwnerReason != "bounded-delegation" ||
+		out.TierReason != "fixture medium capability" || out.Alias != route.Alias || len(out.Aliases) != 1 {
+		t.Fatalf("selection lost singular ownership receipt: %#v", out)
+	}
+}
+
+func TestModelsSelectRequiresExplicitOwnershipDecision(t *testing.T) {
+	code, _, stderr := runForTest(
+		"models", "select",
+		"--run-root", "fixture", "--run-id", "fixture", "--tier", "medium",
+		"--task-family", "code", "--tool", "apply_patch", "--context-size", "4096", "--risk", "normal",
+		"--json",
+	)
+	if code != 2 || !strings.Contains(stderr, "ownership") {
+		t.Fatalf("missing ownership was not rejected: code=%d stderr=%s", code, stderr)
 	}
 }
 
@@ -53,7 +70,7 @@ func TestModelsSelectReportsExplicitAttemptAndPlannedCorrectionTiers(t *testing.
 	if err := saveDispatchTrustedState(fixture.userRoot, prepared, loadRunCatalogForTest(t, fixture.runRoot)); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--attempt-tier", "small", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--prefer", "native", "--json")
+	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--attempt-tier", "small", "--execution-owner", "delegated", "--owner-reason", "experimental-amr-attempt", "--tier-reason", "fixture medium correction floor", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--prefer", "native", "--json")
 	if code != 0 {
 		t.Fatalf("select failed code=%d stderr=%s stdout=%s", code, stderr, stdout)
 	}
@@ -96,7 +113,7 @@ func TestModelsSelectLoadsSavedProjectPriorityUnlessRunPreferenceOverrides(t *te
 	if err := storeProjectPriority(fixture.userRoot, projectID, modelrouting.PreferenceNativeFirst, false); err != nil {
 		t.Fatal(err)
 	}
-	base := []string{"models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--json"}
+	base := []string{"models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--execution-owner", "delegated", "--owner-reason", "bounded-delegation", "--tier-reason", "fixture medium capability", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--json"}
 	code, stdout, stderr := runForTest(base...)
 	if code != 0 {
 		t.Fatalf("saved select code=%d stderr=%s", code, stderr)
@@ -145,16 +162,17 @@ func TestModelsSelectIgnoreBypassesCorruptSavedPriority(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(fixture.userRoot, userProjectPrioritiesFile), []byte(`{"schema_version":99}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--override", "ignore", "--json")
-	if code != 0 {
-		t.Fatalf("ignore override was blocked by corrupt saved priority code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--execution-owner", "current", "--owner-reason", "user-required", "--tier-reason", "fixture current capability", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--override", "ignore", "--json")
+	if code != 0 || strings.Contains(stderr, "project priority") {
+		t.Fatalf("ignore override did not bypass corrupt priority before capability validation code=%d stderr=%s stdout=%s", code, stderr, stdout)
 	}
 	var out selectOutput
 	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
 		t.Fatal(err)
 	}
-	if out.Status != modelrouting.SelectionIgnored || out.Preference != modelrouting.PreferenceAutomatic {
-		t.Fatalf("unexpected ignored selection: %#v", out)
+	if out.Status != modelrouting.SelectionUnavailable || out.Preference != modelrouting.PreferenceAutomatic ||
+		out.ErrorClass != "" {
+		t.Fatalf("unqualified current route was accepted: %#v", out)
 	}
 }
 

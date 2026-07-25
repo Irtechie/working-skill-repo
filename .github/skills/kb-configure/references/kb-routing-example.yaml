@@ -1,8 +1,8 @@
 schema_version: 1
 
-amr:
-  mode: automatic
-  lower_tier_attempts: disabled
+experimental_amr:
+  enabled: false
+  affects_normal_work: false
 
 delivery:
   mode: pr
