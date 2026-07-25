@@ -47,7 +47,7 @@ protected_oracles:
     role: "GHCP follow-on promotion oracle that preserves the landed Codex-first cohort"
     sha256: "60acbdedfc079d59c94997c3ff4b70d487cecfdebfa846fdcdddbbabfffa8dfb"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
 can_continue_other_slices: false
 ---

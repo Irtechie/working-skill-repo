@@ -9,7 +9,7 @@ func TestParseCountsOnlyLeafChatSpans(t *testing.T) {
 	input := strings.Join([]string{
 		`{"type":"span","traceId":"t","spanId":"root","name":"invoke_agent","attributes":{}}`,
 		`{"type":"span","traceId":"t","spanId":"parent","parentSpanId":"root","name":"chat aggregate","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"model","github.copilot.nano_aiu":10}}`,
-		`{"type":"span","traceId":"t","spanId":"leaf","parentSpanId":"parent","name":"chat leaf","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"model","github.copilot.nano_aiu":3}}`,
+		`{"type":"span","traceId":"t","spanId":"leaf","parentSpanId":"parent","name":"chat leaf","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"model","gen_ai.usage.input_tokens":0,"gen_ai.usage.output_tokens":0,"github.copilot.nano_aiu":3}}`,
 	}, "\n")
 	usage, err := Parse(strings.NewReader(input))
 	if err != nil {
@@ -38,5 +38,17 @@ func TestParseRejectsWholeExportBeyondLimit(t *testing.T) {
 	input := strings.Repeat(row, maxExportBytes/len(row)+2)
 	if _, err := Parse(strings.NewReader(input)); err == nil {
 		t.Fatal("oversized export passed")
+	}
+
+}
+
+func TestParseAcceptsIntegralDecimalNanoAIU(t *testing.T) {
+	input := `{"type":"span","traceId":"t","spanId":"s","name":"chat model","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"model","gen_ai.usage.input_tokens":1,"gen_ai.usage.output_tokens":1,"github.copilot.nano_aiu":15370000000.0}}`
+	usage, err := Parse(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.AIUNano != 15_370_000_000 || usage.Calls != 1 {
+		t.Fatalf("usage=%+v", usage)
 	}
 }

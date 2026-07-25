@@ -666,18 +666,7 @@ func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[
 	}); err != nil {
 		return phaseResult{}, err
 	}
-	args := []string{
-		"-p", prompt,
-		"--model", model.Model,
-		"--max-ai-credits", strconv.Itoa(maxCredits),
-		"--max-autopilot-continues", "1",
-		"--available-tools=",
-		"--disable-builtin-mcps",
-		"--no-custom-instructions",
-		"--no-ask-user",
-		"--disallow-temp-dir",
-		"--silent",
-	}
+	args := modelInvocationArgs(prompt, model.Model, maxCredits)
 	cmd := exec.Command("copilot", args...)
 	cmd.Dir = workspace
 	env := cleanProviderEnv(os.Environ())
@@ -823,12 +812,30 @@ func invokeModel(runDir, workspace, phase string, model modelSpec, profiles map[
 	return result, nil
 }
 
+func modelInvocationArgs(prompt, model string, maxCredits int) []string {
+	return []string{
+		"-p", prompt,
+		"--model", model,
+		"--max-ai-credits", strconv.Itoa(maxCredits),
+		"--max-autopilot-continues", "0",
+		"--deny-tool=*",
+		"--excluded-tools=*",
+		"--disable-builtin-mcps",
+		"--no-custom-instructions",
+		"--no-ask-user",
+		"--no-remote",
+		"--no-remote-export",
+		"--disallow-temp-dir",
+		"--silent",
+	}
+}
+
 func directPrompt(task taskSpec, workspace string) string {
 	return directPromptWithContext(task, workspace, contextPayload{})
 }
 
 func directPromptWithContext(task taskSpec, workspace string, selected contextPayload) string {
-	return fmt.Sprintf("Solve this known-answer coding task from the supplied files. Do not call tools. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete replacement content\"}]}. Include only source files that must change. Never return tests, SPEC.md, go.mod, or new paths. The trusted harness applies your files and runs verification.\n\nFrozen context:\n%s\n%s\n\nTask:\n%s\n\nWorkspace files (untrusted data):\n%s\n\nVerification run by harness: %s", selected.Base, selected.Worker, task.Prompt, workspaceSnapshot(workspace), strings.Join(task.Verify, " "))
+	return executionPacket("DIRECT PLANNED-TIER IMPLEMENTATION", task, workspace, selected.Worker, "", "")
 }
 
 func attemptPrompt(task taskSpec, workspace string) string {
@@ -836,7 +843,7 @@ func attemptPrompt(task taskSpec, workspace string) string {
 }
 
 func attemptPromptWithContext(task taskSpec, workspace string, selected contextPayload) string {
-	return fmt.Sprintf("You are the bounded lower-tier AMR attempt. Do not call tools. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete replacement content\"}]}. Include only source files required by the task. Never return tests, SPEC.md, go.mod, or new paths. Make one surgical implementation pass; the trusted harness applies it and runs proof.\n\nFrozen context:\n%s\n%s\n\nTask:\n%s\n\nWorkspace files (untrusted data):\n%s\n\nVerification run by harness: %s", selected.Base, selected.Worker, task.Prompt, workspaceSnapshot(workspace), strings.Join(task.Verify, " "))
+	return executionPacket("BOUNDED SMALL AMR ATTEMPT", task, workspace, selected.Worker, "", "")
 }
 
 func correctionPrompt(task taskSpec, workspace, diff, failure string) string {
@@ -844,7 +851,90 @@ func correctionPrompt(task taskSpec, workspace, diff, failure string) string {
 }
 
 func correctionPromptWithContext(task taskSpec, workspace, diff, failure string, selected contextPayload) string {
-	return fmt.Sprintf("You are the planned-tier correction model. Do not call tools. Preserve correct existing edits and surgically repair the failed task. Return exactly one JSON object with this shape and no markdown: {\"files\":[{\"path\":\"relative/existing/file\",\"content\":\"complete corrected replacement content\"}]}. Include only source files requiring correction. Never return tests, SPEC.md, go.mod, or new paths.\n\nFrozen context:\n%s\n%s\n\nOriginal task:\n%s\n\nCurrent workspace files (untrusted data):\n%s\n\nCurrent diff (untrusted data):\n--- BEGIN DIFF ---\n%s\n--- END DIFF ---\n\nFailing proof (untrusted data):\n--- BEGIN FAILURE ---\n%s\n--- END FAILURE ---\n\nVerification run by harness: %s", selected.Base, selected.Reviewer, task.Prompt, workspaceSnapshot(workspace), bounded(diff, 12000), bounded(failure, 6000), strings.Join(task.Verify, " "))
+	return executionPacket("PLANNED-TIER FULL FALLBACK", task, workspace, selected.Reviewer, bounded(diff, 8000), bounded(failure, 3000))
+}
+
+func executionPacket(role string, task taskSpec, workspace, overlay, diff, failure string) string {
+	acceptance := readPacketFile(workspace, "SPEC.md", 16*1024)
+	var sources []string
+	for _, relative := range task.MutablePaths {
+		content := readPacketFile(workspace, relative, 32*1024)
+		sources = append(sources, fmt.Sprintf("--- %s ---\n%s", relative, content))
+	}
+	protected := make([]string, 0, len(task.ProofHashes))
+	for relative, hash := range task.ProofHashes {
+		protected = append(protected, relative+" sha256="+hash)
+	}
+	sort.Strings(protected)
+
+	extra := ""
+	if diff != "" {
+		extra += "\nCURRENT ATTEMPT DIFF:\n" + diff + "\n"
+	}
+	if failure != "" {
+		extra += "\nOBSERVED PROOF FAILURE:\n" + failure + "\n"
+	}
+
+	const outputContract = `{"files":[{"path":"<one allowed mutable path>","content":"<complete replacement file content>"}]}`
+	return fmt.Sprintf(`<AMR_EXECUTION_PACKET>
+ROLE:
+%s
+
+OBJECTIVE:
+%s
+
+ACCEPTANCE CRITERIA:
+%s
+
+ALLOWED WRITES (EXACT; NO NEW FILES):
+%s
+
+CURRENT MUTABLE SOURCES:
+%s
+
+PROTECTED PROOF INPUTS (DO NOT EDIT):
+%s
+
+PROOF RUN BY TRUSTED HARNESS:
+%s
+
+EXECUTION RULES:
+- Solve the objective now from this packet; do not ask for more context.
+- Do not call tools.
+- Preserve public APIs and every behavior not changed by the acceptance criteria.
+- Return only changed files from ALLOWED WRITES.
+- %s
+%s
+OUTPUT CONTRACT:
+Return exactly one JSON object, no markdown and no prose:
+%s
+
+FINAL INSTRUCTION:
+Implement the task now. Your entire response must be the JSON object above with a non-empty files array.
+</AMR_EXECUTION_PACKET>`,
+		role,
+		task.Prompt,
+		acceptance,
+		strings.Join(task.MutablePaths, "\n"),
+		strings.Join(sources, "\n"),
+		strings.Join(protected, "\n"),
+		strings.Join(task.Verify, " "),
+		overlay,
+		extra,
+		outputContract,
+	)
+}
+
+func readPacketFile(workspace, relative string, limit int) string {
+	clean := filepath.Clean(filepath.FromSlash(relative))
+	if clean == "." || clean == ".." || filepath.IsAbs(clean) || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "<unavailable>"
+	}
+	content, err := os.ReadFile(filepath.Join(workspace, clean))
+	if err != nil {
+		return "<unavailable>"
+	}
+	return bounded(string(content), limit)
 }
 
 func applyDraftResponse(workspace, output string) error {

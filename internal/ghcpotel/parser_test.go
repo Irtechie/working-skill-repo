@@ -9,7 +9,7 @@ func TestParseDeduplicatesByTraceAndSpanAndIgnoresAgentAggregate(t *testing.T) {
 	input := strings.Join([]string{
 		`{"type":"span","traceId":"trace-a","spanId":"leaf","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.request.model":"requested","gen_ai.response.model":"actual","gen_ai.usage.input_tokens":100,"gen_ai.usage.output_tokens":25,"github.copilot.nano_aiu":2500000000}}`,
 		`{"type":"span","traceId":"trace-a","spanId":"leaf","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.request.model":"requested","gen_ai.response.model":"actual","gen_ai.usage.input_tokens":100,"gen_ai.usage.output_tokens":25,"github.copilot.nano_aiu":2500000000}}`,
-		`{"type":"span","traceId":"trace-b","spanId":"leaf","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"fallback","github.copilot.aiu":0.5}}`,
+		`{"type":"span","traceId":"trace-b","spanId":"leaf","name":"chat requested","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"fallback","gen_ai.usage.input_tokens":0,"gen_ai.usage.output_tokens":0,"github.copilot.aiu":0.5}}`,
 		`{"type":"span","traceId":"trace-a","spanId":"agent","name":"invoke_agent","attributes":{"github.copilot.nano_aiu":3000000000}}`,
 	}, "\n")
 
@@ -31,7 +31,9 @@ func TestParseDeduplicatesByTraceAndSpanAndIgnoresAgentAggregate(t *testing.T) {
 
 func TestParseRejectsIncompleteConflictingAndInexactAccounting(t *testing.T) {
 	tests := map[string]string{
-		"missing price":    `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual"}}`,
+		"missing price":    `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","gen_ai.usage.input_tokens":1,"gen_ai.usage.output_tokens":1}}`,
+		"missing input":    `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","gen_ai.usage.output_tokens":1,"github.copilot.nano_aiu":1}}`,
+		"missing output":   `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","gen_ai.usage.input_tokens":1,"github.copilot.nano_aiu":1}}`,
 		"two price fields": `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","github.copilot.aiu":1,"github.copilot.nano_aiu":1000000000}}`,
 		"fractional nano":  `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","github.copilot.nano_aiu":1.5}}`,
 		"sub nano aiu":     `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","github.copilot.aiu":0.0000000001}}`,
@@ -44,6 +46,17 @@ func TestParseRejectsIncompleteConflictingAndInexactAccounting(t *testing.T) {
 				t.Fatal("invalid accounting passed")
 			}
 		})
+	}
+}
+
+func TestParseAllowsMissingCacheTokenFieldsAsZero(t *testing.T) {
+	input := `{"type":"span","traceId":"t","spanId":"s","name":"chat x","attributes":{"gen_ai.provider.name":"github","gen_ai.response.model":"actual","gen_ai.usage.input_tokens":7,"gen_ai.usage.output_tokens":3,"github.copilot.nano_aiu":1}}`
+	usage, err := Parse(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.InputTokens != 7 || usage.OutputTokens != 3 || usage.CacheReadTokens != 0 || usage.CacheWriteTokens != 0 {
+		t.Fatalf("usage=%+v", usage)
 	}
 }
 

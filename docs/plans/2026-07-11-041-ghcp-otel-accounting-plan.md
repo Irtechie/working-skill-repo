@@ -44,9 +44,9 @@ expected_files:
 protected_oracles:
   - path: internal/ghcpotel/parser_test.go
     role: "strict complete leaf-call accounting and schema-drift oracle"
-    sha256: "35b9967ffbdaaad945435c470d79955bab798bb369898eb34b82d3dc0f5bf666"
+    sha256: "949619e369032df9a6b6e31aecd85a1c2e31379a10c24d3c53fba67d1fec2a1e"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
 can_continue_other_slices: false
 ---
@@ -75,3 +75,7 @@ No paid run, sandbox implementation, context experiment, or promotion decision.
 The parser oracle was accepted RED before implementation. Its SHA was refreshed
 after repository line-ending/format normalization changed bytes without changing
 assertions; the full protected test content and failure criteria remain intact.
+Post-work P1 review then found that absent input/output token fields were being
+credited as zero. This plan amendment explicitly adds fail-closed missing-token
+cases while leaving cache token fields optional-zero; the protected SHA above is
+the reviewed amended oracle.

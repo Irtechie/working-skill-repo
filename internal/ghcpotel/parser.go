@@ -9,7 +9,6 @@ import (
 	"io"
 	"math/big"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -150,11 +149,11 @@ func Parse(reader io.Reader) (Usage, error) {
 			requestedModels[requested] = struct{}{}
 		}
 
-		input, err := nonNegativeInteger(attributes, "gen_ai.usage.input_tokens")
+		input, err := requiredNonNegativeInteger(attributes, "gen_ai.usage.input_tokens")
 		if err != nil {
 			return Usage{}, err
 		}
-		output, err := nonNegativeInteger(attributes, "gen_ai.usage.output_tokens")
+		output, err := requiredNonNegativeInteger(attributes, "gen_ai.usage.output_tokens")
 		if err != nil {
 			return Usage{}, err
 		}
@@ -299,12 +298,23 @@ func nonNegativeInteger(attributes map[string]any, key string) (int64, error) {
 	return value, nil
 }
 
+func requiredNonNegativeInteger(attributes map[string]any, key string) (int64, error) {
+	if _, exists := attributes[key]; !exists {
+		return 0, fmt.Errorf("%s is required for exact accounting", key)
+	}
+	return nonNegativeInteger(attributes, key)
+}
+
 func exactInteger(value any) (int64, error) {
 	raw, ok := numberText(value)
-	if !ok || strings.ContainsAny(raw, ".eE") {
+	if !ok {
 		return 0, fmt.Errorf("not an integer")
 	}
-	return strconv.ParseInt(raw, 10, 64)
+	rational, ok := new(big.Rat).SetString(raw)
+	if !ok || !rational.IsInt() || !rational.Num().IsInt64() {
+		return 0, fmt.Errorf("not an integer")
+	}
+	return rational.Num().Int64(), nil
 }
 
 func numberText(value any) (string, bool) {

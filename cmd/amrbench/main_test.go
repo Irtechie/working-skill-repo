@@ -152,17 +152,91 @@ func TestApplyProfileRejectsMissingCredentialEnvironment(t *testing.T) {
 }
 
 func TestCorrectionPromptIsBoundedAndRequestsSurgicalRepair(t *testing.T) {
-	task := taskSpec{Prompt: "fix it", Verify: []string{"go", "test", "./..."}}
+	task := taskSpec{
+		Prompt: "fix it", Verify: []string{"go", "test", "./..."},
+		MutablePaths: []string{"main.go"},
+		ProofHashes:  map[string]string{"main_test.go": strings.Repeat("a", 64)},
+	}
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "SPEC.md"), []byte("return success"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	prompt := correctionPrompt(task, root, strings.Repeat("x", 20000), strings.Repeat("y", 10000))
 	if len(prompt) > 20000 {
 		t.Fatalf("prompt is unexpectedly large: %d", len(prompt))
 	}
-	if !strings.Contains(prompt, "Preserve correct existing edits") || !strings.Contains(prompt, "surgically repair") {
+	if !strings.Contains(prompt, "PLANNED-TIER FULL FALLBACK") ||
+		!strings.Contains(prompt, "ALLOWED WRITES (EXACT; NO NEW FILES)") {
 		t.Fatalf("missing surgical correction contract: %s", prompt)
+	}
+}
+
+func TestAttemptPromptIsAPlanShapedExecutionPacket(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "SPEC.md"), []byte("accept exact whole seconds"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.MkdirAll(filepath.Join(root, "retry"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "retry", "retry.go"), []byte("package retry\n\nfunc ParseRetryAfter() {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "retry", "retry_test.go"), []byte("SECRET ORACLE CONTENT"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	task := taskSpec{
+		Prompt:       "Implement ParseRetryAfter",
+		Verify:       []string{"go", "test", "./..."},
+		MutablePaths: []string{"retry/retry.go"},
+		ProofHashes:  map[string]string{"retry/retry_test.go": strings.Repeat("b", 64)},
+	}
+	prompt := attemptPromptWithContext(task, root, contextPayload{Worker: "Keep scope bounded."})
+	for _, required := range []string{
+		"BOUNDED SMALL AMR ATTEMPT",
+		"OBJECTIVE:\nImplement ParseRetryAfter",
+		"ACCEPTANCE CRITERIA:\naccept exact whole seconds",
+		"ALLOWED WRITES (EXACT; NO NEW FILES):\nretry/retry.go",
+		"CURRENT MUTABLE SOURCES:",
+		"retry/retry_test.go sha256=",
+		"PROOF RUN BY TRUSTED HARNESS:\ngo test ./...",
+		"Implement the task now",
+		`{"files":[{"path":"<one allowed mutable path>"`,
+	} {
+		if !strings.Contains(prompt, required) {
+			t.Fatalf("packet missing %q:\n%s", required, prompt)
+		}
+	}
+	if strings.Contains(prompt, "SECRET ORACLE CONTENT") {
+		t.Fatal("protected oracle content leaked into worker packet")
+	}
+	if strings.Index(prompt, "OBJECTIVE:") > strings.Index(prompt, "CURRENT MUTABLE SOURCES:") {
+		t.Fatal("objective is buried after source context")
+	}
+}
+
+func TestModelInvocationIsSingleResponseOnly(t *testing.T) {
+	args := modelInvocationArgs("packet", "model", 1000)
+	joined := strings.Join(args, " ")
+	for _, required := range []string{
+		"--deny-tool=*",
+		"--excluded-tools=*",
+		"--max-autopilot-continues 0",
+		"--disable-builtin-mcps",
+		"--no-custom-instructions",
+		"--no-remote",
+		"--no-remote-export",
+	} {
+		if !strings.Contains(joined, required) {
+			t.Fatalf("missing %q in %q", required, joined)
+		}
+	}
+	if strings.Contains(joined, "--available-tools") {
+		t.Fatalf("ambiguous available-tools flag remains: %q", joined)
 	}
 }
 

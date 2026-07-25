@@ -9,7 +9,13 @@
 - Slices 001-004: deterministic implementation complete.
 - Work-to-complete: passed.
 - Post-work review: complete; `complete-to-ship` passed with no reachable P0/P1.
-- Paid/model calls: zero.
+- Paid/model calls: one hosted direct leaf call (15.37 AIC); Qwen calls: zero.
+- 2026-07-13 attended direct canary attempted after explicit approval:
+  - requested `gpt-5.4`, observed `gpt-5.6-sol`;
+  - approved per-call maximum 5 AIC, observed 15.37 AIC;
+  - classified `invalid-direct`;
+  - no proof, correction, AMR, or Qwen inference ran;
+  - Qwen reservation and deployment were released.
 
 ## Passing Proof
 
@@ -40,6 +46,14 @@ The command exits zero with `ready: true`, `runner: disabled`,
    run, regenerate the preview, then wait for explicit AIC approval.
 5. Any attended command must carry a strict route catalog, exact approval
    receipt, experiment ID, and durable budget ledger.
+6. Do not use the mislabeled GPT-5.4 canary for pairing or promotion until GHCP
+   hard-enforces requested model identity. The user reclassified credit as a
+   measurement rather than a cap. Evidence:
+   `docs/results/2026-07-13-qwen-canary-budget-route-failure.md`.
+7. Exploratory Qwen/Sol cost evidence is complete, but correctness was zero. Do
+   not collect more samples until provider response-contract smoke proof passes.
+   Evidence:
+   `docs/results/2026-07-13-qwen-sol-exploratory-cost.md`.
 
 ## Temporary Podman Cleanup Inventory
 

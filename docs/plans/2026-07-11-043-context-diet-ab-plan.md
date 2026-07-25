@@ -38,7 +38,7 @@ protected_oracles:
     role: "predeclared disjoint context A-B contract and winner-rule oracle"
     sha256: "adc08ddc31d61a4930b91f8a2547605b3a222f9b3b12253fe1b0cfd7af1dea25"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
 can_continue_other_slices: false
 ---
