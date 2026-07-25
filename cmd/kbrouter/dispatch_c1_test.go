@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -216,6 +215,8 @@ func TestC1SessionEvidenceDoesNotEnumerateHistoricalSessions(t *testing.T) {
 	root := t.TempDir()
 	codexHome := filepath.Join(root, "codex-home")
 	projectRoot := filepath.Join(root, "project")
+	sessionID := "thread-current-after-noise"
+	attemptStart := time.Date(2026, 7, 10, 12, 0, 0, 0, time.Local)
 	oldDir := filepath.Join(codexHome, "sessions", "1999", "01", "01")
 	currentDir := filepath.Join(codexHome, "sessions", "2026", "07", "10")
 	if err := os.MkdirAll(oldDir, 0o700); err != nil {
@@ -227,16 +228,13 @@ func TestC1SessionEvidenceDoesNotEnumerateHistoricalSessions(t *testing.T) {
 	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for index := 0; index < 4105; index++ {
-		name := filepath.Join(oldDir, "rollout-19990101T000000-noise-"+strconv.Itoa(index)+".jsonl")
-		if err := os.WriteFile(name, []byte("{}\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
+	oldPath := filepath.Join(oldDir, "rollout-19990101T000000-"+sessionID+".jsonl")
+	writeCodexSessionLogForTest(t, oldPath, sessionID, "codex", projectRoot, "large-model", "never", "workspace-write")
+	if err := os.Chtimes(oldPath, attemptStart.Add(time.Second), attemptStart.Add(time.Second)); err != nil {
+		t.Fatal(err)
 	}
-	sessionID := "thread-current-after-noise"
 	sessionPath := filepath.Join(currentDir, "rollout-20260710T120000-"+sessionID+".jsonl")
 	writeCodexSessionLogForTest(t, sessionPath, sessionID, "codex", projectRoot, "large-model", "never", "workspace-write")
-	attemptStart := time.Date(2026, 7, 10, 12, 0, 0, 0, time.Local)
 	if err := os.Chtimes(sessionPath, attemptStart.Add(time.Second), attemptStart.Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}

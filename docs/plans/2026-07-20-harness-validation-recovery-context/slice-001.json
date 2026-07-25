@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "slice-001",
+  "task_id": "harness-validation-recovery",
+  "objective": "Restore kbcheck package-load and core-list proof",
+  "memory_files": ["todo.md", "docs/context/PROJECT.md", "docs/context/operations/testing.md"],
+  "source_files": ["cmd/kbcheck/main.go", "cmd/kbcheck/checks.go", "cmd/kbcheck/release.go", "internal/graphrouting"],
+  "prefetch": ["git status --short --branch", "go version", "go env GOTOOLCHAIN GOMOD GOWORK GOPATH GOCACHE", "bounded go list ./cmd/kbcheck", "bounded go run ./cmd/kbcheck core --list"],
+  "constraints": ["Do not revert unrelated dirty work", "Do not claim Go proof green until core --list returns", "Use bounded probes for hanging commands"],
+  "out_of_scope": ["External harness runner", "Global skill sync", "Broad cleanup of existing dirty work"],
+  "acceptance_criteria": ["go list ./cmd/kbcheck completes", "go run ./cmd/kbcheck core --list exits 0", "root cause is recorded in slice notes"],
+  "proof_targets": ["go run ./cmd/kbcheck core --list"],
+  "model_tier": "large",
+  "model_tier_reason": "Silent package-load hangs can cross new Go packages, tests, release registration, and Windows process behavior.",
+  "allowed_tools": ["view", "rg", "go", "git", "apply_patch"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["go list ./cmd/kbcheck still hangs after focused isolation", "fix would require reverting unrelated user changes", "hang reproduces outside the repo"]
+}

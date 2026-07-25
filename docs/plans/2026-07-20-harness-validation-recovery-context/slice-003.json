@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "slice-003",
+  "task_id": "harness-validation-recovery",
+  "objective": "Make harness-engineering validation reproducible on Windows",
+  "memory_files": ["todo.md", "docs/context/PROJECT.md", "docs/context/operations/testing.md"],
+  "source_files": ["scripts", "package.json", "docs/context/operations/testing.md"],
+  "prefetch": ["py -0p", "py -3.12 --version", "git -C <harness> rev-parse --short HEAD", "py -3.12 sources/scripts/validate_manifest.py", "py -3.12 sources/scripts/test_manifest.py"],
+  "constraints": ["Do not mutate lopopolo/harness-engineering", "Clone missing harness with core.autocrlf=false", "Use Python 3.12 explicitly", "Treat uv as optional"],
+  "out_of_scope": ["Submitting upstream harness changes", "Vendoring harness source into this repo"],
+  "acceptance_criteria": ["runner validates LF-stable harness checkout", "runner rejects CRLF hash mismatch with remediation", "runner records harness commit", "uv absence does not block when Python 3.12 is available"],
+  "proof_targets": ["powershell -NoProfile -ExecutionPolicy Bypass -File scripts/harness-engineering-review.ps1 -HarnessOnly -HarnessRoot E:/Data/Codex/tmp/harness-engineering-lf-20260720"],
+  "model_tier": "medium",
+  "model_tier_reason": "The failure is bounded to Windows clone/Python invocation and has a proven manual passing path.",
+  "allowed_tools": ["view", "rg", "git", "py", "powershell", "apply_patch"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Python 3.12 unavailable", "LF-stable clone fails manifest validation", "runner would need to modify external harness files"]
+}

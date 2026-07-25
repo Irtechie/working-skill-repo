@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "slice-004",
+  "task_id": "harness-validation-recovery",
+  "objective": "Rerun combined release and harness review proof",
+  "memory_files": ["todo.md", "docs/context/PROJECT.md", "docs/context/operations/testing.md"],
+  "source_files": ["scripts/harness-engineering-review.ps1", "docs/context/operations/testing.md", "docs/results/2026-07-20-harness-engineering-recovery.md"],
+  "prefetch": ["git diff --check", "go run ./cmd/kbcheck core --list", "go run ./cmd/kbcheck core", "go test ./...", "powershell -File scripts/harness-engineering-review.ps1 -HarnessOnly"],
+  "constraints": ["Separate harness setup failures from target proof failures", "Do not commit or push unless explicitly asked", "Refresh memory only for changed proof workflow"],
+  "out_of_scope": ["Unrelated active workstreams", "Paid/live model execution", "External harness upstream patch"],
+  "acceptance_criteria": ["combined runner exits 0 or records precise out-of-scope target failure", "testing docs reflect current commands", "todo/manifest state is honest"],
+  "proof_targets": ["powershell -NoProfile -ExecutionPolicy Bypass -File scripts/harness-engineering-review.ps1 -TargetRoot E:/working-skill-repo -HarnessRoot E:/Data/Codex/tmp/harness-engineering-lf-20260720"],
+  "model_tier": "medium",
+  "model_tier_reason": "This is final integration and evidence capture after the implementation risks are handled.",
+  "allowed_tools": ["view", "rg", "git", "go", "py", "powershell", "apply_patch"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["local-release fails for unrelated dirty work", "required global sync drift appears", "combined runner cannot classify failure boundary"]
+}

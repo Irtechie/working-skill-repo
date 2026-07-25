@@ -74,8 +74,9 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 |---|---|---|---|
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
-| One-loop AMR cleanup, completion review, and image refresh | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
-| GHCP AIC/context falsification harness | 🛑 human-required | P1 | Goal: `docs/context/goals/ghcp-aic-falsification.md`; deterministic readiness and finalization passed with paid calls 0. Paid execution is hard-disabled; Qwen needs Plato/profile/probe, DS4 needs two Ready free Sparks, and a trusted approval verifier is required. Preview: `docs/results/2026-07-12-ghcp-aic-attended-preview.md` |
+| Workflow overview image restoration | 🔧 in_progress | P0 | AMR/DDR review is archived; restore the former routing overview under a distinct asset name after current workflow consolidation is reflected. |
+| Harness-engineering validation recovery | ⬜ pending | P1 | `docs/plans/2026-07-20-000-kb-harness-validation-recovery-manifest.md`; fixes the `kbcheck`/`go test` hang, bounded proof diagnostics, LF-stable `lopopolo/harness-engineering` runner, and combined release/review proof. |
+| GHCP AIC/context falsification harness | 🔒 blocked | P1 | Goal: `docs/context/goals/ghcp-aic-falsification.md`; exploratory Qwen Small→Sol Large costs are measured (13.61725 AIC full-fallback proxy vs 13.4155 direct mean; +106.4% tokens), but Sol and Qwen both failed the JSON/proof contract, so no correctness winner exists. Fix provider-contract smoke before more samples. Evidence: `docs/results/2026-07-13-qwen-sol-exploratory-cost.md` |
 | Invisible workflow UX: retire KLFG, preserve consent, report route/proof/AIC | 🔒 blocked | P1 | `docs/plans/2026-07-11-045-kb-invisible-workflow-ux-manifest.md` — waits for overlapping AMR/AIC work to stabilize and explicit plan-to-work consent |
 
 ## Queued Improvements
@@ -95,20 +96,22 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
   scope, escalation, and tradeoffs.
 - ⬜ Add command-aware `kbcheck` failure summarizers after the compact core
   profile proves stable; preserve `--verbose` for raw output.
-- ⬜ Complete graphify/TokenMasterX brainstorm and plan — finish the large-repo
-  map/bootstrap graph-routing work already started in `kb-map` and
-  `kb-map-bootstrap`; decide thresholds, proof, install prerequisites,
-  TokenMasterX vs raw graphify boundaries, and sync/update path before shipping.
-
+- ⬜ Decide whether release/install proof should remain local-only or gain
+  checked-in `.github/workflows/` — the repo has `npm` installer tests,
+  `bin/check-release-tag.mjs`, and `kbcheck` release gates, but
+  `.github/workflows/` is currently empty. Validation: either document the
+  external CI owner/path or add repo-local workflow files.
 ## Handoff Queue
 
 | Handoff | Status | Route | Created | Stale Check | Link |
 |---|---|---|---|---|---|
-| One-loop AMR cleanup and image gate | active | `kb-work` | 2026-07-10 | fresh | `docs/handoffs/active/2026-07-10-sol-amr-ddr-completion-review.md` |
 
 ## Human Required
 
-None.
+- GHCP AIC attended execution remains disabled. Resume only after an independent
+  approval verifier exists, required routes are freshly available/reserved, and
+  the user explicitly approves the bounded AIC budget shown in the regenerated
+  attended preview.
 
 ## Parked / Cold Storage
 
