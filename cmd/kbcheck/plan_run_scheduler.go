@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,20 +30,25 @@ type planRunLeaseStateEvent struct {
 }
 
 type planRunLease struct {
-	RunID         string        `json:"run_id"`
-	ManifestPath  string        `json:"manifest_path"`
-	OwnerToken    string        `json:"owner_token"`
-	RepoIdentity  string        `json:"repo_identity"`
-	Status        string        `json:"status"`
-	Generation    int64         `json:"generation"`
-	Claims        []leaseClaim  `json:"claims"`
-	AcquiredAt    string        `json:"acquired_at"`
-	HeartbeatAt   string        `json:"heartbeat_at"`
-	ExpiresAt     string        `json:"expires_at"`
-	LastUpdatedAt string        `json:"last_updated_at"`
-	LeaseDuration string        `json:"lease_duration"`
-	Limitations   []string      `json:"limitations"`
-	Metadata      leaseMetadata `json:"metadata"`
+	RunID            string        `json:"run_id"`
+	ManifestPath     string        `json:"manifest_path"`
+	OwnerToken       string        `json:"owner_token"`
+	OwnerFingerprint string        `json:"owner_fingerprint,omitempty"`
+	Worktree         string        `json:"worktree,omitempty"`
+	Branch           string        `json:"branch,omitempty"`
+	BaseSHA          string        `json:"base_sha,omitempty"`
+	IntegrationHead  string        `json:"integration_head,omitempty"`
+	RepoIdentity     string        `json:"repo_identity"`
+	Status           string        `json:"status"`
+	Generation       int64         `json:"generation"`
+	Claims           []leaseClaim  `json:"claims"`
+	AcquiredAt       string        `json:"acquired_at"`
+	HeartbeatAt      string        `json:"heartbeat_at"`
+	ExpiresAt        string        `json:"expires_at"`
+	LastUpdatedAt    string        `json:"last_updated_at"`
+	LeaseDuration    string        `json:"lease_duration"`
+	Limitations      []string      `json:"limitations"`
+	Metadata         leaseMetadata `json:"metadata"`
 }
 
 type planRunLeaseCommandOptions struct {
@@ -165,7 +171,6 @@ func executePlanRunLease(opts planRunLeaseCommandOptions) (planRunLeaseResult, e
 		if state.RepoIdentity != opts.RepoID {
 			return fmt.Errorf("plan-run lease repository identity mismatch")
 		}
-		pruneReleasedPlanRunLeases(state)
 		slices, err := loadSliceLeaseState(stateRoot)
 		if err != nil {
 			return err
@@ -194,7 +199,27 @@ func executePlanRunLease(opts planRunLeaseCommandOptions) (planRunLeaseResult, e
 		}
 		return nil
 	})
+	redactPlanRunLeaseResult(&result)
 	return result, err
+}
+
+func redactPlanRunLeaseResult(result *planRunLeaseResult) {
+	if result.Lease != nil {
+		redacted := publicPlanRunLease(*result.Lease)
+		result.Lease = &redacted
+	}
+	for index := range result.Leases {
+		result.Leases[index] = publicPlanRunLease(result.Leases[index])
+	}
+}
+
+func publicPlanRunLease(lease planRunLease) planRunLease {
+	if lease.OwnerToken != "" {
+		sum := sha256.Sum256([]byte(lease.OwnerToken))
+		lease.OwnerFingerprint = fmt.Sprintf("%x", sum[:6])
+	}
+	lease.OwnerToken = ""
+	return lease
 }
 
 func hydratePlanRunForecast(opts planRunLeaseCommandOptions) (planRunLeaseCommandOptions, error) {
@@ -284,6 +309,25 @@ func acquirePlanRunLease(state planRunLeaseState, slices sliceLeaseState, opts p
 	lease, err := newPlanRunLease(state, opts)
 	if err != nil {
 		return blockedPlanRunLease("acquire", err.Error(), nil, stateRoot)
+	}
+	if manifestHasPlanRunDefault(opts.ManifestPath) {
+		kbID, err := planRunManifestID(opts.ManifestPath)
+		if err != nil {
+			return blockedPlanRunLease("acquire", err.Error(), nil, stateRoot)
+		}
+		receipt, err := loadPlanRunWorkspaceReceipt(planRunWorkspaceOptions{RepoRoot: opts.RepoRoot}, kbID)
+		if err != nil {
+			return blockedPlanRunLease("acquire", "manifest-owned plan-worktree receipt is required: "+err.Error(), nil, stateRoot)
+		}
+		if receipt.RunID != opts.RunID || receipt.OwnerToken != opts.OwnerToken ||
+			!samePath(receipt.Worktree, opts.RepoRoot) ||
+			gitOutput(opts.RepoRoot, "branch", "--show-current") != receipt.IntegrationRef {
+			return blockedPlanRunLease("acquire", "plan-run lease must be acquired from the exact manifest-owned worktree/ref and owner lineage", nil, stateRoot)
+		}
+		lease.Worktree = receipt.Worktree
+		lease.Branch = receipt.IntegrationRef
+		lease.BaseSHA = receipt.BaseSHA
+		lease.IntegrationHead = receipt.IntegrationHead
 	}
 	if existing, ok := state.Leases[lease.RunID]; ok && existing.Status == "active" {
 		return blockedPlanRunLease("acquire", "run already has an active or stale lease; use renew, release, or recover", &existing, stateRoot)
@@ -379,6 +423,9 @@ func releasePlanRunLease(state planRunLeaseState, slices sliceLeaseState, opts p
 	}
 	if issue := requirePlanRunOwnerAndGeneration(lease, opts); issue != "" {
 		return blockedPlanRunLease("release", issue, &lease, stateRoot)
+	}
+	if strings.TrimSpace(lease.Worktree) != "" {
+		return blockedPlanRunLease("release", "manifest-owned plan-run leases are released atomically by plan-worktree complete", &lease, stateRoot)
 	}
 	for _, slice := range slices.Leases {
 		if slice.RunID == lease.RunID && effectiveLeaseStatus(slice, opts.Now) == "active" {
@@ -691,14 +738,6 @@ func appendPlanRunLeaseEvent(state *planRunLeaseState, now time.Time, action str
 	})
 	if len(state.Events) > 200 {
 		state.Events = state.Events[len(state.Events)-200:]
-	}
-}
-
-func pruneReleasedPlanRunLeases(state planRunLeaseState) {
-	for id, lease := range state.Leases {
-		if lease.Status == "released" {
-			delete(state.Leases, id)
-		}
 	}
 }
 

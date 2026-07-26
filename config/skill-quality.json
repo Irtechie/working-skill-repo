@@ -65,7 +65,7 @@
       "kb-brainstorm": "2026-06-10 rent audit plus runtime-boundary update: judgment and scope content remains inline; deterministic phase/gate proof rules are migrating to kbcheck manifest-contract/gate-ledger; 400 lines is a review trigger, not a trim target.",
       "kb-plan": "2026-06-10 rent audit plus runtime-boundary update: judgment, source normalization, and slice design guidance remains inline; deterministic manifest/gate proof rules are migrating to kbcheck manifest-contract/gate-ledger.",
       "kb-map-bootstrap": "bootstrap coverage tactics are intentionally detailed",
-      "kb-work": "2026-06-10 rent audit plus runtime-boundary update: judgment, safety, scope, and escalation guidance remains inline; deterministic terminal-state/gate proof rules are migrating to kbcheck manifest-contract/gate-ledger.",
+      "kb-work": "2026-07-26 rent audit plus manifest-worktree isolation update: judgment, safety, scope, and escalation guidance remains inline; deterministic lifecycle proof is enforced by kbcheck manifest-contract, gate-ledger, leases, and plan-worktree-selftest.",
       "ce-compound": "inherited compound-engineering workflow with large output contract"
     }
   },

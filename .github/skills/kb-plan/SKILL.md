@@ -297,8 +297,11 @@ Give each runnable slice:
 
 The planner does not choose a worktree path, branch, owner token, cleanup
 command, or delivery target. `kb-work` resolves those from live Git state.
-Slices commit and advance only on the owning plan-run branch. Per-slice
-worktrees are not part of this workflow. `kb-complete`
+Slices commit and advance only on the owning plan-run branch. Planning does not
+grant commit authority. `kb-work` may prepare this commit-required mode only
+when the user explicitly authorized local check-in for the run; otherwise it
+stops before mutation and leaves the plan planned. Per-slice worktrees are not
+part of this workflow. `kb-complete`
 separately owns configured local, PR, or explicitly authorized direct delivery;
 no policy means local-only.
 

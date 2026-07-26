@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-26-plan-run-worktree-isolation
 brainstorm_path: direct-chat
 created: 2026-07-26
-status: active
+status: reviewed
 workflow_shape: pipeline-change
 objective_contract: true
 done_check:
@@ -150,6 +150,101 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-26"
     allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
+  - gate_id: slice-slice-004-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "Internal targets resolving to local or fetched remote defaults fail closed."
+      - "Absent delivery policy remains local-only and PR/manual never merges."
+      - "Only explicitly authorized kb-land owns remote-default integration."
+      - "Relevant dirty WIP blocks without hidden commit, stash, reset, or omission; unrelated dirt remains unchanged."
+      - "The protected oracle showed RED before implementation and remained unchanged through GREEN."
+    proof:
+      - cmd/kbcheck/delivery_boundary_test.go
+      - cmd/kbcheck/worktree_isolation.go
+      - cmd/kbcheck/plan_run_workspace.go
+      - cmd/kbcheck/skill_repo_contract_test.go
+      - .github/skills/kb-work/SKILL.md
+      - .github/skills/kb-complete/SKILL.md
+      - .github/skills/kb-ship/SKILL.md
+      - .github/skills/kb-land/SKILL.md
+      - .github/skills/kb-configure/SKILL.md
+      - "Focused default-branch, dirty-authority, and delivery-owner proof passed."
+      - "Full command package and diff checks passed."
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
+  - gate_id: slice-slice-005-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "The disposable two-manifest lifecycle proves one worktree per manifest group and shared-serial slice commits."
+      - "The final command package and contributor core pass after review repairs."
+      - "Useful target-only global drift is merged back before required skill roots are synchronized."
+      - "The blocking local release gate passes with zero required sync issues."
+      - "Independent correctness, structure, and testing review has no unresolved P0/P1."
+    proof:
+      - "kbcheck plan-worktree-selftest result: exit 0; runs=2 commits=4 collisions=2 source-unchanged=true delivery-stopped=true"
+      - "Go command package test result: exit 0; duration 212.369s"
+      - docs/solutions/workflow-issues/plan-run-worktree-isolation-2026-07-26.md
+      - "kbcheck skill-sync-report result: ok true; required issues zero"
+      - "kbcheck local-release result: profile local-release; ok true"
+      - "kb-review: multi-agent; final unresolved P0=0 P1=0 P2=0"
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
+  - gate_id: work-to-complete
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "Every non-skipped slice has a passing terminal gate."
+      - "The top-level objective and final release checks pass."
+      - "No unresolved P0/P1 review finding remains."
+      - "Board, manifest, project memory, and handoff lifecycle agree."
+      - "The final changed-file scope is recorded."
+    proof:
+      - "slice-slice-001-to-done through slice-slice-005-to-done: passed"
+      - "kbcheck plan-worktree-selftest result: exit 0"
+      - "kbcheck local-release result: profile local-release; ok true"
+      - "kb-review multi-agent resolution: P0=0 P1=0 unresolved"
+      - todo-done.md
+      - docs/handoffs/done/2026-07-26-plan-run-worktree-isolation.md
+      - "scope-verified-files: exact git diff against containment base 3f1d916; no unrelated shared-checkout files included"
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "kb-finalize docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
+  - gate_id: complete-to-ship
+    owner_skill: kb-finalize
+    status: passed
+    required_evidence:
+      - "Final deterministic and release checks pass."
+      - "Objective and per-slice proof results are recorded."
+      - "Functional CLI/full coverage exercises the public workflow."
+      - "Multi-agent review and finding resolution are recorded."
+      - "Follow-up resolution has no blocked item."
+      - "Proof and demo evidence is durable."
+      - "Compound, learn, and evolve cadence results are recorded."
+      - "Project memory and maintenance are refreshed."
+      - "Cleanup and todo/handoff hygiene are complete."
+      - "Alerts are explicit."
+    proof:
+      - "kbcheck local-release result: profile local-release; ok true"
+      - "kbcheck plan-worktree-selftest result: exit 0; four accepted commits"
+      - "All five slice proof checks and terminal gates passed"
+      - cmd/kbcheck/plan_worktree_selftest_test.go
+      - "review mode multi-agent; final unresolved critical, important, and suggestion findings zero"
+      - "follow-up resolution: resolved 9; logged 0; blocked 0"
+      - docs/solutions/workflow-issues/plan-run-worktree-isolation-2026-07-26.md
+      - docs/context/kb/instincts/scoped/workflow/plan-execution.yaml
+      - "evolve cadence: no candidates met the confidence and observation thresholds"
+      - docs/context/PROJECT.md
+      - docs/context/memory-maintenance.md
+      - docs/handoffs/done/2026-07-26-plan-run-worktree-isolation.md
+      - "cleanup: no screenshots; five current observations retained; todo contains no completed workstream"
+      - "alert: memory review recommended because maintenance thresholds were already crossed"
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "kb-complete docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
 slices:
   - id: slice-001
     title: "Create a manifest-owned plan-run workspace"
@@ -178,11 +273,11 @@ slices:
     next_agent_action: "Proceed to slice-002 and extend plan-run ownership with atomic cross-manifest conflict claims."
     human_action: ""
     can_continue_other_slices: false
-    notes: "execution_owner=current; owner_reason=reasoner-required for Git and dirty-work authority boundaries; route announcement emitted before mutation; slice lease generation 1 acquired for the eight expected files plus git integration ownership; scope-forecast: loaded 8 expected files plus 3 lifecycle files; scope-discovery: plan-run workspace test is the protected convention-matched oracle; RED: undefined plan-run workspace types and executor; GREEN: focused plan-run workspace and manifest contract tests pass; full cmd/kbcheck package passes; protected-oracle SHA256 82645d4bdbce01a665076e4dbb24794e90108b32e8a858bb9a2673c90a26b6db preserved; functional proof: public plan-worktree status command parsed and failed closed with an explicit migration message when no receipt existed; scope-check: forecast=11 changed=11 discovered=0 unexplained=0; test-level: functional-cli; functional-risk: broad; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable; docs refreshed in kb-plan, kb-work, and the worktree isolation reference."
+    notes: "execution_owner=current; owner_reason=reasoner-required for Git and dirty-work authority boundaries; route announcement emitted before mutation; slice lease generation 1 acquired for the eight expected files plus git integration ownership; scope-forecast: loaded 8 expected files plus 3 lifecycle files; scope-discovery: plan-run workspace test is the protected convention-matched oracle; RED: undefined plan-run workspace types and executor; GREEN: focused plan-run workspace and manifest contract tests pass; full cmd/kbcheck package passes; explicit plan amendment: review-driven fresh-repository, authorization, terminal-proof, and completion-retry cases updated the protected oracle to SHA256 f3b5375fa6a89e0e40975aa903443d80497bcc40f1957a694413011eb1ab159e; functional proof: public plan-worktree status command parsed and failed closed with an explicit migration message when no receipt existed; scope-check: forecast=11 changed=11 discovered=0 unexplained=0; test-level: functional-cli; functional-risk: broad; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable; docs refreshed in kb-plan, kb-work, and the worktree isolation reference."
     protected_oracles:
       - path: cmd/kbcheck/plan_run_workspace_test.go
         role: "manifest-owned workspace and immutable-base oracle"
-        sha256: "82645d4bdbce01a665076e4dbb24794e90108b32e8a858bb9a2673c90a26b6db"
+        sha256: "f3b5375fa6a89e0e40975aa903443d80497bcc40f1957a694413011eb1ab159e"
         update_policy: "requires explicit plan amendment"
   - id: slice-002
     title: "Block cross-manifest conflicts before mutation"
@@ -244,11 +339,11 @@ slices:
     next_agent_action: "Proceed to slice-004 and enforce default-branch delivery and dirty-WIP authority boundaries."
     human_action: ""
     can_continue_other_slices: false
-    notes: "execution_owner=delegated; owner_reason=bounded native worker had the amended same-worktree packet and deterministic head/proof oracle while coordinator retained manifest lease, board, and commit acceptance; route announcement emitted before dispatch; plan-run lease generation 1 and slice lease generation 1 were active; scope-forecast: loaded 6 expected files plus 3 lifecycle files; RED: missing advance and proof-receipt API; GREEN: exact PlanRunAdvance, IntegrationHead, and SliceCommit proof passed; full cmd/kbcheck package passed; protected-oracle SHA256 9e5fd5374d819511abeae2dc7801f7bb98fb935a893106c3b700f946f263c8c4 preserved; exact owner/run/worktree/ref lineage, clean state, prior-head CAS, strict descendant/current-HEAD checks, mandatory proof receipt, slice plus aggregate proof replay, and atomic receipt-head advancement are enforced; advance creates no branch/worktree and performs no merge, reset, stash, cleanup, push, or delivery; scope-check: expected=6 lifecycle=3 changed=9 unexplained=0; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable."
+    notes: "execution_owner=delegated; owner_reason=bounded native worker had the amended same-worktree packet and deterministic head/proof oracle while coordinator retained manifest lease, board, and commit acceptance; route announcement emitted before dispatch; plan-run lease generation 1 and slice lease generation 1 were active; scope-forecast: loaded 6 expected files plus 3 lifecycle files; RED: missing advance and proof-receipt API; GREEN: exact PlanRunAdvance, IntegrationHead, and SliceCommit proof passed; full cmd/kbcheck package passed; explicit plan amendment: review-driven exact-write, live-head, release, archive-tamper, and completion-journal cases updated the protected oracle to SHA256 0240a836e45d8483115ea1737d81f6ebebe682b4968a1a83931922bb8f399bd0; exact owner/run/worktree/ref lineage, clean state, prior-head CAS, strict descendant/current-HEAD checks, mandatory proof receipt, slice plus aggregate proof replay, and atomic receipt-head advancement are enforced; advance creates no branch/worktree and performs no merge, reset, stash, cleanup, push, or delivery; scope-check: expected=6 lifecycle=3 changed=9 unexplained=0; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable."
     protected_oracles:
       - path: cmd/kbcheck/plan_run_integration_test.go
         role: "serialized same-worktree slice commit and integration-head oracle"
-        sha256: "9e5fd5374d819511abeae2dc7801f7bb98fb935a893106c3b700f946f263c8c4"
+        sha256: "0240a836e45d8483115ea1737d81f6ebebe682b4968a1a83931922bb8f399bd0"
         update_policy: "requires explicit plan amendment"
   - id: slice-004
     title: "Keep default-branch delivery and dirty-WIP authority outside kb-work"
@@ -267,21 +362,21 @@ slices:
       command: "go test ./cmd/kbcheck -run 'DefaultBranchBoundary|DirtyBaseAuthority|DeliveryOwner' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     workspace_mode: shared-serial
     conflict_domains: [git:default-branch, skill:kb-work, skill:kb-complete, skill:kb-ship, skill:kb-land]
     shared_resources: [git:integration-owner, git:delivery-owner]
     owner: agent
     blocked_reason: ""
     resume_when: ""
-    next_agent_action: "Fail closed on default-branch internal integration and route completed plan branches through configured local, PR, or explicitly authorized direct delivery."
+    next_agent_action: "Proceed to slice-005 and run the disposable multi-manifest lifecycle plus release/sync proof."
     human_action: ""
     can_continue_other_slices: false
-    notes: "No policy defaults to local; PR/manual is the portable team recommendation; direct remains explicit."
+    notes: "execution_owner=delegated; owner_reason=bounded native worker had exact delivery-boundary packet and deterministic Git/skill contract proof while coordinator retained leases, lifecycle, review, and commit authority; route announcement emitted before dispatch; manifest and slice lease generation 1 were active; scope-forecast: loaded 9 expected files plus 3 lifecycle files and 1 corrected context packet; RED: missing default-branch and delivery-policy API; GREEN: exact DefaultBranchBoundary, DirtyBaseAuthority, and DeliveryOwner proof passed; full cmd/kbcheck package passed; explicit plan amendment: review-driven authorization and unresolved-remote-default cases updated the protected oracle to SHA256 fca79a7cdbcc5839d5ceabb15b1ca8408d554ccd42e549d698f1cd40520fd7a7; local and fetched remote defaults are forbidden internal targets; absent policy is local-only; PR/manual stops at an open PR without merge; only explicitly authorized kb-land owns remote-default integration; relevant dirty WIP blocks before creation while unrelated dirt remains untouched; local common-directory leases are explicitly not team-wide locks; scope-check: expected=9 lifecycle=3 packet=1 changed=13 unexplained=0; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable."
     protected_oracles:
       - path: cmd/kbcheck/delivery_boundary_test.go
         role: "default-branch refusal and dirty-work authority oracle"
-        sha256: "filled by kb-work after RED/protection"
+        sha256: "fca79a7cdbcc5839d5ceabb15b1ca8408d554ccd42e549d698f1cd40520fd7a7"
         update_policy: "requires explicit plan amendment"
   - id: slice-005
     title: "Prove and release the multi-plan worktree lifecycle"
@@ -300,21 +395,21 @@ slices:
       command: "go run ./cmd/kbcheck plan-worktree-selftest"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     workspace_mode: shared-serial
     conflict_domains: [eval:plan-worktree-lifecycle, docs:workflow, sync:global-skills]
     shared_resources: [git:integration-owner, sync:global-skills]
     owner: agent
-    blocked_reason: "Final release proof also depends on responsive core and local-release gates."
-    resume_when: "Slices 001-004 are done and the harness-validation recovery has restored bounded core/local-release execution."
-    next_agent_action: "Run the disposable multi-plan lifecycle, refresh public docs, review global drift, sync approved skills, and pass core plus local-release."
+    blocked_reason: ""
+    resume_when: ""
+    next_agent_action: "Run kb-finalize against the completed manifest."
     human_action: ""
     can_continue_other_slices: true
-    notes: "The selftest is the objective oracle; release remains incomplete until repo and sync gates also pass."
+    notes: "execution_owner=delegated; owner_reason=bounded native worker produced the initial disposable harness while the coordinator retained manifest/slice leases, global drift review, propagation, release gates, lifecycle, review, and commit authority; route announcement emitted before dispatch; scope-discovery expanded into commit-authority provenance, exact claim/write equality, live integration-head slice binding, durable slice-release evidence, immutable per-slice proof archives, and failure-idempotent completion journaling after independent review; objective proof: go run ./cmd/kbcheck plan-worktree-selftest exit 0 with runs=2 commits=4 collisions=2 source-unchanged=true delivery-stopped=true; functional proof: go test ./cmd/kbcheck -count=1 exit 0 in 212.369s; sync proof: skill-sync-report ok=true required_issues=0 after merging useful Copilot-only kb-gate command/path parsing back into source; release proof: local-release profile ok=true; review-mode: multi-agent; review: P0=0 P1=5(resolved) P2=4(resolved) P3=0, final unresolved P0/P1/P2=0; follow-up-resolution: resolved 9, logged 0, blocked 0; qa-browser: skipped - no rendered UI changed; demo evidence: CLI selftest output; compound: docs/solutions/workflow-issues/plan-run-worktree-isolation-2026-07-26.md; learn: 1 new scoped instinct and existing-confidence decay applied; evolve: no candidates ready; kb-map-refresh: done - PROJECT, workflow architecture, testing, eval map, solution, superseded plan, instinct, board, and handoff; memory-maintenance: one contradiction signal recorded and completion counter advanced to 15; compact: skipped - no new startup bloat; cleanup: no screenshots, observations retained within 90 days; alerts: memory review recommended by existing thresholds; bootstrap exception: this implementation worktree predates plan-worktree receipts, so no receipt was fabricated; scope-check: forecast plus review-discovered files all covered by expanded manifest/slice claims; memory-impact: durable."
     protected_oracles:
       - path: cmd/kbcheck/plan_worktree_selftest_test.go
         role: "end-to-end multi-plan lifecycle oracle"
-        sha256: "filled by kb-work after RED/protection"
+        sha256: "50943d314434e7b87f8bc3b32e408c5b0bede35d5e08cd43ef272b4fec8fa451"
         update_policy: "requires explicit plan amendment"
 ---
 
@@ -352,13 +447,77 @@ functional proof, documentation, and required skill propagation.
 | 1 | Create a manifest-owned plan-run workspace | - | tdd / functional-cli | no | done |
 | 2 | Block cross-manifest conflicts before mutation | slice-001 | tdd / functional-cli | no | done |
 | 3 | Advance slice commits only on the owning plan-run branch | slice-002 | tdd / functional-cli | no | done |
-| 4 | Keep default-branch delivery and dirty-WIP authority outside kb-work | slice-003 | tdd / functional-cli | no | pending |
-| 5 | Prove and release the multi-plan worktree lifecycle | slice-004 + external release gate | integration / full | no | pending |
+| 4 | Keep default-branch delivery and dirty-WIP authority outside kb-work | slice-003 | tdd / functional-cli | no | done |
+| 5 | Prove and release the multi-plan worktree lifecycle | slice-004 + external release gate | integration / full | no | done |
 
 ## Execution Gate
 
 `plan-to-work` passed after the overlapping DDR scope was reviewed and contained
 on local branch `codex/ddr-route-announcement-containment` at commit `3f1d916`.
-Bootstrap execution remains shared-serial, and final release remains separately
-blocked on the pre-existing non-`kb-work` global drift recorded by
-`local-release`.
+Bootstrap execution remained shared-serial. Reviewed target drift was
+reconciled into the source bundle, required global roots were synchronized, and
+the final local release gate passed without touching the default branch.
+
+## Scope-Verified Files
+
+Exact final feature diff against containment base `3f1d916`:
+
+- `.github/skills/kb-complete/SKILL.md`
+- `.github/skills/kb-configure/SKILL.md`
+- `.github/skills/kb-gate/scripts/check_gate_ledger.py`
+- `.github/skills/kb-land/SKILL.md`
+- `.github/skills/kb-plan/SKILL.md`
+- `.github/skills/kb-ship/SKILL.md`
+- `.github/skills/kb-start/SKILL.md`
+- `.github/skills/kb-work/SKILL.md`
+- `.github/skills/kb-work/references/execution-prompt.md`
+- `.github/skills/kb-work/references/worktree-isolation.md`
+- `README.md`
+- `cmd/kbcheck/checks.go`
+- `cmd/kbcheck/checks_test.go`
+- `cmd/kbcheck/cross_manifest_scheduler_test.go`
+- `cmd/kbcheck/delivery_boundary_test.go`
+- `cmd/kbcheck/main.go`
+- `cmd/kbcheck/manifest_contract.go`
+- `cmd/kbcheck/manifest_contract_test.go`
+- `cmd/kbcheck/plan_run_integration_test.go`
+- `cmd/kbcheck/plan_run_scheduler.go`
+- `cmd/kbcheck/plan_run_workspace.go`
+- `cmd/kbcheck/plan_run_workspace_test.go`
+- `cmd/kbcheck/plan_worktree_selftest.go`
+- `cmd/kbcheck/plan_worktree_selftest_test.go`
+- `cmd/kbcheck/skill_repo_contract_test.go`
+- `cmd/kbcheck/slice_lease.go`
+- `cmd/kbcheck/slice_lease_test.go`
+- `cmd/kbcheck/swarm.go`
+- `cmd/kbcheck/swarm_test.go`
+- `cmd/kbcheck/worktree_isolation.go`
+- `cmd/kbcheck/worktree_isolation_test.go`
+- `config/skill-quality.json`
+- `docs/context/PROJECT.md`
+- `docs/context/architecture/kb-workflow.md`
+- `docs/context/eval-map.md`
+- `docs/context/kb/instincts/project.yaml`
+- `docs/context/kb/instincts/scoped/kbcheck-proof-spine.yaml`
+- `docs/context/kb/instincts/scoped/model-routing/evaluation.yaml`
+- `docs/context/kb/instincts/scoped/model-routing/orchestration.yaml`
+- `docs/context/kb/instincts/scoped/skill-bundle/provider-hygiene.yaml`
+- `docs/context/kb/instincts/scoped/workflow/plan-execution.yaml`
+- `docs/context/kb/kb-completions.txt`
+- `docs/context/memory-maintenance.md`
+- `docs/context/operations/testing.md`
+- `docs/handoffs/done/2026-07-26-plan-run-worktree-isolation.md`
+- `docs/plans/2026-07-19-003-tool-worktree-isolation-plan.md`
+- `docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md`
+- `docs/plans/2026-07-26-011-tool-plan-run-workspace-plan.md`
+- `docs/plans/2026-07-26-012-tool-cross-manifest-scheduler-plan.md`
+- `docs/plans/2026-07-26-013-tool-plan-run-integration-plan.md`
+- `docs/plans/2026-07-26-014-tool-delivery-boundary-plan.md`
+- `docs/plans/2026-07-26-015-eval-plan-worktree-lifecycle-plan.md`
+- `docs/plans/2026-07-26-plan-run-worktree-context/slice-001.json`
+- `docs/plans/2026-07-26-plan-run-worktree-context/slice-002.json`
+- `docs/plans/2026-07-26-plan-run-worktree-context/slice-003.json`
+- `docs/plans/2026-07-26-plan-run-worktree-context/slice-004.json`
+- `docs/plans/2026-07-26-plan-run-worktree-context/slice-005.json`
+- `docs/solutions/workflow-issues/plan-run-worktree-isolation-2026-07-26.md`
+- `todo-done.md`

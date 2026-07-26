@@ -135,6 +135,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"kb-work-slice-lease-selftest", "KB work atomic slice lease selftest detected"},
 		{"kb-work-scope-lease-selftest", "KB work scope lease overlap selftest detected"},
 		{"kbrouter-catalog-tests", "KB model route catalog CLI conformance tests detected"},
+		{"plan-worktree-lifecycle-selftest", "manifest-owned plan worktree lifecycle selftest detected"},
 		{"kb-pipeline-selftest", "KB coded pipeline spike selftest detected"},
 		{"skill-surface-report", "skill loaded-surface report detected"},
 		{"skill-marketplace-firebreak", "private marketplace quarantine firebreak detected"},
@@ -236,6 +237,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 			"execution-telemetry-selftest":      {"execution-telemetry-selftest"},
 			"provider-hygiene":                  {"provider-hygiene"},
 			"provider-hygiene-selftest":         {"provider-hygiene-selftest"},
+			"plan-worktree-lifecycle-selftest":  {"plan-worktree-selftest"},
 		}
 		if command, ok := nativeCommandByCheck[pc.Name]; ok {
 			checks = append(checks, Check{

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Review Workbench"
+  short_description: "Make pull requests fast to understand"
+  default_prompt: "Use $pr-review-workbench to turn this repository PR inbox into a minimum-evidence HTML review workbench."

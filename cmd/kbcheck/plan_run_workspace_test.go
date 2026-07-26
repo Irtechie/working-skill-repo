@@ -8,6 +8,24 @@ import (
 	"time"
 )
 
+func TestPlanRunWorkspaceRequiresExplicitLocalCommitAuthorization(t *testing.T) {
+	root := initWorktreeRepo(t)
+	manifest := writePlanRunTestManifest(t, root, "kb-plan-run-authorization")
+	worktree := filepath.Join(t.TempDir(), "plan-run-authorization")
+
+	result, err := executePlanRunWorkspace(planRunWorkspaceOptions{
+		Action: "prepare", ManifestPath: manifest, OwnerToken: "owner-authorization",
+		BaseSHA: gitOutput(root, "rev-parse", "HEAD"), Worktree: worktree,
+		IntegrationRef: "codex/plan-run-authorization", RepoRoot: root, Now: time.Now().UTC(),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Issue, "commit authorization") {
+		t.Fatalf("prepare without commit authorization was not blocked: result=%#v err=%v", result, err)
+	}
+	if pathExists(worktree) || gitOutput(root, "show-ref", "--verify", "refs/heads/codex/plan-run-authorization") != "" {
+		t.Fatal("unauthorized prepare created a worktree or branch")
+	}
+}
+
 func TestPlanRunWorkspacePrepareIsIdempotentAndPreservesDirtySource(t *testing.T) {
 	root := initWorktreeRepo(t)
 	manifest := writePlanRunTestManifest(t, root, "kb-plan-run-one")
@@ -20,6 +38,8 @@ func TestPlanRunWorkspacePrepareIsIdempotentAndPreservesDirtySource(t *testing.T
 	worktree := filepath.Join(t.TempDir(), "plan-run-one")
 	opts := planRunWorkspaceOptions{
 		Action: "prepare", ManifestPath: manifest, OwnerToken: "owner-one",
+		CommitAuthorized:   true,
+		CommitAuthorizedBy: "test-user", CommitApprovalRef: "test:plan-run-one",
 		BaseSHA: baseSHA, Worktree: worktree, IntegrationRef: "codex/plan-run-one",
 		RepoRoot: root, Now: time.Now().UTC(),
 	}
@@ -39,8 +59,11 @@ func TestPlanRunWorkspacePrepareIsIdempotentAndPreservesDirtySource(t *testing.T
 	if got := string(mustReadFile(t, sourceFile)); got != "dirty source\n" {
 		t.Fatalf("source dirt was changed: %q", got)
 	}
-	if got := string(mustReadFile(t, filepath.Join(worktree, "README.md"))); got == "dirty source\n" {
-		t.Fatal("dirty source content was silently copied into plan-run worktree")
+	worktreeSourceFile := filepath.Join(worktree, "README.md")
+	if pathExists(worktreeSourceFile) {
+		if got := string(mustReadFile(t, worktreeSourceFile)); got == "dirty source\n" {
+			t.Fatal("dirty source content was silently copied into plan-run worktree")
+		}
 	}
 
 	second, err := executePlanRunWorkspace(opts)
@@ -59,6 +82,8 @@ func TestPlanRunWorkspaceRejectsDefaultBranchOwnerMismatchAndUnsafeRelease(t *te
 
 	defaultTarget, err := executePlanRunWorkspace(planRunWorkspaceOptions{
 		Action: "prepare", ManifestPath: manifest, OwnerToken: "owner-one",
+		CommitAuthorized:   true,
+		CommitAuthorizedBy: "test-user", CommitApprovalRef: "test:default-boundary",
 		BaseSHA: baseSHA, Worktree: filepath.Join(t.TempDir(), "default-target"),
 		IntegrationRef: baseRef, RepoRoot: root, Now: time.Now().UTC(),
 	})
@@ -68,6 +93,8 @@ func TestPlanRunWorkspaceRejectsDefaultBranchOwnerMismatchAndUnsafeRelease(t *te
 
 	opts := planRunWorkspaceOptions{
 		Action: "prepare", ManifestPath: manifest, OwnerToken: "owner-one",
+		CommitAuthorized:   true,
+		CommitAuthorizedBy: "test-user", CommitApprovalRef: "test:plan-run-two",
 		BaseSHA: baseSHA, Worktree: filepath.Join(t.TempDir(), "owned"),
 		IntegrationRef: "codex/plan-run-two", RepoRoot: root, Now: time.Now().UTC(),
 	}
@@ -84,8 +111,8 @@ func TestPlanRunWorkspaceRejectsDefaultBranchOwnerMismatchAndUnsafeRelease(t *te
 	}
 	opts.Action = "release"
 	released, err := executePlanRunWorkspace(opts)
-	if err != nil || released.OK || !strings.Contains(released.Issue, "unintegrated") {
-		t.Fatalf("active unintegrated workspace was released: result=%#v err=%v", released, err)
+	if err != nil || released.OK || !strings.Contains(released.Issue, "incomplete") {
+		t.Fatalf("active incomplete workspace was released: result=%#v err=%v", released, err)
 	}
 }
 
@@ -99,6 +126,8 @@ func writePlanRunTestManifest(t *testing.T, root, kbID string) string {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	gitOK(t, root, "add", filepath.ToSlash(strings.TrimPrefix(path, root+string(filepath.Separator))))
+	gitOK(t, root, "commit", "-m", "add plan manifest")
 	return path
 }
 

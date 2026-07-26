@@ -58,13 +58,13 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/delivery_boundary_test.go
     role: "default-branch refusal and dirty-work authority oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "76f99c9cb69a8979e2f36fb43988081a027e7ef0554e6ce200c7061c6fae2dce"
     update_policy: "requires explicit plan amendment"
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Fail closed on default-branch internal integration and route completed plan branches through configured local, PR, or explicitly authorized direct delivery."
+next_agent_action: "Proceed to slice-005 and run the disposable multi-manifest lifecycle plus release/sync proof."
 human_action: ""
 can_continue_other_slices: false
 ---

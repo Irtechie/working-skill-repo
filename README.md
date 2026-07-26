@@ -60,9 +60,7 @@ creating a second manually maintained knowledge store.
 Optional `kb-configure` writes portable per-project execution policy. Most users
 never need it. Orchestrator-directed DDR is the default: the current
 orchestrator either retains a slice or delegates it once to one qualified
-same-tier-or-higher worker. Adaptive Model Routing (AMR) remains an unpromoted
-experiment and is never required by ordinary work. Optional user-local
-`kb-models` state saves
+same-tier-or-higher worker. Optional user-local `kb-models` state saves
 `automatic`, `self-hosted-first`, or `native-first` source preference without
 configuring model-by-model plan mappings.
 
@@ -178,24 +176,6 @@ Run-only controls remain explicit:
 - delegated fallback may choose another qualified same-tier or higher worker,
   but never silently switches to the current orchestrator.
 
-### Adaptive Model Routing (AMR)
-
-AMR is a separate experimental benchmark. It may evaluate a bounded
-next-lower-tier attempt under controlled proof, but normal `kb-work` does not
-invoke it, require it, or pass `attempt_tier`. It is not a general instruction
-to use cheaper models for code.
-
-![Adaptive Model Routing workflow](docs/assets/kb-routing-workflow.png)
-
-Good candidates include a narrow code fix or implementation of an approved HTML
-design with browser assertions. Philosophy, speculative product/design work,
-unresolved architecture, subjective intent, sensitive boundaries, and weak
-proof are bad candidates and begin at the planned tier.
-
-AMR results do not control production routing. Promotion would require repeated
-independent evidence that worker, proof, and repair beat direct execution
-without reducing correctness. Until then, it makes no production savings claim.
-
 ## What Makes This Different
 
 - `kb-start` routes work instead of forcing every request through one heavy
@@ -217,8 +197,7 @@ without reducing correctness. Until then, it makes no production savings claim.
   what actually ran; only a route-bound receipt linked to proof establishes
   `dispatch-proven`, and only `require <model>` hard-pins.
 - A plan tier is minimum execution capability, not the validator. Deterministic
-  proof accepts the result. AMR stays outside the normal path until separately
-  promoted from controlled evidence.
+  proof accepts the result.
 - `kb-finalize` runs internal review, proof, follow-up cleanup, learning, and
   memory refresh.
 - `kb-complete` is the single user-facing state-aware orchestrator through
@@ -259,7 +238,6 @@ Current evidence is deliberately conservative:
 | Orchestrator-owned current execution and ordinary proof | Supported |
 | Owner-first selector and one-worker delegated selection | Deterministic conformance |
 | Codex CLI plus a trusted OpenAI-compatible/LiteLLM route | Candidate; live support not qualified |
-| Next-lower AMR attempts | Experimental only; not in normal work |
 | Automatic surgical correction | Unsupported; fails closed before worker launch or mutation |
 | GHCP, exact Codex App attribution, TinyBoss, generic MCP, direct chat-completions worker | Parked |
 
@@ -370,10 +348,20 @@ kb-complete: brainstorm when needed -> plan -> work -> finalize -> delivery
 ```
 
 `kb-work` now owns the loop until the work is terminal. It pulls the safe ready
-set from the manifest DAG, can swarm independent slices in isolated contexts,
-serializes shared-checkout or observed-overlap work, then runs `kb-finalize` for
-review, follow-up resolution, proof, learning, memory refresh, and cleanup. "All
-slices passed" is progress; finalization and configured delivery determine done.
+set from the manifest DAG, gives each active manifest group one owned worktree,
+and serializes that manifest's slice commits there only after explicit local
+check-in authorization has been recorded in the plan-run receipt. Without that
+authority it stops before mutation. Disjoint manifest groups may run
+concurrently; path, prefix, conflict-domain, or shared-resource collisions
+requeue before mutation. The old `worktree` command is deprecated compatibility
+for non-plan-run cleanup and requires `--legacy-slice-worktree`; plan runs reject
+per-slice worktrees. Each accepted commit contains its implementation plus
+audited lifecycle projection, matches the active slice/plan claims exactly, and
+archives immutable proof bytes with their SHA-256. Completion requires terminal
+manifest gates, released leases, and an unchanged accepted HEAD/ref. `kb-work`
+then runs `kb-finalize` for review, follow-up resolution, proof, learning, memory
+refresh, and cleanup. "All slices passed" is progress; finalization and
+configured delivery determine done.
 
 ## Execution Model
 
@@ -459,7 +447,9 @@ KB proof-spine integration status as of July 9, 2026:
 | `kb-land` | Internal merge/direct integration and post-integration sync phase |
 | `kb-finish` | Deprecated alias to `kb-complete` |
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
-| `kb-compact` | Memory, docs, or output need compact, action-first organization |
+| `kb-compact` | Memory, docs, or output need low-cognitive-burden, action-first organization |
+| `kb-executive-brief` | Generate an executive first screen and an optional evidence-backed Mermaid flow |
+| `pr-review-workbench` | Generate a commit-pinned, offline visual PR review after a PR exists |
 | `klfg` | Deprecated alias to `kb-complete` |
 | `repo-critic` | Claims-vs-code evidence review before a claim ships |
 | `safe-shell-quoting` | Run fragile PowerShell, Bash, or mixed-shell quoting from validated temporary script files |
@@ -472,7 +462,11 @@ Routing and memory:
 - `kb-goal` - durable objective lane across sessions and KB routes
 - `kb-map` - project-memory lookup, refresh, and project-root anchoring
 - `kb-map-bootstrap` - expensive deep index plus standard memory layout
-- `kb-compact` - organize action/state/details and compress without losing technical truth
+- `kb-compact` - lower comprehension and decision effort without losing technical truth
+- `kb-executive-brief` - generate responsibility-first Markdown and only render a visual when relationships justify it
+- `pr-review-workbench` - lazy-load after PR creation to generate an offline
+  decision topology with a guided review path, source-backed application-impact
+  ordering, and linked evidence
 - `kb-handoff` - compact a session into a restart packet
 
 Execution lanes:
@@ -482,6 +476,29 @@ Execution lanes:
 - `kb-ship`, `kb-land`, `kb-finish`, `kb-epic`, `kb-task`, `kb-goal`,
   `kb-first-principles`, `klfg`
 - `safe-shell-quoting` - file-backed execution and validated cleanup for quote-heavy shell commands
+
+`kb-ship` uses a low-burden PR first screen: what changed and why, genuine
+reviewer-owned decisions, work the agent already handled, verification, and
+risks/deferred work. Material reasoning stays in a linked
+[companion document](docs/context/operations/low-burden-review-artifacts.md)
+instead of forcing the reviewer through a chronological work diary.
+
+For a generated first screen, create source-owned schema-version-1 JSON and run:
+
+```powershell
+go run ./cmd/kbbrief -input <brief.json> -output <brief.md>
+```
+
+`kbbrief` enforces the hard/soft/no-response contract and emits Mermaid only
+when the input contains enough meaningful relationships to lower reading effort.
+
+When a PR needs deeper visual review, `kb-ship` can lazy-load
+`pr-review-workbench` only after the PR exists. The default artifact is local
+and private. For another reviewer, put the verified HTML on a separate
+`pr-review-artifacts` branch keyed by PR number and reviewed SHA, then link its
+GitHub file page with **Download, then open locally**. Never add the artifact to
+the PR branch because that invalidates its own SHA pin. GitHub Pages remains an
+optional, explicitly authorized view over the same artifact branch.
 
 Verification and gates:
 
@@ -674,6 +691,9 @@ Useful subcommands:
   `skill-eval-wrap` - dry-run/live adapters and observed-trace wrapping
 - `minimality`, `surface-report` - loaded-surface and trim measurement
 - `ready-set`, `scope-lease` - swarm execution proof helpers used by `kb-work`
+- `plan-worktree-selftest` - run the disposable two-plan lifecycle proof; it
+  starts through the public fresh-repository path, rejects the real repository
+  as a target, and performs no merge, push, or PR
 - `workflow-governor-selftest` - verify question-gate and phase-gate contract text
 - `marketplace-firebreak`, `marketplace-promote` - private marketplace checks
   and promotion path
@@ -863,10 +883,13 @@ KB skills should be structured, not brain dumps:
 - shared doctrine lives once and is referenced elsewhere
 - long research, agent prompts, and scripts are lazy-loaded when needed
 
-Every token must pay rent. Keep contracts, gates, paths, commands, error
-handling, verification criteria, and escalation thresholds. Cut generic
-programming advice, motivational text, repeated warnings, and long examples that
-modern models do not need.
+Optimize for comprehension and decision effort, not the fewest words. Every
+token must pay rent. Keep contracts, gates, paths, commands, error handling,
+verification criteria, and escalation thresholds. Cut generic programming
+advice, motivational text, repeated warnings, and long examples that modern
+models do not need. Before asking, distinguish a hard response only the user can
+provide from a soft preference the agent can handle and information that needs
+no response.
 
 ## Credits
 
@@ -878,6 +901,14 @@ It also borrows useful ideas from:
 - [AYGHRI's i-have-adhd](https://github.com/ayghri/i-have-adhd), especially
   action-first responses, bounded primary lists, and visible progress; KB keeps
   these conditional so brevity cannot hide proof, blockers, risk, or safety.
+- [Plannotator's bro skill](https://github.com/plannotator/dev-skills/blob/main/skills/general/bro/SKILL.md),
+  especially plain human language without jargon or conversational filler; KB
+  adds responsibility tests so plain questions are asked only when the user
+  truly owns the answer.
+- [HumanLayer](https://www.humanlayer.dev/blog/advanced-context-engineering),
+  especially concentrating human review on high-leverage research, design, and
+  plan decisions; KB applies that to PR first screens and linked companion
+  documents without adding a HumanLayer runtime dependency.
 - [ATV-Phoenix](https://github.com/All-The-Vibes/ATV-Phoenix), especially the
   self-healing proof spine around objective sensing, trace verification, and
   failure-first acceptance. Credit for the self-healing concepts adopted in KB

@@ -1,0 +1,38 @@
+{
+  "repository": {
+    "nameWithOwner": "acme/widgets",
+    "url": "https://github.com/acme/widgets"
+  },
+  "pull_requests": [
+    {
+      "number": 13,
+      "title": "Fix one label",
+      "url": "https://github.com/acme/widgets/pull/13",
+      "author": "dev-two",
+      "updated_at": "2026-07-21T14:00:00Z",
+      "base_ref": "main",
+      "head_ref": "fix/label",
+      "start_head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "end_head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "datasets": {
+        "metadata": "complete",
+        "files": "complete",
+        "checks": "complete",
+        "reviews": "complete",
+        "source": "complete"
+      },
+      "files": [
+        {
+          "path": "src/label.ts",
+          "additions": 1,
+          "deletions": 1,
+          "patch": "+Use the correct label"
+        }
+      ],
+      "checks": [],
+      "reviews": [],
+      "summary": "Corrects one user-facing label.",
+      "behavioral_changes": []
+    }
+  ]
+}

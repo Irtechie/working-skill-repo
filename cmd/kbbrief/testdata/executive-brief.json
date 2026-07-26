@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "title": "Low-cognitive-burden communication",
+  "outcome": "The core communication and review-artifact contracts are implemented, verified, and synchronized.",
+  "response": {
+    "class": "no_response_needed"
+  },
+  "key_points": [
+    "Questions distinguish hard human decisions, soft preferences, and information that needs no response.",
+    "Pull requests lead with outcome and genuine reviewer attention.",
+    "Visuals are generated only when relationships are easier to see than read."
+  ],
+  "handled_by_agent": [
+    "Reconciled the plan-worktree and proof-governor skill drift.",
+    "Synchronized required Codex, Copilot, and shared-agent copies."
+  ],
+  "verification": [
+    "go run ./cmd/kbcheck core",
+    "go run ./cmd/kbcheck local-release",
+    "go run ./cmd/kbcheck skill-sync-report"
+  ],
+  "risks_or_later": [
+    "Generated visuals remain summaries; source-owned plans, results, and proof stay authoritative."
+  ],
+  "companion_source": "docs/context/operations/low-burden-review-artifacts.md",
+  "visual": {
+    "mode": "auto",
+    "nodes": [
+      {
+        "id": "source",
+        "label": "Source-owned status"
+      },
+      {
+        "id": "brief",
+        "label": "Executive first screen"
+      },
+      {
+        "id": "decision",
+        "label": "Human attention only where needed"
+      }
+    ],
+    "edges": [
+      {
+        "from": "source",
+        "to": "brief",
+        "label": "generate"
+      },
+      {
+        "from": "brief",
+        "to": "decision",
+        "label": "focus"
+      }
+    ]
+  }
+}

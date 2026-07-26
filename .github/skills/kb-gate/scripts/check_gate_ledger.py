@@ -74,10 +74,60 @@ def parse_gate_ledger(frontmatter: str) -> list[dict]:
     return ledger
 
 
+_EXT_RE = re.compile(r"\.(md|json|jsonl|txt|log|png|html|ps1|py|yaml|yml|mjs|sh)$", re.I)
+_SEP_RE = re.compile(r"[\\/]")
+_RUNNER_RE = re.compile(
+    r"(?:^|\s)(?:python[\d.]*|pytest|node|npm|npx|go|powershell(?:\.exe)?|pwsh|bash|sh|git|"
+    r"kubectl|docker|podman|buildah|ctr|curl|make|cargo|dotnet)(?:\s|$)",
+    re.I,
+)
+_ENV_ASSIGN_RE = re.compile(r"(?:^|\s)[A-Z_][A-Z0-9_]*=\S")
+_FLAG_RE = re.compile(r"(?:^|\s)-{1,2}[A-Za-z]")
+
+
+def looks_like_command(value: str) -> bool:
+    """True when the value records a command invocation rather than a file reference.
+
+    Paths inside a recorded command are arguments evaluated in that command's
+    own working directory, which is frequently a different repository. Treating
+    them as assertions about this repo produces false failures.
+    """
+    return bool(
+        _ENV_ASSIGN_RE.search(value)
+        or _RUNNER_RE.search(value)
+        or _FLAG_RE.search(value)
+    )
+
+
 def looks_like_path(value: str) -> bool:
-    if " " in value and not any(sep in value for sep in ("/", "\\")):
+    """True when the whole value is a single path-like token.
+
+    Prose is never a path, even when it contains slashes. Values such as
+    "origin/main is ancestor of codex/topic" describe a git ref, not a file,
+    and must not be resolved against the filesystem.
+    """
+    stripped = value.strip()
+    if not stripped or re.search(r"\s", stripped):
         return False
-    return bool(re.search(r"[\\/]|\.md$|\.json$|\.jsonl$|\.txt$|\.log$|\.png$|\.html$|\.ps1$|\.py$", value))
+    return bool(_SEP_RE.search(stripped) or _EXT_RE.search(stripped))
+
+
+def prose_path_tokens(value: str) -> list[str]:
+    """Extract unambiguous repo-relative file references embedded in prose.
+
+    Only tokens carrying both a separator and a known file extension qualify,
+    and only when the surrounding text is not a recorded command. This keeps
+    typo detection for real references like `docs/plans/foo.md` while leaving
+    git refs, digests, and command arguments alone.
+    """
+    if looks_like_command(value):
+        return []
+    out = []
+    for tok in re.findall(r"[^\s`'\"(),;]+", value):
+        tok = tok.rstrip(".,;:")
+        if _SEP_RE.search(tok) and _EXT_RE.search(tok):
+            out.append(tok)
+    return out
 
 
 def proof_path_exists(manifest: Path, proof_item: str) -> bool:
@@ -142,10 +192,12 @@ def main() -> int:
 
     missing_paths: list[str] = []
     for item in proof:
-        if not isinstance(item, str) or not looks_like_path(item):
+        if not isinstance(item, str):
             continue
-        if not proof_path_exists(manifest, item):
-            missing_paths.append(item)
+        candidates = [item.strip()] if looks_like_path(item) else prose_path_tokens(item)
+        for candidate in candidates:
+            if not proof_path_exists(manifest, candidate):
+                missing_paths.append(candidate)
     if missing_paths:
         print(f"FAIL: proof paths do not exist: {missing_paths}", file=sys.stderr)
         return 9

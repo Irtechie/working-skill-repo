@@ -29,6 +29,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 | Changed proof runs once while unchanged proof is reused | `evals/proof-governor/fixtures.json`; sealed check registry; `.proof.json` receipts | `go run ./cmd/kbcheck proof-governor-selftest`; `proof-plan`; `proof-run` | Host-global interception remains adapter-specific; portable enforcement owns registered KB proof paths | P0 |
 | False completion is rejected | `evals/dishonest-completion/fixtures.json` | `go run ./cmd/kbcheck dishonest-completion-selftest` | Small corpus only | P0 |
 | Run-state loops stop | `.kb/runs/<goal>/route-history.jsonl` | `go run ./cmd/kbcheck run-state --history <history>`; `go run ./cmd/kbcheck run-state-selftest` | Needs more real histories over time | P1 |
+| Concurrent plan groups stay isolated | disposable Git repo + Git-common-dir lifecycle receipts | `go run ./cmd/kbcheck plan-worktree-selftest` | Local coordination only; separate clones and machines still rely on branch/PR protection | P0 |
 | Learning promotion stays evidence-bound | learning result JSON | `go run ./cmd/kbcheck learning-adoption --result-path <results.json>` | More real samples needed | P1 |
 | Worker context and telemetry stay bounded | context packet + telemetry JSON | `go run ./cmd/kbcheck context-packet --packet <packet.json>`; `go run ./cmd/kbcheck execution-telemetry --telemetry <telemetry.json>` | Host adapters still expose measured usage inconsistently | P1 |
 | Optional providers remain optional | repo/user provider config | `go run ./cmd/kbcheck provider-hygiene`; `go run ./cmd/kbcheck provider-hygiene --include-user` | Host-specific registries may need future adapters | P1 |
@@ -66,6 +67,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 - `go run ./cmd/kbcheck ready-set-selftest`
 - `go run ./cmd/kbcheck scope-lease-selftest`
 - `go run ./cmd/kbcheck slice-lease-selftest`
+- `go run ./cmd/kbcheck plan-worktree-selftest`
 - `go run ./cmd/kbcheck workflow-governor-selftest`
 - `go run ./cmd/kbcheck proof-governor-selftest`
 
@@ -97,6 +99,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 npm run test
 go build ./...
 go vet ./...
+go run ./cmd/kbcheck plan-worktree-selftest
 go run ./cmd/kbcheck core
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbcheck route-eval

@@ -3,7 +3,7 @@ instincts:
     scope: kbcheck/proof-spine
     trigger: "when adding or changing a proof-spine check field that can affect the sensor result"
     behavior: "include that field in the proof check digest and add a regression test proving the digest changes when the field changes"
-    confidence: 0.5
+    confidence: 0.43
     domain: testing
     observations: 1
     first_seen: 2026-07-05

@@ -83,17 +83,33 @@ KB state system unless the repo already opted into `done.md`.
 8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted. For a mutating manifest with `plan_run_worktree_default: true`, prepare or resume its manifest-owned workspace before any slice mutation:
 
    ```powershell
-   go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <opaque-plan-token> --base-sha <reviewed-base-sha> --json
+   go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <opaque-plan-token> --base-sha <reviewed-base-sha> --commit-authorized --commit-authorized-by <actor> --commit-approval-ref <durable-reference> --json
    ```
 
-   The receipt's immutable base, explicit non-default integration ref, and worktree path become the execution authority. Dirty source changes stay in the source checkout and are never copied implicitly. Run subsequent slice commands from the receipt worktree. The feature's own bootstrap slice may use an explicitly reviewed manually-created topic worktree until `plan-worktree` exists.
+   `--commit-authorized` is valid only when the user explicitly authorized local
+   check-in for this run. Without that authority, stop before mutation; a
+   commit-required plan run cannot enter through a no-check-in route. The
+   receipt records the actor, approval reference, and authorization time and
+   limits the authority to sequential commits on the manifest-owned topic
+   branch. An existing unaudited receipt cannot be upgraded by retrying
+   `prepare`; recover or recreate it from the reviewed authority boundary. The
+   receipt's immutable base, explicit
+   non-default integration ref, and worktree path become the execution
+   authority. The integration ref must not resolve to a local or remote default
+   branch. Dirty source changes stay in the source checkout and are never copied
+   implicitly. If forecast paths depend on relevant dirty WIP, preparation
+   blocks for an explicit checkpoint/patch or reviewed execution decision; it
+   never creates a hidden commit, stash, or reset. Unrelated dirt remains
+   byte-for-byte in the source checkout. Run subsequent slice commands from the
+   receipt worktree. The feature's own bootstrap slice may use an explicitly
+   reviewed manually-created topic worktree until `plan-worktree` exists.
 9. **Acquire manifest mutation authority before board projection, slice claims, or mutation:** collect the manifest's forecast `expected_files`, path prefixes, `conflict_domains`, and `shared_resources`, then atomically claim them from the plan-run worktree:
 
    ```powershell
    go run ./cmd/kbcheck plan-run-lease --action acquire --manifest <manifest-path> --run-id <run-id> --owner-token <opaque-plan-token> --file <path> [--prefix <path>] [--domain <kind:value>] [--resource <kind:value>] --json
    ```
 
-   This state shares the slice-lease lock under the Git common directory, so four or five manifests are not treated as separate scheduling universes. A failed acquisition leaves `todo.md` and all manifests unchanged and reports the owning run and colliding claim. Disjoint manifests may remain active. Separate clones and machines are explicitly not coordinated by this local lease; use branch/PR protections across those boundaries. Do not add a daemon or describe the lease as distributed.
+   This state shares the slice-lease lock under the Git common directory, so four or five manifests are not treated as separate scheduling universes. A failed acquisition leaves `todo.md` and all manifests unchanged and reports the owning run and colliding claim. Disjoint manifests may remain active. Separate clones and machines are explicitly not coordinated by this local lease; local leases are not team locks, so use branch/PR protections across those boundaries. Do not add a daemon or describe the lease as distributed.
 
    Forecasts are not permission to write unclaimed paths. Before an observed file, prefix, conflict domain, or shared resource exceeds the live claim, expand it with the current owner token and generation:
 
@@ -679,9 +695,13 @@ After the slice completes:
    `allowed_next_action` to the missing proof step.
 
    Worker receipts, route receipts, graph packets, and lease receipts are
-   supporting evidence only. For a mutating plan-run slice, the worker commits
-   only in the manifest-owned worktree and returns the commit, observed writes,
-   and proof receipt. The coordinator accepts it with:
+   supporting evidence only. For a mutating plan-run slice, the worker returns
+   uncommitted implementation changes and proof evidence. The coordinator keeps
+   the slice lease active, reruns proof, projects the slice gate/status plus
+   audited board/handoff changes in the same manifest-owned worktree, and makes
+   one final slice commit containing both implementation and lifecycle state.
+   The proof receipt's `observed_writes` must exactly match that whole commit.
+   The coordinator then accepts it with:
 
    ```powershell
    go run ./cmd/kbcheck plan-worktree --action advance --manifest <manifest-path> --run-id <run-id> --slice-id <slice-id> --owner-token <plan-token> --expected-integration-head <prior-head> --commit-sha <slice-commit> --proof-receipt <receipt.json> --worktree <exact-plan-worktree> --branch <exact-plan-run-ref> --json
@@ -699,7 +719,9 @@ After the slice completes:
    adding the slice gate and before changing the slice status to `done`. A
    failing manifest contract blocks completion even when local tests pass.
 
-2. **Sync board** — update `todo.md` status for this slice (done or blocked). Append validation note.
+2. **Sync board before acceptance** — update the plan-run worktree's `todo.md`,
+   manifest gate/status, and handoff for this slice. These lifecycle writes stay
+   under the active slice/plan claims and enter the same final slice commit.
 
 3. **Run verification**
    - Invoke `kb-check` for deterministic verification.
@@ -724,17 +746,26 @@ After the slice completes:
 5. **Release or renew ownership**
    - Renew long-running active leases before expiry with the same owner token and current generation.
    - All new plan-run slices commit sequentially in the one manifest-owned
-     worktree. Accept the commit with `plan-worktree --action advance` before
-     releasing its slice lease or projecting lifecycle completion. There is no
-     per-slice worktree, branch, merge, or cleanup path.
-   - Release the lease after manifest and board status are updated for `done`,
-     `blocked`, `parked`, `skipped`, or `requeued`.
+     worktree. Accept the combined implementation+lifecycle commit with
+     `plan-worktree --action advance` before releasing its slice lease. There is
+     no separate lifecycle commit and no per-slice worktree, branch, merge, or
+     cleanup path.
+   - Release the lease only after the combined commit is accepted. If acceptance
+     fails, leave the lease and worktree intact and repair the unaccepted head.
    - If release fails because the generation or owner token differs, STOP: another coordinator may have changed ownership state.
 
-6. **Optional commit**
-   - If the user asked for commits, stage only the manifest file for status updates and commit it separately.
+6. Continue to the next runnable slice.
 
-7. Continue to the next runnable slice.
+After every slice lease is explicitly released, run
+`plan-worktree --action complete` while the plan-run lease is still active.
+This coordinator-owned transition runs under the shared state lock, revalidates
+every immutable accepted-proof archive, rejects expired-but-unreleased slice
+leases, and atomically releases the plan-run lease only after the clean accepted
+head/ref, all manifest slices and terminal gates, and `work-to-complete: passed`
+are proved. Do not call `plan-run-lease --action release` for a manifest-owned
+plan run. Only the completed state permits non-force worktree release.
+Completion and release recheck the accepted-head CAS; neither merges nor
+delivers the branch.
 
 ### Step 5: Completion
 
@@ -763,6 +794,10 @@ Next: kb-finalize runs automatically for review, documentation, and learning.
 9. **Persist scope context** — collect the forecast and discovered file lists from each slice's `notes` field (the `scope-check:` and `scope-discovery:` entries from Step 3.6). Write the combined actual changed file list to the manifest frontmatter as `scope-verified-files` so `kb-finalize` can pass it to kb-review without re-deriving.
 
 **Post-work steps (kb-review, compound, learn, evolve, cleanup) are handled by `kb-finalize`.** After all slices are `done` or intentionally `skipped`, invoke `kb-finalize <manifest-path>` automatically unless the user explicitly asked to stop after work execution. The `kb-work` run is not finalized until `kb-finalize` reaches its Done section or records a real blocker. It does not publish; user-facing `kb-complete` owns configured delivery.
+
+`kb-work` never merges or pushes a resolved default branch. Missing delivery
+policy is local-only. PR/manual may later be prepared by `kb-ship` without
+merge; only explicitly authorized `kb-land` may integrate the remote default.
 
 ## Failure Handling
 

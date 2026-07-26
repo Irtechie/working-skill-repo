@@ -24,7 +24,7 @@
   ],
   "constraints": [
     "kb-work never merges or pushes a resolved default branch",
-    "No policy defaults to local-only",
+    "Absent delivery policy defaults to local-only",
     "PR manual is recommended for teams but is not auto-enabled by write access",
     "No hidden commit, stash, reset, force push, or branch-protection bypass"
   ],

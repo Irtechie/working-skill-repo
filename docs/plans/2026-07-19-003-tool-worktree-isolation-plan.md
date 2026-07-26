@@ -2,6 +2,7 @@
 kb_id: kb-2026-07-19-evidence-graph-routing
 slice_id: slice-003
 title: "Isolate mutating slices in worktrees and serialize integration"
+superseded_by: docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md
 blockers: [slice-002]
 verification: integration
 test_level: functional-cli
@@ -62,6 +63,12 @@ can_continue_other_slices: false
 ---
 
 # Slice 003: Worktree Isolation And Integration
+
+> Superseded on 2026-07-26. Active plan runs now use one manifest-owned
+> worktree and branch with shared-serial slices; they do not create per-slice
+> worktrees. See
+> `docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md` and
+> `.github/skills/kb-work/references/worktree-isolation.md`.
 
 ## What To Build
 

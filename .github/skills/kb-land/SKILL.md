@@ -22,9 +22,16 @@ Proceed only when one of these is true:
 Repository ownership, collaborator status, or write permission alone is not
 authorization.
 
+`kb-land` is the only KB skill authorized to integrate the resolved remote
+default branch. Absence of delivery policy is local-only and blocks landing.
+PR/manual also blocks here unless the user explicitly requests merge in this
+run; `kb-ship` opening a PR is not merge authorization.
+
 ## Preconditions
 
 1. Require reviewed manifest and `complete-to-ship: passed|quarantined`.
+   Require the reviewed manifest-owned plan-run branch as the exact integration
+   candidate; never derive the candidate from dirty source-checkout WIP.
 2. Require audited final scope and release checks from `kb-ship`, or run the
    equivalent audit before direct integration.
 3. Fetch the selected remote and resolve its actual default branch.

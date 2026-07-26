@@ -104,12 +104,17 @@ When findings exist, first classify them:
 - `needs_human`: requires one of the human-only conditions above;
 - `defer_log`: non-blocking and not worth fixing now.
 
-Fix `auto_rectify` items before asking. Then ask only for remaining human/judgment decisions:
+Fix `auto_rectify` items before asking. Treat a non-blocking preference with a
+safe, reversible default as a soft preference: state the default and continue
+unless the user overrides it. Ask only for a hard response when only the user
+can authorize, supply, or decide the answer and dependent work cannot safely
+continue.
 
 ```text
-I found <count> issues before <next phase>: P0=<n>, P1=<n>, P2=<n>, P3=<n>, P4=<n>.
-I can rectify <auto_count> safely now. <human_count> need your decision.
-I will rectify safe/actionable issues now and ask only for the decisions I cannot make.
+Response required: <exact authorization, input, or decision>
+Why you: <why the agent cannot own this>
+Blocked: <specific dependent work that cannot continue>
+Recommendation: <one evidence-backed option and why>
 ```
 
 After fixing safe/actionable issues, rerun the relevant review/check, then continue if the remaining findings are deferred or non-blocking.
@@ -121,4 +126,6 @@ If the user asks not to fix findings:
 
 ## Output
 
-Report severity counts, actions taken, remaining blockers, deferred items, and whether the next phase is allowed.
+Lead with whether the next phase is allowed and whether the user must respond.
+Then report actions taken, remaining blockers, deferred items, and severity
+counts. Do not ask the user to choose among agent-owned fixes.

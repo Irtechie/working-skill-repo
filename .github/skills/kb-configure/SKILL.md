@@ -56,7 +56,7 @@ experimental_amr:
   affects_normal_work: false
 
 delivery:
-  mode: pr
+  mode: local
   merge: manual
   post_merge_sync: false
 ```
@@ -72,6 +72,10 @@ These safety rules are fixed rather than configurable:
 - Ordinary proof remains authoritative. Routing receipts are telemetry.
 - Repository ownership/write access never selects direct delivery by itself.
 - Direct delivery, automatic merge, and post-merge sync require explicit policy.
+- PR/manual is the recommended team policy, but it is enabled only by an
+  explicit `delivery-pr` choice and never authorizes merge.
+- Local common-directory leases coordinate sibling worktrees only; they are not
+  cross-machine team locks.
 
 ## Defaults
 

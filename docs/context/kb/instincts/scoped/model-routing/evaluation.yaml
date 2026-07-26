@@ -3,7 +3,7 @@ instincts:
     scope: model-routing/evaluation
     trigger: "when an evaluation field can change readiness, cost, correctness, pairing, support, or promotion"
     behavior: "derive the field from hash-bound protected artifacts and recompute it in the validator; never authorize from caller-authored booleans or digest labels"
-    confidence: 0.5
+    confidence: 0.45
     domain: testing
     observations: 1
     first_seen: 2026-07-12
@@ -15,7 +15,7 @@ instincts:
     scope: model-routing/evaluation
     trigger: "when a model benchmark can spend credits but the runtime cannot independently verify human approval"
     behavior: "hard-disable provider execution and expose only a zero-spend dry-run approval preview until a trusted approval adapter exists"
-    confidence: 0.5
+    confidence: 0.45
     domain: workflow
     observations: 1
     first_seen: 2026-07-12
@@ -26,7 +26,7 @@ instincts:
     scope: model-routing/evaluation
     trigger: "when a model attempt has process, telemetry, route, accounting, application, isolation, or proof-infrastructure invalidity"
     behavior: "classify the arm invalid and stop before fallback, correction, grading, or promotion; only a valid model failure may escalate"
-    confidence: 0.5
+    confidence: 0.45
     domain: error-handling
     observations: 1
     first_seen: 2026-07-12

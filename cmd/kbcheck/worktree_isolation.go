@@ -18,15 +18,16 @@ import (
 const worktreeIsolationSchemaVersion = 1
 
 type worktreeCommandOptions struct {
-	Action     string
-	SliceID    string
-	RunID      string
-	OwnerToken string
-	BaseSHA    string
-	Worktree   string
-	Branch     string
-	RepoRoot   string
-	Now        time.Time
+	Action              string
+	SliceID             string
+	RunID               string
+	OwnerToken          string
+	BaseSHA             string
+	Worktree            string
+	Branch              string
+	RepoRoot            string
+	LegacyCompatibility bool
+	Now                 time.Time
 }
 
 type worktreeReceipt struct {
@@ -55,15 +56,16 @@ type worktreeResult struct {
 
 func runWorktreeCommand(root string, opts options, stdout, stderr io.Writer) int {
 	command := worktreeCommandOptions{
-		Action:     opts.sliceLeaseAction,
-		SliceID:    opts.sliceID,
-		RunID:      opts.runID,
-		OwnerToken: opts.ownerToken,
-		BaseSHA:    opts.baseSHA,
-		Worktree:   opts.worktreePath,
-		Branch:     opts.branchName,
-		RepoRoot:   root,
-		Now:        time.Now().UTC(),
+		Action:              opts.sliceLeaseAction,
+		SliceID:             opts.sliceID,
+		RunID:               opts.runID,
+		OwnerToken:          opts.ownerToken,
+		BaseSHA:             opts.baseSHA,
+		Worktree:            opts.worktreePath,
+		Branch:              opts.branchName,
+		RepoRoot:            root,
+		LegacyCompatibility: opts.legacySliceWorktree,
+		Now:                 time.Now().UTC(),
 	}
 	result, err := executeWorktreeCommand(command)
 	if err != nil {
@@ -90,6 +92,9 @@ func executeWorktreeCommand(opts worktreeCommandOptions) (worktreeResult, error)
 	if action == "" {
 		return worktreeResult{}, fmt.Errorf("worktree requires --action")
 	}
+	if !opts.LegacyCompatibility {
+		return blockedWorktree(action, "legacy per-slice worktree command requires explicit --legacy-slice-worktree; plan runs use plan-worktree", nil), nil
+	}
 	if opts.Now.IsZero() {
 		opts.Now = time.Now().UTC()
 	}
@@ -115,6 +120,11 @@ func executeWorktreeCommand(opts worktreeCommandOptions) (worktreeResult, error)
 func prepareWorktree(opts worktreeCommandOptions) (worktreeResult, error) {
 	if issue := requireWorktreeIdentity(opts); issue != "" {
 		return blockedWorktree("prepare", issue, nil), nil
+	}
+	if active, issue := activePlanRunForLegacyWorktree(opts); issue != "" {
+		return blockedWorktree("prepare", issue, nil), nil
+	} else if active {
+		return blockedWorktree("prepare", "legacy per-slice worktrees are forbidden for plan runs; use the manifest-owned plan-worktree", nil), nil
 	}
 	lease, issue := activeWorktreeLease(opts)
 	if issue != "" {
@@ -201,6 +211,13 @@ func integrateWorktree(opts worktreeCommandOptions) (worktreeResult, error) {
 	}
 	if _, issue := activeWorktreeLease(opts); issue != "" {
 		return blockedWorktree("integrate", issue, &receipt), nil
+	}
+	targetBranch := gitOutput(opts.RepoRoot, "branch", "--show-current")
+	if targetBranch == "" {
+		return blockedWorktree("integrate", "internal integration target branch is unavailable", &receipt), nil
+	}
+	if isResolvedDefaultBranch(opts.RepoRoot, targetBranch) {
+		return blockedWorktree("integrate", "internal integration target resolves to a local or remote default branch", &receipt), nil
 	}
 	head := gitOutput(opts.RepoRoot, "rev-parse", "HEAD")
 	if head == "" || receipt.BaseSHA == "" || head != receipt.BaseSHA {
@@ -291,7 +308,11 @@ func activeWorktreeLease(opts worktreeCommandOptions) (sliceLease, string) {
 	if err != nil {
 		return sliceLease{}, err.Error()
 	}
-	lease, ok := state.Leases[opts.SliceID]
+	_, lease, ok := findSliceLease(state, sliceLeaseCommandOptions{
+		SliceID:    opts.SliceID,
+		RunID:      opts.RunID,
+		OwnerToken: opts.OwnerToken,
+	})
 	if !ok {
 		return sliceLease{}, "slice lease not found"
 	}
@@ -302,6 +323,23 @@ func activeWorktreeLease(opts worktreeCommandOptions) (sliceLease, string) {
 		return lease, "slice lease is not active"
 	}
 	return lease, ""
+}
+
+func activePlanRunForLegacyWorktree(opts worktreeCommandOptions) (bool, string) {
+	stateRoot, err := resolveSliceLeaseStateRoot(sliceLeaseCommandOptions{RepoRoot: opts.RepoRoot})
+	if err != nil {
+		return false, err.Error()
+	}
+	state, err := loadPlanRunLeaseState(stateRoot)
+	if err != nil {
+		return false, err.Error()
+	}
+	for _, lease := range state.Leases {
+		if lease.RunID == opts.RunID && effectivePlanRunLeaseStatus(lease, opts.Now) == "active" {
+			return true, ""
+		}
+	}
+	return false, ""
 }
 
 func worktreeReceiptPath(opts worktreeCommandOptions) (string, error) {

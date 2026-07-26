@@ -53,6 +53,7 @@ func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 		"kbrouter-catalog-tests",
 		"manifest-contract-selftest",
 		"marketplace-promotion-selftest",
+		"plan-worktree-lifecycle-selftest",
 		"proof-governor-selftest",
 		"provider-hygiene",
 		"provider-hygiene-selftest",

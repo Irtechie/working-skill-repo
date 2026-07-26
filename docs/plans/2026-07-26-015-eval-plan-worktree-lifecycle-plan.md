@@ -88,13 +88,13 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/plan_worktree_selftest_test.go
     role: "end-to-end multi-plan lifecycle oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "50943d314434e7b87f8bc3b32e408c5b0bede35d5e08cd43ef272b4fec8fa451"
     update_policy: "requires explicit plan amendment"
-status: pending
+status: done
 owner: agent
-blocked_reason: "Final release proof also depends on responsive core and local-release gates."
-resume_when: "Slices 001-004 are done and the harness-validation recovery has restored bounded core/local-release execution."
-next_agent_action: "Run the disposable multi-plan lifecycle, refresh public docs, review global drift, sync approved skills, and pass core plus local-release."
+blocked_reason: ""
+resume_when: ""
+next_agent_action: "Return to the completed manifest for finalization and configured delivery."
 human_action: ""
 can_continue_other_slices: true
 ---
@@ -135,7 +135,7 @@ and run contributor plus release gates.
    a temporary repo.
 2. Two conflicting manifests are not co-admitted.
 3. A shared resource collision blocks despite disjoint files.
-4. A plan-run integration conflict remains recoverable.
+4. A dirty, stale-head, or wrong-worktree slice receipt remains recoverable.
 5. An attempted internal default-branch integration is refused.
 6. Local and PR/manual delivery paths stop before merge.
 7. A real-repo target or force cleanup request is rejected by the harness.
@@ -160,3 +160,23 @@ go run ./cmd/kbcheck local-release
 
 Requires slices 001-004. Final release also waits for the existing
 harness-validation recovery if `core` or `local-release` remains unresponsive.
+
+## Completion Evidence
+
+- `go run ./cmd/kbcheck plan-worktree-selftest` passed with two isolated
+  manifest groups, four serialized slice commits, two blocked collisions,
+  unchanged source state, and delivery stopped before merge.
+- `go test ./cmd/kbcheck -count=1` passed after all review repairs.
+- Required Codex, Copilot, and shared-agent skill roots report zero drift.
+- `go run ./cmd/kbcheck local-release` passed.
+- Independent correctness, structure, and testing review ended with no
+  unresolved P0/P1/P2.
+- Review-driven scope expansion added commit-authorization provenance, exact
+  write/claim validation, live integration-head binding, durable release
+  evidence, immutable per-slice proof archives, idempotent completion
+  journaling, the public workflow solution, scoped learning, and lifecycle
+  archival. Every discovered file was added to the active manifest and slice
+  claims before subsequent mutation.
+- This implementation worktree was a bootstrap created before plan-worktree
+  receipts existed. No receipt was fabricated; the live leases are released
+  directly after the final commit.

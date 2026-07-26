@@ -71,6 +71,51 @@ slices:
 	}
 }
 
+func TestCrossManifestSchedulerSerializesOneManifestOwnedWorktree(t *testing.T) {
+	legacyManifest := `
+---
+slices:
+  - id: slice-001
+    blockers: []
+    status: pending
+    hitl: false
+    can_continue_other_slices: true
+  - id: slice-002
+    blockers: []
+    status: pending
+    hitl: false
+    can_continue_other_slices: true
+---
+`
+	manifest := writeManifest(t, legacyManifest)
+	stateRoot := t.TempDir()
+	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	acquired, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "acquire", StateRoot: stateRoot, RunID: "run-serial", ManifestPath: manifest,
+		OwnerToken: "owner-serial", Files: []string{"src/a.go", "src/b.go"}, Now: now,
+	})
+	if err != nil || !acquired.OK {
+		t.Fatalf("plan lease acquire failed: result=%#v err=%v", acquired, err)
+	}
+	writeFile(t, manifest, strings.TrimLeft(strings.Replace(legacyManifest, "slices:", "workspace_isolation_contract:\n  plan_run_worktree_default: true\nslices:", 1), "\n"))
+
+	ready, err := computeCrossManifestReadySet(manifest, stateRoot, "run-serial", "owner-serial", now)
+	if err != nil || !ready.OK || !reflect.DeepEqual(ready.Ready, []string{"slice-001"}) {
+		t.Fatalf("shared-serial manifest dispatched more than one slice: result=%#v err=%v", ready, err)
+	}
+	slice, err := executeSliceLease(sliceLeaseCommandOptions{
+		Action: "acquire", StateRoot: stateRoot, SliceID: "slice-001", RunID: "run-serial",
+		OwnerToken: "owner-serial", Files: []string{"src/a.go"}, Now: now,
+	})
+	if err != nil || !slice.OK {
+		t.Fatalf("slice lease acquire failed: result=%#v err=%v", slice, err)
+	}
+	blocked, err := computeCrossManifestReadySet(manifest, stateRoot, "run-serial", "owner-serial", now)
+	if err != nil || blocked.OK || blocked.Reason != "manifest-shared-worktree-slice-in-flight" {
+		t.Fatalf("second in-flight slice was admitted: result=%#v err=%v", blocked, err)
+	}
+}
+
 func TestPlanRunLeaseCommandReportsClaimOwner(t *testing.T) {
 	root := t.TempDir()
 	manifest := filepath.Join(root, "manifest.md")
@@ -83,7 +128,8 @@ func TestPlanRunLeaseCommandReportsClaimOwner(t *testing.T) {
 		"--file", "src/a.go", "--domain", "skill:kb-work", "--json",
 	}, &out, &errOut)
 	if code != 0 || !strings.Contains(out.String(), `"run_id": "run-a"`) ||
-		!strings.Contains(out.String(), `"coordination_scope": "git-common-dir"`) {
+		!strings.Contains(out.String(), `"coordination_scope": "git-common-dir"`) ||
+		strings.Contains(out.String(), "owner-a") {
 		t.Fatalf("plan-run acquire command failed: code=%d stdout=%s stderr=%s", code, out.String(), errOut.String())
 	}
 	out.Reset()
@@ -93,8 +139,19 @@ func TestPlanRunLeaseCommandReportsClaimOwner(t *testing.T) {
 		"--run-id", "run-b", "--manifest", manifest, "--owner-token", "owner-b",
 		"--file", "src/a.go", "--json",
 	}, &out, &errOut)
-	if code != 2 || !strings.Contains(out.String(), `"run_id": "run-a"`) {
+	if code != 2 || !strings.Contains(out.String(), `"run_id": "run-a"`) ||
+		strings.Contains(out.String(), "owner-a") || strings.Contains(out.String(), "owner-b") {
 		t.Fatalf("collision owner missing: code=%d stdout=%s stderr=%s", code, out.String(), errOut.String())
+	}
+
+	out.Reset()
+	errOut.Reset()
+	code = run([]string{
+		"plan-run-lease", "--action", "status", "--root", root, "--state-root", stateRoot,
+		"--run-id", "run-a", "--owner-token", "wrong-owner", "--json",
+	}, &out, &errOut)
+	if code != 2 || strings.Contains(out.String(), "owner-a") || !strings.Contains(out.String(), `"owner_fingerprint"`) {
+		t.Fatalf("status leaked bearer token: code=%d stdout=%s stderr=%s", code, out.String(), errOut.String())
 	}
 }
 

@@ -3,7 +3,7 @@ instincts:
     scope: skill-bundle/provider-hygiene
     trigger: "when adding checks for optional MCP servers, hooks, context engines, or provider-specific runtime configuration"
     behavior: "keep contributor gates repo-local, make user-global inspection explicit, parse enabled provider entries semantically, and distinguish optional adapters from forbidden active dependencies"
-    confidence: 0.5
+    confidence: 0.44
     domain: tooling
     observations: 1
     first_seen: 2026-07-09

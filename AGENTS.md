@@ -50,7 +50,8 @@ go run ./cmd/kbcheck local-release
 
 Do not remove `kb-review`, `ce-review`, `ce-compound`, or `ce-compound-refresh` from this bundle unless the skills that invoke them are rewritten first. KB completion uses `kb-review`; `ce-review` remains the generalized CE review skill.
 
-Every token must pay rent. Be concise by default:
+Optimize for comprehension and decision effort, not the fewest words. Every
+token must pay rent:
 
 - No preamble or closing filler.
 - Do not restate the user's request.
@@ -63,6 +64,16 @@ Every token must pay rent. Be concise by default:
   Never invent an estimate, and do not force a user action when work is done.
 - Keep exact paths, commands, errors, decisions, risks, and safety warnings.
 - Use longer explanations only when they change the decision or reduce rework.
+- Before asking a question, classify it:
+  - **hard response required**: only the user can authorize, supply, or decide
+    it and dependent work cannot safely continue;
+  - **soft preference**: the agent has a safe, reversible default and continues
+    unless the user overrides it;
+  - **no response needed**: status, proof, completion, or an agent-owned choice.
+- For a hard question, state the exact ask, why the user must answer, what is blocked, and the recommended option.
+- For a soft preference, state the default and handle it without blocking. Never turn an agent-owned decision into review work for the user.
+- Use plain human language. Define unavoidable jargon once and keep the
+  important decision on the primary response surface.
 - Keep stable policy in ambient instructions and volatile task state in
   `todo.md`, plans, or handoffs so prompt prefixes stay reusable.
 - Move deterministic data gathering outside the reasoning loop when practical:

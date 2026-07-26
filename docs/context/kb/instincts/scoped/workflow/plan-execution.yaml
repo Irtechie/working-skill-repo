@@ -1,0 +1,14 @@
+instincts:
+  - id: isolate-manifest-groups-not-slices
+    scope: workflow/plan-execution
+    trigger: "when a mutating manifest contains multiple slices or runs beside other active manifests"
+    behavior: "give each manifest group one owned non-default branch and worktree, serialize its slices there, and admit concurrent groups only while their live path, domain, and resource claims remain disjoint"
+    confidence: 0.5
+    domain: workflow
+    observations: 1
+    first_seen: 2026-07-26
+    last_seen: 2026-07-26
+    evidence:
+      - "user correction 2026-07-26: worktrees belong to groups of plans, not each slice"
+      - "docs/solutions/workflow-issues/plan-run-worktree-isolation-2026-07-26.md"
+      - "cmd/kbcheck/plan_worktree_selftest_test.go proves two isolated manifest groups with shared-serial slice commits"

@@ -316,17 +316,52 @@ serialized, or explicit user stop.
 Workspace isolation has two parts. The plan records durable intent:
 `workspace_mode`, conflict domains, shared resources, and integration
 dependencies. It does not record live paths, branches, sessions, cleanup state,
-or owner tokens. At work time, `kb-work` acquires an atomic slice lease under
-the Git common directory, prepares a slice worktree when isolation is required,
-and writes a repo-local receipt. Workers return commit/diff/proof receipts. One
-coordinator serializes integration into the source checkout, reruns proof after
-merge, updates `todo.md` and the manifest, and releases only clean integrated
-worktrees without force.
+or owner tokens. At work time, `kb-work` prepares one manifest-owned plan
+worktree and non-default integration ref, then acquires a manifest lease under
+the Git common directory. Preparation requires explicit local check-in
+authorization and records it in the receipt; without that authority the run
+stops before mutation. Every slice for that manifest commits sequentially in
+that same worktree; there are no per-slice worktrees or merges into the source
+checkout. The legacy `worktree` command requires an explicit compatibility flag
+and rejects active plan runs. The coordinator keeps the slice lease active,
+projects audited lifecycle state into the same commit as implementation, reruns
+slice and aggregate proof, requires the commit diff to exactly match the proof
+receipt plus slice/plan claims, archives immutable proof bytes and SHA-256, then
+advances the receipt's integration head with compare-and-swap.
+Dirty, stale-head, wrong-owner, wrong-ref, or wrong-worktree acceptance failures
+leave the receipt and worktree intact for recovery.
+
+Terminal completion runs under the shared state lock. It requires every slice
+and terminal gate plus `work-to-complete` to pass, durable explicit release
+evidence for every done slice lease, an active matching plan-run lease, every
+accepted-proof archive to remain present with its recorded digest, and the
+worktree HEAD/ref to remain at the accepted integration head. Completion then
+atomically releases the plan-run lease; direct release of a manifest-owned plan
+lease is refused. Worktree release rechecks the same CAS before non-force
+removal.
+
+Multiple manifests may run concurrently only while their live file, prefix,
+conflict-domain, and shared-resource claims remain disjoint. A collision reports
+the owning run and requeues before mutation. Delivery is a later explicit
+boundary: local mode leaves the candidate branch intact; PR/manual mode may
+prepare a candidate but does not merge, push, or create a PR during work.
 
 The lease boundary is local. It covers sessions and sibling worktrees that share
 the same Git common directory. Separate clones, machines, or copied checkouts
 must not be treated as sharing ownership state unless a future distributed
 coordinator is explicitly implemented and proved.
+
+The deterministic lifecycle proof is:
+
+```powershell
+go run ./cmd/kbcheck plan-worktree-selftest
+```
+
+It creates a disposable Git repository through the public fresh-start path,
+executes two disjoint plan runs with
+two serialized commits each, proves collision ownership and recovery
+invariants, verifies the source SHA and dirt are unchanged, and rejects any
+target that resolves to or contains the real repository.
 
 Graph routing has the same evidence boundary. `kb-map` may return a compact
 impact packet summary with packet ID, repository freshness, fallback, evidence

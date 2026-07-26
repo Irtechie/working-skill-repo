@@ -53,8 +53,9 @@ Usage:
   kbcheck slice-lease-selftest
   kbcheck plan-run-lease --action acquire|status|renew|expand|release|recover [--run-id <id>] [--manifest <path>] [--root <path>] [--state-root <path>] [--json]
   kbcheck plan-run-lease-selftest
-  kbcheck plan-worktree --action prepare|status|advance|release --manifest <path> --owner-token <token> [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
-  kbcheck worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
+  kbcheck plan-worktree --action prepare|status|advance|complete|release --manifest <path> --owner-token <token> [--commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference>] [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
+  kbcheck plan-worktree-selftest [--root <path>]
+  kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
@@ -105,7 +106,8 @@ Commands:
 	slice-lease    Atomically acquire and release local slice ownership.
 	plan-run-lease Atomically claim manifest paths, domains, and shared resources.
 	plan-worktree  Prepare and inspect a manifest-owned plan-run workspace.
-	worktree       Prepare, integrate, and safely release isolated slice worktrees.
+	plan-worktree-selftest  Exercise two isolated plan runs in a disposable repository.
+	worktree       Deprecated compatibility command for legacy isolated slice worktrees.
 	graph-route    Validate provider-neutral graph/evidence impact packets.
 	graph-routing-lifecycle-selftest  Validate graph routing lifecycle invariants.
 	graph-routing-eval  Score graph routing correctness and local concurrency safety fixtures.
@@ -200,6 +202,10 @@ type options struct {
 	approved                bool
 	includeUser             bool
 	requireReady            bool
+	commitAuthorized        bool
+	commitAuthorizedBy      string
+	commitApprovalRef       string
+	legacySliceWorktree     bool
 }
 
 func main() {
@@ -292,6 +298,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runPlanRunLeaseSelftest(stdout, stderr)
 	case "plan-worktree":
 		return runPlanRunWorkspaceCommand(root, opts, stdout, stderr)
+	case "plan-worktree-selftest":
+		return runPlanWorktreeSelftest(root, stdout, stderr)
 	case "worktree":
 		return runWorktreeCommand(root, opts, stdout, stderr)
 	case "scope-lease":
@@ -379,7 +387,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-routing-release": true,
-		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "worktree": true,
+		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -470,6 +478,10 @@ func parse(args []string) (options, error) {
 	fs.BoolVar(&opts.approved, "approved", false, "confirm human-approved marketplace promotion")
 	fs.BoolVar(&opts.includeUser, "include-user", false, "include standard user-global provider configs")
 	fs.BoolVar(&opts.requireReady, "require-ready", false, "fail when readiness thresholds are not met")
+	fs.BoolVar(&opts.commitAuthorized, "commit-authorized", false, "record explicit authorization for local commits on the manifest-owned plan-run branch")
+	fs.StringVar(&opts.commitAuthorizedBy, "commit-authorized-by", "", "actor that explicitly authorized local plan-run commits")
+	fs.StringVar(&opts.commitApprovalRef, "commit-approval-ref", "", "durable reference to the local commit authorization")
+	fs.BoolVar(&opts.legacySliceWorktree, "legacy-slice-worktree", false, "explicitly enable the deprecated per-slice worktree compatibility command")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, err
 	}
@@ -555,7 +567,23 @@ func parse(args []string) (options, error) {
 	if opts.command != "plan-worktree" && (opts.expectedIntegrationHead != "" || opts.commitSHA != "" || opts.proofReceipt != "") {
 		return options{}, fmt.Errorf("--expected-integration-head, --commit-sha, and --proof-receipt are only supported for plan-worktree")
 	}
+	if opts.command != "plan-worktree" && (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") {
+		return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree")
+	}
+	if opts.command != "worktree" && opts.legacySliceWorktree {
+		return options{}, fmt.Errorf("--legacy-slice-worktree is only supported for worktree")
+	}
+	if opts.command == "worktree" && !opts.legacySliceWorktree {
+		return options{}, fmt.Errorf("worktree is deprecated and requires --legacy-slice-worktree; plan runs use plan-worktree")
+	}
 	if opts.command == "plan-worktree" {
+		if (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") && opts.sliceLeaseAction != "prepare" {
+			return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree prepare")
+		}
+		if opts.sliceLeaseAction == "prepare" && opts.commitAuthorized &&
+			(opts.commitAuthorizedBy == "" || opts.commitApprovalRef == "") {
+			return options{}, fmt.Errorf("plan-worktree prepare with --commit-authorized requires --commit-authorized-by and --commit-approval-ref")
+		}
 		if opts.sliceLeaseAction == "advance" {
 			if opts.runID == "" || opts.sliceID == "" || opts.expectedIntegrationHead == "" || opts.commitSHA == "" || opts.proofReceipt == "" || opts.worktreePath == "" || opts.branchName == "" {
 				return options{}, fmt.Errorf("plan-worktree advance requires --run-id, --slice-id, --expected-integration-head, --commit-sha, --proof-receipt, --worktree, and --branch")

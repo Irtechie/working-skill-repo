@@ -107,7 +107,8 @@ reconcile it with a second shape or complexity table.
 | 3 | User explicitly says `kb-task`, asks for first-principles execution, or wants one bounded task carried until verified/blocked | `kb-task` | task runner owns verification |
 | 4 | Direct explanation, tradeoff discussion, or pushback with no file changes requested | answer directly; use `kb-first-principles` behavior when challenged | no work gate |
 | 5 | User wants a feature/plan/manifest taken from its current state through configured local, PR, or direct delivery | `kb-complete` | plan/work/finalize gates plus delivery policy |
-| 6 | Existing valid manifest should be executed without check-in intent | `kb-work` | manifest plus slice verification |
+| 6 | Existing valid non-plan-run manifest should be executed without check-in intent | `kb-work` | manifest plus slice verification |
+| 6a | Existing plan-run manifest has explicit local check-in authority | `kb-work` | manifest, commit authority, and slice verification |
 | 7 | All runnable slices are done and only internal review/learning/cleanup is needed | `kb-finalize` | `kb-check`, `kb-review`, learning gates |
 | 8 | Already reviewed work needs configured delivery | `kb-complete` | delivery policy plus release/ship/land gates |
 | 9 | Broken behavior needs logs, browser checks, test iteration, or self-correction | `kb-troubleshoot` | reproduce and regression proof |
@@ -121,6 +122,10 @@ reconcile it with a second shape or complexity table.
 | 17 | Small known bug, typo, narrow cleanup, or one skill/doc edit with no sync/eval/proof-harness implications | `kb-fix` or bounded direct edit | targeted proof plus `kb-check` when relevant |
 | 18 | Memory/docs/responses are too verbose | `kb-compact` | preserve commands, paths, dates, blockers |
 | 19 | Legacy `klfg` or `kb-finish` invocation | compatibility alias to `kb-complete` | full state-aware pipeline |
+
+A commit-required plan-run manifest without explicit local check-in authority
+stops before mutation. Do not route it through row 6 or infer authority from
+repository ownership, a prior planning request, or delivery policy.
 
 Pipeline-worthy changes have at least one of these signals: multiple owning
 surfaces, cross-runtime behavior, scorer/fixture/baseline changes,

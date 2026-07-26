@@ -2,6 +2,41 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-26
+
+- Consolidated workflow/review release - reconciled eight worktrees without
+  overwriting donors; proved both dirty detached proof worktrees contain zero
+  unseen blobs; retained DDR while removing AMR from the README; preserved the
+  `bro` and `i-have-adhd` credits; completed the PR decision workbench,
+  plan-run isolation, DDR announcement, and proof-governor release blockers;
+  and synchronized 46 skills across Codex, Copilot, and shared-agent globals.
+  Proof: focused tests, `core` 38/38, `local-release`, 138/138 sync comparisons,
+  and `git diff --check`. Receipt:
+  `docs/results/2026-07-26-worktree-consolidation-release.md`.
+
+- PR review workbench integration - adopted the reviewed offline, SHA-pinned
+  renderer into the portable bundle; lazy-loads only after PR creation; added a
+  separate downloadable `pr-review-artifacts` branch route so reviewers can
+  open the HTML locally without Pages or self-invalidating the reviewed SHA;
+  generated real workbenches for two open marketplace PRs. Fresh in-app visual
+  QA remains blocked by the browser's `file://` policy. Included in the
+  consolidated workflow/review release above.
+
+- Low-cognitive-burden agent communication - added a plain-language,
+  responsibility-first contract for chat, gates, PRs, and companion docs;
+  distinguished hard human decisions, soft preferences with safe defaults, and
+  no-response status; and added `kb-executive-brief` plus deterministic
+  source-owned Markdown/Mermaid generation. Focused tests, 38-check `core`,
+  required global skill sync, and `local-release` passed. Included in the
+  consolidated workflow/review release above.
+
+- Plan-run worktree isolation and team-safe integration - completed and checked
+  in on local branch `codex/plan-run-worktree-isolation` at `391336d`; each
+  manifest group owns one non-default worktree/branch and its slices commit
+  shared-serial. Required skill sync, the disposable lifecycle, multi-agent
+  review, `core`, and `local-release` passed. Push, merge, and default-branch
+  delivery remain separately unauthorized.
+
 ## 2026-07-25
 
 - Orchestrator-directed DDR production path - planning now records minimum

@@ -54,23 +54,24 @@ type sliceLeaseStateEvent struct {
 }
 
 type sliceLease struct {
-	SliceID       string        `json:"slice_id"`
-	RunID         string        `json:"run_id"`
-	OwnerToken    string        `json:"owner_token"`
-	RepoIdentity  string        `json:"repo_identity"`
-	BaseSHA       string        `json:"base_sha"`
-	Worktree      string        `json:"worktree,omitempty"`
-	Branch        string        `json:"branch,omitempty"`
-	Status        string        `json:"status"`
-	Generation    int64         `json:"generation"`
-	Claims        []leaseClaim  `json:"claims"`
-	AcquiredAt    string        `json:"acquired_at"`
-	HeartbeatAt   string        `json:"heartbeat_at"`
-	ExpiresAt     string        `json:"expires_at"`
-	LastUpdatedAt string        `json:"last_updated_at"`
-	LeaseDuration string        `json:"lease_duration"`
-	Limitations   []string      `json:"limitations"`
-	Metadata      leaseMetadata `json:"metadata"`
+	SliceID          string        `json:"slice_id"`
+	RunID            string        `json:"run_id"`
+	OwnerToken       string        `json:"owner_token"`
+	OwnerFingerprint string        `json:"owner_fingerprint,omitempty"`
+	RepoIdentity     string        `json:"repo_identity"`
+	BaseSHA          string        `json:"base_sha"`
+	Worktree         string        `json:"worktree,omitempty"`
+	Branch           string        `json:"branch,omitempty"`
+	Status           string        `json:"status"`
+	Generation       int64         `json:"generation"`
+	Claims           []leaseClaim  `json:"claims"`
+	AcquiredAt       string        `json:"acquired_at"`
+	HeartbeatAt      string        `json:"heartbeat_at"`
+	ExpiresAt        string        `json:"expires_at"`
+	LastUpdatedAt    string        `json:"last_updated_at"`
+	LeaseDuration    string        `json:"lease_duration"`
+	Limitations      []string      `json:"limitations"`
+	Metadata         leaseMetadata `json:"metadata"`
 }
 
 type leaseMetadata struct {
@@ -93,11 +94,12 @@ type sliceLeaseResult struct {
 }
 
 type leaseCollision struct {
-	SliceID    string     `json:"slice_id"`
-	RunID      string     `json:"run_id,omitempty"`
-	OwnerToken string     `json:"owner_token,omitempty"`
-	Claim      leaseClaim `json:"claim"`
-	Reason     string     `json:"reason"`
+	SliceID          string     `json:"slice_id"`
+	RunID            string     `json:"run_id,omitempty"`
+	OwnerToken       string     `json:"owner_token,omitempty"`
+	OwnerFingerprint string     `json:"owner_fingerprint,omitempty"`
+	Claim            leaseClaim `json:"claim"`
+	Reason           string     `json:"reason"`
 }
 
 type sliceLeaseCommandOptions struct {
@@ -221,7 +223,6 @@ func executeSliceLease(opts sliceLeaseCommandOptions) (sliceLeaseResult, error) 
 		if state.RepoIdentity != opts.RepoID {
 			return fmt.Errorf("slice lease repository identity mismatch")
 		}
-		pruneReleasedLeases(state)
 		planRuns, err := loadPlanRunLeaseState(stateRoot)
 		if err != nil {
 			return err
@@ -250,7 +251,34 @@ func executeSliceLease(opts sliceLeaseCommandOptions) (sliceLeaseResult, error) 
 		}
 		return nil
 	})
+	redactSliceLeaseResult(&result)
 	return result, err
+}
+
+func redactSliceLeaseResult(result *sliceLeaseResult) {
+	if result.Lease != nil {
+		redacted := publicSliceLease(*result.Lease)
+		result.Lease = &redacted
+	}
+	for index := range result.Leases {
+		result.Leases[index] = publicSliceLease(result.Leases[index])
+	}
+	for index := range result.Collisions {
+		if result.Collisions[index].OwnerToken != "" {
+			result.Collisions[index].OwnerFingerprint = publicPlanRunLease(planRunLease{
+				OwnerToken: result.Collisions[index].OwnerToken,
+			}).OwnerFingerprint
+		}
+		result.Collisions[index].OwnerToken = ""
+	}
+}
+
+func publicSliceLease(lease sliceLease) sliceLease {
+	if lease.OwnerToken != "" {
+		lease.OwnerFingerprint = publicPlanRunLease(planRunLease{OwnerToken: lease.OwnerToken}).OwnerFingerprint
+	}
+	lease.OwnerToken = ""
+	return lease
 }
 
 func acquireSliceLease(state sliceLeaseState, planRuns planRunLeaseState, opts sliceLeaseCommandOptions, stateRoot string) sliceLeaseResult {
@@ -557,9 +585,6 @@ func findSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions) (strin
 		if opts.RunID != "" && lease.RunID != opts.RunID {
 			continue
 		}
-		if opts.OwnerToken != "" && lease.OwnerToken != opts.OwnerToken {
-			continue
-		}
 		if foundKey != "" {
 			return "", sliceLease{}, false
 		}
@@ -605,6 +630,26 @@ func validateSlicePlanRunComposition(state planRunLeaseState, contender sliceLea
 	if owner.OwnerToken != contender.OwnerToken {
 		return "plan-run owner does not match slice owner", nil
 	}
+	if owner.Worktree != "" {
+		if !samePath(owner.Worktree, contender.Worktree) {
+			return "slice lease must be acquired from the exact manifest-owned plan worktree", nil
+		}
+		if owner.Branch != contender.Branch {
+			return "slice lease branch does not match the manifest-owned plan branch", nil
+		}
+		kbID, err := planRunManifestID(owner.ManifestPath)
+		if err != nil {
+			return "resolve manifest-owned plan receipt: " + err.Error(), nil
+		}
+		receipt, err := loadPlanRunWorkspaceReceipt(planRunWorkspaceOptions{RepoRoot: owner.Worktree}, kbID)
+		if err != nil {
+			return "load manifest-owned plan receipt: " + err.Error(), nil
+		}
+		expectedHead := receipt.IntegrationHead
+		if expectedHead != contender.BaseSHA {
+			return "slice lease base does not match the current manifest-owned integration head", nil
+		}
+	}
 	for _, claim := range contender.Claims {
 		if !planRunClaimCovers(owner.Claims, claim) {
 			return fmt.Sprintf("slice claim %s:%s was not forecast; expand the plan-run lease before write", claim.Kind, claim.Value), nil
@@ -630,14 +675,6 @@ func planRunClaimCovers(forecast []leaseClaim, observed leaseClaim) bool {
 		}
 	}
 	return false
-}
-
-func pruneReleasedLeases(state sliceLeaseState) {
-	for id, lease := range state.Leases {
-		if lease.Status == "released" {
-			delete(state.Leases, id)
-		}
-	}
 }
 
 func resolveSliceLeaseStateRoot(opts sliceLeaseCommandOptions) (string, error) {
@@ -747,8 +784,8 @@ func repoIdentity(root, stateRoot string) string {
 	if value := gitOutput(root, "config", "--get", "remote.origin.url"); value != "" {
 		return "git:" + value
 	}
-	if value := gitOutput(root, "rev-parse", "--show-toplevel"); value != "" {
-		return "git:file://" + filepath.ToSlash(value)
+	if value := gitOutput(root, "rev-parse", "--path-format=absolute", "--git-common-dir"); value != "" {
+		return "git-common:file://" + filepath.ToSlash(filepath.Clean(value))
 	}
 	return "state-root:" + filepath.ToSlash(stateRoot)
 }

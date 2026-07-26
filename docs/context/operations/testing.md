@@ -51,6 +51,7 @@ kb-work-slice-lease-selftest
 kbrouter-catalog-tests
 manifest-contract-selftest
 marketplace-promotion-selftest
+plan-worktree-lifecycle-selftest
 provider-hygiene
 provider-hygiene-selftest
 proof-governor-selftest
@@ -94,7 +95,21 @@ go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl
 go run ./cmd/kbcheck learning-adoption --result-path <results.json>
 go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet-valid.json
 go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
+go run ./cmd/kbcheck plan-worktree-selftest
 ```
+
+`plan-worktree-selftest` is the canonical manifest-worktree lifecycle proof. It
+uses only a disposable repository and the public fresh-start executor, runs two
+disjoint manifest groups with two serialized commits apiece, checks
+path/resource collision ownership, and proves
+dirty/stale/wrong-worktree failures preserve recovery state. It also verifies
+that source SHA and dirt remain unchanged and that local plus PR/manual delivery
+stop before merge. The real repository and any ancestor/descendant target are
+rejected even if a caller attempts a force mode. Failures preserve one compact
+artifact directory; successful CLI runs remove their disposable state.
+The package tests additionally enforce exact commit-diff/claim agreement,
+current integration-head slice acquisition, immutable proof archives, one
+in-flight slice per manifest worktree, and terminal completion/release CAS.
 
 ### Change-aware proof governor
 

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -25,32 +28,54 @@ type planRunWorkspaceOptions struct {
 	ExpectedIntegrationHead string
 	CommitSHA               string
 	ProofReceipt            string
+	CommitAuthorized        bool
+	CommitAuthorizedBy      string
+	CommitApprovalRef       string
 	RepoRoot                string
 	Now                     time.Time
 }
 
 type planRunWorkspaceReceipt struct {
-	SchemaVersion    int      `json:"schema_version"`
-	KBID             string   `json:"kb_id"`
-	RunID            string   `json:"run_id,omitempty"`
-	ManifestPath     string   `json:"manifest_path"`
-	OwnerToken       string   `json:"owner_token"`
-	SourceCheckout   string   `json:"source_checkout"`
-	SourceDirty      bool     `json:"source_dirty"`
-	Worktree         string   `json:"worktree"`
-	BaseRef          string   `json:"base_ref"`
-	BaseSHA          string   `json:"base_sha"`
-	IntegrationRef   string   `json:"integration_ref"`
-	IntegrationHead  string   `json:"integration_head"`
-	LastSliceID      string   `json:"last_slice_id,omitempty"`
-	LastSliceCommit  string   `json:"last_slice_commit,omitempty"`
-	LastProofReceipt string   `json:"last_proof_receipt,omitempty"`
-	Status           string   `json:"status"`
-	CleanupState     string   `json:"cleanup_state"`
-	CreatedAt        string   `json:"created_at"`
-	UpdatedAt        string   `json:"updated_at"`
-	ReleasedAt       string   `json:"released_at,omitempty"`
-	Limitations      []string `json:"limitations"`
+	SchemaVersion        int                    `json:"schema_version"`
+	KBID                 string                 `json:"kb_id"`
+	RunID                string                 `json:"run_id,omitempty"`
+	ManifestPath         string                 `json:"manifest_path"`
+	OwnerToken           string                 `json:"owner_token"`
+	OwnerFingerprint     string                 `json:"owner_fingerprint,omitempty"`
+	SourceCheckout       string                 `json:"source_checkout"`
+	SourceDirty          bool                   `json:"source_dirty"`
+	Worktree             string                 `json:"worktree"`
+	BaseRef              string                 `json:"base_ref"`
+	BaseSHA              string                 `json:"base_sha"`
+	IntegrationRef       string                 `json:"integration_ref"`
+	IntegrationHead      string                 `json:"integration_head"`
+	LastSliceID          string                 `json:"last_slice_id,omitempty"`
+	LastSliceCommit      string                 `json:"last_slice_commit,omitempty"`
+	LastProofReceipt     string                 `json:"last_proof_receipt,omitempty"`
+	LastProofSHA256      string                 `json:"last_proof_sha256,omitempty"`
+	LastProofArchive     string                 `json:"last_proof_archive,omitempty"`
+	AcceptedProofs       []planRunAcceptedProof `json:"accepted_proofs,omitempty"`
+	CommitAuthorized     bool                   `json:"commit_authorized"`
+	CommitAuthorizedBy   string                 `json:"commit_authorized_by,omitempty"`
+	CommitApprovalRef    string                 `json:"commit_approval_ref,omitempty"`
+	CommitAuthorizedAt   string                 `json:"commit_authorized_at,omitempty"`
+	DeliveryMode         string                 `json:"delivery_mode"`
+	DeliveryMerge        string                 `json:"delivery_merge"`
+	DeliveryPolicySource string                 `json:"delivery_policy_source"`
+	Status               string                 `json:"status"`
+	CleanupState         string                 `json:"cleanup_state"`
+	CreatedAt            string                 `json:"created_at"`
+	UpdatedAt            string                 `json:"updated_at"`
+	ReleasedAt           string                 `json:"released_at,omitempty"`
+	Limitations          []string               `json:"limitations"`
+}
+
+type planRunAcceptedProof struct {
+	SliceID    string `json:"slice_id"`
+	CommitSHA  string `json:"commit_sha"`
+	Archive    string `json:"archive"`
+	SHA256     string `json:"sha256"`
+	AcceptedAt string `json:"accepted_at"`
 }
 
 type planRunWorkspaceResult struct {
@@ -58,6 +83,13 @@ type planRunWorkspaceResult struct {
 	Action  string                   `json:"action"`
 	Issue   string                   `json:"issue,omitempty"`
 	Receipt *planRunWorkspaceReceipt `json:"receipt,omitempty"`
+}
+
+type kbDeliveryPolicy struct {
+	Mode          string
+	Merge         string
+	PostMergeSync bool
+	Source        string
 }
 
 type planRunProofCommand struct {
@@ -90,6 +122,9 @@ func runPlanRunWorkspaceCommand(root string, opts options, stdout, stderr io.Wri
 		ExpectedIntegrationHead: opts.expectedIntegrationHead,
 		CommitSHA:               opts.commitSHA,
 		ProofReceipt:            opts.proofReceipt,
+		CommitAuthorized:        opts.commitAuthorized,
+		CommitAuthorizedBy:      opts.commitAuthorizedBy,
+		CommitApprovalRef:       opts.commitApprovalRef,
 		RepoRoot:                root,
 		Now:                     time.Now().UTC(),
 	})
@@ -97,6 +132,7 @@ func runPlanRunWorkspaceCommand(root string, opts options, stdout, stderr io.Wri
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
+	redactPlanRunWorkspaceResult(&result)
 	if opts.json {
 		writeJSON(stdout, result)
 	} else if result.OK && result.Receipt != nil {
@@ -110,12 +146,23 @@ func runPlanRunWorkspaceCommand(root string, opts options, stdout, stderr io.Wri
 	return 0
 }
 
+func redactPlanRunWorkspaceResult(result *planRunWorkspaceResult) {
+	if result.Receipt == nil {
+		return
+	}
+	copy := *result.Receipt
+	public := publicPlanRunLease(planRunLease{OwnerToken: copy.OwnerToken})
+	copy.OwnerToken = ""
+	copy.OwnerFingerprint = public.OwnerFingerprint
+	result.Receipt = &copy
+}
+
 func executePlanRunWorkspace(opts planRunWorkspaceOptions) (planRunWorkspaceResult, error) {
 	action := strings.ToLower(strings.TrimSpace(opts.Action))
 	if action == "" {
 		return planRunWorkspaceResult{}, fmt.Errorf("plan-worktree requires --action")
 	}
-	if action != "prepare" && action != "status" && action != "advance" && action != "release" {
+	if action != "prepare" && action != "status" && action != "advance" && action != "complete" && action != "release" {
 		return planRunWorkspaceResult{}, fmt.Errorf("unsupported plan-worktree action %q", opts.Action)
 	}
 	if strings.TrimSpace(opts.OwnerToken) == "" {
@@ -155,6 +202,12 @@ func executePlanRunWorkspace(opts planRunWorkspaceOptions) (planRunWorkspaceResu
 		}
 		return releasePlanRunWorkspace(opts, existing)
 	}
+	if action == "complete" {
+		if loadErr != nil {
+			return blockedPlanRunWorkspace(action, loadErr.Error(), nil), nil
+		}
+		return completePlanRunWorkspace(opts, existing)
+	}
 	if action == "advance" {
 		if loadErr != nil {
 			return blockedPlanRunWorkspace(action, loadErr.Error(), nil), nil
@@ -165,12 +218,116 @@ func executePlanRunWorkspace(opts planRunWorkspaceOptions) (planRunWorkspaceResu
 		if issue := validatePlanRunOwnerAndIdentity(opts, existing); issue != "" {
 			return blockedPlanRunWorkspace(action, issue, &existing), nil
 		}
+		if action == "prepare" && !existing.CommitAuthorized {
+			return blockedPlanRunWorkspace(action, "existing receipt has no durable commit approval provenance; recreate through an explicitly authorized plan-run preparation", &existing), nil
+		}
 		return planRunWorkspaceResult{OK: true, Action: action, Receipt: &existing}, nil
 	}
-	if !os.IsNotExist(loadErr) {
+	if !errors.Is(loadErr, os.ErrNotExist) {
 		return blockedPlanRunWorkspace(action, loadErr.Error(), nil), nil
 	}
+	if !opts.CommitAuthorized || strings.TrimSpace(opts.CommitAuthorizedBy) == "" || strings.TrimSpace(opts.CommitApprovalRef) == "" {
+		return blockedPlanRunWorkspace(action, "explicit local plan-run commit authorization requires --commit-authorized, --commit-authorized-by, and --commit-approval-ref before mutation", nil), nil
+	}
 	return preparePlanRunWorkspace(opts, kbID)
+}
+
+func completePlanRunWorkspace(opts planRunWorkspaceOptions, receipt planRunWorkspaceReceipt) (planRunWorkspaceResult, error) {
+	stateRoot, err := resolveSliceLeaseStateRoot(sliceLeaseCommandOptions{RepoRoot: opts.RepoRoot})
+	if err != nil {
+		return planRunWorkspaceResult{}, err
+	}
+	result := planRunWorkspaceResult{Action: "complete"}
+	err = withSliceLeaseStateLock(stateRoot, func() error {
+		current, err := loadPlanRunWorkspaceReceipt(opts, receipt.KBID)
+		if err != nil {
+			return err
+		}
+		if issue := validatePlanRunOwnerAndIdentity(opts, current); issue != "" {
+			result = blockedPlanRunWorkspace("complete", issue, &current)
+			return nil
+		}
+		if current.IntegrationHead == current.BaseSHA || current.LastSliceCommit != current.IntegrationHead {
+			result = blockedPlanRunWorkspace("complete", "plan-run has no fully accepted slice head", &current)
+			return nil
+		}
+		if issue := validatePlanRunHeadCAS(current); issue != "" {
+			result = blockedPlanRunWorkspace("complete", issue, &current)
+			return nil
+		}
+		slices, err := loadSliceLeaseState(stateRoot)
+		if err != nil {
+			return err
+		}
+		manifestPath, err := planRunManifestPathInWorktree(current)
+		if err != nil {
+			return err
+		}
+		if issue := validateTerminalPlanRunManifest(manifestPath); issue != "" {
+			result = blockedPlanRunWorkspace("complete", issue, &current)
+			return nil
+		}
+		if issue := validateReleasedPlanRunSlices(manifestPath, current, slices, opts.Now); issue != "" {
+			result = blockedPlanRunWorkspace("complete", issue, &current)
+			return nil
+		}
+		if issue := validateAcceptedPlanRunProofs(opts, current, manifestPath); issue != "" {
+			result = blockedPlanRunWorkspace("complete", issue, &current)
+			return nil
+		}
+		plans, err := loadPlanRunLeaseState(stateRoot)
+		if err != nil {
+			return err
+		}
+		plan, ok := plans.Leases[current.RunID]
+		if !ok {
+			result = blockedPlanRunWorkspace("complete", "active plan-run lease is required for atomic completion", &current)
+			return nil
+		}
+		if plan.OwnerToken != current.OwnerToken {
+			result = blockedPlanRunWorkspace("complete", "plan-run lease owner does not match workspace owner", &current)
+			return nil
+		}
+		switch {
+		case effectivePlanRunLeaseStatus(plan, opts.Now) == "active":
+			plan.Generation++
+			plan.Status = "released"
+			plan.LastUpdatedAt = opts.Now.Format(time.RFC3339Nano)
+			plans.Leases[current.RunID] = plan
+			appendPlanRunLeaseEvent(&plans, opts.Now, "complete-release", &plan)
+			if err := savePlanRunLeaseState(stateRoot, plans); err != nil {
+				return err
+			}
+		case hasPlanRunCompletionReleaseJournal(plans, plan):
+			// A prior attempt durably released the lease but failed before the
+			// workspace receipt write. The matching journal makes retry safe.
+		default:
+			result = blockedPlanRunWorkspace("complete", "plan-run lease must be active for atomic completion; recover an expired lease first", &current)
+			return nil
+		}
+		current.Status = "completed"
+		current.UpdatedAt = opts.Now.Format(time.RFC3339Nano)
+		if err := savePlanRunWorkspaceReceipt(opts, current); err != nil {
+			return err
+		}
+		result = planRunWorkspaceResult{OK: true, Action: "complete", Receipt: &current}
+		return nil
+	})
+	return result, err
+}
+
+func hasPlanRunCompletionReleaseJournal(state planRunLeaseState, lease planRunLease) bool {
+	if lease.Status != "released" {
+		return false
+	}
+	for index := len(state.Events) - 1; index >= 0; index-- {
+		event := state.Events[index]
+		if event.RunID != lease.RunID {
+			continue
+		}
+		return event.Action == "complete-release" && event.Generation == lease.Generation
+	}
+	return false
 }
 
 func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRunWorkspaceResult, error) {
@@ -184,6 +341,9 @@ func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRun
 	baseRef := resolvePlanRunBaseRef(opts.RepoRoot, baseSHA)
 	if opts.IntegrationRef == "" {
 		opts.IntegrationRef = "codex/" + safePathPart(kbID)
+	}
+	if issue := unresolvedRemoteDefaultAuthority(opts.RepoRoot); issue != "" {
+		return blockedPlanRunWorkspace("prepare", issue, nil), nil
 	}
 	if isDefaultIntegrationRef(opts.RepoRoot, baseRef, opts.IntegrationRef) {
 		return blockedPlanRunWorkspace("prepare", "integration ref must not be the default branch", nil), nil
@@ -205,32 +365,61 @@ func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRun
 	if gitOutput(opts.RepoRoot, "show-ref", "--verify", "refs/heads/"+opts.IntegrationRef) != "" {
 		return blockedPlanRunWorkspace("prepare", "integration ref already exists without a matching receipt", nil), nil
 	}
-	sourceDirty := strings.TrimSpace(gitOutput(opts.RepoRoot, "status", "--porcelain")) != ""
+	delivery, err := resolveKBDeliveryPolicy(opts.RepoRoot)
+	if err != nil {
+		return blockedPlanRunWorkspace("prepare", err.Error(), nil), nil
+	}
+	dirtyPaths, err := planRunDirtyPaths(opts.RepoRoot)
+	if err != nil {
+		return blockedPlanRunWorkspace("prepare", err.Error(), nil), nil
+	}
+	sourceDirty := len(dirtyPaths) > 0
+	if sourceDirty {
+		relevant, err := relevantPlanRunDirtyPaths(opts, dirtyPaths)
+		if err != nil {
+			return blockedPlanRunWorkspace("prepare", err.Error(), nil), nil
+		}
+		if len(relevant) > 0 {
+			return blockedPlanRunWorkspace(
+				"prepare",
+				"relevant dirty WIP requires an explicit checkpoint/patch or reviewed execution decision; preserved paths: "+strings.Join(relevant, ", "),
+				nil,
+			), nil
+		}
+	}
 	if code, out := runGitCommand(opts.RepoRoot, "worktree", "add", "-b", opts.IntegrationRef, worktree, baseSHA); code != 0 {
 		return blockedPlanRunWorkspace("prepare", strings.TrimSpace(out), nil), nil
 	}
 	now := opts.Now.Format(time.RFC3339Nano)
 	receipt := planRunWorkspaceReceipt{
-		SchemaVersion:   planRunWorkspaceSchemaVersion,
-		KBID:            kbID,
-		RunID:           defaultPlanRunID(opts.RunID, kbID),
-		ManifestPath:    opts.ManifestPath,
-		OwnerToken:      opts.OwnerToken,
-		SourceCheckout:  opts.RepoRoot,
-		SourceDirty:     sourceDirty,
-		Worktree:        worktree,
-		BaseRef:         baseRef,
-		BaseSHA:         baseSHA,
-		IntegrationRef:  opts.IntegrationRef,
-		IntegrationHead: gitOutput(worktree, "rev-parse", "HEAD"),
-		Status:          "prepared",
-		CleanupState:    "active",
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		SchemaVersion:        planRunWorkspaceSchemaVersion,
+		KBID:                 kbID,
+		RunID:                defaultPlanRunID(opts.RunID, kbID),
+		ManifestPath:         opts.ManifestPath,
+		OwnerToken:           opts.OwnerToken,
+		SourceCheckout:       opts.RepoRoot,
+		SourceDirty:          sourceDirty,
+		Worktree:             worktree,
+		BaseRef:              baseRef,
+		BaseSHA:              baseSHA,
+		IntegrationRef:       opts.IntegrationRef,
+		IntegrationHead:      gitOutput(worktree, "rev-parse", "HEAD"),
+		CommitAuthorized:     true,
+		CommitAuthorizedBy:   strings.TrimSpace(opts.CommitAuthorizedBy),
+		CommitApprovalRef:    strings.TrimSpace(opts.CommitApprovalRef),
+		CommitAuthorizedAt:   now,
+		DeliveryMode:         delivery.Mode,
+		DeliveryMerge:        delivery.Merge,
+		DeliveryPolicySource: delivery.Source,
+		Status:               "prepared",
+		CleanupState:         "active",
+		CreatedAt:            now,
+		UpdatedAt:            now,
 		Limitations: []string{
 			"dirty source changes are preserved but excluded from the plan-run worktree",
 			"plan-run ownership coordinates only worktrees sharing this Git common directory",
 			"default-branch delivery requires a separate authorized delivery phase",
+			"slice commits are authorized only for this local manifest-owned plan-run branch",
 			"cleanup is non-force and requires clean integrated state",
 		},
 	}
@@ -240,11 +429,110 @@ func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRun
 	return planRunWorkspaceResult{OK: true, Action: "prepare", Receipt: &receipt}, nil
 }
 
+func resolveKBDeliveryPolicy(root string) (kbDeliveryPolicy, error) {
+	policy := kbDeliveryPolicy{
+		Mode: "local", Merge: "manual", PostMergeSync: false, Source: "default-absent",
+	}
+	path := filepath.Join(root, "docs", "context", "operations", "kb-routing.yaml")
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return policy, nil
+	}
+	if err != nil {
+		return kbDeliveryPolicy{}, fmt.Errorf("read delivery policy: %w", err)
+	}
+	policy.Source = "project"
+	inDelivery := false
+	for _, line := range strings.Split(string(content), "\n") {
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if indent == 0 {
+			inDelivery = trimmed == "delivery:"
+			continue
+		}
+		if !inDelivery {
+			continue
+		}
+		key, value, ok := splitYAMLKeyValue(trimmed)
+		if !ok {
+			continue
+		}
+		value = cleanYAMLScalar(value)
+		switch key {
+		case "mode":
+			policy.Mode = strings.ToLower(value)
+		case "merge":
+			policy.Merge = strings.ToLower(value)
+		case "post_merge_sync":
+			policy.PostMergeSync = parseBool(value)
+		}
+	}
+	if policy.Mode != "local" && policy.Mode != "pr" && policy.Mode != "direct" {
+		return kbDeliveryPolicy{}, fmt.Errorf("delivery mode must be local, pr, or direct")
+	}
+	if policy.Merge != "manual" && policy.Merge != "auto-after-checks" {
+		return kbDeliveryPolicy{}, fmt.Errorf("delivery merge must be manual or auto-after-checks")
+	}
+	return policy, nil
+}
+
+func planRunDirtyPaths(root string) ([]string, error) {
+	code, output := runGitCommand(root, "status", "--porcelain", "--untracked-files=all")
+	if code != 0 {
+		return nil, fmt.Errorf("read source dirty state: %s", strings.TrimSpace(output))
+	}
+	paths := []string{}
+	for _, line := range strings.Split(output, "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		value := strings.TrimSpace(line[3:])
+		if parts := strings.Split(value, " -> "); len(parts) == 2 {
+			paths = append(paths, strings.Trim(parts[0], `"`), strings.Trim(parts[1], `"`))
+			continue
+		}
+		paths = append(paths, strings.Trim(value, `"`))
+	}
+	return paths, nil
+}
+
+func relevantPlanRunDirtyPaths(opts planRunWorkspaceOptions, dirtyPaths []string) ([]string, error) {
+	forecast, err := hydratePlanRunForecast(planRunLeaseCommandOptions{
+		RepoRoot: opts.RepoRoot, ManifestPath: opts.ManifestPath,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("resolve dirty-WIP forecast: %w", err)
+	}
+	claims, err := normalizePlanRunClaims(forecast.Files, forecast.Prefixes, forecast.Domains, forecast.Resources)
+	if err != nil {
+		return nil, err
+	}
+	relevant := []string{}
+	for _, path := range dirtyPaths {
+		normalized, err := normalizeLeaseClaimPath(path)
+		if err != nil {
+			return nil, err
+		}
+		observed := leaseClaim{Kind: "file", Value: normalized}
+		for _, claim := range claims {
+			if planRunClaimsConflict(claim, observed) {
+				relevant = append(relevant, normalized)
+				break
+			}
+		}
+	}
+	sort.Strings(relevant)
+	return relevant, nil
+}
+
 func advancePlanRunWorkspace(opts planRunWorkspaceOptions, snapshot planRunWorkspaceReceipt) (planRunWorkspaceResult, error) {
 	if issue := validatePlanRunAdvanceInputs(opts, snapshot); issue != "" {
 		return blockedPlanRunWorkspace("advance", issue, &snapshot), nil
 	}
-	proof, issue := loadAndValidatePlanRunProofReceipt(opts, snapshot)
+	proof, proofBytes, proofDigest, issue := loadAndValidatePlanRunProofReceipt(opts, snapshot)
 	if issue != "" {
 		return blockedPlanRunWorkspace("advance", issue, &snapshot), nil
 	}
@@ -283,10 +571,24 @@ func advancePlanRunWorkspace(opts planRunWorkspaceOptions, snapshot planRunWorks
 			result = blockedPlanRunWorkspace("advance", issue, &current)
 			return nil
 		}
+		if issue := validatePlanRunAdvanceClaims(opts, current, proof, stateRoot); issue != "" {
+			result = blockedPlanRunWorkspace("advance", issue, &current)
+			return nil
+		}
+		proofArchive, err := persistPlanRunProofEvidence(opts, current, proofBytes, proofDigest)
+		if err != nil {
+			return err
+		}
 		current.IntegrationHead = opts.CommitSHA
 		current.LastSliceID = opts.SliceID
 		current.LastSliceCommit = opts.CommitSHA
 		current.LastProofReceipt = opts.ProofReceipt
+		current.LastProofSHA256 = proofDigest
+		current.LastProofArchive = proofArchive
+		current.AcceptedProofs = append(current.AcceptedProofs, planRunAcceptedProof{
+			SliceID: opts.SliceID, CommitSHA: opts.CommitSHA, Archive: proofArchive,
+			SHA256: proofDigest, AcceptedAt: opts.Now.Format(time.RFC3339Nano),
+		})
 		current.UpdatedAt = opts.Now.Format(time.RFC3339Nano)
 		if err := savePlanRunWorkspaceReceipt(opts, current); err != nil {
 			return err
@@ -297,9 +599,110 @@ func advancePlanRunWorkspace(opts planRunWorkspaceOptions, snapshot planRunWorks
 	return result, err
 }
 
+func validatePlanRunAdvanceClaims(
+	opts planRunWorkspaceOptions,
+	receipt planRunWorkspaceReceipt,
+	proof planRunProofReceipt,
+	stateRoot string,
+) string {
+	actualWrites, issue := planRunCommitWrites(receipt.Worktree, opts.ExpectedIntegrationHead, opts.CommitSHA)
+	if issue != "" {
+		return issue
+	}
+	observedWrites, issue := normalizePlanRunObservedWrites(proof.ObservedWrites)
+	if issue != "" {
+		return issue
+	}
+	if strings.Join(actualWrites, "\n") != strings.Join(observedWrites, "\n") {
+		return fmt.Sprintf("proof observed_writes do not exactly match commit diff: actual=%v observed=%v", actualWrites, observedWrites)
+	}
+
+	sliceState, err := loadSliceLeaseState(stateRoot)
+	if err != nil {
+		return "load active slice lease: " + err.Error()
+	}
+	_, slice, ok := findSliceLease(sliceState, sliceLeaseCommandOptions{RunID: opts.RunID, SliceID: opts.SliceID})
+	if !ok || effectiveLeaseStatus(slice, opts.Now) != "active" {
+		return "active slice lease is required before plan-run advance"
+	}
+	if slice.OwnerToken != opts.OwnerToken || !samePath(slice.Worktree, receipt.Worktree) ||
+		slice.Branch != receipt.IntegrationRef {
+		return "active slice lease does not match plan-run owner/worktree/ref"
+	}
+
+	planState, err := loadPlanRunLeaseState(stateRoot)
+	if err != nil {
+		return "load active plan-run lease: " + err.Error()
+	}
+	plan, ok := planState.Leases[opts.RunID]
+	if !ok || effectivePlanRunLeaseStatus(plan, opts.Now) != "active" {
+		return "active plan-run lease is required before plan-run advance"
+	}
+	if plan.OwnerToken != opts.OwnerToken {
+		return "active plan-run lease owner does not match plan-run receipt"
+	}
+	if plan.Worktree != "" && (!samePath(plan.Worktree, receipt.Worktree) || plan.Branch != receipt.IntegrationRef) {
+		return "active plan-run lease does not match manifest-owned worktree/ref"
+	}
+	for _, path := range actualWrites {
+		claim := leaseClaim{Kind: "file", Value: path}
+		if !planRunClaimCovers(slice.Claims, claim) {
+			return "commit write is outside active slice lease: " + path
+		}
+		if !planRunClaimCovers(plan.Claims, claim) {
+			return "commit write is outside active plan-run lease: " + path
+		}
+	}
+	return ""
+}
+
+func planRunCommitWrites(worktree, fromSHA, toSHA string) ([]string, string) {
+	code, output := runGitCommand(worktree, "diff", "--name-only", "-z", "--diff-filter=ACDMRTUXB", fromSHA, toSHA, "--")
+	if code != 0 {
+		return nil, "read plan-run commit diff: " + strings.TrimSpace(output)
+	}
+	values := []string{}
+	for _, value := range strings.Split(output, "\x00") {
+		if value == "" {
+			continue
+		}
+		normalized, err := normalizeLeaseClaimPath(value)
+		if err != nil {
+			return nil, "normalize commit write: " + err.Error()
+		}
+		values = append(values, normalized)
+	}
+	sort.Strings(values)
+	if len(values) == 0 {
+		return nil, "slice commit diff has no writes"
+	}
+	return values, ""
+}
+
+func normalizePlanRunObservedWrites(paths []string) ([]string, string) {
+	seen := map[string]bool{}
+	values := []string{}
+	for _, value := range paths {
+		normalized, err := normalizeLeaseClaimPath(value)
+		if err != nil {
+			return nil, "normalize proof observed write: " + err.Error()
+		}
+		if seen[normalized] {
+			return nil, "proof observed_writes contains duplicate path: " + normalized
+		}
+		seen[normalized] = true
+		values = append(values, normalized)
+	}
+	sort.Strings(values)
+	return values, ""
+}
+
 func validatePlanRunAdvanceInputs(opts planRunWorkspaceOptions, receipt planRunWorkspaceReceipt) string {
 	if issue := validatePlanRunOwnerAndIdentity(opts, receipt); issue != "" {
 		return issue
+	}
+	if !receipt.CommitAuthorized {
+		return "plan-run receipt does not record explicit local commit authorization"
 	}
 	if strings.TrimSpace(opts.RunID) == "" || opts.RunID != effectivePlanRunID(receipt) {
 		return "run lineage does not match plan-run receipt"
@@ -352,38 +755,168 @@ func validatePlanRunAdvanceGit(opts planRunWorkspaceOptions, receipt planRunWork
 	return ""
 }
 
-func loadAndValidatePlanRunProofReceipt(opts planRunWorkspaceOptions, receipt planRunWorkspaceReceipt) (planRunProofReceipt, string) {
+func loadAndValidatePlanRunProofReceipt(opts planRunWorkspaceOptions, receipt planRunWorkspaceReceipt) (planRunProofReceipt, []byte, string, string) {
 	content, err := os.ReadFile(opts.ProofReceipt)
 	if err != nil {
-		return planRunProofReceipt{}, fmt.Sprintf("read proof receipt: %v", err)
+		return planRunProofReceipt{}, nil, "", fmt.Sprintf("read proof receipt: %v", err)
 	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(content))
 	var proof planRunProofReceipt
 	decoder := json.NewDecoder(strings.NewReader(string(content)))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&proof); err != nil {
-		return planRunProofReceipt{}, fmt.Sprintf("parse proof receipt: %v", err)
+		return planRunProofReceipt{}, nil, "", fmt.Sprintf("parse proof receipt: %v", err)
 	}
 	if proof.SchemaVersion != 1 {
-		return planRunProofReceipt{}, fmt.Sprintf("unsupported proof receipt schema_version %d", proof.SchemaVersion)
+		return planRunProofReceipt{}, nil, "", fmt.Sprintf("unsupported proof receipt schema_version %d", proof.SchemaVersion)
 	}
 	if proof.KBID != receipt.KBID || proof.RunID != opts.RunID || proof.SliceID != opts.SliceID {
-		return planRunProofReceipt{}, "proof receipt owner/run/slice lineage mismatch"
+		return planRunProofReceipt{}, nil, "", "proof receipt owner/run/slice lineage mismatch"
 	}
 	if proof.CommitSHA != opts.CommitSHA {
-		return planRunProofReceipt{}, "proof receipt commit does not match slice commit"
+		return planRunProofReceipt{}, nil, "", "proof receipt commit does not match slice commit"
 	}
 	if len(proof.ObservedWrites) == 0 {
-		return planRunProofReceipt{}, "proof receipt requires observed writes"
+		return planRunProofReceipt{}, nil, "", "proof receipt requires observed writes"
 	}
 	if issue := validatePlanRunProofCommand(proof.SliceProof); issue != "" {
-		return planRunProofReceipt{}, "slice proof " + issue
+		return planRunProofReceipt{}, nil, "", "slice proof " + issue
 	}
 	if proof.AggregateProof != nil {
 		if issue := validatePlanRunProofCommand(*proof.AggregateProof); issue != "" {
-			return planRunProofReceipt{}, "aggregate proof " + issue
+			return planRunProofReceipt{}, nil, "", "aggregate proof " + issue
 		}
 	}
-	return proof, ""
+	return proof, content, digest, ""
+}
+
+func persistPlanRunProofEvidence(
+	opts planRunWorkspaceOptions,
+	receipt planRunWorkspaceReceipt,
+	content []byte,
+	digest string,
+) (string, error) {
+	receiptPath, err := planRunWorkspaceReceiptPath(opts, receipt.KBID)
+	if err != nil {
+		return "", err
+	}
+	root := filepath.Join(filepath.Dir(filepath.Dir(receiptPath)), "plan-run-proofs", safePathPart(receipt.KBID))
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return "", err
+	}
+	name := safePathPart(opts.SliceID) + "-" + safePathPart(opts.CommitSHA) + ".json"
+	path := filepath.Join(root, name)
+	if existing, err := os.ReadFile(path); err == nil {
+		if fmt.Sprintf("%x", sha256.Sum256(existing)) != digest {
+			return "", fmt.Errorf("immutable proof archive collision at %s", path)
+		}
+		return path, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	temp := path + ".tmp"
+	if err := os.WriteFile(temp, content, 0o644); err != nil {
+		return "", err
+	}
+	if err := os.Rename(temp, path); err != nil {
+		_ = os.Remove(temp)
+		return "", err
+	}
+	return path, nil
+}
+
+func validateReleasedPlanRunSlices(
+	manifestPath string,
+	receipt planRunWorkspaceReceipt,
+	state sliceLeaseState,
+	now time.Time,
+) string {
+	slices, err := parseManifestSlices(manifestPath)
+	if err != nil {
+		return err.Error()
+	}
+	for _, manifestSlice := range slices {
+		_, lease, ok := findSliceLease(state, sliceLeaseCommandOptions{
+			RunID: receipt.RunID, SliceID: manifestSlice.ID,
+		})
+		if manifestSlice.Status == "done" && !ok {
+			return fmt.Sprintf("done slice %s has no durable lease release evidence", manifestSlice.ID)
+		}
+		if !ok {
+			continue
+		}
+		if lease.OwnerToken != receipt.OwnerToken {
+			return fmt.Sprintf("slice %s lease owner does not match plan-run owner", manifestSlice.ID)
+		}
+		if lease.Status != "released" {
+			status := effectiveLeaseStatus(lease, now)
+			return fmt.Sprintf("slice %s lease must be explicitly released before completion; status=%s", manifestSlice.ID, status)
+		}
+	}
+	return ""
+}
+
+func validateAcceptedPlanRunProofs(
+	opts planRunWorkspaceOptions,
+	receipt planRunWorkspaceReceipt,
+	manifestPath string,
+) string {
+	if len(receipt.AcceptedProofs) == 0 {
+		return "accepted proof ledger is required before plan-run completion"
+	}
+	receiptPath, err := planRunWorkspaceReceiptPath(opts, receipt.KBID)
+	if err != nil {
+		return err.Error()
+	}
+	expectedRoot := filepath.Join(
+		filepath.Dir(filepath.Dir(receiptPath)),
+		"plan-run-proofs",
+		safePathPart(receipt.KBID),
+	)
+	acceptedSlices := map[string]bool{}
+	for _, accepted := range receipt.AcceptedProofs {
+		archive, err := filepath.Abs(filepath.Clean(accepted.Archive))
+		if err != nil {
+			return fmt.Sprintf("resolve accepted proof archive for %s: %v", accepted.SliceID, err)
+		}
+		relative, err := filepath.Rel(expectedRoot, archive)
+		if err != nil || filepath.IsAbs(relative) || relative == ".." ||
+			strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return fmt.Sprintf("accepted proof archive for %s is outside the plan-run proof root", accepted.SliceID)
+		}
+		content, err := os.ReadFile(archive)
+		if err != nil {
+			return fmt.Sprintf("accepted proof archive for %s is unavailable: %v", accepted.SliceID, err)
+		}
+		digest := fmt.Sprintf("%x", sha256.Sum256(content))
+		if digest != accepted.SHA256 {
+			return fmt.Sprintf("accepted proof archive digest mismatch for %s", accepted.SliceID)
+		}
+		var proof planRunProofReceipt
+		if err := json.Unmarshal(content, &proof); err != nil {
+			return fmt.Sprintf("accepted proof archive for %s is invalid: %v", accepted.SliceID, err)
+		}
+		if proof.KBID != receipt.KBID || proof.RunID != receipt.RunID ||
+			proof.SliceID != accepted.SliceID || proof.CommitSHA != accepted.CommitSHA {
+			return fmt.Sprintf("accepted proof archive lineage mismatch for %s", accepted.SliceID)
+		}
+		acceptedSlices[accepted.SliceID] = true
+	}
+	slices, err := parseManifestSlices(manifestPath)
+	if err != nil {
+		return err.Error()
+	}
+	for _, slice := range slices {
+		if slice.Status == "done" && !acceptedSlices[slice.ID] {
+			return fmt.Sprintf("done slice %s has no accepted immutable proof", slice.ID)
+		}
+	}
+	last := receipt.AcceptedProofs[len(receipt.AcceptedProofs)-1]
+	if last.SliceID != receipt.LastSliceID || last.CommitSHA != receipt.LastSliceCommit ||
+		last.Archive != receipt.LastProofArchive || last.SHA256 != receipt.LastProofSHA256 {
+		return "last accepted proof summary does not match the immutable proof ledger"
+	}
+	return ""
 }
 
 func validatePlanRunProofCommand(proof planRunProofCommand) string {
@@ -431,26 +964,112 @@ func effectivePlanRunID(receipt planRunWorkspaceReceipt) string {
 }
 
 func releasePlanRunWorkspace(opts planRunWorkspaceOptions, receipt planRunWorkspaceReceipt) (planRunWorkspaceResult, error) {
-	if issue := validatePlanRunOwnerAndIdentity(opts, receipt); issue != "" {
-		return blockedPlanRunWorkspace("release", issue, &receipt), nil
-	}
-	if receipt.Status != "integrated" && receipt.Status != "delivered" {
-		return blockedPlanRunWorkspace("release", "active unintegrated plan-run workspace cannot be released", &receipt), nil
-	}
-	if strings.TrimSpace(gitOutput(receipt.Worktree, "status", "--porcelain")) != "" {
-		return blockedPlanRunWorkspace("release", "plan-run worktree is dirty; non-force release refused", &receipt), nil
-	}
-	if code, out := runGitCommand(opts.RepoRoot, "worktree", "remove", receipt.Worktree); code != 0 {
-		return blockedPlanRunWorkspace("release", strings.TrimSpace(out), &receipt), nil
-	}
-	receipt.Status = "released"
-	receipt.CleanupState = "released"
-	receipt.ReleasedAt = opts.Now.Format(time.RFC3339Nano)
-	receipt.UpdatedAt = receipt.ReleasedAt
-	if err := savePlanRunWorkspaceReceipt(opts, receipt); err != nil {
+	stateRoot, err := resolveSliceLeaseStateRoot(sliceLeaseCommandOptions{RepoRoot: opts.RepoRoot})
+	if err != nil {
 		return planRunWorkspaceResult{}, err
 	}
-	return planRunWorkspaceResult{OK: true, Action: "release", Receipt: &receipt}, nil
+	result := planRunWorkspaceResult{Action: "release"}
+	err = withSliceLeaseStateLock(stateRoot, func() error {
+		current, err := loadPlanRunWorkspaceReceipt(opts, receipt.KBID)
+		if err != nil {
+			return err
+		}
+		if issue := validatePlanRunOwnerAndIdentity(opts, current); issue != "" {
+			result = blockedPlanRunWorkspace("release", issue, &current)
+			return nil
+		}
+		if current.Status != "completed" && current.Status != "delivered" {
+			result = blockedPlanRunWorkspace("release", "active incomplete plan-run workspace cannot be released", &current)
+			return nil
+		}
+		if issue := validatePlanRunHeadCAS(current); issue != "" {
+			result = blockedPlanRunWorkspace("release", issue, &current)
+			return nil
+		}
+		if code, out := runGitCommand(opts.RepoRoot, "worktree", "remove", current.Worktree); code != 0 {
+			result = blockedPlanRunWorkspace("release", strings.TrimSpace(out), &current)
+			return nil
+		}
+		current.Status = "released"
+		current.CleanupState = "released"
+		current.ReleasedAt = opts.Now.Format(time.RFC3339Nano)
+		current.UpdatedAt = current.ReleasedAt
+		if err := savePlanRunWorkspaceReceipt(opts, current); err != nil {
+			return err
+		}
+		result = planRunWorkspaceResult{OK: true, Action: "release", Receipt: &current}
+		return nil
+	})
+	return result, err
+}
+
+func validatePlanRunHeadCAS(receipt planRunWorkspaceReceipt) string {
+	if branch := gitOutput(receipt.Worktree, "branch", "--show-current"); branch != receipt.IntegrationRef {
+		return fmt.Sprintf("plan-run worktree branch mismatch: got %s want %s", branch, receipt.IntegrationRef)
+	}
+	if head := gitOutput(receipt.Worktree, "rev-parse", "HEAD"); head != receipt.IntegrationHead {
+		return fmt.Sprintf("plan-run worktree head moved after acceptance: got %s want %s", head, receipt.IntegrationHead)
+	}
+	if ref := gitOutput(receipt.Worktree, "rev-parse", "refs/heads/"+receipt.IntegrationRef); ref != receipt.IntegrationHead {
+		return "plan-run integration ref moved after acceptance"
+	}
+	if strings.TrimSpace(gitOutput(receipt.Worktree, "status", "--porcelain")) != "" {
+		return "plan-run worktree is dirty; non-force lifecycle transition refused"
+	}
+	return ""
+}
+
+func planRunManifestPathInWorktree(receipt planRunWorkspaceReceipt) (string, error) {
+	relative, err := filepath.Rel(receipt.SourceCheckout, receipt.ManifestPath)
+	if err != nil || relative == "." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("manifest path cannot be mapped into the plan-run worktree")
+	}
+	return filepath.Join(receipt.Worktree, relative), nil
+}
+
+func validateTerminalPlanRunManifest(path string) string {
+	frontmatter, err := loadManifestFrontmatter(path)
+	if err != nil {
+		return err.Error()
+	}
+	status := ""
+	for _, line := range strings.Split(frontmatter, "\n") {
+		if countIndent(line) != 0 {
+			continue
+		}
+		key, value, ok := splitYAMLKeyValue(strings.TrimSpace(line))
+		if ok && key == "status" {
+			status = value
+			break
+		}
+	}
+	if status != "completed" {
+		return "manifest status must be completed before plan-run completion"
+	}
+	slices, err := parseManifestSlices(path)
+	if err != nil {
+		return err.Error()
+	}
+	gates, err := parseManifestGates(path)
+	if err != nil {
+		return err.Error()
+	}
+	gateStatus := map[string]string{}
+	for _, gate := range gates {
+		gateStatus[gate.GateID] = gate.Status
+	}
+	for _, slice := range slices {
+		if slice.Status != "done" && slice.Status != "skipped" {
+			return "all manifest slices must be terminal before plan-run completion"
+		}
+		if slice.Status == "done" && gateStatus["slice-"+slice.ID+"-to-done"] != "passed" {
+			return "each done slice requires a passing terminal gate before plan-run completion"
+		}
+	}
+	if gateStatus["work-to-complete"] != "passed" {
+		return "work-to-complete gate must pass before plan-run completion"
+	}
+	return ""
 }
 
 func validatePlanRunOwnerAndIdentity(opts planRunWorkspaceOptions, receipt planRunWorkspaceReceipt) string {
@@ -546,9 +1165,66 @@ func isDefaultIntegrationRef(root, baseRef, integrationRef string) bool {
 	if normalized == strings.TrimPrefix(strings.TrimSpace(baseRef), "refs/heads/") {
 		return true
 	}
-	remoteDefault := gitOutput(root, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD")
-	remoteDefault = strings.TrimPrefix(remoteDefault, "origin/")
-	return remoteDefault != "" && normalized == remoteDefault
+	return isResolvedDefaultBranch(root, normalized)
+}
+
+func isResolvedDefaultBranch(root, branch string) bool {
+	normalized := strings.TrimPrefix(strings.TrimSpace(branch), "refs/heads/")
+	if normalized == "" {
+		return false
+	}
+	defaults := resolvedDefaultBranches(root)
+	return defaults[normalized]
+}
+
+func currentDefaultBranch(root string) string {
+	defaults := resolvedDefaultBranches(root)
+	for _, preferred := range []string{"main", "master"} {
+		if defaults[preferred] {
+			return preferred
+		}
+	}
+	names := make([]string, 0, len(defaults))
+	for name := range defaults {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if len(names) > 0 {
+		return names[0]
+	}
+	return ""
+}
+
+func resolvedDefaultBranches(root string) map[string]bool {
+	defaults := map[string]bool{}
+	for _, candidate := range []string{"main", "master"} {
+		if gitOutput(root, "show-ref", "--verify", "refs/heads/"+candidate) != "" {
+			defaults[candidate] = true
+		}
+	}
+	remotes := strings.Fields(gitOutput(root, "remote"))
+	for _, remote := range remotes {
+		ref := gitOutput(root, "symbolic-ref", "--quiet", "--short", "refs/remotes/"+remote+"/HEAD")
+		if ref != "" {
+			defaults[strings.TrimPrefix(ref, remote+"/")] = true
+		}
+	}
+	if len(defaults) == 0 {
+		if current := gitOutput(root, "branch", "--show-current"); current != "" {
+			defaults[current] = true
+		}
+	}
+	return defaults
+}
+
+func unresolvedRemoteDefaultAuthority(root string) string {
+	for _, remote := range strings.Fields(gitOutput(root, "remote")) {
+		ref := gitOutput(root, "symbolic-ref", "--quiet", "--short", "refs/remotes/"+remote+"/HEAD")
+		if ref == "" {
+			return fmt.Sprintf("remote default branch authority is unresolved for %s; fetch and set %s/HEAD before plan-worktree preparation", remote, remote)
+		}
+	}
+	return ""
 }
 
 func resolvePlanRunBaseRef(root, baseSHA string) string {

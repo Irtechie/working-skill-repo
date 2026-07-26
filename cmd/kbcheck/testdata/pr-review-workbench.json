@@ -1,0 +1,91 @@
+{
+  "repository": {"nameWithOwner": "acme/widgets", "url": "https://github.com/acme/widgets"},
+  "pull_requests": [
+    {
+      "number": 12,
+      "title": "Document the release flag",
+      "url": "https://github.com/acme/widgets/pull/12",
+      "author": "dev-one",
+      "updated_at": "2026-07-20T14:00:00Z",
+      "base_ref": "main",
+      "head_ref": "docs/release-flag",
+      "start_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "end_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "datasets": {
+        "metadata": "complete",
+        "files": "complete",
+        "checks": "complete",
+        "reviews": "complete",
+        "source": "complete"
+      },
+      "files": [
+        {"path": "src/release.py", "additions": 34, "deletions": 4, "patch": "+Gate releases behind the documented flag"},
+        {"path": "tests/test_release.py", "additions": 21, "deletions": 0, "patch": "+Cover enabled and disabled releases"},
+        {"path": "docs/release.md", "additions": 8, "deletions": 1, "patch": "+Explain the flag"},
+        {"path": "scripts/publish.ps1", "additions": 7, "deletions": 2, "patch": "+Pass the release flag"}
+      ],
+      "checks": [{"name": "docs", "state": "SUCCESS", "url": "https://github.com/acme/widgets/actions/runs/1"}],
+      "reviews": [],
+      "summary": "Adds one documented release flag and enforces it in the publish path.",
+      "impact_analysis": {
+        "state": "complete",
+        "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "method": "source inspection plus direct caller and test mapping",
+        "reason": "The publish entry point, its flag gate, and covering tests were inspected at the pinned head.",
+        "areas": [
+          {
+            "rank": 1,
+            "label": "Release safety boundary",
+            "level": "high",
+            "reason": "This path can create an external release.",
+            "app_effect": "Publishing now stops unless the explicit release flag is present.",
+            "changed_files": ["src/release.py", "scripts/publish.ps1"],
+            "affected_surfaces": ["release command", "publish automation"],
+            "anchors": [
+              {
+                "path": "src/release.py",
+                "line": 42,
+                "url": "https://github.com/acme/widgets/blob/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/src/release.py#L42"
+              }
+            ]
+          },
+          {
+            "rank": 2,
+            "label": "Release regression proof",
+            "level": "medium",
+            "reason": "The safety claim depends on both enabled and disabled behavior.",
+            "app_effect": "Tests cover the new stop condition and the allowed release path.",
+            "changed_files": ["tests/test_release.py"],
+            "affected_surfaces": ["release test suite"],
+            "anchors": [
+              {
+                "path": "tests/test_release.py",
+                "line": 18,
+                "url": "https://github.com/acme/widgets/blob/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/tests/test_release.py#L18"
+              }
+            ]
+          }
+        ]
+      },
+      "behavioral_changes": [
+        {
+          "claim": "Publishing now requires the release flag.",
+          "impact": "An accidental publish stops before creating a release.",
+          "proof_state": "complete",
+          "anchors": [
+            {
+              "path": "src/release.py",
+              "line": 42,
+              "url": "https://github.com/acme/widgets/blob/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/src/release.py#L42"
+            },
+            {
+              "path": "tests/test_release.py",
+              "line": 18,
+              "url": "https://github.com/acme/widgets/blob/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/tests/test_release.py#L18"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

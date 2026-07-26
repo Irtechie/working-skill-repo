@@ -4,10 +4,10 @@ Last deep review: 2026-07-21
 
 ## Counters Since Last Review
 
-- Completed KB cycles: 14
-- Durable memory refreshes: 2 (current run; earlier history not reconstructed)
-- Closed handoffs: 2 (current run; earlier history not reconstructed)
-- Contradiction signals: 2
+- Completed KB cycles: 15
+- Durable memory refreshes: 3 (current run; earlier history not reconstructed)
+- Closed handoffs: 3 (current run; earlier history not reconstructed)
+- Contradiction signals: 3
 - Overlap signals: 2
 - Stale-doc signals: 2
 - Bloat signals: 0
@@ -72,6 +72,7 @@ Notes:
 | 2026-07-19 | provider-boundary | evidence graph routing | Graph routing now has optional exact-symbol and structural/flow adapters plus deterministic fixtures. The durable maintenance risk is stale provider evidence being mistaken for proof or distributed locking. | Keep `graph-routing-lifecycle-selftest` and `graph-routing-eval --require-ready` green; refresh packet/provider docs when a real provider is promoted beyond fixtures. | closed |
 | 2026-07-21 | stale-doc | repo memory layout | `PROJECT.md` and the architecture index lacked dedicated route docs for `kbcheck`, `kbrouter`, the full skill inventory, and the graph-routing surface. | Refreshed the route map, eval map, testing ops, and added focused architecture docs. | closed |
 | 2026-07-21 | unknown-surface | CI/release automation | Release/install proof exists in local Node and Go commands, but `.github/workflows/` is empty and the durable owner of external CI is not documented here. | Decide whether local-only proof is intentional or document/add the checked-in workflow source of truth. | open |
+| 2026-07-26 | contradiction | plan-run worktree ownership | The July 19 hybrid guidance allowed independent slices to receive their own worktrees, but real multi-plan collision pressure showed that this was the wrong isolation unit. | Superseded the old slice plan and made one manifest group own one worktree with shared-serial slices. | closed |
 
 ## Closed Signals
 

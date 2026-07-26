@@ -34,6 +34,8 @@ can enforce narrow gates and resume safely.
 - Never merge, direct-push default, deploy, or propagate external copies unless
   the selected policy explicitly authorizes that action.
 - Do not stage, commit, revert, or overwrite unrelated dirty work.
+- The reviewed manifest-owned plan-run branch is the only delivery candidate.
+  Do not reconstruct delivery from a dirty source/default checkout.
 
 ## Input Resolution
 
@@ -108,6 +110,11 @@ Invoke `kb-land <manifest>` with direct-delivery policy.
 - Branch protection, required reviews, stale default, failed release checks, or
   ambiguous scope force PR fallback or block; never bypass protection.
 - Do not use force push or admin bypass.
+
+Absent policy is always local-only. PR/manual is the recommended team policy,
+but write access never enables it automatically and it never authorizes merge.
+Only `kb-land`, under explicit direct or authorized auto-merge policy, owns
+remote-default integration.
 
 ## Terminal Outcomes
 

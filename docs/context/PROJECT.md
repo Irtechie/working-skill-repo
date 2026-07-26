@@ -42,6 +42,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install-kb.ps1 -Target all
 ```powershell
 go run ./cmd/kbcheck core --list
 go run ./cmd/kbcheck core
+go run ./cmd/kbcheck plan-worktree-selftest
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbrouter --help
 go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
@@ -56,6 +57,7 @@ anchors:
 npm run test
 go build ./...
 go vet ./...
+go run ./cmd/kbcheck plan-worktree-selftest
 go run ./cmd/kbcheck core
 go run ./cmd/kbcheck local-release
 git diff --check
@@ -108,6 +110,11 @@ docs are:
   provider-neutral packets; stale or unavailable providers must fall back.
 - [verified] `kbrouter` stores route preference and optional private routes
   outside repo-authored manifests; planning records tiers, not concrete models.
+- [verified] Each active KB manifest group owns one non-default plan worktree;
+  explicit local check-in authority is recorded before mutation, slices commit
+  there serially, and disjoint manifests may run concurrently.
+  `plan-worktree-selftest` proves the local collision and recovery boundary
+  without touching the source checkout or performing delivery.
 - [verified] `cmd/amrbench run` remains non-dry blocked until a trusted
   human-approval verifier exists.
 - [verified] `.github/workflows\` is currently empty; proof is local CLI-driven

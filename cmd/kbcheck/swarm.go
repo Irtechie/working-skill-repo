@@ -346,6 +346,23 @@ func computeCrossManifestReadySet(manifestPath, stateRoot, runID, ownerToken str
 			Lease: leaseResult.Lease,
 		}, nil
 	}
+	if manifestHasPlanRunDefault(manifestPath) {
+		sliceState, err := loadSliceLeaseState(stateRoot)
+		if err != nil {
+			return crossManifestReadySetResult{}, err
+		}
+		for _, slice := range sliceState.Leases {
+			if slice.RunID == runID && effectiveLeaseStatus(slice, now) == "active" {
+				return crossManifestReadySetResult{
+					OK: false, Reason: "manifest-shared-worktree-slice-in-flight", RunID: runID,
+					Lease: leaseResult.Lease,
+				}, nil
+			}
+		}
+		if len(ready.Ready) > 1 {
+			ready.Ready = ready.Ready[:1]
+		}
+	}
 	return crossManifestReadySetResult{
 		OK: true, Reason: "ready", RunID: runID, Ready: ready.Ready,
 		Runnable: ready.Runnable, Lease: leaseResult.Lease,

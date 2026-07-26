@@ -18,7 +18,7 @@ func TestWorktreePreparePreservesDirtySourceAndWritesReceipt(t *testing.T) {
 	worktree := filepath.Join(t.TempDir(), "slice-worktree")
 	result, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "prepare", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		BaseSHA: base, Worktree: worktree, Branch: "codex/test/slice-003", RepoRoot: root, Now: time.Now().UTC(),
+		BaseSHA: base, Worktree: worktree, Branch: "codex/test/slice-003", RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || !result.OK {
 		t.Fatalf("prepare failed result=%#v err=%v", result, err)
@@ -36,13 +36,14 @@ func TestWorktreePreparePreservesDirtySourceAndWritesReceipt(t *testing.T) {
 
 func TestWorktreeIntegrateRequiresOwnerAndStableBase(t *testing.T) {
 	root := initWorktreeRepo(t)
+	gitOK(t, root, "switch", "-c", "codex/test-coordinator")
 	base := gitOutput(root, "rev-parse", "HEAD")
 	owner := "owner-integrate"
 	acquireWorktreeTestLease(t, root, "slice-003", owner, base, []string{"src/feature.txt"})
 	worktree := filepath.Join(t.TempDir(), "slice-worktree")
 	prepared, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "prepare", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		BaseSHA: base, Worktree: worktree, Branch: "codex/test/integrate", RepoRoot: root, Now: time.Now().UTC(),
+		BaseSHA: base, Worktree: worktree, Branch: "codex/test/integrate", RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || !prepared.OK {
 		t.Fatalf("prepare failed result=%#v err=%v", prepared, err)
@@ -53,7 +54,7 @@ func TestWorktreeIntegrateRequiresOwnerAndStableBase(t *testing.T) {
 
 	wrongOwner, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "integrate", SliceID: "slice-003", RunID: "run-1", OwnerToken: "wrong",
-		Worktree: worktree, RepoRoot: root, Now: time.Now().UTC(),
+		Worktree: worktree, RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || wrongOwner.OK || !strings.Contains(wrongOwner.Issue, "owner token") {
 		t.Fatalf("wrong owner was not rejected result=%#v err=%v", wrongOwner, err)
@@ -64,7 +65,7 @@ func TestWorktreeIntegrateRequiresOwnerAndStableBase(t *testing.T) {
 	gitOK(t, root, "commit", "-m", "base drift")
 	drift, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "integrate", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		Worktree: worktree, RepoRoot: root, Now: time.Now().UTC(),
+		Worktree: worktree, RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || drift.OK || !strings.Contains(drift.Issue, "base revision changed") {
 		t.Fatalf("base drift was not rejected result=%#v err=%v", drift, err)
@@ -73,20 +74,21 @@ func TestWorktreeIntegrateRequiresOwnerAndStableBase(t *testing.T) {
 
 func TestWorktreeIntegrateAndReleaseRequiresCleanIntegratedWorktree(t *testing.T) {
 	root := initWorktreeRepo(t)
+	gitOK(t, root, "switch", "-c", "codex/test-coordinator")
 	base := gitOutput(root, "rev-parse", "HEAD")
 	owner := "owner-release"
 	acquireWorktreeTestLease(t, root, "slice-003", owner, base, []string{"src/feature.txt"})
 	worktree := filepath.Join(t.TempDir(), "slice-worktree")
 	prepared, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "prepare", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		BaseSHA: base, Worktree: worktree, Branch: "codex/test/release", RepoRoot: root, Now: time.Now().UTC(),
+		BaseSHA: base, Worktree: worktree, Branch: "codex/test/release", RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || !prepared.OK {
 		t.Fatalf("prepare failed result=%#v err=%v", prepared, err)
 	}
 	beforeIntegrate, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "release", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		Worktree: worktree, RepoRoot: root, Now: time.Now().UTC(),
+		Worktree: worktree, RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || beforeIntegrate.OK || !strings.Contains(beforeIntegrate.Issue, "integrated") {
 		t.Fatalf("unintegrated release was not rejected result=%#v err=%v", beforeIntegrate, err)
@@ -97,7 +99,7 @@ func TestWorktreeIntegrateAndReleaseRequiresCleanIntegratedWorktree(t *testing.T
 	gitOK(t, worktree, "commit", "-m", "slice work")
 	integrated, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "integrate", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		Worktree: worktree, RepoRoot: root, Now: time.Now().UTC(),
+		Worktree: worktree, RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || !integrated.OK {
 		t.Fatalf("integrate failed result=%#v err=%v", integrated, err)
@@ -108,7 +110,7 @@ func TestWorktreeIntegrateAndReleaseRequiresCleanIntegratedWorktree(t *testing.T
 	writeFile(t, filepath.Join(worktree, "scratch.txt"), "dirty\n")
 	dirtyRelease, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "release", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		Worktree: worktree, RepoRoot: root, Now: time.Now().UTC(),
+		Worktree: worktree, RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || dirtyRelease.OK || !strings.Contains(dirtyRelease.Issue, "dirty") {
 		t.Fatalf("dirty release was not rejected result=%#v err=%v", dirtyRelease, err)
@@ -119,7 +121,7 @@ func TestWorktreeIntegrateAndReleaseRequiresCleanIntegratedWorktree(t *testing.T
 	_ = os.Remove(filepath.Join(worktree, "scratch.txt"))
 	released, err := executeWorktreeCommand(worktreeCommandOptions{
 		Action: "release", SliceID: "slice-003", RunID: "run-1", OwnerToken: owner,
-		Worktree: worktree, RepoRoot: root, Now: time.Now().UTC(),
+		Worktree: worktree, RepoRoot: root, LegacyCompatibility: true, Now: time.Now().UTC(),
 	})
 	if err != nil || !released.OK || released.Receipt.Status != "released" {
 		t.Fatalf("release failed result=%#v err=%v", released, err)
@@ -137,7 +139,7 @@ func TestWorktreeCommandStatusJSON(t *testing.T) {
 	worktree := filepath.Join(t.TempDir(), "slice-worktree")
 	var out, errOut strings.Builder
 	code := run([]string{
-		"worktree", "--action", "prepare", "--slice-id", "slice-003", "--run-id", "run-1",
+		"worktree", "--legacy-slice-worktree", "--action", "prepare", "--slice-id", "slice-003", "--run-id", "run-1",
 		"--owner-token", owner, "--base-sha", base, "--worktree", worktree, "--branch", "codex/test/command",
 		"--root", root, "--json",
 	}, &out, &errOut)
@@ -146,7 +148,7 @@ func TestWorktreeCommandStatusJSON(t *testing.T) {
 	}
 	out.Reset()
 	errOut.Reset()
-	code = run([]string{"worktree", "--action", "status", "--slice-id", "slice-003", "--run-id", "run-1", "--root", root, "--json"}, &out, &errOut)
+	code = run([]string{"worktree", "--legacy-slice-worktree", "--action", "status", "--slice-id", "slice-003", "--run-id", "run-1", "--root", root, "--json"}, &out, &errOut)
 	if code != 0 || !strings.Contains(out.String(), `"status": "prepared"`) {
 		t.Fatalf("status command failed code=%d stdout=%s stderr=%s", code, out.String(), errOut.String())
 	}
@@ -156,6 +158,10 @@ func initWorktreeRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	gitOK(t, root, "init")
+	// A user-level core.fsmonitor setting can launch a detached daemon for each
+	// disposable repository. On Windows that daemon inherits CombinedOutput's
+	// pipe handles, so Git appears to hang after the command itself exits.
+	gitOK(t, root, "config", "core.fsmonitor", "false")
 	gitOK(t, root, "config", "user.email", "kb@example.invalid")
 	gitOK(t, root, "config", "user.name", "KB Test")
 	writeFile(t, filepath.Join(root, "src", "base.txt"), "base\n")

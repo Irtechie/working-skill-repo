@@ -28,6 +28,9 @@ It never authorizes merge, force-push, hook bypass, or default-branch delivery.
    scope. Any overlap blocks shipping.
 3. Resolve the current branch, remotes, remote default branch, upstream, local
    and remote SHAs, worktrees, index, unstaged/untracked files, and existing PR.
+   Require the current branch and worktree to match the reviewed manifest-owned
+   plan-run receipt. That reviewed plan-run topic branch is the only shipping
+   candidate.
 4. Before mutation, require `gh`, authentication for the push remote's host,
    repository access, and permission to create or update a PR. Missing
    prerequisites block before commit or push.
@@ -51,11 +54,9 @@ audited shipping scope and inspect the staged diff.
 ## Branch Safety
 
 1. Fetch the selected push remote and resolve its default branch.
-2. If currently on the default branch:
-   - with uncommitted work and no unpublished default-branch commits, create a
-     descriptive topic branch before staging;
-   - with unpublished commits already attached to the default branch, stop with
-     exact recovery context. Do not rewrite the local default ref automatically.
+2. If currently on the default branch, stop with exact recovery context. Do
+   not create a topic branch from dirty/default state; resume the reviewed
+   manifest-owned plan-run branch.
 3. Refuse any topic branch whose configured upstream targets the remote default
    branch.
 4. Select a non-default remote topic ref matching the local topic branch. Push
@@ -66,10 +67,7 @@ audited shipping scope and inspect the staged diff.
 
 Run verification against the tree that will be delivered.
 
-- When repo `cmd/kbcheck` exists, plan one fresh
-  `go run ./cmd/kbcheck local-release` aggregate for the exact delivery tree.
-  Reuse identical child receipts inside that aggregate; do not launch a second
-  unchanged release aggregate in the same release state.
+- When repo `cmd/kbcheck` exists, run `go run ./cmd/kbcheck local-release`.
 - Otherwise invoke `kb-check` and run the consuming repo's native release
   checks; record the fallback commands and results.
 - Run both unstaged and staged whitespace checks:
@@ -100,10 +98,52 @@ Inspect PRs by exact head repository/ref.
 - Existing PR success requires open state and the resolved remote default branch
   as base. Block before retargeting a PR with a different base or repository.
 - Otherwise create a PR against the resolved default branch.
-- Summarize the full branch diff: Summary, Verification, Slices Completed,
-  Parked/Deferred, Risks, Follow-Up.
-- Put quarantined gate details in Risks.
+- Use the low-burden review structure from
+  `docs/context/operations/low-burden-review-artifacts.md`:
+  `What changed / Why it matters`, `Needs reviewer attention`,
+  `Handled by agent`, `Verification`, and `Risks / deferred`.
+- `Needs reviewer attention` contains only decisions or checks the reviewer
+  genuinely owns. If none exist, write `None — no reviewer decision required`.
+- `Handled by agent` names safe choices, routine fixes, and verification the
+  agent already owned so the reviewer is not asked to redo them.
+- Keep the PR as the low-burden first screen. Link a companion design, research,
+  or plan document when the reasoning is material; do not paste its full
+  chronology into the PR.
+- Put quarantined gate details in `Risks / deferred`.
 - Record the PR URL. Never merge without a separate explicit merge request.
+- PR/manual stops with the correctly based open PR. `kb-ship` never merges it;
+  only explicitly authorized `kb-land` may integrate the remote default.
+
+### Lazy visual review
+
+After the correctly based open PR exists, load `pr-review-workbench` only when
+the user requested a visual PR walkthrough or repo policy explicitly enables
+one. Do not load or run it before PR creation, during local-only delivery, or
+for an ordinary PR that did not request the visual.
+
+- Repo policy should keep small, single-area, low-risk PRs on the compact
+  executive first screen. Select the rich workbench for source-backed
+  multi-area impact, downstream dependency reach, auth/security/data/API/
+  deployment/external-mutation boundaries, substantial reconstruction cost, or
+  a material evidence-repair path. File count alone is not enough.
+- Automatic rich rendering requires a commit-pinned `impact_analysis` ordered
+  by actual application and downstream impact. Path buckets are a labeled
+  fallback only and do not qualify an ordinary PR for automatic rendering.
+- Generate the commit-pinned local HTML first and open it for the user.
+- Keep the PR summary useful when the optional workbench is absent.
+- When another reviewer needs the artifact, store the verified HTML on a
+  separate `pr-review-artifacts` branch keyed by PR number and reviewed head
+  SHA. Link its GitHub file page with a plain **Download, then open locally**
+  instruction.
+- Never add the artifact to the PR branch; doing so invalidates its own pinned
+  head SHA.
+- Artifact-branch pushes, PR-body edits, Pages publication, and public exposure
+  are separate external mutations; require their normal authorization and
+  never publish private review evidence by default.
+- GitHub Pages is optional for public/shareable PRs that need in-browser
+  viewing. It uses the same separate artifact branch.
+- A requested visual review that cannot be generated is a named artifact
+  blocker, not a reason to weaken evidence readiness.
 
 ## Terminal State
 
