@@ -460,6 +460,44 @@ gate_ledger: []
 	}
 }
 
+func TestPlanRunManifestContractRejectsIncompleteWorkspaceIntent(t *testing.T) {
+	valid := writeManifest(t, `
+---
+workspace_isolation_contract:
+  coordinator_owned_lifecycle: true
+  plan_run_worktree_default: true
+  internal_integration_target: plan-run-branch
+  default_branch_delivery_owner: kb-complete
+  allowed_modes: [shared-serial, worktree-required]
+slices: []
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(valid)
+	if err != nil || !result.OK {
+		t.Fatalf("expected valid plan-run contract, result=%#v err=%v", result, err)
+	}
+
+	for name, mutation := range map[string][2]string{
+		"coordinator": {"coordinator_owned_lifecycle: true", "coordinator_owned_lifecycle: false"},
+		"default":     {"plan_run_worktree_default: true", "plan_run_worktree_default: false"},
+		"integration": {"internal_integration_target: plan-run-branch", "internal_integration_target: default-branch"},
+		"delivery":    {"default_branch_delivery_owner: kb-complete", "default_branch_delivery_owner: kb-work"},
+		"modes":       {"allowed_modes: [shared-serial, worktree-required]", "allowed_modes: [shared-serial]"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := writeManifest(t, strings.Replace(string(mustReadFile(t, valid)), mutation[0], mutation[1], 1))
+			got, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.OK || !hasManifestIssue(got.Issues, "invalid-workspace-isolation-contract") {
+				t.Fatalf("unsafe plan-run contract was accepted: %#v", got)
+			}
+		})
+	}
+}
+
 func TestManifestContractModelRouteDoesNotSubstituteForProofCheck(t *testing.T) {
 	path := writeManifest(t, `
 ---

@@ -80,7 +80,13 @@ KB state system unless the repo already opted into `done.md`.
 5. **Validate slice contracts** - each slice plan must have `expected_files`, `verification`, `blockers`, `status`, and acceptance criteria. New slice plans should also have `test_level`, `functional_risk`, `model_tier`, and `proof_check` or `no_check_reason`. New plans do not contain model names, route aliases, source preferences, adapters, endpoints, or transports. Treat legacy `tiny` or `model_route` fields as compatibility hints only; do not require them on new plans and do not freeze a provider/model in durable plan state. If core fields are missing, stop and route to `kb-plan`; do not infer a manifest from a phase list. If only `test_level` or `functional_risk` is missing on an older plan, invoke `kb-functional-test` to classify them before execution.
 6. **Load the context packet** - for a non-trivial slice, read its packet before broad repo search or delegation. When `cmd/kbcheck` exists, validate JSON packets with `go run ./cmd/kbcheck context-packet --packet <packet.json>`. Otherwise verify the required fields directly and record `packet-validator: unavailable`; the portable skills do not require the Go maintainer harness. If required source, constraint, proof, search-policy, or escalation data is missing, route back to `kb-plan` instead of making a cheap worker rediscover the repo. Legacy tiny/mechanical slices may use the plan itself when it records why no packet is needed.
 7. **Check status** - skip any slices already marked `done`. Resume from the first safe ready set.
-8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
+8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted. For a mutating manifest with `plan_run_worktree_default: true`, prepare or resume its manifest-owned workspace before any slice mutation:
+
+   ```powershell
+   go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --owner-token <opaque-plan-token> --base-sha <reviewed-base-sha> --json
+   ```
+
+   The receipt's immutable base, explicit non-default integration ref, and worktree path become the execution authority. Dirty source changes stay in the source checkout and are never copied implicitly. Run subsequent slice commands from the receipt worktree. The feature's own bootstrap slice may use an explicitly reviewed manually-created topic worktree until `plan-worktree` exists.
 9. **Read optional execution policy** - normal work uses orchestrator-directed DDR: decide once whether the current orchestrator retains the slice or delegates it to one qualified worker. AMR is a separate testing-stage benchmark and is never enabled or required by ordinary `kb-work`. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
 10. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
 11. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
@@ -91,14 +97,16 @@ KB state system unless the repo already opted into `done.md`.
    ```
 
    The lease state defaults under the Git common directory so sibling worktrees coordinate. Separate clones and machines are out of scope. A failed acquisition leaves the board and manifest unchanged; serialize, requeue, or wait rather than racing. Renew with the returned generation during long work, and release with the same owner token/generation when the slice is done, skipped, blocked, or requeued. Wrong-token renew/release/recover must fail closed.
-13. **Resolve workspace mode:** if the slice declares `workspace_mode:
-    worktree-required`, if a dirty shared checkout would put user work at risk,
-    or if another mutating slice is active, load
-    `references/worktree-isolation.md` and prepare an isolated worktree through
-    `go run ./cmd/kbcheck worktree --action prepare ...`. The coordinator alone
-    integrates receipts and updates canonical lifecycle files. Workers return
+13. **Resolve workspace mode:** `shared-serial` mutates only the owning plan-run
+    worktree, one slice at a time. If the slice declares `workspace_mode:
+    worktree-required` or another slice may safely run concurrently, load
+    `references/worktree-isolation.md` and prepare an optional child worktree
+    from the plan-run integration head through `go run ./cmd/kbcheck worktree
+    --action prepare ...`. The coordinator alone integrates child receipts into
+    the plan-run branch and updates canonical lifecycle files. Workers return
     commit/diff/proof receipts; they do not edit `todo.md`, the manifest, or
-    handoffs in their isolated checkout.
+    handoffs in their isolated checkout. Never use the source/default checkout
+    as the child integration target.
 14. **Load impact packet summary when present:** validate freshness and fallback
     before using graph evidence. A stale or missing packet blocks
     graph-dependent claims but permits explicit file-native source inspection.

@@ -1,9 +1,33 @@
 # Worktree Isolation Reference
 
-Use this reference only after a slice has an atomic slice lease and needs an
-isolated Git worktree.
+Use this reference for the manifest-owned plan-run workspace and for optional
+child slice worktrees. The plan-run branch is the internal integration target;
+the source/default checkout is orientation and later delivery state only.
 
-## Prepare
+## Plan-Run Workspace
+
+Before any mutating slice, prepare or resume one workspace for the manifest:
+
+```powershell
+go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --owner-token <plan-token> --base-sha <reviewed-base-sha> --json
+```
+
+The receipt records the immutable base ref/SHA, explicit non-default integration
+ref and head, source checkout, manifest path, owner, worktree, status, cleanup
+state, and limitations under the Git common directory. Repeating prepare for
+the same manifest and owner is idempotent. A different owner, base, integration
+ref, or path fails closed.
+
+Dirty source files remain byte-for-byte in the source checkout and are excluded
+from the plan-run workspace. If the plan depends on those changes, stop for an
+explicit checkpoint/containment decision; never stash, reset, clean, or copy
+them implicitly. Plan-run release is non-force and refuses active, dirty, or
+unintegrated state.
+
+`shared-serial` slices run directly in this worktree. A
+`worktree-required` slice may use the child workflow below.
+
+## Prepare a Child Slice Worktree
 
 1. Preserve the source checkout exactly as found. Do not stash, reset, clean, or
    force-checkout user work.
@@ -38,13 +62,13 @@ The coordinator integrates one receipt at a time:
 go run ./cmd/kbcheck worktree --action integrate --slice-id <slice-id> --run-id <run-id> --owner-token <token> --json
 ```
 
-Integration validates the owner token, receipt, and base revision. It fails
-closed when the source branch moved, the worktree has uncommitted changes, or Git
-reports a merge conflict. Preserve the worktree and lease for recovery when this
-happens.
+Integration validates the owner token, receipt, and expected plan-run
+integration head. It fails closed when that head moved unexpectedly, the child
+worktree has uncommitted changes, or Git reports a merge conflict. Preserve the
+worktree and lease for recovery when this happens.
 
-After integration, rerun the slice proof from the source checkout. Source proof,
-not the worker receipt alone, marks the slice done.
+After integration, rerun the slice proof from the plan-run worktree. Plan-run
+proof, not the worker receipt alone, marks the slice done.
 
 ## Release
 

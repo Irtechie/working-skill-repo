@@ -55,13 +55,13 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/plan_run_workspace_test.go
     role: "manifest-owned workspace and immutable-base oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "82645d4bdbce01a665076e4dbb24794e90108b32e8a858bb9a2673c90a26b6db"
     update_policy: "requires explicit plan amendment"
-status: in_progress
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Protect the plan-run workspace oracle, then implement immutable base and explicit integration-ref receipts without touching the default branch."
+next_agent_action: "Proceed to slice-002 and extend plan-run ownership with atomic cross-manifest conflict claims."
 human_action: ""
 can_continue_other_slices: false
 ---

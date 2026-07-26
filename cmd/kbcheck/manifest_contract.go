@@ -200,6 +200,9 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	if modelSelectionContract {
 		issues = append(issues, validateModelSelectionContract(path)...)
 	}
+	if workspaceIsolationContract {
+		issues = append(issues, validateWorkspaceIsolationContract(path)...)
+	}
 	for _, slice := range slices {
 		if contextPacketContract {
 			requiresPacket := slice.Status == "pending" || slice.Status == "in_progress"
@@ -336,6 +339,39 @@ func validateModelSelectionContract(path string) []manifestContractIssue {
 				Message: fmt.Sprintf("model_selection_contract %s is %q, expected %q", key, got, want),
 			})
 		}
+	}
+	return issues
+}
+
+func validateWorkspaceIsolationContract(path string) []manifestContractIssue {
+	values, err := manifestNestedScalars(path, "workspace_isolation_contract")
+	if err != nil {
+		return []manifestContractIssue{{Code: "invalid-workspace-isolation-contract", Message: err.Error()}}
+	}
+	if _, planRunContract := values["plan_run_worktree_default"]; !planRunContract {
+		return nil
+	}
+	required := map[string]string{
+		"coordinator_owned_lifecycle":   "true",
+		"plan_run_worktree_default":     "true",
+		"internal_integration_target":   "plan-run-branch",
+		"default_branch_delivery_owner": "kb-complete",
+	}
+	issues := []manifestContractIssue{}
+	for key, want := range required {
+		if got := values[key]; got != want {
+			issues = append(issues, manifestContractIssue{
+				Code:    "invalid-workspace-isolation-contract",
+				Message: fmt.Sprintf("workspace_isolation_contract %s is %q, expected %q", key, got, want),
+			})
+		}
+	}
+	modes := values["allowed_modes"]
+	if !strings.Contains(modes, "shared-serial") || !strings.Contains(modes, "worktree-required") {
+		issues = append(issues, manifestContractIssue{
+			Code:    "invalid-workspace-isolation-contract",
+			Message: "workspace_isolation_contract allowed_modes must include shared-serial and worktree-required",
+		})
 	}
 	return issues
 }

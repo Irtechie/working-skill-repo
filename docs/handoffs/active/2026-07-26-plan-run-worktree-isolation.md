@@ -17,7 +17,11 @@ only into the plan-run branch, and keeps default-branch delivery outside
 - Manifest contract passes with zero issues.
 - All five context packets validate.
 - `plan-to-work` passed after the overlapping DDR scope was contained.
-- No implementation file has yet been changed for this workstream.
+- Slice-001 is done: the new `plan-worktree` CLI owns idempotent manifest
+  receipts, immutable base identity, explicit non-default integration refs,
+  dirty-source preservation, and non-force release refusal.
+- Focused and full `cmd/kbcheck` proof pass; the protected oracle hash is
+  `82645d4bdbce01a665076e4dbb24794e90108b32e8a858bb9a2673c90a26b6db`.
 - The shared `main` checkout has overlapping uncommitted DDR changes in:
   - `.github/skills/kb-work/SKILL.md`
   - `.github/skills/kb-work/references/execution-prompt.md`
@@ -30,11 +34,11 @@ only into the plan-run branch, and keeps default-branch delivery outside
 
 ## Next Agent Action
 
-1. Start slice-001 from the passed manifest gate.
-2. Create the manifest-owned plan-run branch/worktree without mutating or
-   integrating into the dirty default checkout.
-3. Keep bootstrap execution shared-serial until the new scheduler and plan-run
-   integration path prove safe concurrency.
+1. Start slice-002 from the owning plan-run worktree.
+2. Extend common-directory ownership with atomic manifest-level conflict and
+   shared-resource claims.
+3. Keep execution shared-serial until the scheduler and plan-run integration
+   path prove safe concurrency.
 
 ## Human Required
 

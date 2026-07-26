@@ -85,6 +85,28 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-26"
     allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
+  - gate_id: slice-slice-001-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "A manifest maps idempotently to one plan-run receipt, topic branch, and worktree."
+      - "The receipt records immutable base identity and an explicit non-default integration ref and head."
+      - "Dirty source state is preserved and excluded from the plan-run worktree."
+      - "Owner mismatch, default-branch targeting, and unsafe release fail closed."
+      - "The protected oracle showed RED before implementation and remained unchanged through GREEN."
+    proof:
+      - cmd/kbcheck/plan_run_workspace.go
+      - cmd/kbcheck/plan_run_workspace_test.go
+      - cmd/kbcheck/manifest_contract.go
+      - cmd/kbcheck/manifest_contract_test.go
+      - .github/skills/kb-plan/SKILL.md
+      - .github/skills/kb-work/SKILL.md
+      - .github/skills/kb-work/references/worktree-isolation.md
+      - "Focused plan-run workspace and manifest contract proof passed."
+      - "The full command package passed and the protected oracle hash remained unchanged."
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
 slices:
   - id: slice-001
     title: "Create a manifest-owned plan-run workspace"
@@ -103,21 +125,21 @@ slices:
       command: "go test ./cmd/kbcheck -run 'PlanRunWorkspace|PlanRunManifestContract' -count=1"
       expect: 0
     hitl: false
-    status: in_progress
+    status: done
     workspace_mode: shared-serial
     conflict_domains: [file:cmd/kbcheck/plan_run_workspace.go, file:cmd/kbcheck/manifest_contract.go, skill:kb-plan, skill:kb-work]
     shared_resources: [git:integration-owner]
     owner: agent
     blocked_reason: ""
     resume_when: ""
-    next_agent_action: "Protect the plan-run workspace oracle, then implement immutable base and explicit integration-ref receipts without touching the default branch."
+    next_agent_action: "Proceed to slice-002 and extend plan-run ownership with atomic cross-manifest conflict claims."
     human_action: ""
     can_continue_other_slices: false
-    notes: "execution_owner=current; owner_reason=reasoner-required for Git and dirty-work authority boundaries; route announcement emitted before mutation; slice lease generation 1 acquired for the eight expected files plus git integration ownership; this is the smallest enabling slice and immediately lets one manifest own one visible branch/worktree."
+    notes: "execution_owner=current; owner_reason=reasoner-required for Git and dirty-work authority boundaries; route announcement emitted before mutation; slice lease generation 1 acquired for the eight expected files plus git integration ownership; scope-forecast: loaded 8 expected files plus 3 lifecycle files; scope-discovery: plan-run workspace test is the protected convention-matched oracle; RED: undefined plan-run workspace types and executor; GREEN: focused plan-run workspace and manifest contract tests pass; full cmd/kbcheck package passes; protected-oracle SHA256 82645d4bdbce01a665076e4dbb24794e90108b32e8a858bb9a2673c90a26b6db preserved; functional proof: public plan-worktree status command parsed and failed closed with an explicit migration message when no receipt existed; scope-check: forecast=11 changed=11 discovered=0 unexplained=0; test-level: functional-cli; functional-risk: broad; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable; docs refreshed in kb-plan, kb-work, and the worktree isolation reference."
     protected_oracles:
       - path: cmd/kbcheck/plan_run_workspace_test.go
         role: "manifest-owned workspace and immutable-base oracle"
-        sha256: "filled by kb-work after RED/protection"
+        sha256: "82645d4bdbce01a665076e4dbb24794e90108b32e8a858bb9a2673c90a26b6db"
         update_policy: "requires explicit plan amendment"
   - id: slice-002
     title: "Block cross-manifest conflicts before mutation"
@@ -283,7 +305,7 @@ functional proof, documentation, and required skill propagation.
 
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|---|---|---|---|---|
-| 1 | Create a manifest-owned plan-run workspace | - | tdd / functional-cli | no | in progress |
+| 1 | Create a manifest-owned plan-run workspace | - | tdd / functional-cli | no | done |
 | 2 | Block cross-manifest conflicts before mutation | slice-001 | tdd / functional-cli | no | pending |
 | 3 | Integrate slice receipts only into the owning plan-run branch | slice-002 | tdd / functional-cli | no | pending |
 | 4 | Keep default-branch delivery and dirty-WIP authority outside kb-work | slice-003 | tdd / functional-cli | no | pending |

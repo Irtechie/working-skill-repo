@@ -266,11 +266,21 @@ enough by itself to justify delegation or a lower tier.
 
 ### Workspace Isolation Contract
 
-For manifests that may execute mutating slices concurrently, add
-`workspace_isolation_contract` to the manifest and give each runnable slice:
+For every manifest with mutating slices, add `workspace_isolation_contract`.
+The manifest is the plan-run concurrency unit: its work executes on one
+manifest-owned topic branch/worktree, while slices inside that run remain
+shared-serial unless a child worktree is explicitly required. Record:
+
+- `coordinator_owned_lifecycle: true`
+- `plan_run_worktree_default: true`
+- `internal_integration_target: plan-run-branch`
+- `default_branch_delivery_owner: kb-complete`
+- `allowed_modes: [shared-serial, worktree-required]`
+
+Give each runnable slice:
 
 - `workspace_mode: shared-serial` when the coordinator should run the slice in
-  the current checkout, one mutator at a time.
+  the owning plan-run worktree, one mutator at a time.
 - `workspace_mode: worktree-required` when the slice may run beside another
   mutating slice, the source checkout is dirty, or isolation is explicitly part
   of the acceptance criteria.
@@ -280,9 +290,11 @@ For manifests that may execute mutating slices concurrently, add
   namespaced, such as `git:integration-owner`, `graph:index`,
   `browser:4110`, or `sync:global-skills`.
 
-The planner does not choose a worktree path, branch, session, cleanup command,
-or integration order. `kb-work` resolves those from live Git state after it
-acquires the atomic slice lease.
+The planner does not choose a worktree path, branch, owner token, cleanup
+command, or delivery target. `kb-work` resolves those from live Git state.
+Slice results integrate only into the owning plan-run branch. `kb-complete`
+separately owns configured local, PR, or explicitly authorized direct delivery;
+no policy means local-only.
 
 If graph routing is part of the plan, add `impact_packet_contract` only when
 the manifest can point to packet files or explicit `no_impact_packet_reason`
