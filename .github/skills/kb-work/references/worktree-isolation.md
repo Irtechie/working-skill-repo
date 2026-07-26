@@ -1,8 +1,8 @@
 # Worktree Isolation Reference
 
-Use this reference for the manifest-owned plan-run workspace and for optional
-child slice worktrees. The plan-run branch is the internal integration target;
-the source/default checkout is orientation and later delivery state only.
+Use this reference for the manifest-owned plan-run workspace. The manifest group
+is the worktree unit; its slices run shared-serial on the plan-run branch. The
+source/default checkout is orientation and later delivery state only.
 
 ## Plan-Run Workspace
 
@@ -24,10 +24,13 @@ explicit checkpoint/containment decision; never stash, reset, clean, or copy
 them implicitly. Plan-run release is non-force and refuses active, dirty, or
 unintegrated state.
 
-`shared-serial` slices run directly in this worktree. A
-`worktree-required` slice may use the child workflow below.
+All slices run directly in this worktree. Do not create per-slice worktrees or
+branches.
 
-## Prepare a Child Slice Worktree
+## Legacy Slice Worktrees
+
+The `kbcheck worktree` command remains readable for legacy manifests only. New
+plan-run manifests do not call it. When maintaining a legacy receipt:
 
 1. Preserve the source checkout exactly as found. Do not stash, reset, clean, or
    force-checkout user work.
@@ -62,10 +65,10 @@ The coordinator integrates one receipt at a time:
 go run ./cmd/kbcheck worktree --action integrate --slice-id <slice-id> --run-id <run-id> --owner-token <token> --json
 ```
 
-Integration validates the owner token, receipt, and expected plan-run
-integration head. It fails closed when that head moved unexpectedly, the child
-worktree has uncommitted changes, or Git reports a merge conflict. Preserve the
-worktree and lease for recovery when this happens.
+Legacy integration validates the owner token, receipt, and expected source
+head. It fails closed when that head moved unexpectedly, the worktree has
+uncommitted changes, or Git reports a merge conflict. Preserve the worktree and
+lease for recovery when this happens.
 
 After integration, rerun the slice proof from the plan-run worktree. Plan-run
 proof, not the worker receipt alone, marks the slice done.

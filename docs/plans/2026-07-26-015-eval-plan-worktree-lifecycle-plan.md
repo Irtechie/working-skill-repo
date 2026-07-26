@@ -45,7 +45,7 @@ expected_files:
     scope: "Protect check registration and bounded execution."
   - path: README.md
     op: edit
-    scope: "Explain plan-run worktrees, one-mutator default, optional child worktrees, and PR-first team delivery."
+    scope: "Explain one worktree per manifest group, shared-serial slices, and PR-first team delivery."
   - path: docs/context/architecture/kb-workflow.md
     op: edit
     scope: "Document the two-level workspace, repo-wide scheduler, integration-head, and authority boundaries."
@@ -112,10 +112,11 @@ and run contributor plus release gates.
 
 - A disposable repository starts two disjoint plan runs from one default branch;
   each gets its own plan-run branch/worktree.
-- Each run may integrate two disjoint child receipts serially.
+- Each run advances two serialized slice commits in its one worktree.
 - A cross-manifest path/resource collision blocks before mutation with owner
   evidence.
-- A child conflict preserves its worktree, branch, receipt, and lease.
+- A dirty or mismatched slice receipt preserves the plan-run worktree, branch,
+  receipt, and lease.
 - The source/default branch SHA and dirty state remain unchanged throughout
   internal execution.
 - Completed local delivery leaves plan-run branches intact.
@@ -130,7 +131,8 @@ and run contributor plus release gates.
 
 ## Test Scenarios
 
-1. Two disjoint manifests and four child receipts complete in a temporary repo.
+1. Two disjoint manifests, each with two serialized slice commits, complete in
+   a temporary repo.
 2. Two conflicting manifests are not co-admitted.
 3. A shared resource collision blocks despite disjoint files.
 4. A plan-run integration conflict remains recoverable.
@@ -158,4 +160,3 @@ go run ./cmd/kbcheck local-release
 
 Requires slices 001-004. Final release also waits for the existing
 harness-validation recovery if `core` or `local-release` remains unresponsive.
-

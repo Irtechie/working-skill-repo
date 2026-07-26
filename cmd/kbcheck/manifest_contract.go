@@ -258,6 +258,9 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 			if !validWorkspaceMode(slice.WorkspaceMode) {
 				issues = append(issues, manifestContractIssue{Code: "invalid-workspace-mode", SliceID: slice.ID, Message: "workspace_isolation_contract requires workspace_mode shared-serial or worktree-required"})
 			}
+			if manifestHasPlanRunDefault(path) && slice.WorkspaceMode != "shared-serial" {
+				issues = append(issues, manifestContractIssue{Code: "invalid-workspace-mode", SliceID: slice.ID, Message: "plan-run manifests use one worktree per manifest group and require shared-serial slices"})
+			}
 			if len(slice.ConflictDomains) == 0 {
 				issues = append(issues, manifestContractIssue{Code: "missing-conflict-domains", SliceID: slice.ID, Message: "workspace_isolation_contract requires conflict_domains"})
 			}
@@ -366,14 +369,19 @@ func validateWorkspaceIsolationContract(path string) []manifestContractIssue {
 			})
 		}
 	}
-	modes := values["allowed_modes"]
-	if !strings.Contains(modes, "shared-serial") || !strings.Contains(modes, "worktree-required") {
+	modes := strings.ReplaceAll(values["allowed_modes"], " ", "")
+	if modes != "[shared-serial]" {
 		issues = append(issues, manifestContractIssue{
 			Code:    "invalid-workspace-isolation-contract",
-			Message: "workspace_isolation_contract allowed_modes must include shared-serial and worktree-required",
+			Message: "workspace_isolation_contract allowed_modes must be [shared-serial] because the manifest group owns the worktree",
 		})
 	}
 	return issues
+}
+
+func manifestHasPlanRunDefault(path string) bool {
+	values, err := manifestNestedScalars(path, "workspace_isolation_contract")
+	return err == nil && values["plan_run_worktree_default"] == "true"
 }
 
 func manifestNestedScalars(path, section string) (map[string]string, error) {

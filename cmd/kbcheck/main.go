@@ -47,6 +47,8 @@ Usage:
   kbcheck provider-hygiene-selftest
   kbcheck slice-lease --action acquire|status|renew|release|recover [--root <path>] [--state-root <path>] [--json]
   kbcheck slice-lease-selftest
+  kbcheck plan-run-lease --action acquire|status|renew|expand|release|recover [--run-id <id>] [--manifest <path>] [--root <path>] [--state-root <path>] [--json]
+  kbcheck plan-run-lease-selftest
   kbcheck plan-worktree --action prepare|status|release --manifest <path> --owner-token <token> [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
@@ -97,6 +99,7 @@ Commands:
   dishonest-completion-selftest  Validate false-done rejection fixtures.
 	scope-lease    Validate observed active slice/file write leases.
 	slice-lease    Atomically acquire and release local slice ownership.
+	plan-run-lease Atomically claim manifest paths, domains, and shared resources.
 	plan-worktree  Prepare and inspect a manifest-owned plan-run workspace.
 	worktree       Prepare, integrate, and safely release isolated slice worktrees.
 	graph-route    Validate provider-neutral graph/evidence impact packets.
@@ -175,6 +178,7 @@ type options struct {
 	leaseTTL             time.Duration
 	leaseFiles           []string
 	leasePrefixes        []string
+	leaseDomains         []string
 	leaseResources       []string
 	baseSHA              string
 	worktreePath         string
@@ -264,6 +268,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runSliceLeaseCommand(root, opts, stdout, stderr)
 	case "slice-lease-selftest":
 		return runSliceLeaseSelftest(stdout, stderr)
+	case "plan-run-lease":
+		return runPlanRunLeaseCommand(root, opts, stdout, stderr)
+	case "plan-run-lease-selftest":
+		return runPlanRunLeaseSelftest(stdout, stderr)
 	case "plan-worktree":
 		return runPlanRunWorkspaceCommand(root, opts, stdout, stderr)
 	case "worktree":
@@ -353,7 +361,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-routing-release": true,
-		"slice-lease":           true, "slice-lease-selftest": true, "plan-worktree": true, "worktree": true,
+		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "worktree": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -457,7 +465,7 @@ func parse(args []string) (options, error) {
 	if !dryRunAllowed[opts.command] && opts.dryRun {
 		return options{}, fmt.Errorf("--dry-run is only supported for gate commands")
 	}
-	manifestCommands := map[string]bool{"ready-set": true, "manifest-contract": true, "gate-ledger": true, "plan-worktree": true}
+	manifestCommands := map[string]bool{"ready-set": true, "manifest-contract": true, "gate-ledger": true, "plan-worktree": true, "plan-run-lease": true}
 	if !manifestCommands[opts.command] && opts.manifest != "" {
 		return options{}, fmt.Errorf("--manifest is only supported for manifest commands")
 	}
@@ -507,18 +515,32 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "worktree" || opts.command == "plan-worktree"
-	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree"
+	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
 	}
 	if leaseFlagCommand && opts.sliceLeaseAction == "" {
 		return options{}, fmt.Errorf("%s requires --action", opts.command)
 	}
-	if opts.command == "worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
+	if opts.command == "worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice lease state and claim flags are only supported for slice-lease")
 	}
-	if opts.command == "plan-worktree" && (opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
+	if opts.command == "plan-worktree" && (opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice lease state, identity, and claim flags are not supported for plan-worktree")
+	}
+	if opts.command == "slice-lease" && len(opts.leaseDomains) > 0 {
+		return options{}, fmt.Errorf("--domain is only supported for plan-run-lease")
+	}
+	if opts.command == "plan-run-lease" {
+		if opts.sliceID != "" || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" {
+			return options{}, fmt.Errorf("slice and worktree identity flags are not supported for plan-run-lease")
+		}
+		if opts.runID == "" && opts.sliceLeaseAction != "status" {
+			return options{}, fmt.Errorf("plan-run-lease requires --run-id")
+		}
+		if opts.sliceLeaseAction == "acquire" && opts.manifest == "" {
+			return options{}, fmt.Errorf("plan-run-lease acquire requires --manifest")
+		}
 	}
 	packetCommands := map[string]bool{"context-packet": true, "graph-route": true}
 	if !packetCommands[opts.command] && opts.packetPath != "" {

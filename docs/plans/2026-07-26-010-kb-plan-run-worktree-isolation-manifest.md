@@ -10,7 +10,7 @@ done_check:
   kind: command_exit
   command: "go run ./cmd/kbcheck plan-worktree-selftest"
   expect: 0
-  why: "Proves concurrent manifests use separate plan-run branches, conflicting runs are blocked before mutation, slice receipts integrate only into their owning run branch, and default-branch delivery remains separately authorized."
+  why: "Proves concurrent manifest groups use separate plan-run branches, conflicting runs are blocked before mutation, slices advance only their owning run branch, and default-branch delivery remains separately authorized."
 model_tier_contract:
   allowed: [small, medium, large]
   default: large
@@ -27,10 +27,10 @@ model_selection_contract:
 workspace_isolation_contract:
   coordinator_owned_lifecycle: true
   plan_run_worktree_default: true
-  slice_worktrees_optional: true
+  slice_worktrees_optional: false
   internal_integration_target: plan-run-branch
   default_branch_delivery_owner: kb-complete
-  allowed_modes: [shared-serial, worktree-required]
+  allowed_modes: [shared-serial]
 context_packet_contract:
   schema_version: 1
 execution_preconditions:
@@ -107,6 +107,28 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-26"
     allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
+  - gate_id: slice-slice-002-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "Conflicting manifest groups cannot both acquire mutation authority."
+      - "Disjoint manifest groups remain concurrently admissible."
+      - "File, prefix, domain, and resource claims compose with slice leases under one run lineage."
+      - "Owner token and generation protect renew, expansion, release, and recovery."
+      - "The protected contention oracle showed RED before implementation and remained unchanged through GREEN."
+    proof:
+      - cmd/kbcheck/plan_run_scheduler.go
+      - cmd/kbcheck/cross_manifest_scheduler_test.go
+      - cmd/kbcheck/slice_lease.go
+      - cmd/kbcheck/slice_lease_test.go
+      - cmd/kbcheck/swarm.go
+      - cmd/kbcheck/swarm_test.go
+      - .github/skills/kb-work/SKILL.md
+      - "Focused scheduler, scope lease, and plan-run contract proof passed."
+      - "Ten consecutive contention runs and the full command package passed."
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
 slices:
   - id: slice-001
     title: "Create a manifest-owned plan-run workspace"
@@ -158,33 +180,33 @@ slices:
       command: "go test ./cmd/kbcheck -run 'PlanRunLease|CrossManifestScheduler|ScopeLease' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     workspace_mode: shared-serial
     conflict_domains: [file:cmd/kbcheck/plan_run_scheduler.go, file:cmd/kbcheck/slice_lease.go, skill:kb-work]
     shared_resources: [git:integration-owner, git:plan-run-lease]
     owner: agent
     blocked_reason: ""
     resume_when: ""
-    next_agent_action: "Extend common-dir ownership from slice-only claims to manifest-level conflict and shared-resource claims."
+    next_agent_action: "Proceed to slice-003 and protect serialized slice-commit advancement on the owning plan-run branch."
     human_action: ""
     can_continue_other_slices: false
-    notes: "Local leases coordinate sibling worktrees only; remote team coordination remains branch/PR based."
+    notes: "execution_owner=delegated; owner_reason=bounded native worker had exact packet and deterministic contention proof while coordinator retained lease, board, and commit authority; route announcement emitted before dispatch; slice lease generation 1 acquired for eight expected files plus integration and plan-run lease resources; scope-forecast: loaded 8 expected files plus 3 lifecycle files; RED: missing plan-run lease API; GREEN: exact PlanRunLease, CrossManifestScheduler, and ScopeLease proof passed; contention proof passed 10 consecutive runs; full cmd/kbcheck package and plan-run, slice-lease, and scope-lease selftests passed; protected-oracle SHA256 3816b2eb97f511390a04d43f94a3df18a419b88cc3a43e977f19860ba31b848a preserved; forecast hydration prevents silent underclaiming; observed expansion requeues before a colliding write; separate clones remain explicitly uncoordinated; user architecture amendment: one manifest group owns one worktree and all slices are shared-serial, with no per-slice worktrees; amendment refreshed manifest contract, kb-plan, worktree reference, slice-003, slice-005, and the slice-003 packet; scope-check: expected=8 lifecycle=3 amendment=8 changed=19 unexplained=0; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable."
     protected_oracles:
       - path: cmd/kbcheck/cross_manifest_scheduler_test.go
         role: "cross-manifest path and shared-resource exclusion oracle"
-        sha256: "filled by kb-work after RED/protection"
+        sha256: "3816b2eb97f511390a04d43f94a3df18a419b88cc3a43e977f19860ba31b848a"
         update_policy: "requires explicit plan amendment"
   - id: slice-003
-    title: "Integrate slice receipts only into the owning plan-run branch"
+    title: "Advance slice commits only on the owning plan-run branch"
     path: docs/plans/2026-07-26-013-tool-plan-run-integration-plan.md
     blockers: [slice-002]
     verification: tdd
     test_level: functional-cli
     functional_risk: broad
     model_tier: large
-    model_tier_reason: "Serialized Git integration with expected concurrent head movement, conflict recovery, and proof replay is data-loss-sensitive architecture."
-    model_requirements: ["three-way Git integration tests", "compare-and-swap integration-head state", "recoverable conflict handling", "post-integration proof enforcement"]
-    escalation_triggers: ["integration can run in an arbitrary source branch", "the second disjoint receipt is rejected only because the first moved the integration head", "a conflict destroys the worker branch or lease", "proof is accepted only from the worker checkout"]
+    model_tier_reason: "Serialized commit acceptance, compare-and-swap head state, and proof replay on the sole plan-run branch are data-loss-sensitive architecture."
+    model_requirements: ["plan-run branch identity tests", "compare-and-swap integration-head state", "single-worktree commit receipts", "post-commit proof enforcement"]
+    escalation_triggers: ["a slice runs in another worktree or branch", "a commit is accepted after unexpected integration-head movement", "the plan-run worktree is dirty at receipt time", "proof is accepted only from worker self-report"]
     context_packet_path: docs/plans/2026-07-26-plan-run-worktree-context/slice-003.json
     proof_check:
       kind: command_exit
@@ -193,7 +215,7 @@ slices:
     hitl: false
     status: pending
     workspace_mode: shared-serial
-    conflict_domains: [file:cmd/kbcheck/worktree_isolation.go, git:plan-run-branch, skill:kb-work]
+    conflict_domains: [file:cmd/kbcheck/plan_run_workspace.go, git:plan-run-branch, skill:kb-work]
     shared_resources: [git:integration-owner, git:plan-run-branch]
     owner: agent
     blocked_reason: ""
@@ -204,7 +226,7 @@ slices:
     notes: "Workers return commits/diffs/proof; only the plan-run coordinator integrates and reruns proof."
     protected_oracles:
       - path: cmd/kbcheck/plan_run_integration_test.go
-        role: "two-receipt serialized integration and conflict-recovery oracle"
+        role: "serialized same-worktree slice commit and integration-head oracle"
         sha256: "filled by kb-work after RED/protection"
         update_policy: "requires explicit plan amendment"
   - id: slice-004
@@ -293,7 +315,8 @@ functional proof, documentation, and required skill propagation.
 
 - A plan set means one KB manifest/workstream, not every individual plan file.
 - Every concurrently mutating manifest gets one plan-run branch and worktree.
-- One mutator per plan-run is the default; child slice worktrees are optional.
+- One manifest group owns one worktree; its slices mutate that worktree
+  shared-serial. Per-slice worktrees are not part of this workflow.
 - Expected files are forecasts; observed path/resource overlap wins.
 - Slice results integrate serially into the owning plan-run branch.
 - `kb-work` never implicitly integrates or delivers to the remote default branch.
@@ -306,8 +329,8 @@ functional proof, documentation, and required skill propagation.
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|---|---|---|---|---|
 | 1 | Create a manifest-owned plan-run workspace | - | tdd / functional-cli | no | done |
-| 2 | Block cross-manifest conflicts before mutation | slice-001 | tdd / functional-cli | no | pending |
-| 3 | Integrate slice receipts only into the owning plan-run branch | slice-002 | tdd / functional-cli | no | pending |
+| 2 | Block cross-manifest conflicts before mutation | slice-001 | tdd / functional-cli | no | done |
+| 3 | Advance slice commits only on the owning plan-run branch | slice-002 | tdd / functional-cli | no | pending |
 | 4 | Keep default-branch delivery and dirty-WIP authority outside kb-work | slice-003 | tdd / functional-cli | no | pending |
 | 5 | Prove and release the multi-plan worktree lifecycle | slice-004 + external release gate | integration / full | no | pending |
 

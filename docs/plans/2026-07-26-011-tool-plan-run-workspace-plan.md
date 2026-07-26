@@ -51,7 +51,7 @@ expected_files:
     scope: "Prepare or resume the manifest-owned workspace before any mutating slice."
   - path: .github/skills/kb-work/references/worktree-isolation.md
     op: edit
-    scope: "Separate plan-run workspace preparation from optional child slice worktrees."
+    scope: "Make the manifest group the worktree unit and retain slice-worktree behavior only as legacy compatibility."
 protected_oracles:
   - path: cmd/kbcheck/plan_run_workspace_test.go
     role: "manifest-owned workspace and immutable-base oracle"
@@ -114,7 +114,7 @@ go test ./cmd/kbcheck -run 'PlanRunWorkspace|PlanRunManifestContract' -count=1
 ## Scope Boundary
 
 - Do not implement cross-manifest conflict arbitration; slice-002 owns it.
-- Do not integrate child slice receipts; slice-003 owns it.
+- Do not advance slice commit receipts; slice-003 owns it.
 - Do not push, create a PR, merge default, or change delivery policy.
 - Do not use force cleanup, reset, stash, or hidden commits.
 

@@ -55,13 +55,13 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/cross_manifest_scheduler_test.go
     role: "cross-manifest path and shared-resource exclusion oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "3816b2eb97f511390a04d43f94a3df18a419b88cc3a43e977f19860ba31b848a"
     update_policy: "requires explicit plan amendment"
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Extend common-dir ownership from slice-only claims to manifest-level conflict and shared-resource claims."
+next_agent_action: "Proceed to slice-003 and protect serialized slice-commit advancement on the owning plan-run branch."
 human_action: ""
 can_continue_other_slices: false
 ---
@@ -122,4 +122,3 @@ go test ./cmd/kbcheck -run 'PlanRunLease|CrossManifestScheduler|ScopeLease' -cou
 ## Dependencies
 
 Requires slice-001 plan-run identity and common-dir receipt ownership.
-

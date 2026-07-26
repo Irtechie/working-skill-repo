@@ -468,7 +468,7 @@ workspace_isolation_contract:
   plan_run_worktree_default: true
   internal_integration_target: plan-run-branch
   default_branch_delivery_owner: kb-complete
-  allowed_modes: [shared-serial, worktree-required]
+  allowed_modes: [shared-serial]
 slices: []
 gate_ledger: []
 ---
@@ -483,7 +483,7 @@ gate_ledger: []
 		"default":     {"plan_run_worktree_default: true", "plan_run_worktree_default: false"},
 		"integration": {"internal_integration_target: plan-run-branch", "internal_integration_target: default-branch"},
 		"delivery":    {"default_branch_delivery_owner: kb-complete", "default_branch_delivery_owner: kb-work"},
-		"modes":       {"allowed_modes: [shared-serial, worktree-required]", "allowed_modes: [shared-serial]"},
+		"modes":       {"allowed_modes: [shared-serial]", "allowed_modes: [worktree-required]"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := writeManifest(t, strings.Replace(string(mustReadFile(t, valid)), mutation[0], mutation[1], 1))

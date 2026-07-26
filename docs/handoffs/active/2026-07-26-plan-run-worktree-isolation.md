@@ -22,6 +22,10 @@ only into the plan-run branch, and keeps default-branch delivery outside
   dirty-source preservation, and non-force release refusal.
 - Focused and full `cmd/kbcheck` proof pass; the protected oracle hash is
   `82645d4bdbce01a665076e4dbb24794e90108b32e8a858bb9a2673c90a26b6db`.
+- Slice-002 is done: atomic manifest-level path/domain/resource claims block
+  conflicting plan groups before mutation while admitting disjoint groups.
+- User correction is binding: one manifest group owns one worktree; every slice
+  is shared-serial in it, and this workflow creates no per-slice worktrees.
 - The shared `main` checkout has overlapping uncommitted DDR changes in:
   - `.github/skills/kb-work/SKILL.md`
   - `.github/skills/kb-work/references/execution-prompt.md`
@@ -34,11 +38,10 @@ only into the plan-run branch, and keeps default-branch delivery outside
 
 ## Next Agent Action
 
-1. Start slice-002 from the owning plan-run worktree.
-2. Extend common-directory ownership with atomic manifest-level conflict and
-   shared-resource claims.
-3. Keep execution shared-serial until the scheduler and plan-run integration
-   path prove safe concurrency.
+1. Start amended slice-003 from the owning plan-run worktree.
+2. Accept only serialized slice commits made on that exact branch/worktree and
+   advance the recorded integration head by compare-and-swap.
+3. Rerun aggregate proof in the plan-run worktree before terminal status.
 
 ## Human Required
 

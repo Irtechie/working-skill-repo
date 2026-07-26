@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 type manifestSlice struct {
 	ID                     string
+	Path                   string
 	Blockers               []string
 	Status                 string
 	Verification           string
@@ -40,6 +42,16 @@ type readySetResult struct {
 	Ready          []string `json:"ready"`
 	Runnable       []string `json:"runnable"`
 	ExcludedSerial []string `json:"excluded_serial"`
+}
+
+type crossManifestReadySetResult struct {
+	OK         bool               `json:"ok"`
+	Reason     string             `json:"reason"`
+	RunID      string             `json:"run_id"`
+	Ready      []string           `json:"ready"`
+	Runnable   []string           `json:"runnable"`
+	Lease      *planRunLease      `json:"lease,omitempty"`
+	Collisions []planRunCollision `json:"collisions,omitempty"`
 }
 
 type missingBlockerResult struct {
@@ -302,6 +314,41 @@ func computeReadySet(path string) (any, error) {
 	}, nil
 }
 
+func computeCrossManifestReadySet(manifestPath, stateRoot, runID, ownerToken string, now time.Time) (crossManifestReadySetResult, error) {
+	result, err := computeReadySet(manifestPath)
+	if err != nil {
+		return crossManifestReadySetResult{}, err
+	}
+	ready, ok := result.(readySetResult)
+	if !ok || !ready.OK {
+		return crossManifestReadySetResult{
+			OK: false, Reason: "manifest-ready-set-blocked", RunID: runID,
+		}, nil
+	}
+	leaseResult, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "status", StateRoot: stateRoot, RunID: runID, OwnerToken: ownerToken, Now: now,
+	})
+	if err != nil {
+		return crossManifestReadySetResult{}, err
+	}
+	if !leaseResult.OK || leaseResult.Lease == nil {
+		return crossManifestReadySetResult{
+			OK: false, Reason: "manifest-mutation-authority-required", RunID: runID,
+			Collisions: leaseResult.Collisions,
+		}, nil
+	}
+	if leaseResult.Lease.Status != "active" {
+		return crossManifestReadySetResult{
+			OK: false, Reason: "manifest-mutation-authority-expired", RunID: runID,
+			Lease: leaseResult.Lease,
+		}, nil
+	}
+	return crossManifestReadySetResult{
+		OK: true, Reason: "ready", RunID: runID, Ready: ready.Ready,
+		Runnable: ready.Runnable, Lease: leaseResult.Lease,
+	}, nil
+}
+
 func writeReadySet(stdout io.Writer, result any, asJSON bool) int {
 	if asJSON {
 		encoder := json.NewEncoder(stdout)
@@ -359,6 +406,8 @@ func parseManifestSlices(path string) ([]manifestSlice, error) {
 		switch {
 		case strings.HasPrefix(trimmed, "blockers:"):
 			current.Blockers = parseInlineList(strings.TrimSpace(strings.TrimPrefix(trimmed, "blockers:")))
+		case strings.HasPrefix(trimmed, "path:"):
+			current.Path = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "path:")))
 		case strings.HasPrefix(trimmed, "status:"):
 			current.Status = cleanYAMLScalar(strings.TrimSpace(strings.TrimPrefix(trimmed, "status:")))
 		case strings.HasPrefix(trimmed, "verification:"):
