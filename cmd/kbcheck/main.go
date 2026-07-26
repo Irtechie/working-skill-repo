@@ -170,6 +170,9 @@ type options struct {
 	packetPath              string
 	telemetryPath           string
 	receiptPath             string
+	receiptDir              string
+	proofRegistryPath       string
+	proofRequest            string
 	evidenceEnvelopePath    string
 	cohort                  string
 	evidencePath            string

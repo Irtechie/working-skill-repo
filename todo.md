@@ -74,7 +74,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 |---|---|---|---|
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
-| Plan-run worktree isolation and team-safe integration | 🔄 in progress | P0 | `docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md` — slices 001-002 are done through `e00332c`; manifest and slice-003 leases are active in the single plan-run worktree. |
+| Plan-run worktree isolation and team-safe integration | 🔄 in progress | P0 | `docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md` — slices 001-003 are done through plan-run commit `1076d1a`; slice-004 is next and no leases remain active. |
 | Workflow overview image restoration | 🔧 in_progress | P0 | AMR/DDR review is archived; restore the former routing overview under a distinct asset name after current workflow consolidation is reflected. |
 | Harness-engineering validation recovery | ⬜ pending | P1 | `docs/plans/2026-07-20-000-kb-harness-validation-recovery-manifest.md`; fixes the `kbcheck`/`go test` hang, bounded proof diagnostics, LF-stable `lopopolo/harness-engineering` runner, and combined release/review proof. |
 | DDR route announcement final release gate | 🔒 blocked | P1 | Implementation, focused proof, review repair, 17/17 snapshots, and skill sync are green; `core` and `local-release` each timed out after 59 seconds with no output. Manifest: `docs/plans/2026-07-26-000-kb-ddr-route-announcement-manifest.md` |
@@ -108,7 +108,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Handoff | Status | Route | Created | Stale Check | Link |
 |---|---|---|---|---|---|
-| Plan-run worktree isolation | 🔄 in progress | `kb-work` slice-003 | 2026-07-26 | Protect serialized slice-commit advancement on the owning plan-run branch | `docs/handoffs/active/2026-07-26-plan-run-worktree-isolation.md` |
+| Plan-run worktree isolation | 🔄 in progress | `kb-work` slice-004 | 2026-07-26 | Enforce default-branch delivery and dirty-WIP authority boundaries | `docs/handoffs/active/2026-07-26-plan-run-worktree-isolation.md` |
 
 ## Human Required
 
