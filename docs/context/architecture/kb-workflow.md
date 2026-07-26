@@ -281,8 +281,9 @@ Immediately after ownership/route selection and before mutation or dispatch,
 `kb-work` emits one compact line with `current|subagent`, primary route,
 fallback path, required tier, and proof target. This route announcement is evidence-bound:
 concrete names require active host or `kbrouter` evidence. A named fallback is
-conditional on a fresh eligibility check and explicit reselection; it is not an
-automatic dispatch, downward route, or cross-owner fallback.
+conditional on a fresh same-tier-or-higher eligibility check and explicit
+reselection; it is not an automatic dispatch, downward route, or cross-owner
+fallback.
 
 ```text
 DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>

@@ -49,14 +49,14 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/ddr_contract_test.go
     role: "DDR production contract oracle"
-    sha256: "1422b18191baebc8f77750f3a923414aba3e6391e24fd7f47a2ff506aff314e6"
-    oracle_update_reason: "Review P1 proved the first oracle allowed both orchestrator and worker emission; amend it to require one emitting authority and the current-owner fallback."
+    sha256: "7e692e447faab2c4d6403c4c415c5e06484669356428cff6819dde801c525c26"
+    oracle_update_reason: "Containment review proved substring-only checks allowed worker emission or routing authority, post-mutation timing, lower-tier named fallback, duplicate grammar, and dated-plan coupling; amend the oracle with negative mutations and production-surface boundaries."
     update_policy: "The new announcement expectations are fixed before implementation."
 status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Wait for the repo validation harness recovery, then rerun core and local-release."
+next_agent_action: "Wait for the unrelated required global drift workstreams, then rerun local-release."
 human_action: ""
 can_continue_other_slices: true
 ---
@@ -82,8 +82,9 @@ DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-r
   `kbrouter` proves it callable and selected/eligible.
 - The fallback field never implies automatic downward or cross-owner fallback.
   A named backup is explicitly conditional on a fresh eligibility check and a
-  new ownership/selection decision; otherwise say `explicit same-tier/higher
-  reselection`.
+  new execution attempt with a fresh ownership/selection decision; it is never
+  a second owner decision within one attempt. Otherwise say
+  `explicit same-tier/higher reselection`.
 - Current execution names the current route only when host evidence exposes it;
   otherwise use `current orchestrator`.
 - The line includes the required tier and the narrow proof target.
@@ -107,7 +108,7 @@ DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-r
 - Do not change route selection order, AMR policy, model catalogs, or trust
   rules.
 - Do not implement a runtime hook or new CLI command.
-- Do not commit or push.
+- Do not push. Commit only under subsequent explicit user authorization.
 
 ## Proof Check
 

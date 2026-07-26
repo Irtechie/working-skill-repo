@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-26-ddr-route-announcement
 brainstorm_path: direct-chat
 created: 2026-07-26
-status: active
+status: blocked
 workflow_shape: skill-bundle-change
 objective_contract: true
 done_check:
@@ -27,6 +27,7 @@ model_selection_contract:
   model_requirements:
     - "Use the active host schema and user-local catalog as the only route-name evidence."
     - "Preserve one owner decision, same-tier-or-higher delegation, and deterministic proof."
+    - "Treat an explicit reselection as a new execution attempt with a fresh decision record, never a second owner decision within one attempt."
   escalation_triggers:
     - "No eligible route can be proven for the required tier."
     - "A proposed named fallback would bypass a fresh eligibility check or change owners silently."
@@ -85,16 +86,16 @@ gate_ledger:
       - cmd/kbcheck/ddr_contract_test.go
       - README.md
       - docs/context/architecture/kb-workflow.md
-      - .kb/snapshots/ddr-route-announcement.json
+      - "Regression snapshot replay passed 17 of 17 in the owning checkout; the ephemeral snapshot is not a clean-clone dependency."
       - "Focused DDR contract showed RED then GREEN and the protected oracle hash was preserved."
       - "Formatting and diff checks passed; browser QA was skipped because no UI behavior changed."
       - "Pre-sync drift review found the same two expected announcement files changed in Codex, Copilot, and Agents, with no target-only files or useful global-only work."
-      - "Codex, Copilot, and Agents kb-work directory diffs against source: 0 lines."
+      - "Global hash verification matched both authoritative kb-work files across Codex, Copilot, and Agents."
       - "Regression snapshot replay passed all 17 checks after review repair and recapture."
-      - "scope-check: forecast=8 changed=8 discovered=3 unexplained=0."
+      - "scope-check: plan forecast=8 changed=8 discovered=3 unexplained=0; containment commit has exactly 7 tracked files, with global copies verified separately and todo lifecycle state excluded."
     blockers: []
     passed_at: "2026-07-26"
-    allowed_next_action: "hold at work-to-complete until the repo release gates are responsive"
+    allowed_next_action: "hold at work-to-complete until unrelated required global drift is reconciled"
   - gate_id: work-to-complete
     owner_skill: kb-work
     status: blocked
@@ -108,14 +109,13 @@ gate_ledger:
     proof:
       - docs/plans/2026-07-26-000-kb-ddr-route-announcement-manifest.md
       - cmd/kbcheck/ddr_contract_test.go
-      - .kb/snapshots/ddr-route-announcement.json
+      - "Regression snapshot replay passed 17 of 17 in the owning checkout; the ephemeral snapshot is not a clean-clone dependency."
       - todo.md
-      - "scope-check: forecast=8 changed=8 discovered=3 unexplained=0."
+      - "scope-check: plan forecast=8 changed=8 discovered=3 unexplained=0; containment commit has exactly 7 tracked files, with global copies verified separately and todo lifecycle state excluded."
       - "README and workflow architecture describe the evidence-bound announcement."
     blockers:
-      - "go run ./cmd/kbcheck core timed out after 59 seconds with no output."
-      - "go run ./cmd/kbcheck local-release timed out after 59 seconds with no output."
-    allowed_next_action: "restore the existing harness-validation workstream, then rerun core and local-release"
+      - "local-release reports five unrelated required drift issues: kb-map in Codex/Copilot/Agents, kb-gate in Copilot, and kb-regression-snapshot in Copilot."
+    allowed_next_action: "reconcile the five pre-existing non-kb-work global drift issues in their owning workstreams, then rerun local-release"
 slices:
   - id: slice-001
     title: "Announce the evidence-backed DDR route before execution"
@@ -137,15 +137,15 @@ slices:
     owner: agent
     blocked_reason: ""
     resume_when: ""
-    next_agent_action: "Wait for the repo validation harness recovery, then rerun core and local-release."
+    next_agent_action: "Wait for the unrelated required global drift workstreams, then rerun local-release."
     human_action: ""
     can_continue_other_slices: true
-    notes: "execution_owner=current; owner_reason=reasoner-required due overlapping dirty skill/docs context; scope-forecast: loaded 8 expected files + 0 convention-matched tests; scope-discovery: manifest, slice plan, and todo.md are required KB lifecycle artifacts; scope-check: forecast=8 changed=8 discovered=3 unexplained=0; RED/GREEN round 1 established the announcement contract; kb-review found P1 duplicate emission plus P2 current fallback, preview, grammar, and portable-alias issues; protected oracle explicitly amended and RED/GREEN round 2 passed; protected-oracle SHA256 1422b18191baebc8f77750f3a923414aba3e6391e24fd7f47a2ff506aff314e6 preserved; follow-up correctness review found no actionable defects; pre-sync-drift: Codex, Copilot, and Agents each differed only in kb-work/SKILL.md and references/execution-prompt.md, with identical reviewed diffs and no target-only files or useful global-only work; post-sync diffs: 0; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI-reachable behavior changed; snapshot: PASS 17/17 after review repair and recapture; memory-impact: durable; kb-map-refresh: done through README and workflow architecture update; core and local-release each timed out after 59 seconds with no output, so final release completion remains blocked."
+    notes: "execution_owner=current; owner_reason=reasoner-required due overlapping dirty skill/docs context; scope-forecast: loaded 8 expected files + 0 convention-matched tests; scope-discovery: manifest, slice plan, and todo.md are required KB lifecycle artifacts; scope-check: plan forecast=8 changed=8 discovered=3 unexplained=0; containment commit: exactly 7 tracked files, global copies verified separately, todo lifecycle state excluded; RED/GREEN round 1 established the announcement contract; kb-review found P1 duplicate emission plus P2 current fallback, preview, grammar, and portable-alias issues; containment review further removed delegated-worker routing authority, post-mutation timing gaps, lower-tier named fallback, duplicate grammar tolerance, dated-plan coupling, unrelated README drift, and an ignored snapshot dependency; protected oracle explicitly amended and focused plus full cmd/kbcheck proof passed; pre-sync-drift: Codex, Copilot, and Agents had no target-only files or useful global-only work; post-sync hashes match for SKILL.md and references/execution-prompt.md across all three targets; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI-reachable behavior changed; snapshot: prior owning-checkout replay PASS 17/17; memory-impact: durable; kb-map-refresh: done through README and workflow architecture update; core passed in the clean containment worktree; local-release remains blocked only by five unrelated required global drift issues outside kb-work."
     protected_oracles:
       - path: cmd/kbcheck/ddr_contract_test.go
         role: "DDR production contract oracle"
-        sha256: "1422b18191baebc8f77750f3a923414aba3e6391e24fd7f47a2ff506aff314e6"
-        oracle_update_reason: "Review P1 proved the first oracle allowed both orchestrator and worker emission; amend it to require one emitting authority and the current-owner fallback."
+        sha256: "7e692e447faab2c4d6403c4c415c5e06484669356428cff6819dde801c525c26"
+        oracle_update_reason: "Containment review proved substring-only checks allowed worker emission or routing authority, post-mutation timing, lower-tier named fallback, duplicate grammar, and dated-plan coupling; amend the oracle with negative mutations and production-surface boundaries."
         update_policy: "The new announcement expectations are fixed before implementation."
 ---
 

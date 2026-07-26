@@ -218,6 +218,155 @@ func TestSliceLeaseCommandStatusJSON(t *testing.T) {
 	}
 }
 
+func TestPlanRunLeaseAllowsRunQualifiedSiblingSliceIDsInsideOneWorkstreamEach(t *testing.T) {
+	stateRoot := t.TempDir()
+	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	for _, plan := range []planRunLeaseCommandOptions{
+		{
+			Action: "acquire", StateRoot: stateRoot, RunID: "run-a", ManifestPath: "docs/plans/a.md",
+			OwnerToken: "owner-a", Prefixes: []string{"src/a"}, Now: now,
+		},
+		{
+			Action: "acquire", StateRoot: stateRoot, RunID: "run-b", ManifestPath: "docs/plans/b.md",
+			OwnerToken: "owner-b", Prefixes: []string{"src/b"}, Now: now,
+		},
+	} {
+		result, err := executePlanRunLease(plan)
+		if err != nil || !result.OK {
+			t.Fatalf("plan acquire failed: result=%#v err=%v", result, err)
+		}
+	}
+	for _, slice := range []sliceLeaseCommandOptions{
+		{
+			Action: "acquire", StateRoot: stateRoot, RunID: "run-a", SliceID: "slice-001",
+			OwnerToken: "owner-a", Files: []string{"src/a/one.go"}, Now: now,
+		},
+		{
+			Action: "acquire", StateRoot: stateRoot, RunID: "run-b", SliceID: "slice-001",
+			OwnerToken: "owner-b", Files: []string{"src/b/one.go"}, Now: now,
+		},
+	} {
+		result, err := executeSliceLease(slice)
+		if err != nil || !result.OK {
+			t.Fatalf("run-qualified slice acquire failed: result=%#v err=%v", result, err)
+		}
+	}
+	status, err := executeSliceLease(sliceLeaseCommandOptions{
+		Action: "status", StateRoot: stateRoot, Now: now,
+	})
+	if err != nil || !status.OK || len(status.Leases) != 2 {
+		t.Fatalf("run-qualified slice status failed: result=%#v err=%v", status, err)
+	}
+}
+
+func TestPlanRunLeaseRecoveryRechecksContentionAndReleaseWaitsForSlices(t *testing.T) {
+	stateRoot := t.TempDir()
+	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	first, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "acquire", StateRoot: stateRoot, RunID: "run-a", ManifestPath: "docs/plans/a.md",
+		OwnerToken: "owner-a", Files: []string{"src/a.go"}, TTL: time.Second, Now: now,
+	})
+	if err != nil || !first.OK {
+		t.Fatalf("first acquire failed: result=%#v err=%v", first, err)
+	}
+	later := now.Add(2 * time.Second)
+	second, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "acquire", StateRoot: stateRoot, RunID: "run-b", ManifestPath: "docs/plans/b.md",
+		OwnerToken: "owner-b", Files: []string{"src/a.go"}, TTL: time.Minute, Now: later,
+	})
+	if err != nil || !second.OK {
+		t.Fatalf("second acquire after expiry failed: result=%#v err=%v", second, err)
+	}
+	recovered, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "recover", StateRoot: stateRoot, RunID: "run-a", OwnerToken: "owner-a",
+		Generation: first.Lease.Generation, TTL: time.Minute, Now: later,
+	})
+	if err != nil || recovered.OK || !recovered.Requeued || len(recovered.Collisions) == 0 {
+		t.Fatalf("recovery bypassed new owner: result=%#v err=%v", recovered, err)
+	}
+
+	disjointRoot := t.TempDir()
+	plan, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "acquire", StateRoot: disjointRoot, RunID: "run-c", ManifestPath: "docs/plans/c.md",
+		OwnerToken: "owner-c", Files: []string{"src/c.go"}, Now: now,
+	})
+	if err != nil || !plan.OK {
+		t.Fatalf("disjoint plan acquire failed: result=%#v err=%v", plan, err)
+	}
+	slice, err := executeSliceLease(sliceLeaseCommandOptions{
+		Action: "acquire", StateRoot: disjointRoot, RunID: "run-c", SliceID: "slice-001",
+		OwnerToken: "owner-c", Files: []string{"src/c.go"}, Now: now,
+	})
+	if err != nil || !slice.OK {
+		t.Fatalf("slice acquire failed: result=%#v err=%v", slice, err)
+	}
+	release, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "release", StateRoot: disjointRoot, RunID: "run-c", OwnerToken: "owner-c",
+		Generation: plan.Lease.Generation, Now: now,
+	})
+	if err != nil || release.OK || !strings.Contains(release.Issue, "release slices first") {
+		t.Fatalf("plan released with active slice: result=%#v err=%v", release, err)
+	}
+}
+
+func TestPlanRunLeaseTwoProcessClaimRaceHasOneMutationAuthority(t *testing.T) {
+	if os.Getenv("KBCHECK_PLAN_RUN_LEASE_HELPER") == "1" {
+		var out, errOut strings.Builder
+		code := run([]string{
+			"plan-run-lease", "--action", "acquire",
+			"--state-root", os.Getenv("KBCHECK_PLAN_RUN_LEASE_ROOT"),
+			"--root", os.Getenv("KBCHECK_PLAN_RUN_REPO_ROOT"),
+			"--run-id", os.Getenv("KBCHECK_PLAN_RUN_LEASE_RUN"),
+			"--manifest", os.Getenv("KBCHECK_PLAN_RUN_MANIFEST"),
+			"--owner-token", os.Getenv("KBCHECK_PLAN_RUN_LEASE_OWNER"),
+			"--file", "src/shared.go",
+		}, &out, &errOut)
+		os.Exit(code)
+	}
+
+	stateRoot := t.TempDir()
+	manifest := filepath.Join(stateRoot, "race.md")
+	writeFile(t, manifest, "---\ntype: kb-manifest\nslices: []\n---\n")
+	results := make(chan int, 2)
+	var wg sync.WaitGroup
+	for _, suffix := range []string{"a", "b"} {
+		wg.Add(1)
+		go func(suffix string) {
+			defer wg.Done()
+			cmd := exec.Command(os.Args[0], "-test.run=^TestPlanRunLeaseTwoProcessClaimRaceHasOneMutationAuthority$")
+			cmd.Env = append(os.Environ(),
+				"KBCHECK_PLAN_RUN_LEASE_HELPER=1",
+				"KBCHECK_PLAN_RUN_LEASE_ROOT="+stateRoot,
+				"KBCHECK_PLAN_RUN_REPO_ROOT="+stateRoot,
+				"KBCHECK_PLAN_RUN_MANIFEST="+manifest,
+				"KBCHECK_PLAN_RUN_LEASE_RUN=run-"+suffix,
+				"KBCHECK_PLAN_RUN_LEASE_OWNER=owner-"+suffix,
+			)
+			err := cmd.Run()
+			if err == nil {
+				results <- 0
+				return
+			}
+			if exit, ok := err.(*exec.ExitError); ok {
+				results <- exit.ExitCode()
+				return
+			}
+			t.Errorf("plan-run helper failed without exit code: %v", err)
+			results <- 99
+		}(suffix)
+	}
+	wg.Wait()
+	close(results)
+
+	counts := map[int]int{}
+	for code := range results {
+		counts[code]++
+	}
+	if counts[0] != 1 || counts[2] != 1 {
+		t.Fatalf("expected one plan-run winner and one collision, got %#v", counts)
+	}
+}
+
 func runGitForSliceLease(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)

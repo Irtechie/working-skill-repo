@@ -171,9 +171,10 @@ Break the work into thin end-to-end slices. For each slice, determine:
   blast radius, coupling, reversibility, authority, or verification burden
 - **Model requirements** - capabilities, tools, context, risk, and proof shape the work-time selector must consider
 - **Escalation triggers** - observable conditions that require a higher tier
-- **Workspace isolation intent** - `shared-serial` or `worktree-required`,
-  conflict domains, and shared resources. Plans record intent only, never live
-  paths, branch names, session IDs, cleanup state, or owner tokens.
+- **Workspace isolation intent** - one plan-run worktree per mutating manifest
+  group, shared-serial slices, conflict domains, and shared resources. Plans
+  record intent only, never live paths, branch names, session IDs, cleanup
+  state, or owner tokens.
 - **Blocked by** - which other slices must complete first, or none
 - **HITL flag** - does this need human judgment? Most should be `false` if the brainstorm was thorough.
 - **Expected files** - best current forecast of files this slice may create or modify, with operation type. Used by `kb-work` as an orientation and review-scope seed, not as a literal allowlist.
@@ -273,23 +274,33 @@ enough by itself to justify delegation or a lower tier.
 
 ### Workspace Isolation Contract
 
-For manifests that may execute mutating slices concurrently, add
-`workspace_isolation_contract` to the manifest and give each runnable slice:
+For every manifest with mutating slices, add `workspace_isolation_contract`.
+The manifest is the plan-run concurrency unit: its work executes on one
+manifest-owned topic branch/worktree, while every slice inside that run remains
+shared-serial. Record:
+
+- `coordinator_owned_lifecycle: true`
+- `plan_run_worktree_default: true`
+- `internal_integration_target: plan-run-branch`
+- `default_branch_delivery_owner: kb-complete`
+- `allowed_modes: [shared-serial]`
+
+Give each runnable slice:
 
 - `workspace_mode: shared-serial` when the coordinator should run the slice in
-  the current checkout, one mutator at a time.
-- `workspace_mode: worktree-required` when the slice may run beside another
-  mutating slice, the source checkout is dirty, or isolation is explicitly part
-  of the acceptance criteria.
+  the owning plan-run worktree, one mutator at a time.
 - `conflict_domains` describing files, prefixes, generated outputs, graph/index
   namespaces, browser/port/database resources, skills, or lifecycle surfaces.
 - `shared_resources` for anything that must be serialized or explicitly
   namespaced, such as `git:integration-owner`, `graph:index`,
   `browser:4110`, or `sync:global-skills`.
 
-The planner does not choose a worktree path, branch, session, cleanup command,
-or integration order. `kb-work` resolves those from live Git state after it
-acquires the atomic slice lease.
+The planner does not choose a worktree path, branch, owner token, cleanup
+command, or delivery target. `kb-work` resolves those from live Git state.
+Slices commit and advance only on the owning plan-run branch. Per-slice
+worktrees are not part of this workflow. `kb-complete`
+separately owns configured local, PR, or explicitly authorized direct delivery;
+no policy means local-only.
 
 If graph routing is part of the plan, add `impact_packet_contract` only when
 the manifest can point to packet files or explicit `no_impact_packet_reason`

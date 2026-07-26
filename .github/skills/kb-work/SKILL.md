@@ -80,31 +80,51 @@ KB state system unless the repo already opted into `done.md`.
 5. **Validate slice contracts** - each slice plan must have `expected_files`, `verification`, `blockers`, `status`, and acceptance criteria. New slice plans should also have `test_level`, `functional_risk`, `model_tier`, and `proof_check` or `no_check_reason`. New plans do not contain model names, route aliases, source preferences, adapters, endpoints, or transports. Treat legacy `tiny` or `model_route` fields as compatibility hints only; do not require them on new plans and do not freeze a provider/model in durable plan state. If core fields are missing, stop and route to `kb-plan`; do not infer a manifest from a phase list. If only `test_level` or `functional_risk` is missing on an older plan, invoke `kb-functional-test` to classify them before execution.
 6. **Load the context packet** - for a non-trivial slice, read its packet before broad repo search or delegation. When `cmd/kbcheck` exists, validate JSON packets with `go run ./cmd/kbcheck context-packet --packet <packet.json>`. Otherwise verify the required fields directly and record `packet-validator: unavailable`; the portable skills do not require the Go maintainer harness. If required source, constraint, proof, search-policy, or escalation data is missing, route back to `kb-plan` instead of making a cheap worker rediscover the repo. Legacy tiny/mechanical slices may use the plan itself when it records why no packet is needed.
 7. **Check status** - skip any slices already marked `done`. Resume from the first safe ready set.
-8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted.
-9. **Read optional execution policy** - normal work uses orchestrator-directed DDR: decide once whether the current orchestrator retains the slice or delegates it to one qualified worker. AMR is a separate testing-stage benchmark and is never enabled or required by ordinary `kb-work`. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
-10. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
-11. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
-12. **Acquire local slice ownership before board projection or mutation:** for every mutating slice, acquire a slice lease before setting `todo.md` or the manifest to `in_progress`:
+8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted. For a mutating manifest with `plan_run_worktree_default: true`, prepare or resume its manifest-owned workspace before any slice mutation:
+
+   ```powershell
+   go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <opaque-plan-token> --base-sha <reviewed-base-sha> --json
+   ```
+
+   The receipt's immutable base, explicit non-default integration ref, and worktree path become the execution authority. Dirty source changes stay in the source checkout and are never copied implicitly. Run subsequent slice commands from the receipt worktree. The feature's own bootstrap slice may use an explicitly reviewed manually-created topic worktree until `plan-worktree` exists.
+9. **Acquire manifest mutation authority before board projection, slice claims, or mutation:** collect the manifest's forecast `expected_files`, path prefixes, `conflict_domains`, and `shared_resources`, then atomically claim them from the plan-run worktree:
+
+   ```powershell
+   go run ./cmd/kbcheck plan-run-lease --action acquire --manifest <manifest-path> --run-id <run-id> --owner-token <opaque-plan-token> --file <path> [--prefix <path>] [--domain <kind:value>] [--resource <kind:value>] --json
+   ```
+
+   This state shares the slice-lease lock under the Git common directory, so four or five manifests are not treated as separate scheduling universes. A failed acquisition leaves `todo.md` and all manifests unchanged and reports the owning run and colliding claim. Disjoint manifests may remain active. Separate clones and machines are explicitly not coordinated by this local lease; use branch/PR protections across those boundaries. Do not add a daemon or describe the lease as distributed.
+
+   Forecasts are not permission to write unclaimed paths. Before an observed file, prefix, conflict domain, or shared resource exceeds the live claim, expand it with the current owner token and generation:
+
+   ```powershell
+   go run ./cmd/kbcheck plan-run-lease --action expand --run-id <run-id> --owner-token <opaque-plan-token> --generation <n> --file <observed-path> --json
+   ```
+
+   A failed expansion means requeue before the write. Renew, release, and recover also require the exact owner token and current generation.
+10. **Read optional execution policy** - normal work uses orchestrator-directed DDR: decide once whether the current orchestrator retains the slice or delegates it to one qualified worker. AMR is a separate testing-stage benchmark and is never enabled or required by ordinary `kb-work`. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
+11. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
+12. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
+13. **Acquire local slice ownership before board projection or mutation:** for every mutating slice, acquire a slice lease before setting `todo.md` or the manifest to `in_progress`:
 
    ```powershell
    go run ./cmd/kbcheck slice-lease --action acquire --slice-id <slice-id> --run-id <run-id> --owner-token <opaque-token> --file <path> [--prefix <path>] [--resource <kind:value>] --json
    ```
 
-   The lease state defaults under the Git common directory so sibling worktrees coordinate. Separate clones and machines are out of scope. A failed acquisition leaves the board and manifest unchanged; serialize, requeue, or wait rather than racing. Renew with the returned generation during long work, and release with the same owner token/generation when the slice is done, skipped, blocked, or requeued. Wrong-token renew/release/recover must fail closed.
-13. **Resolve workspace mode:** if the slice declares `workspace_mode:
-    worktree-required`, if a dirty shared checkout would put user work at risk,
-    or if another mutating slice is active, load
-    `references/worktree-isolation.md` and prepare an isolated worktree through
-    `go run ./cmd/kbcheck worktree --action prepare ...`. The coordinator alone
-    integrates receipts and updates canonical lifecycle files. Workers return
-    commit/diff/proof receipts; they do not edit `todo.md`, the manifest, or
-    handoffs in their isolated checkout.
-14. **Load impact packet summary when present:** validate freshness and fallback
+   Use the plan-run owner token and run ID so slice claims compose with the manifest claim. A slice claim outside the forecast is rejected until the manifest lease is expanded. The lease state defaults under the Git common directory so sibling worktrees coordinate. Separate clones and machines are out of scope. A failed acquisition leaves the board and manifest unchanged; serialize, requeue, or wait rather than racing. Renew with the returned generation during long work, and release with the same owner token/generation when the slice is done, skipped, blocked, or requeued. Wrong-token renew/release/recover must fail closed.
+14. **Resolve workspace mode:** the worktree unit is the manifest/workstream, not
+    an individual slice. All slices mutate only the owning plan-run worktree.
+    Parallel agents may work in isolated contexts only when their live claims
+    are disjoint; otherwise serialize them inside that worktree. Do not create
+    per-slice worktrees. The coordinator alone updates canonical lifecycle
+    files; workers return diff and proof receipts and do not edit `todo.md`, the
+    manifest, or handoffs.
+15. **Load impact packet summary when present:** validate freshness and fallback
     before using graph evidence. A stale or missing packet blocks
     graph-dependent claims but permits explicit file-native source inspection.
     Packet and routing receipts are orientation evidence; they cannot mark a
     slice done or replace the slice's functional proof.
-15. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
+16. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
 
 After initial execution starts, do not ask before moving from one safe ready set
 to the next.
@@ -140,9 +160,10 @@ Active handoff files under `docs/handoffs/active/` are restart packets. Create o
 - Before claiming a slice, re-read `todo.md`. If another agent set it to 🔧, do not claim it.
 - The board is the source of truth — not chat history, not the manifest. If the board says done, it's done.
 - Acquire the atomic slice lease BEFORE starting work, then update the board BEFORE mutation and AFTER completing work. This prevents two agents from working the same slice.
-- Isolated workers never directly project canonical lifecycle status. The
-  coordinator serializes integration, reruns proof after merge, and then updates
-  `todo.md`, the manifest, and active handoff.
+- Workers never directly project canonical lifecycle status. The coordinator
+  serializes slice-commit acceptance, reruns slice and aggregate proof in the
+  manifest-owned worktree, advances the receipt with compare-and-swap, and only
+  then updates `todo.md`, the manifest, and active handoff.
 - Also update the manifest to stay in sync, but if they conflict, the board wins.
 - Do not use root **Work Log** as a permanent archive. During execution, add notes only when they help a later agent resume: blockers, verification commands, durable memory impacts, or non-obvious decisions. Routine "slice complete" and verification-success notes belong in `todo-done.md` at feature completion, not in `todo.md`.
 - Blocked is not parked. Use `🔒 blocked` for dependencies, another-agent waits, tool failures, or missing inputs. Use `🧊 Parked / Cold Storage` only for work a human intentionally deferred out of scope.
@@ -199,7 +220,8 @@ exact reason. Do not silently change owners. The orchestrator may make a new
 explicit ownership decision after reviewing the failure; `require` pauses that
 slice instead.
 
-Emit exactly one compact user-visible line after route selection and before mutation or worker dispatch:
+After the ownership decision and, when delegated, route selection, emit exactly
+one compact user-visible line before mutation or worker dispatch:
 
 ```text
 DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
@@ -210,11 +232,11 @@ line as context and must not repeat it. Use `subagent` as the user-facing label
 for internal `delegated` ownership. For `current`, use an evidence-backed route
 name when exposed; otherwise use `current orchestrator`. Name a concrete model
 or alias only when the active host or `kbrouter` proves it callable and
-selected. A named fallback must be proven eligible in the fresh catalog and use
-`evidence-backed-route (conditional; explicit reselect)`; it is never an
-automatic dispatch or owner change. If that evidence is unavailable, say
-`explicit same-tier/higher reselection`. The announcement reports dispatch
-intent; the slice proof remains authoritative.
+selected. A named fallback must be proven same-tier-or-higher eligible in the
+fresh catalog and use `evidence-backed-route (conditional; explicit reselect)`;
+it is never an automatic dispatch or owner change. If that evidence is
+unavailable, say `explicit same-tier/higher reselection`. The announcement
+reports dispatch intent; the slice proof remains authoritative.
 
 - Reuse a native host schema or run-scoped CLI catalog only while its
   host/configuration fingerprint is unchanged; refresh it when that fingerprint
@@ -279,9 +301,11 @@ Execute by repeatedly pulling the safe ready set from the dependency DAG:
    `can_continue_other_slices: false`, HITL-critical gates, destructive
    approvals, browser/e2e contention without isolated sessions, and any slice
    with an active write lease collision.
-5. Dispatch the remaining safe ready set in isolated contexts when available.
-   If no isolation is available, run the same ready set one mutating slice at a
-   time while preserving the ready-set order.
+5. Dispatch the remaining safe ready set in isolated agent contexts inside the
+   manifest-owned worktree only when live claims are disjoint. Never create a
+   worktree per slice. If mutation cannot be safely concurrent in that one
+   worktree, run the same ready set one mutating slice at a time while preserving
+   the ready-set order.
 6. If pending slices remain but none are runnable, mark the manifest blocked and
    report the dependency problem.
 
@@ -408,9 +432,10 @@ required tier + bounded packet + active callable surface
 4. For `delegated`, inspect the active host's exact callable-agent schema and
    the live user-local CLI catalog. Select exactly one route that satisfies the
    required tier, task family, tools, context, trust, destination, and risk.
-5. Emit the compact DDR route announcement after selection and before mutation
-   or dispatch. Use only host/router evidence for route names and mark any named
-   fallback as conditional on an explicit reselection.
+5. After the ownership decision and, when delegated, route selection, emit the
+   compact DDR route announcement before mutation or dispatch. Use only
+   host/router evidence for route names and mark any named fallback as
+   conditional on an explicit reselection.
 6. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
    because the orchestrator has heard of it. Host-native and CLI catalogs are
    distinct unless an adapter explicitly proves otherwise.
@@ -511,8 +536,9 @@ Quoting sanity rule: when shell commands, file operations, or test assertions in
 - Do not construct CSS selectors through mixed-quote string concatenation. Use template literals or parameterized locator helpers.
 
 Use `references/execution-prompt.md` as the per-slice execution prompt/checklist. Load it only when starting a slice. When that slice runs Go inside a workspace sandbox, also load `references/go-sandbox.md`; its environment applies to Go shell invocations, never the agent launcher.
-When the slice uses a Git worktree, also load
-`references/worktree-isolation.md` and follow its receipt/integration checklist.
+When the manifest uses its plan-run worktree, also load
+`references/worktree-isolation.md` and follow its same-worktree commit
+acceptance checklist.
 
 ### Step 3.1: Protected Oracle Gate
 
@@ -653,8 +679,20 @@ After the slice completes:
    `allowed_next_action` to the missing proof step.
 
    Worker receipts, route receipts, graph packets, and lease receipts are
-   supporting evidence only. The coordinator reruns proof after integration
-   before setting a slice to `done`.
+   supporting evidence only. For a mutating plan-run slice, the worker commits
+   only in the manifest-owned worktree and returns the commit, observed writes,
+   and proof receipt. The coordinator accepts it with:
+
+   ```powershell
+   go run ./cmd/kbcheck plan-worktree --action advance --manifest <manifest-path> --run-id <run-id> --slice-id <slice-id> --owner-token <plan-token> --expected-integration-head <prior-head> --commit-sha <slice-commit> --proof-receipt <receipt.json> --worktree <exact-plan-worktree> --branch <exact-plan-run-ref> --json
+   ```
+
+   `advance` requires the exact worktree/ref and owner/run lineage, a clean
+   checkout, the expected prior integration head, a current descendant commit,
+   and successful coordinator replay of both slice and aggregate proof. It only
+   advances the receipt head; it never creates or switches a branch, creates a
+   worktree, merges, resets, stashes, or cleans. Failed acceptance leaves
+   lifecycle state and the recorded integration head unchanged.
 
    For manifests with `objective_contract: true`, run
    `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>` after
@@ -685,10 +723,10 @@ After the slice completes:
 
 5. **Release or renew ownership**
    - Renew long-running active leases before expiry with the same owner token and current generation.
-   - For isolated worktree slices, integrate first with
-     `kbcheck worktree --action integrate`, rerun the slice proof on the
-     integration branch, then release with `kbcheck worktree --action release`.
-     Release refuses dirty or unintegrated worktrees and never uses force.
+   - All new plan-run slices commit sequentially in the one manifest-owned
+     worktree. Accept the commit with `plan-worktree --action advance` before
+     releasing its slice lease or projecting lifecycle completion. There is no
+     per-slice worktree, branch, merge, or cleanup path.
    - Release the lease after manifest and board status are updated for `done`,
      `blocked`, `parked`, `skipped`, or `requeued`.
    - If release fails because the generation or owner token differs, STOP: another coordinator may have changed ownership state.

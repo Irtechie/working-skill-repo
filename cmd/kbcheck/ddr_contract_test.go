@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,8 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			"AMR remains an unpromoted experimental benchmark.",
 			"App-only aliases with CLI-only aliases.",
 			"DDR route: <current|subagent> | primary:",
-			"after route selection and before mutation or worker dispatch",
+			"After the ownership decision and, when delegated, route selection, emit exactly",
+			"one compact user-visible line before mutation or worker dispatch",
 			"The orchestrator is the sole emitter",
 			"otherwise use `current orchestrator`",
 			"(conditional; explicit reselect)",
@@ -25,10 +27,12 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 		},
 		".github/skills/kb-work/references/execution-prompt.md": {
 			"Do not invoke AMR or pass `attempt_tier` during normal KB work.",
-			"Do not send App targets through",
 			"Route announcement:",
-			"Never name a model or alias",
-			"Do not emit or repeat the route announcement.",
+			"Router receipt:",
+			"immutable orchestration receipts",
+			"Do not re-decide ownership, discover or select a route, dispatch, or delegate",
+			"never replace an evidence-backed",
+			"Do not emit or repeat it",
 		},
 		".github/skills/kb-configure/references/kb-routing-example.yaml": {
 			"experimental_amr:",
@@ -60,38 +64,57 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 	}
 
 	canonicalAnnouncement := "DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>"
-	for _, path := range []string{
-		".github/skills/kb-work/SKILL.md",
-		".github/skills/kb-work/references/execution-prompt.md",
-		"README.md",
-		"docs/context/architecture/kb-workflow.md",
-		"docs/plans/2026-07-26-001-tool-ddr-route-announcement-plan.md",
-	} {
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
-		}
-		if !strings.Contains(string(content), canonicalAnnouncement) {
-			t.Errorf("%s missing canonical DDR announcement grammar", path)
-		}
-	}
-
-	executionPrompt, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(".github/skills/kb-work/references/execution-prompt.md")))
-	if err != nil {
+	skillText := readDDRContractFile(t, root, ".github/skills/kb-work/SKILL.md")
+	executionPrompt := readDDRContractFile(t, root, ".github/skills/kb-work/references/execution-prompt.md")
+	if err := validateDDREmissionContract(skillText, executionPrompt, canonicalAnnouncement); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(executionPrompt), "Emit exactly one compact user-visible line before execution") {
-		t.Error("delegated execution prompt must not become a second route-announcement emitter")
-	}
 
-	slicePlan, err := os.ReadFile(filepath.Join(root, filepath.FromSlash("docs/plans/2026-07-26-001-tool-ddr-route-announcement-plan.md")))
-	if err != nil {
-		t.Fatal(err)
+	mutations := map[string]struct {
+		skill  string
+		prompt string
+	}{
+		"worker becomes an emitter": {
+			skill:  strings.Replace(skillText, "The orchestrator is the sole emitter", "The orchestrator or delegated worker may emit", 1),
+			prompt: executionPrompt,
+		},
+		"worker prompt adds an emission instruction": {
+			skill:  skillText,
+			prompt: executionPrompt + "\nEmit exactly one compact user-visible DDR route line.\n",
+		},
+		"worker prompt adds routing authority": {
+			skill:  skillText,
+			prompt: executionPrompt + "\nDiscover or select a route and dispatch it.\n",
+		},
+		"announcement moves after mutation": {
+			skill: strings.Replace(
+				skillText,
+				"one compact user-visible line before mutation or worker dispatch",
+				"one compact user-visible line after mutation or worker dispatch",
+				1,
+			),
+			prompt: executionPrompt,
+		},
+		"authoritative grammar is duplicated": {
+			skill:  skillText + "\n" + canonicalAnnouncement + "\n",
+			prompt: executionPrompt,
+		},
+		"named fallback permits a lower tier": {
+			skill: strings.Replace(
+				skillText,
+				"A named fallback must be proven same-tier-or-higher eligible",
+				"A named fallback may be lower-tier when eligible",
+				1,
+			),
+			prompt: executionPrompt,
+		},
 	}
-	for _, forbiddenAlias := range []string{"local Qwen", "Luna"} {
-		if strings.Contains(string(slicePlan), forbiddenAlias) {
-			t.Errorf("portable route-announcement plan hard-codes model alias %q", forbiddenAlias)
-		}
+	for name, mutation := range mutations {
+		t.Run(name, func(t *testing.T) {
+			if err := validateDDREmissionContract(mutation.skill, mutation.prompt, canonicalAnnouncement); err == nil {
+				t.Fatal("mutated contract unexpectedly passed")
+			}
+		})
 	}
 
 	forbidden := []string{
@@ -115,6 +138,51 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			}
 		}
 	}
+}
+
+func validateDDREmissionContract(skillText, executionPrompt, canonicalAnnouncement string) error {
+	if count := strings.Count(skillText, canonicalAnnouncement); count != 1 {
+		return fmt.Errorf("kb-work skill must contain the authoritative DDR grammar exactly once; got %d", count)
+	}
+	if count := strings.Count(executionPrompt, canonicalAnnouncement); count != 1 {
+		return fmt.Errorf("delegated execution prompt must carry the populated DDR receipt exactly once; got %d", count)
+	}
+	for _, required := range []string{
+		"After the ownership decision and, when delegated, route selection, emit exactly",
+		"one compact user-visible line before mutation or worker dispatch",
+		"The orchestrator is the sole emitter",
+		"A named fallback must be proven same-tier-or-higher eligible",
+	} {
+		if !strings.Contains(skillText, required) {
+			return fmt.Errorf("kb-work skill missing DDR emission invariant %q", required)
+		}
+	}
+	if !strings.Contains(executionPrompt, "The route announcement above was already emitted by the orchestrator before") {
+		return fmt.Errorf("delegated execution prompt must identify the orchestrator as the prior emitter")
+	}
+	lowerPrompt := strings.ToLower(executionPrompt)
+	for _, forbidden := range []string{
+		"emit exactly one compact",
+		"emit the compact ddr route",
+		"announce the ddr route",
+		"discover or select a route and dispatch it",
+		"select exactly one qualified",
+		"call the exact native target",
+	} {
+		if strings.Contains(lowerPrompt, forbidden) {
+			return fmt.Errorf("delegated execution prompt contains worker emission instruction %q", forbidden)
+		}
+	}
+	return nil
+}
+
+func readDDRContractFile(t *testing.T, root, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(content)
 }
 
 func ddrTestRepoRoot(t *testing.T) string {

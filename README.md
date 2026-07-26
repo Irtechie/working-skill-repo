@@ -137,9 +137,9 @@ DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-r
 ```
 
 Concrete route names come only from the active host or `kbrouter`, never model
-memory. A named fallback is conditional on a fresh eligibility check and an
-explicit reselection; otherwise the line says `explicit same-tier/higher
-reselection`.
+memory. A named fallback is conditional on a fresh same-tier-or-higher
+eligibility check and an explicit reselection; otherwise the line says
+`explicit same-tier/higher reselection`.
 
 ![KB difficulty-driven model selection](docs/assets/kb-model-selection.png)
 

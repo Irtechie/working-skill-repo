@@ -51,6 +51,9 @@ Usage:
   kbcheck provider-hygiene-selftest
   kbcheck slice-lease --action acquire|status|renew|release|recover [--root <path>] [--state-root <path>] [--json]
   kbcheck slice-lease-selftest
+  kbcheck plan-run-lease --action acquire|status|renew|expand|release|recover [--run-id <id>] [--manifest <path>] [--root <path>] [--state-root <path>] [--json]
+  kbcheck plan-run-lease-selftest
+  kbcheck plan-worktree --action prepare|status|advance|release --manifest <path> --owner-token <token> [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
@@ -100,6 +103,8 @@ Commands:
   dishonest-completion-selftest  Validate false-done rejection fixtures.
 	scope-lease    Validate observed active slice/file write leases.
 	slice-lease    Atomically acquire and release local slice ownership.
+	plan-run-lease Atomically claim manifest paths, domains, and shared resources.
+	plan-worktree  Prepare and inspect a manifest-owned plan-run workspace.
 	worktree       Prepare, integrate, and safely release isolated slice worktrees.
 	graph-route    Validate provider-neutral graph/evidence impact packets.
 	graph-routing-lifecycle-selftest  Validate graph routing lifecycle invariants.
@@ -110,87 +115,88 @@ Commands:
 type processRunner func(root string, check Check) CheckResult
 
 type options struct {
-	command              string
-	root                 string
-	json                 bool
-	dryRun               bool
-	verbose              bool
-	list                 bool
-	manifest             string
-	ledger               string
-	config               string
-	verboseOptional      bool
-	fix                  bool
-	fixtureRoot          string
-	route                string
-	baseline             string
-	output               string
-	skillRoot            string
-	agentRoot            string
-	trimLineThreshold    int
-	start                string
-	status               bool
-	runID                string
-	resultRoot           string
-	resultPath           string
-	requiredRunID        string
-	manifestPath         string
-	updateBaseline       bool
-	qualityRoot          string
-	qualityPath          string
-	claimRoot            string
-	claimPath            string
-	minScore             int
-	runRoot              string
-	fixtureID            string
-	all                  bool
-	keepRun              bool
-	sealed               bool
-	runner               string
-	runtime              string
-	model                string
-	agentCommand         string
-	source               string
-	skillID              string
-	approvalReason       string
-	approvedBy           string
-	sourceType           string
-	upstreamRepo         string
-	installTargets       string
-	gate                 string
-	allowedNext          string
-	history              string
-	checkPath            string
-	tracePath            string
-	packetPath           string
-	telemetryPath        string
-	receiptPath          string
-	receiptDir           string
-	proofRegistryPath    string
-	proofRequest         string
-	evidenceEnvelopePath string
-	cohort               string
-	evidencePath         string
-	allowQuarantine      bool
-	sliceLeaseAction     string
-	sliceLeaseStateRoot  string
-	sliceID              string
-	ownerToken           string
-	leaseGeneration      int64
-	leaseTTL             time.Duration
-	leaseFiles           []string
-	leasePrefixes        []string
-	leaseResources       []string
-	baseSHA              string
-	worktreePath         string
-	branchName           string
-	repoIdentity         string
-	codexSkillsRoot      string
-	copilotSkillsRoot    string
-	agentsSkillsRoot     string
-	approved             bool
-	includeUser          bool
-	requireReady         bool
+	command                 string
+	root                    string
+	json                    bool
+	dryRun                  bool
+	verbose                 bool
+	list                    bool
+	manifest                string
+	ledger                  string
+	config                  string
+	verboseOptional         bool
+	fix                     bool
+	fixtureRoot             string
+	route                   string
+	baseline                string
+	output                  string
+	skillRoot               string
+	agentRoot               string
+	trimLineThreshold       int
+	start                   string
+	status                  bool
+	runID                   string
+	resultRoot              string
+	resultPath              string
+	requiredRunID           string
+	manifestPath            string
+	updateBaseline          bool
+	qualityRoot             string
+	qualityPath             string
+	claimRoot               string
+	claimPath               string
+	minScore                int
+	runRoot                 string
+	fixtureID               string
+	all                     bool
+	keepRun                 bool
+	sealed                  bool
+	runner                  string
+	runtime                 string
+	model                   string
+	agentCommand            string
+	source                  string
+	skillID                 string
+	approvalReason          string
+	approvedBy              string
+	sourceType              string
+	upstreamRepo            string
+	installTargets          string
+	gate                    string
+	allowedNext             string
+	history                 string
+	checkPath               string
+	tracePath               string
+	packetPath              string
+	telemetryPath           string
+	receiptPath             string
+	evidenceEnvelopePath    string
+	cohort                  string
+	evidencePath            string
+	allowQuarantine         bool
+	sliceLeaseAction        string
+	sliceLeaseStateRoot     string
+	sliceID                 string
+	ownerToken              string
+	leaseGeneration         int64
+	leaseTTL                time.Duration
+	leaseFiles              []string
+	leasePrefixes           []string
+	leaseDomains            []string
+	leaseResources          []string
+	baseSHA                 string
+	worktreePath            string
+	branchName              string
+	repoIdentity            string
+	expectedIntegrationHead string
+	commitSHA               string
+	proofReceipt            string
+	codexSkillsRoot         string
+	copilotSkillsRoot       string
+	agentsSkillsRoot        string
+	approved                bool
+	includeUser             bool
+	requireReady            bool
 }
 
 func main() {
@@ -277,6 +283,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runSliceLeaseCommand(root, opts, stdout, stderr)
 	case "slice-lease-selftest":
 		return runSliceLeaseSelftest(stdout, stderr)
+	case "plan-run-lease":
+		return runPlanRunLeaseCommand(root, opts, stdout, stderr)
+	case "plan-run-lease-selftest":
+		return runPlanRunLeaseSelftest(stdout, stderr)
+	case "plan-worktree":
+		return runPlanRunWorkspaceCommand(root, opts, stdout, stderr)
 	case "worktree":
 		return runWorktreeCommand(root, opts, stdout, stderr)
 	case "scope-lease":
@@ -364,7 +376,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-routing-release": true,
-		"slice-lease":           true, "slice-lease-selftest": true, "worktree": true,
+		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "worktree": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -403,6 +415,9 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.start, "start", "", "pipeline id to start")
 	fs.BoolVar(&opts.status, "status", false, "show pipeline status")
 	fs.StringVar(&opts.runID, "run-id", "", "pipeline run id")
+	fs.StringVar(&opts.expectedIntegrationHead, "expected-integration-head", "", "expected plan-run integration head for compare-and-swap")
+	fs.StringVar(&opts.commitSHA, "commit-sha", "", "slice commit to accept on the plan-run branch")
+	fs.StringVar(&opts.proofReceipt, "proof-receipt", "", "coordinator-readable slice and aggregate proof receipt")
 	fs.StringVar(&opts.resultRoot, "result-root", "", "skill eval result root")
 	fs.StringVar(&opts.resultPath, "result-path", "", "skill eval result path")
 	fs.StringVar(&opts.requiredRunID, "required-run-id", "", "required eval run id")
@@ -471,7 +486,7 @@ func parse(args []string) (options, error) {
 	if !dryRunAllowed[opts.command] && opts.dryRun {
 		return options{}, fmt.Errorf("--dry-run is only supported for gate commands")
 	}
-	manifestCommands := map[string]bool{"ready-set": true, "manifest-contract": true, "gate-ledger": true}
+	manifestCommands := map[string]bool{"ready-set": true, "manifest-contract": true, "gate-ledger": true, "plan-worktree": true, "plan-run-lease": true}
 	if !manifestCommands[opts.command] && opts.manifest != "" {
 		return options{}, fmt.Errorf("--manifest is only supported for manifest commands")
 	}
@@ -502,6 +517,9 @@ func parse(args []string) (options, error) {
 	if opts.command == "gate-ledger" && opts.manifest == "" {
 		return options{}, fmt.Errorf("gate-ledger requires --manifest")
 	}
+	if opts.command == "plan-worktree" && opts.manifest == "" {
+		return options{}, fmt.Errorf("plan-worktree requires --manifest")
+	}
 	if opts.command != "gate-ledger" && (opts.gate != "" || opts.allowedNext != "" || opts.allowQuarantine) {
 		return options{}, fmt.Errorf("--gate, --allowed-next, and --allow-quarantine are only supported for gate-ledger")
 	}
@@ -518,15 +536,44 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "worktree"
-	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree"
+	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
 	}
 	if leaseFlagCommand && opts.sliceLeaseAction == "" {
 		return options{}, fmt.Errorf("%s requires --action", opts.command)
 	}
-	if opts.command == "worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
+	if opts.command == "worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice lease state and claim flags are only supported for slice-lease")
+	}
+	if opts.command == "plan-worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
+		return options{}, fmt.Errorf("slice lease state, identity, and claim flags are not supported for plan-worktree")
+	}
+	if opts.command != "plan-worktree" && (opts.expectedIntegrationHead != "" || opts.commitSHA != "" || opts.proofReceipt != "") {
+		return options{}, fmt.Errorf("--expected-integration-head, --commit-sha, and --proof-receipt are only supported for plan-worktree")
+	}
+	if opts.command == "plan-worktree" {
+		if opts.sliceLeaseAction == "advance" {
+			if opts.runID == "" || opts.sliceID == "" || opts.expectedIntegrationHead == "" || opts.commitSHA == "" || opts.proofReceipt == "" || opts.worktreePath == "" || opts.branchName == "" {
+				return options{}, fmt.Errorf("plan-worktree advance requires --run-id, --slice-id, --expected-integration-head, --commit-sha, --proof-receipt, --worktree, and --branch")
+			}
+		} else if opts.sliceID != "" || opts.expectedIntegrationHead != "" || opts.commitSHA != "" || opts.proofReceipt != "" {
+			return options{}, fmt.Errorf("slice advance flags are only supported for plan-worktree advance")
+		}
+	}
+	if opts.command == "slice-lease" && len(opts.leaseDomains) > 0 {
+		return options{}, fmt.Errorf("--domain is only supported for plan-run-lease")
+	}
+	if opts.command == "plan-run-lease" {
+		if opts.sliceID != "" || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" {
+			return options{}, fmt.Errorf("slice and worktree identity flags are not supported for plan-run-lease")
+		}
+		if opts.runID == "" && opts.sliceLeaseAction != "status" {
+			return options{}, fmt.Errorf("plan-run-lease requires --run-id")
+		}
+		if opts.sliceLeaseAction == "acquire" && opts.manifest == "" {
+			return options{}, fmt.Errorf("plan-run-lease acquire requires --manifest")
+		}
 	}
 	packetCommands := map[string]bool{"context-packet": true, "graph-route": true}
 	if !packetCommands[opts.command] && opts.packetPath != "" {

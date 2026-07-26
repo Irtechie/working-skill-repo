@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,6 +49,7 @@ type sliceLeaseStateEvent struct {
 	At         string `json:"at"`
 	Action     string `json:"action"`
 	SliceID    string `json:"slice_id"`
+	RunID      string `json:"run_id,omitempty"`
 	Generation int64  `json:"generation"`
 }
 
@@ -94,6 +94,7 @@ type sliceLeaseResult struct {
 
 type leaseCollision struct {
 	SliceID    string     `json:"slice_id"`
+	RunID      string     `json:"run_id,omitempty"`
 	OwnerToken string     `json:"owner_token,omitempty"`
 	Claim      leaseClaim `json:"claim"`
 	Reason     string     `json:"reason"`
@@ -128,6 +129,7 @@ func registerSliceLeaseFlags(fs *flag.FlagSet, opts *options) {
 	fs.DurationVar(&opts.leaseTTL, "ttl", defaultSliceLeaseTTL, "lease ttl")
 	fs.Var((*leaseStringList)(&opts.leaseFiles), "file", "exact repository-relative file claim")
 	fs.Var((*leaseStringList)(&opts.leasePrefixes), "prefix", "repository-relative path prefix claim")
+	fs.Var((*leaseStringList)(&opts.leaseDomains), "domain", "plan-run conflict domain claim such as skill:kb-work")
 	fs.Var((*leaseStringList)(&opts.leaseResources), "resource", "resource claim such as browser:4110")
 	fs.StringVar(&opts.baseSHA, "base-sha", "", "base revision")
 	fs.StringVar(&opts.worktreePath, "worktree", "", "worktree path")
@@ -216,11 +218,21 @@ func executeSliceLease(opts sliceLeaseCommandOptions) (sliceLeaseResult, error) 
 		if state.RepoIdentity == "" {
 			state.RepoIdentity = opts.RepoID
 		}
+		if state.RepoIdentity != opts.RepoID {
+			return fmt.Errorf("slice lease repository identity mismatch")
+		}
 		pruneReleasedLeases(state)
+		planRuns, err := loadPlanRunLeaseState(stateRoot)
+		if err != nil {
+			return err
+		}
+		if planRuns.RepoIdentity != "" && planRuns.RepoIdentity != opts.RepoID {
+			return fmt.Errorf("plan-run and slice lease repository identities do not match")
+		}
 
 		switch action {
 		case "acquire":
-			result = acquireSliceLease(state, opts, stateRoot)
+			result = acquireSliceLease(state, planRuns, opts, stateRoot)
 		case "status":
 			result = statusSliceLeases(state, opts, stateRoot)
 		case "renew":
@@ -233,7 +245,7 @@ func executeSliceLease(opts sliceLeaseCommandOptions) (sliceLeaseResult, error) 
 			return fmt.Errorf("unsupported slice-lease action %q", opts.Action)
 		}
 		if result.OK && action != "status" {
-			appendSliceLeaseEvent(&state, opts.Now, action, opts.SliceID)
+			appendSliceLeaseEvent(&state, opts.Now, action, result.Lease)
 			return saveSliceLeaseState(stateRoot, state)
 		}
 		return nil
@@ -241,19 +253,25 @@ func executeSliceLease(opts sliceLeaseCommandOptions) (sliceLeaseResult, error) 
 	return result, err
 }
 
-func acquireSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions, stateRoot string) sliceLeaseResult {
+func acquireSliceLease(state sliceLeaseState, planRuns planRunLeaseState, opts sliceLeaseCommandOptions, stateRoot string) sliceLeaseResult {
 	base, err := newSliceLease(state, opts, stateRoot, 1)
 	if err != nil {
 		return blockedSliceLease("acquire", err.Error(), stateRoot)
 	}
-	if existing, ok := state.Leases[base.SliceID]; ok && existing.Status == "active" {
+	key := sliceLeaseKey(base.RunID, base.SliceID)
+	if existing, ok := state.Leases[key]; ok && existing.Status == "active" {
 		return blockedLease("acquire", "slice already has an active or stale lease; use renew, release, or recover", existing, stateRoot)
+	}
+	if issue, collisions := validateSlicePlanRunComposition(planRuns, base, opts.Now); issue != "" {
+		return sliceLeaseResult{
+			OK: false, Action: "acquire", Issue: issue, Collisions: collisions, StateRoot: stateRoot,
+		}
 	}
 	collisions := activeLeaseCollisions(state, base, opts.Now)
 	if len(collisions) > 0 {
 		return sliceLeaseResult{OK: false, Action: "acquire", Issue: "active lease collision", Collisions: collisions, StateRoot: stateRoot}
 	}
-	state.Leases[base.SliceID] = base
+	state.Leases[key] = base
 	return sliceLeaseResult{OK: true, Action: "acquire", Lease: &base, StateRoot: stateRoot}
 }
 
@@ -263,12 +281,17 @@ func statusSliceLeases(state sliceLeaseState, opts sliceLeaseCommandOptions, sta
 		lease.Status = effectiveLeaseStatus(lease, opts.Now)
 		leases = append(leases, lease)
 	}
-	sort.Slice(leases, func(i, j int) bool { return leases[i].SliceID < leases[j].SliceID })
+	sort.Slice(leases, func(i, j int) bool {
+		if leases[i].RunID == leases[j].RunID {
+			return leases[i].SliceID < leases[j].SliceID
+		}
+		return leases[i].RunID < leases[j].RunID
+	})
 	return sliceLeaseResult{OK: true, Action: "status", Leases: leases, StateRoot: stateRoot}
 }
 
 func renewSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions, stateRoot string) sliceLeaseResult {
-	lease, ok := state.Leases[opts.SliceID]
+	key, lease, ok := findSliceLease(state, opts)
 	if !ok {
 		return blockedSliceLease("renew", "lease not found", stateRoot)
 	}
@@ -280,12 +303,12 @@ func renewSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions, state
 	}
 	lease.Generation++
 	refreshLeaseTimes(&lease, opts.Now, opts.TTL)
-	state.Leases[lease.SliceID] = lease
+	state.Leases[key] = lease
 	return sliceLeaseResult{OK: true, Action: "renew", Lease: &lease, StateRoot: stateRoot}
 }
 
 func releaseSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions, stateRoot string) sliceLeaseResult {
-	lease, ok := state.Leases[opts.SliceID]
+	key, lease, ok := findSliceLease(state, opts)
 	if !ok {
 		return blockedSliceLease("release", "lease not found", stateRoot)
 	}
@@ -295,12 +318,12 @@ func releaseSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions, sta
 	lease.Generation++
 	lease.Status = "released"
 	lease.LastUpdatedAt = opts.Now.Format(time.RFC3339Nano)
-	state.Leases[lease.SliceID] = lease
+	state.Leases[key] = lease
 	return sliceLeaseResult{OK: true, Action: "release", Lease: &lease, StateRoot: stateRoot}
 }
 
 func recoverSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions, stateRoot string) sliceLeaseResult {
-	lease, ok := state.Leases[opts.SliceID]
+	key, lease, ok := findSliceLease(state, opts)
 	if !ok {
 		return blockedSliceLease("recover", "lease not found", stateRoot)
 	}
@@ -313,7 +336,7 @@ func recoverSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions, sta
 	lease.Generation++
 	lease.Status = "active"
 	refreshLeaseTimes(&lease, opts.Now, opts.TTL)
-	state.Leases[lease.SliceID] = lease
+	state.Leases[key] = lease
 	return sliceLeaseResult{OK: true, Action: "recover", Lease: &lease, StateRoot: stateRoot}
 }
 
@@ -396,8 +419,8 @@ func activeLeaseCollisions(state sliceLeaseState, contender sliceLease, now time
 			for _, claim := range contender.Claims {
 				if leaseClaimsConflict(existingClaim, claim) {
 					collisions = append(collisions, leaseCollision{
-						SliceID: existing.SliceID, OwnerToken: existing.OwnerToken, Claim: claim,
-						Reason: fmt.Sprintf("conflicts with %s claim %s", existingClaim.Kind, existingClaim.Value),
+						SliceID: existing.SliceID, RunID: existing.RunID, OwnerToken: existing.OwnerToken, Claim: claim,
+						Reason: fmt.Sprintf("conflicts with run %s slice %s %s claim %s", existing.RunID, existing.SliceID, existingClaim.Kind, existingClaim.Value),
 					})
 				}
 			}
@@ -441,7 +464,8 @@ func normalizeLeaseClaims(files, prefixes, resources []string) ([]leaseClaim, er
 	}
 	for _, resource := range resources {
 		resource = strings.ToLower(strings.TrimSpace(resource))
-		if resource == "" || strings.ContainsAny(resource, " \t\r\n") || !strings.Contains(resource, ":") {
+		parts := strings.SplitN(resource, ":", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" || strings.ContainsAny(resource, " \t\r\n") {
 			return nil, fmt.Errorf("resource claims must be kind:value without whitespace")
 		}
 		claims = append(claims, leaseClaim{Kind: "resource", Value: resource})
@@ -460,15 +484,16 @@ func normalizeLeaseClaimPath(value string) (string, error) {
 	if trimmed == "" || strings.ContainsAny(trimmed, "*?[]") {
 		return "", fmt.Errorf("lease paths must be non-empty repository-relative paths without globs")
 	}
-	clean := filepath.Clean(trimmed)
+	portable := strings.ReplaceAll(trimmed, "\\", "/")
+	if len(portable) >= 2 && portable[1] == ':' {
+		return "", fmt.Errorf("lease path must stay inside the repository: %s", value)
+	}
+	clean := filepath.Clean(filepath.FromSlash(portable))
 	if filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("lease path must stay inside the repository: %s", value)
 	}
 	normalized := filepath.ToSlash(clean)
-	if runtime.GOOS == "windows" {
-		normalized = strings.ToLower(normalized)
-	}
-	return normalized, nil
+	return strings.ToLower(normalized), nil
 }
 
 func leaseClaimsConflict(left, right leaseClaim) bool {
@@ -499,14 +524,112 @@ func blockedSliceLease(action, issue, stateRoot string) sliceLeaseResult {
 	return sliceLeaseResult{OK: false, Action: action, Issue: issue, StateRoot: stateRoot}
 }
 
-func appendSliceLeaseEvent(state *sliceLeaseState, now time.Time, action, sliceID string) {
-	lease := state.Leases[sliceID]
+func appendSliceLeaseEvent(state *sliceLeaseState, now time.Time, action string, lease *sliceLease) {
+	if lease == nil {
+		return
+	}
 	state.Events = append(state.Events, sliceLeaseStateEvent{
-		At: now.Format(time.RFC3339Nano), Action: action, SliceID: sliceID, Generation: lease.Generation,
+		At: now.Format(time.RFC3339Nano), Action: action, SliceID: lease.SliceID, RunID: lease.RunID, Generation: lease.Generation,
 	})
 	if len(state.Events) > 200 {
 		state.Events = state.Events[len(state.Events)-200:]
 	}
+}
+
+func sliceLeaseKey(runID, sliceID string) string {
+	return strings.TrimSpace(runID) + "::" + strings.TrimSpace(sliceID)
+}
+
+func findSliceLease(state sliceLeaseState, opts sliceLeaseCommandOptions) (string, sliceLease, bool) {
+	if opts.RunID != "" {
+		key := sliceLeaseKey(opts.RunID, opts.SliceID)
+		lease, ok := state.Leases[key]
+		if ok {
+			return key, lease, true
+		}
+	}
+	var foundKey string
+	var found sliceLease
+	for key, lease := range state.Leases {
+		if lease.SliceID != opts.SliceID {
+			continue
+		}
+		if opts.RunID != "" && lease.RunID != opts.RunID {
+			continue
+		}
+		if opts.OwnerToken != "" && lease.OwnerToken != opts.OwnerToken {
+			continue
+		}
+		if foundKey != "" {
+			return "", sliceLease{}, false
+		}
+		foundKey, found = key, lease
+	}
+	return foundKey, found, foundKey != ""
+}
+
+func validateSlicePlanRunComposition(state planRunLeaseState, contender sliceLease, now time.Time) (string, []leaseCollision) {
+	active := 0
+	var owner *planRunLease
+	collisions := []leaseCollision{}
+	for _, run := range state.Leases {
+		if effectivePlanRunLeaseStatus(run, now) != "active" {
+			continue
+		}
+		active++
+		if run.RunID == contender.RunID {
+			runCopy := run
+			owner = &runCopy
+			continue
+		}
+		for _, existingClaim := range run.Claims {
+			for _, claim := range contender.Claims {
+				if planRunClaimsConflict(existingClaim, claim) {
+					collisions = append(collisions, leaseCollision{
+						RunID: run.RunID, OwnerToken: run.OwnerToken, Claim: claim,
+						Reason: fmt.Sprintf("conflicts with run %s manifest %s %s claim %s", run.RunID, run.ManifestPath, existingClaim.Kind, existingClaim.Value),
+					})
+				}
+			}
+		}
+	}
+	if len(collisions) > 0 {
+		return "active plan-run claim collision", collisions
+	}
+	if active == 0 {
+		return "", nil
+	}
+	if owner == nil {
+		return "active plan-run lease required before slice acquisition", nil
+	}
+	if owner.OwnerToken != contender.OwnerToken {
+		return "plan-run owner does not match slice owner", nil
+	}
+	for _, claim := range contender.Claims {
+		if !planRunClaimCovers(owner.Claims, claim) {
+			return fmt.Sprintf("slice claim %s:%s was not forecast; expand the plan-run lease before write", claim.Kind, claim.Value), nil
+		}
+	}
+	return "", nil
+}
+
+func planRunClaimCovers(forecast []leaseClaim, observed leaseClaim) bool {
+	for _, claim := range forecast {
+		if claim.Kind == observed.Kind && claim.Value == observed.Value {
+			return true
+		}
+		switch {
+		case claim.Kind == "prefix" && observed.Kind == "file":
+			if strings.HasPrefix(observed.Value, claim.Value) {
+				return true
+			}
+		case claim.Kind == "prefix" && observed.Kind == "prefix":
+			if strings.HasPrefix(observed.Value, claim.Value) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func pruneReleasedLeases(state sliceLeaseState) {

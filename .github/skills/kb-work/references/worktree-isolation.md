@@ -1,69 +1,76 @@
-# Worktree Isolation Reference
+# Manifest-Owned Worktree Reference
 
-Use this reference only after a slice has an atomic slice lease and needs an
-isolated Git worktree.
+The manifest group is the only worktree unit. Every slice for that workstream
+runs and commits on its one plan-run branch. Never create a worktree or branch
+per slice.
 
-## Prepare
+## Prepare the Plan Run
 
-1. Preserve the source checkout exactly as found. Do not stash, reset, clean, or
-   force-checkout user work.
-2. Acquire the slice lease first.
-3. Prepare a worktree with:
-
-   ```powershell
-   go run ./cmd/kbcheck worktree --action prepare --slice-id <slice-id> --run-id <run-id> --owner-token <token> --base-sha <sha> --worktree <path> --branch <branch> --json
-   ```
-
-4. Give the worker the isolated worktree path, branch, context packet, expected
-   files, proof command, and escalation triggers.
-5. Tell the worker not to edit canonical lifecycle files: `todo.md`, the
-   manifest, active handoffs, global skill installs, or integration receipts.
-
-## Worker Receipt
-
-The worker returns:
-
-- commit SHA or patch/diff;
-- proof command, exit code, and relevant output/artifact path;
-- observed writes and conflict-domain discoveries;
-- any skipped cleanup or unresolved conflict.
-
-The worker does not merge itself.
-
-## Integrate
-
-The coordinator integrates one receipt at a time:
+Before mutation, prepare or resume the manifest-owned workspace:
 
 ```powershell
-go run ./cmd/kbcheck worktree --action integrate --slice-id <slice-id> --run-id <run-id> --owner-token <token> --json
+go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <plan-token> --base-sha <reviewed-base-sha> --json
 ```
 
-Integration validates the owner token, receipt, and base revision. It fails
-closed when the source branch moved, the worktree has uncommitted changes, or Git
-reports a merge conflict. Preserve the worktree and lease for recovery when this
-happens.
+The receipt records the immutable base, explicit non-default integration ref
+and head, source checkout, manifest, run, owner, worktree, status, cleanup
+state, and local-only limitations under the Git common directory. Repeating
+prepare for the same identity is idempotent. A different owner, base, ref, or
+path fails closed.
 
-After integration, rerun the slice proof from the source checkout. Source proof,
-not the worker receipt alone, marks the slice done.
+Dirty source files remain byte-for-byte in the source checkout and are excluded
+from the plan-run worktree. If the plan depends on them, stop for an explicit
+containment decision. Never stash, reset, clean, or copy them implicitly.
 
-## Release
+## Slice Commit Receipt
 
-Release only after successful integration, source proof, manifest/board update,
-and a clean isolated worktree:
+Each slice runs shared-serial in the exact receipt worktree/ref. When commits
+are authorized, the worker returns a machine-readable receipt containing:
+
+- manifest ID, run ID, slice ID, and current commit SHA;
+- observed writes and newly discovered claims;
+- the exact slice-proof command and expected exit;
+- the aggregate-proof command and expected exit.
+
+The worker does not change branches, create worktrees, merge, reset, stash,
+clean, or edit `todo.md`, manifests, active handoffs, global installs, or the
+plan-run receipt.
+
+## Accept a Slice Commit
+
+The coordinator accepts one commit at a time:
 
 ```powershell
-go run ./cmd/kbcheck worktree --action release --slice-id <slice-id> --run-id <run-id> --owner-token <token> --json
+go run ./cmd/kbcheck plan-worktree --action advance --manifest <manifest-path> --run-id <run-id> --slice-id <slice-id> --owner-token <plan-token> --expected-integration-head <prior-head> --commit-sha <slice-commit> --proof-receipt <receipt.json> --worktree <exact-plan-worktree> --branch <exact-plan-run-ref> --json
 ```
 
-Release removes the worktree without force and then releases the matching slice
-lease generation. If the worktree is dirty, unintegrated, or owned by another
-token, release fails and leaves recovery state in place.
+Acceptance requires:
+
+- exact manifest, run, owner, worktree, and integration-ref lineage;
+- a clean plan-run checkout;
+- the recorded prior integration head as a compare-and-swap precondition;
+- the slice commit as both current `HEAD` and integration-ref target;
+- the slice commit to be a strict descendant of the prior head;
+- coordinator replay of slice proof and aggregate proof in the plan-run
+  worktree.
+
+Only after every check passes does the coordinator atomically advance the
+receipt's `integration_head`. A mismatch or failed proof leaves the receipt
+unchanged and preserves the checkout for recovery. `advance` performs no Git
+mutation.
+
+## Continue and Release
+
+The next serialized slice starts from the newly recorded integration head.
+Release the slice lease only after acceptance and lifecycle projection.
+Plan-run workspace release remains a separate, non-force final action and
+refuses active, dirty, or unintegrated state.
 
 ## Boundaries
 
-- Coordinates only worktrees that share the same Git common directory.
-- Does not coordinate separate clones, remote machines, tmux sessions, or PR
-  delivery.
-- Does not make graph indexes, browser ports, databases, generated outputs, or
-  global skill sync safe unless those resources are declared and isolated or
-  serialized.
+- Coordinates only worktrees sharing one Git common directory.
+- Separate clones and machines rely on branch/PR protections.
+- No per-slice worktree, per-slice branch, merge, reset, stash, force cleanup,
+  remote push, PR action, or default-branch delivery occurs here.
+- Ports, databases, generated outputs, and global installs remain unsafe unless
+  explicitly claimed and serialized.

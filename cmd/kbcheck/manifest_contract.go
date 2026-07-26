@@ -202,6 +202,9 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	if modelSelectionContract {
 		issues = append(issues, validateModelSelectionContract(path)...)
 	}
+	if workspaceIsolationContract {
+		issues = append(issues, validateWorkspaceIsolationContract(path)...)
+	}
 	for _, slice := range slices {
 		if slice.TestLevel != "" && !validManifestTestLevel(slice.TestLevel) {
 			issues = append(issues, manifestContractIssue{Code: "invalid-test-level", SliceID: slice.ID, Message: "test_level must be none, unit, integration, functional-api, functional-cli, functional-browser, functional-native-gui, or full"})
@@ -267,6 +270,9 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 		if workspaceIsolationContract && requiresWorkspaceIsolationFields(slice) {
 			if !validWorkspaceMode(slice.WorkspaceMode) {
 				issues = append(issues, manifestContractIssue{Code: "invalid-workspace-mode", SliceID: slice.ID, Message: "workspace_isolation_contract requires workspace_mode shared-serial or worktree-required"})
+			}
+			if manifestHasPlanRunDefault(path) && slice.WorkspaceMode != "shared-serial" {
+				issues = append(issues, manifestContractIssue{Code: "invalid-workspace-mode", SliceID: slice.ID, Message: "plan-run manifests use one worktree per manifest group and require shared-serial slices"})
 			}
 			if len(slice.ConflictDomains) == 0 {
 				issues = append(issues, manifestContractIssue{Code: "missing-conflict-domains", SliceID: slice.ID, Message: "workspace_isolation_contract requires conflict_domains"})
@@ -360,6 +366,44 @@ func validateModelSelectionContract(path string) []manifestContractIssue {
 		}
 	}
 	return issues
+}
+
+func validateWorkspaceIsolationContract(path string) []manifestContractIssue {
+	values, err := manifestNestedScalars(path, "workspace_isolation_contract")
+	if err != nil {
+		return []manifestContractIssue{{Code: "invalid-workspace-isolation-contract", Message: err.Error()}}
+	}
+	if _, planRunContract := values["plan_run_worktree_default"]; !planRunContract {
+		return nil
+	}
+	required := map[string]string{
+		"coordinator_owned_lifecycle":   "true",
+		"plan_run_worktree_default":     "true",
+		"internal_integration_target":   "plan-run-branch",
+		"default_branch_delivery_owner": "kb-complete",
+	}
+	issues := []manifestContractIssue{}
+	for key, want := range required {
+		if got := values[key]; got != want {
+			issues = append(issues, manifestContractIssue{
+				Code:    "invalid-workspace-isolation-contract",
+				Message: fmt.Sprintf("workspace_isolation_contract %s is %q, expected %q", key, got, want),
+			})
+		}
+	}
+	modes := strings.ReplaceAll(values["allowed_modes"], " ", "")
+	if modes != "[shared-serial]" {
+		issues = append(issues, manifestContractIssue{
+			Code:    "invalid-workspace-isolation-contract",
+			Message: "workspace_isolation_contract allowed_modes must be [shared-serial] because the manifest group owns the worktree",
+		})
+	}
+	return issues
+}
+
+func manifestHasPlanRunDefault(path string) bool {
+	values, err := manifestNestedScalars(path, "workspace_isolation_contract")
+	return err == nil && values["plan_run_worktree_default"] == "true"
 }
 
 func manifestNestedScalars(path, section string) (map[string]string, error) {

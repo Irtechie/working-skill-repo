@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestReadySetParallelSlices(t *testing.T) {
@@ -37,6 +38,63 @@ slices:
 	ready := result.(readySetResult)
 	if !reflect.DeepEqual(ready.Ready, []string{"slice-001", "slice-002"}) {
 		t.Fatalf("ready=%v", ready.Ready)
+	}
+}
+
+func TestCrossManifestSchedulerReadySetRequiresLiveManifestAuthority(t *testing.T) {
+	manifest := writeManifest(t, `
+---
+slices:
+  - id: slice-001
+    blockers: []
+    status: pending
+    hitl: false
+    can_continue_other_slices: true
+---
+`)
+	stateRoot := t.TempDir()
+	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	blocked, err := computeCrossManifestReadySet(manifest, stateRoot, "run-a", "owner-a", now)
+	if err != nil || blocked.OK || blocked.Reason != "manifest-mutation-authority-required" {
+		t.Fatalf("ready set bypassed manifest authority: result=%#v err=%v", blocked, err)
+	}
+	acquired, err := executePlanRunLease(planRunLeaseCommandOptions{
+		Action: "acquire", StateRoot: stateRoot, RunID: "run-a", ManifestPath: manifest,
+		OwnerToken: "owner-a", Files: []string{"src/a.go"}, Now: now,
+	})
+	if err != nil || !acquired.OK {
+		t.Fatalf("plan-run acquire failed: result=%#v err=%v", acquired, err)
+	}
+	ready, err := computeCrossManifestReadySet(manifest, stateRoot, "run-a", "owner-a", now)
+	if err != nil || !ready.OK || !reflect.DeepEqual(ready.Ready, []string{"slice-001"}) {
+		t.Fatalf("authorized ready set failed: result=%#v err=%v", ready, err)
+	}
+}
+
+func TestPlanRunLeaseCommandReportsClaimOwner(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "manifest.md")
+	writeFile(t, manifest, "---\ntype: kb-manifest\nslices: []\n---\n")
+	stateRoot := filepath.Join(root, "state")
+	var out, errOut strings.Builder
+	code := run([]string{
+		"plan-run-lease", "--action", "acquire", "--root", root, "--state-root", stateRoot,
+		"--run-id", "run-a", "--manifest", manifest, "--owner-token", "owner-a",
+		"--file", "src/a.go", "--domain", "skill:kb-work", "--json",
+	}, &out, &errOut)
+	if code != 0 || !strings.Contains(out.String(), `"run_id": "run-a"`) ||
+		!strings.Contains(out.String(), `"coordination_scope": "git-common-dir"`) {
+		t.Fatalf("plan-run acquire command failed: code=%d stdout=%s stderr=%s", code, out.String(), errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	code = run([]string{
+		"plan-run-lease", "--action", "acquire", "--root", root, "--state-root", stateRoot,
+		"--run-id", "run-b", "--manifest", manifest, "--owner-token", "owner-b",
+		"--file", "src/a.go", "--json",
+	}, &out, &errOut)
+	if code != 2 || !strings.Contains(out.String(), `"run_id": "run-a"`) {
+		t.Fatalf("collision owner missing: code=%d stdout=%s stderr=%s", code, out.String(), errOut.String())
 	}
 }
 
