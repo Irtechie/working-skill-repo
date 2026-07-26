@@ -130,6 +130,17 @@ DDR is shorthand for that decision pattern, not a separate command or artifact
 created by `kb-plan`. Planning records required capability and proof; execution
 records `current` or `delegated` ownership and chooses from live evidence.
 
+Immediately before execution, `kb-work` makes that choice visible:
+
+```text
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+```
+
+Concrete route names come only from the active host or `kbrouter`, never model
+memory. A named fallback is conditional on a fresh eligibility check and an
+explicit reselection; otherwise the line says `explicit same-tier/higher
+reselection`.
+
 ![KB difficulty-driven model selection](docs/assets/kb-model-selection.png)
 
 The model labels in the diagram are illustrative snapshots. They are not a
@@ -219,9 +230,8 @@ without reducing correctness. Until then, it makes no production savings claim.
 - Material slices may carry vendor-neutral context packets so bounded workers
   receive exact files, prefetch, constraints, proof targets, search policy, and
   escalation triggers instead of rediscovering the repo.
-- `kbcheck provider-hygiene` rejects Phoenix activation while allowing CCE as
-  an optional adapter. `surface-report` separates base startup from conditional
-  skill cost.
+- `kbcheck provider-hygiene` rejects Phoenix activation. `surface-report`
+  separates base startup from conditional skill cost.
 
 ## Routing And Rework Control
 
@@ -316,10 +326,9 @@ Consuming projects get their own `todo.md`, `docs/context/`,
 
 ## Optional Context Providers
 
-CCE is an owned, supported optional context adapter. This bundle does not
-require CCE, MCP search, a vector index, or any background app. The default path
-stays file-native: repo files, `rg`, `kb-map`, `docs/context/`, and
-deterministic `kbcheck` gates.
+This bundle does not require MCP search, a vector index, or any background app.
+The default path stays file-native: repo files, `rg`, `kb-map`,
+`docs/context/`, and deterministic `kbcheck` gates.
 
 Optional context tools can still fit as adapters. A good adapter may accelerate
 lookup, chunk expansion, or decision recall, but it must have a repo-native
@@ -341,8 +350,7 @@ valid future option when it improves installation or cross-host use.
 
 Maintainers can audit repo-local provider config with `go run ./cmd/kbcheck
 provider-hygiene`, or include standard user config with `go run ./cmd/kbcheck
-provider-hygiene --include-user`. CCE entries are reported as optional; active
-Phoenix provider entries fail.
+provider-hygiene --include-user`. Active Phoenix provider entries fail.
 
 ## Quick Start
 
@@ -406,7 +414,8 @@ KB proof-spine integration status as of July 9, 2026:
 - **Done:** proof spine commands, measured learning-adoption gate, model-tier /
   model-route planning guidance, manifest `done_check` / per-slice
   `proof_check` validation, KB-native `.kb/runs/<goal>/` route-history guards,
-  snapshot path cleanup, `kbcheck doctor` install drift repair, and
+  change-aware proof receipts and replay budgets, automatic GUI pre-launch
+  denial, snapshot path cleanup, `kbcheck doctor` install drift repair, and
   dishonest-completion rejection fixtures.
 - **Outstanding:** broader live-run corpus and optional execution of recorded
   `proof_check` commands from `manifest-contract`.
@@ -653,6 +662,10 @@ Useful subcommands:
 - `manifest-contract` - validate KB manifest done/proof/model-route gates
 - `run-state` - validate `.kb/runs/<goal>/route-history.jsonl`
 - `sense`, `accept`, `trace-verify` - failure-first repair proof spine
+- `proof-plan`, `proof-run`, `proof-receipt-validate` - select, execute, and
+  reuse changed-input-aware proof
+- `proof-governor-selftest` - verify coverage reuse, invalidation, replay
+  refusal, timeout evidence, browser batching, and pre-spawn GUI denial
 - `learning-adoption` - measured gate for promoting learning changes
 - `route-eval` - validate `evals/route-complexity/*` fixtures
 - `skill-eval`, `skill-eval-claims`, `skill-eval-quality`,
@@ -883,10 +896,5 @@ It also borrows useful ideas from:
 - [Shyam Sridhar's TokenMasterX](https://github.com/shyamsridhar123/TokenMasterX),
   especially graph/token-aware repo orientation ideas that informed the
   graphify/TokenMasterX map-bootstrap path
-- [elara-labs/code-context-engine](https://github.com/elara-labs/code-context-engine),
-  for token-efficient codebase indexing and cross-session memory ideas. CCE is
-  credited here as an optional future adapter/reference only; this repo does
-  not require CCE to be installed or running.
-
 The goal is not to copy any one system. The goal is to keep the pieces that make
 agents easier to route, easier to resume, and harder to let off the hook.

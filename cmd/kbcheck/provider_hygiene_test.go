@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-func TestProviderHygieneAllowsOptionalCCE(t *testing.T) {
+func TestProviderHygieneAllowsUnrelatedProvider(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	path := filepath.Join(root, ".mcp.json")
-	if err := os.WriteFile(path, []byte(`{"mcpServers":{"context-engine":{"command":"cce"}}}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"mcpServers":{"search-helper":{"command":"search-helper"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	result := computeProviderHygiene(root, home, false)
-	if !result.OK || len(result.OptionalConfigs) != 1 {
+	if !result.OK {
 		t.Fatalf("result=%#v", result)
 	}
 }

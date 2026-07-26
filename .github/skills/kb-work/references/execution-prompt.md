@@ -25,6 +25,9 @@ Router commands:
 kbrouter discover, delegated-select, and dispatch commands with slice-unique
 artifact names>
 
+Route announcement:
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+
 Slice lease:
 <exact slice-lease acquire command, owner token source, generation, renewal/release command, or non-mutating/no-lease reason>
 
@@ -59,25 +62,28 @@ Instructions:
    directly. For CLI/user-local delegation, use `kbrouter` and select exactly
    one qualified same-tier or higher route. Do not send App targets through
    `kbrouter`, route downward, or silently fall back across owners.
-9. Run the exact deterministic proof. Proof—not model self-review or a routing
+9. The route announcement above was already emitted by the orchestrator before
+   dispatch. Do not emit or repeat the route announcement. Never name a model or alias
+   from memory; treat the populated line only as an execution receipt.
+10. Run the exact deterministic proof. Proof—not model self-review or a routing
    receipt—is the acceptance oracle. If proof fails, use ordinary bounded repair
    under the same owner. Re-plan, block, or record a new explicit ownership
    decision if the required authority changes.
-10. For files marked `op: edit` in expected_files:
+11. For files marked `op: edit` in expected_files:
    - Read the current file content first.
    - Make only the change described in the `scope` field.
    - Preserve all existing behavior not mentioned in scope.
    - Current disk content is authoritative over stale plan text.
-11. For files marked `op: create`, create the planned file.
-12. Apply the verification mode:
+12. For files marked `op: create`, create the planned file.
+13. Apply the verification mode:
    - tdd: failing test -> implementation -> passing test -> refactor.
    - integration: integration test proves the wired path.
    - functional: workflow/API/CLI/UI path is proven from public surface.
    - verification-only: build/check proves no regression.
-13. Run relevant deterministic checks first, then broader checks when practical.
-14. Release or renew the slice lease with the same owner token and current generation before handing back the slice.
-15. Stage only files changed for this slice.
-16. Commit only if the user asked for commits.
+14. Run relevant deterministic checks first, then broader checks when practical.
+15. Release or renew the slice lease with the same owner token and current generation before handing back the slice.
+16. Stage only files changed for this slice.
+17. Commit only if the user asked for commits.
 
 Do not modify other slices' files unless required for this slice.
 Do not add scope beyond what the plan specifies.

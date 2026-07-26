@@ -233,6 +233,20 @@
       }
     ]
   },
+  "proof_governor": {
+    "fixture_root": "evals/proof-governor",
+    "selftest_command": "go run ./cmd/kbcheck proof-governor-selftest",
+    "execution_classes": [
+      "cli",
+      "headless-browser",
+      "visible-browser",
+      "native-gui"
+    ],
+    "blocked_automatic_classes": [
+      "visible-browser",
+      "native-gui"
+    ]
+  },
   "sync_targets": [
     {
       "id": "working",

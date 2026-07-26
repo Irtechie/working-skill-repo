@@ -21,7 +21,8 @@ Use:
 
 ```powershell
 .github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 capture -SliceId <id> -SpecPath <spec.json>
-.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 verify
+.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 verify -SnapshotId <impacted-id>
+.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 verify -MilestoneId <manifest-or-release-id>
 ```
 
 Store snapshots at:
@@ -61,13 +62,20 @@ Do not store secrets, cookies, tokens, credentials, or large response bodies. St
 
 ## Verify
 
-Before the next slice starts execution, run the runner in `verify` mode against all previous snapshots.
+Before the next slice starts execution, select only snapshots whose declared
+inputs or covered behavior are affected by the new diff, then run `verify
+-SnapshotId`. A no-scope verify request fails closed.
+
+Run the complete snapshot set once at a genuine manifest/release milestone with
+`-MilestoneId`. The runner fingerprints the selected snapshot definitions and
+returns `snapshot-verify: REUSE` without executing checks when that exact
+milestone proof was already completed unchanged.
 
 The runner must:
 
-- verify DOM checks with Playwright/CDP or the repo browser transport;
+- batch headless DOM checks into one Playwright browser lifecycle;
 - verify API/route status with `fetch`, `curl`, or platform equivalent;
-- verify CLI checks by executing the command and checking exit code/output;
+- verify CLI checks with a bounded child process and check exit code/output;
 - verify file checksums with SHA-256;
 - exit nonzero on the first failed snapshot.
 

@@ -80,6 +80,7 @@ Classify from concrete evidence, not vibes:
    - Process/module boundary -> `integration`.
    - API/CLI/tool public boundary -> `functional-api` or `functional-cli`.
    - Browser/DOM/user interaction boundary, or backend behavior whose primary user path is UI-driven -> `functional-browser`.
+   - Installed desktop/WebView/native-window behavior -> `functional-native-gui`.
 5. Ask: "Did a bug escape lower-level tests before?"
    - If yes, add a functional regression check at the level where the bug escaped.
 
@@ -140,14 +141,18 @@ If a test mostly asserts mocks were called, snapshots noise, or duplicates imple
 ## Execution Timing
 
 - **During a slice:** run the narrowest functional check that proves the changed path. For UI-reachable behavior, drive the changed workflow through the UI itself. Prefer headless browser/API/CLI checks only after choosing the correct public surface.
-- **After a manifest:** run broader workflow smoke tests across changed areas.
-- **Before ship:** run full functional/e2e suite when practical, plus targeted high-risk flows.
+- **After a manifest:** run one broader workflow aggregate across changed areas and record its input fingerprint.
+- **Before ship:** reuse an identical manifest aggregate; otherwise run one fresh full functional/e2e aggregate plus targeted high-risk flows.
 - **During parallel work:** only one worker owns browser/e2e execution at a time. Other workers may run unit/lint/typecheck. Queue UI functional checks to avoid spawning many visible sessions.
 
 ## Browser / UI Rules
 
 - Headless by default.
 - Visible browser only when debugging visual behavior, SSO/CDP is required, or the user explicitly asks.
+- The portable proof runner never launches `visible-browser` or `native-gui`
+  checks automatically; it denies them before spawning. If the user explicitly
+  requests an attended GUI check, the host/user runs that bounded session
+  outside `proof-run` and records its evidence separately.
 - Prefer programmatic probes: Playwright locators, API checks, DOM text extraction, screenshot assertions, or CLI commands.
 - UI-reachable behavior must be exercised through the rendered UI route/control that a user uses. API calls, backend logs, unit tests, direct state inspection, calling a React/Vue/Svelte component method, invoking a button handler directly, or mocking the request the UI would send are supporting evidence only.
 - A passing UI functional test must include at least one real navigation/open, one real user interaction when the feature is interactive, and one observable rendered assertion after the action. For display-only changes, assert the rendered screen state directly.

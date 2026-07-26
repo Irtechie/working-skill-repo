@@ -53,7 +53,7 @@ The existing read-only `skill-sync-report` remains the evidence source.
   `<working-skill-repo>/.github/skills` only after a clean source hash is known.
 - The fix path refuses or pauses on possible global-only useful drift. It must
   not silently overwrite a changed target whose source has not been reviewed.
-- The command is file-native and optional; no CCE, MCP server, Rust binary, or
+- The command is file-native and optional; no MCP server, Rust binary, or
   background app is required.
 - Docs explain when to use `skill-sync-report`, `doctor`, and `doctor --fix`.
 

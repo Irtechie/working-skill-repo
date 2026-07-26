@@ -34,11 +34,15 @@ Prefer existing project commands over invented commands.
 ## Workflow
 
 1. Run `go run ./cmd/kbcheck core --list` when present to inspect discovered commands.
-2. Pick the narrowest commands that verify the touched behavior.
-3. Run checks in this order when available: format/lint, typecheck/static analysis, unit tests, integration/e2e/browser checks, build/package, security/dependency audit.
-4. Capture command, exit code, and relevant output.
-5. If a check fails, route to `kb-repair` or `kb-fix`; do not ask the user to test normal app behavior.
-6. If a check is missing, add a small reusable script or test when practical, then document it in `docs/context/operations/testing.md`.
+2. Register repeatable commands with their covered checks and relevant inputs,
+   then use `kbcheck proof-plan` to select RUN, REUSE, or BLOCK.
+3. Execute RUN decisions through `kbcheck proof-run`; do not independently
+   replay a command that has a fresh passing receipt or an identical failed
+   fingerprint.
+4. Run selected checks in this order when available: format/lint, typecheck/static analysis, unit tests, integration/e2e/browser checks, build/package, security/dependency audit.
+5. Capture command, exit code, relevant output, and proof receipt.
+6. If a check fails, route to `kb-repair` or `kb-fix`; do not ask the user to test normal app behavior.
+7. If a check is missing, add a small reusable script or test when practical, then document it in `docs/context/operations/testing.md`.
 
 In this portable skill bundle, the canonical local gate is:
 

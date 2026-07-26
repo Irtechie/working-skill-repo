@@ -20,8 +20,8 @@ sessions operate on the same repository.
   `graph_route`, and requires source verification. It does not define typed
   edge semantics, exact-symbol precedence, an impact-packet contract,
   provider freshness, or task-specific traversal recipes.
-- File-native `rg`/`kb-map`/`kbcheck` behavior is mandatory. CCE, Graphify,
-  SCIP/LSP indexes, CPG/data-flow tooling, vectors, MCP, and similar providers
+- File-native `rg`/`kb-map`/`kbcheck` behavior is mandatory. Graphify, SCIP/LSP
+  indexes, CPG/data-flow tooling, vectors, MCP, and similar providers
   remain optional adapters and must not become install or runtime requirements.
 - `kb-work` correctly limits shared-checkout mutation to one slice and asks
   agents to claim work in `todo.md`, but the claim is a non-atomic read/modify/

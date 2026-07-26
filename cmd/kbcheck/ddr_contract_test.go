@@ -16,10 +16,19 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			"**CLI or user-local delegation:**",
 			"AMR remains an unpromoted experimental benchmark.",
 			"App-only aliases with CLI-only aliases.",
+			"DDR route: <current|subagent> | primary:",
+			"after route selection and before mutation or worker dispatch",
+			"The orchestrator is the sole emitter",
+			"otherwise use `current orchestrator`",
+			"(conditional; explicit reselect)",
+			"This preview rule never suppresses the mandatory per-slice DDR route line.",
 		},
 		".github/skills/kb-work/references/execution-prompt.md": {
 			"Do not invoke AMR or pass `attempt_tier` during normal KB work.",
 			"Do not send App targets through",
+			"Route announcement:",
+			"Never name a model or alias",
+			"Do not emit or repeat the route announcement.",
 		},
 		".github/skills/kb-configure/references/kb-routing-example.yaml": {
 			"experimental_amr:",
@@ -30,6 +39,11 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			"`kbrouter` is authoritative",
 			"for Codex CLI and user-local routes",
 			"Normal work never passes `attempt_tier`",
+			"route announcement is evidence-bound",
+		},
+		"README.md": {
+			"DDR route: <current|subagent> | primary:",
+			"A named fallback is conditional",
 		},
 	}
 	for path, needles := range required {
@@ -42,6 +56,41 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			if !strings.Contains(text, needle) {
 				t.Errorf("%s missing production DDR contract %q", path, needle)
 			}
+		}
+	}
+
+	canonicalAnnouncement := "DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>"
+	for _, path := range []string{
+		".github/skills/kb-work/SKILL.md",
+		".github/skills/kb-work/references/execution-prompt.md",
+		"README.md",
+		"docs/context/architecture/kb-workflow.md",
+		"docs/plans/2026-07-26-001-tool-ddr-route-announcement-plan.md",
+	} {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		if !strings.Contains(string(content), canonicalAnnouncement) {
+			t.Errorf("%s missing canonical DDR announcement grammar", path)
+		}
+	}
+
+	executionPrompt, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(".github/skills/kb-work/references/execution-prompt.md")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(executionPrompt), "Emit exactly one compact user-visible line before execution") {
+		t.Error("delegated execution prompt must not become a second route-announcement emitter")
+	}
+
+	slicePlan, err := os.ReadFile(filepath.Join(root, filepath.FromSlash("docs/plans/2026-07-26-001-tool-ddr-route-announcement-plan.md")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbiddenAlias := range []string{"local Qwen", "Luna"} {
+		if strings.Contains(string(slicePlan), forbiddenAlias) {
+			t.Errorf("portable route-announcement plan hard-codes model alias %q", forbiddenAlias)
 		}
 	}
 

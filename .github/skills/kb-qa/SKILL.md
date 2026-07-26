@@ -10,7 +10,7 @@ Quality verification for all slices. Lint for every slice. Browser checks for fr
 
 Prefer deterministic checks over model judgment. Use `kb-check` for lint, typecheck, tests, builds, browser checks, and audits before relying on visual or textual inspection.
 
-Use `kb-functional-test` for user-visible workflows, API/CLI journeys, auth/session/persistence paths, and bugs that escaped unit tests. If the changed behavior is reachable through the UI and a browser transport exists, verification must drive it through the UI. Backend/API/unit checks may supplement but cannot replace that UI proof. Headless browser checks are preferred; visible browser sessions must be serialized.
+Use `kb-functional-test` for user-visible workflows, API/CLI journeys, auth/session/persistence paths, and bugs that escaped unit tests. If the changed behavior is reachable through the UI and a browser transport exists, verification must drive it through the UI. Backend/API/unit checks may supplement but cannot replace that UI proof. Headless browser checks are preferred. The portable proof runner denies visible-browser and native-GUI checks before launch; a genuinely necessary attended GUI session remains an explicit user/host action outside `proof-run`.
 
 ## When to Run
 

@@ -116,8 +116,15 @@ Bun, CodeLayer, or GitHub Actions runners are examples, not KB defaults.
 
 Also record `test_level` and `functional_risk` for each slice. `kb-functional-test` owns this classification:
 
-- `test_level`: `none`, `unit`, `integration`, `functional-api`, `functional-cli`, `functional-browser`, or `full`
+- `test_level`: `none`, `unit`, `integration`, `functional-api`, `functional-cli`, `functional-browser`, `functional-native-gui`, or `full`
 - `functional_risk`: `none`, `narrow`, `broad`, or `full`
+- `execution_class`: `cli`, `headless-browser`, `visible-browser`, or `native-gui`
+
+`visible-browser` and `native-gui` are classification-only in the portable
+proof runner: automatic execution is blocked before process launch. If an
+attended GUI session is genuinely required, record the blocker and leave that
+explicit user/host action outside `proof-run`; do not add an approval artifact
+to the manifest.
 
 Use `unit` only when a unit test can genuinely prove the changed behavior. Use functional levels when a unit test could pass while the user-visible, API, CLI, browser, persistence, auth/session, streaming, or integration path is broken.
 
@@ -155,7 +162,7 @@ Break the work into thin end-to-end slices. For each slice, determine:
 - **Title** - short descriptive name
 - **What it delivers** - end-to-end behavior description
 - **Verification mode** - tdd / integration / verification-only / hitl. For `tdd`, record the oracle path/command before implementation whenever practical.
-- **Test level** - none / unit / integration / functional-api / functional-cli / functional-browser / full
+- **Test level** - none / unit / integration / functional-api / functional-cli / functional-browser / functional-native-gui / full
 - **Functional risk** - none / narrow / broad / full
 - **Model tier** - the `small` / `medium` / `large` correction and authority
   tier required if the first implementation attempt fails; Planner is a

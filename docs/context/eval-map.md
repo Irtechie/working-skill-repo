@@ -1,6 +1,6 @@
 # Eval Map
 
-Checked: 2026-07-21
+Checked: 2026-07-26
 
 ## App Pattern
 
@@ -26,6 +26,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 | Live adapter wrappers stay safe | Codex/GHCP adapters | `go run ./cmd/kbcheck eval-run-codex --fixture-id tiny-typo-fix --dry-run`; `go run ./cmd/kbcheck eval-run-ghcp --fixture-id tiny-typo-fix --dry-run`; `go run ./cmd/kbcheck skill-eval-wrap --fixture-id tiny-typo-fix --dry-run --sealed` | Authenticated live runs remain explicit | P0 |
 | Repair claims prove RED then GREEN | `.kb/trace.jsonl` and check specs | `go run ./cmd/kbcheck sense`; `trace-verify`; `accept` | Per-slice specs are created as needed, not centrally cataloged | P0 |
 | Manifests cannot self-report done | `docs/plans/*manifest*.md` | `go run ./cmd/kbcheck manifest-contract --manifest <manifest>` | Does not execute every recorded proof command yet | P0 |
+| Changed proof runs once while unchanged proof is reused | `evals/proof-governor/fixtures.json`; sealed check registry; `.proof.json` receipts | `go run ./cmd/kbcheck proof-governor-selftest`; `proof-plan`; `proof-run` | Host-global interception remains adapter-specific; portable enforcement owns registered KB proof paths | P0 |
 | False completion is rejected | `evals/dishonest-completion/fixtures.json` | `go run ./cmd/kbcheck dishonest-completion-selftest` | Small corpus only | P0 |
 | Run-state loops stop | `.kb/runs/<goal>/route-history.jsonl` | `go run ./cmd/kbcheck run-state --history <history>`; `go run ./cmd/kbcheck run-state-selftest` | Needs more real histories over time | P1 |
 | Learning promotion stays evidence-bound | learning result JSON | `go run ./cmd/kbcheck learning-adoption --result-path <results.json>` | More real samples needed | P1 |
@@ -66,6 +67,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 - `go run ./cmd/kbcheck scope-lease-selftest`
 - `go run ./cmd/kbcheck slice-lease-selftest`
 - `go run ./cmd/kbcheck workflow-governor-selftest`
+- `go run ./cmd/kbcheck proof-governor-selftest`
 
 ### Skill / route / claim evals
 
@@ -128,6 +130,7 @@ Creating placeholder browser/API smoke tests would not prove anything real here.
 | captured skill result scoring | deterministic |
 | proof-spine trace acceptance | deterministic |
 | manifest done/proof contract | deterministic schema and gate check |
+| proof coverage, invalidation, replay budget, and GUI refusal corpus | deterministic negative/positive selftest |
 | dishonest completion rejection fixtures | deterministic negative selftest |
 | run-state loop guard | deterministic JSONL check |
 | doctor install-drift repair/refusal | deterministic fixture selftest |

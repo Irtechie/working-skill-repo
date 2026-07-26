@@ -115,8 +115,8 @@ If blocked, state exactly what was attempted, what command/tool failed, and what
 
 ## Optional Context Providers
 
-CCE is an owned, supported optional context adapter. MCP search, vector indexes,
-and similar tools are optional adapters too. Do not commit or auto-start their
+MCP search, vector indexes, and similar tools are optional adapters. Do not
+commit or auto-start their
 hooks/configs, and do not require a daemon/app for skills, install, sync, or
 checks. The file-native `rg`/`kb-map`/`kbcheck` path must keep working.
 

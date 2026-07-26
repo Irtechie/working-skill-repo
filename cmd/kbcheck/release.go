@@ -126,15 +126,8 @@ func releaseChecks(root, profile string, runner processRunner) ([]Check, error) 
 	} else {
 		checks = append(checks, Check{Name: "skill-sync-report", Args: []string{"kbcheck", "skill-sync-report"}, Required: false, Confidence: "deterministic-local", Available: func(string) bool { return false }, SkipReason: "skill sync target config unavailable"})
 	}
-	if exists(root, ".github/skills") {
-		checks = append(checks, Check{
-			Name: "skill-surface-minimality", Args: []string{"kbcheck", "minimality"},
-			Required: false, Confidence: "static-report",
-			Run: func(root string) CheckResult { return runNativeCommand(root, []string{"minimality"}) },
-		})
-	} else {
-		checks = append(checks, Check{Name: "skill-surface-minimality", Args: []string{"kbcheck", "minimality"}, Required: false, Confidence: "static-report", Available: func(string) bool { return false }, SkipReason: "skill surface unavailable"})
-	}
+	// skill-surface-minimality is already a stable child of core. Do not execute
+	// it again in the same immutable release profile.
 	// Once the routing feature exists, its canonical evidence is mandatory. Do
 	// not let deleting or renaming the evidence silently remove the release gate.
 	if exists(root, modelRoutingFeatureMarker) || exists(root, modelRoutingInitialPilotEvidence) {

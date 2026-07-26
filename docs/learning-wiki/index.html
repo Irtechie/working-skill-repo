@@ -589,7 +589,7 @@
       </div>
       <details>
         <summary>Evidence (3)</summary>
-        <ul><li>docs/solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md</li><li>cmd/kbcheck/provider_hygiene_test.go covers optional CCE, active/escaped Phoenix, and disabled JSON/TOML entries</li><li>2026-07-09 multi-agent review caught machine-dependent core and substring-based false positives before completion</li></ul>
+        <ul><li>docs/solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md</li><li>cmd/kbcheck/provider_hygiene_test.go covers unrelated providers, active or escaped Phoenix, and disabled JSON or TOML entries</li><li>2026-07-09 multi-agent review caught machine-dependent core and substring-based false positives before completion</li></ul>
       </details>
       <footer>
         <span>Seen 2026-07-09</span>
@@ -714,7 +714,7 @@
         <span class="status">reference</span>
       </div>
       <h3>Keep Optional Provider State Out of Repo-Local Gates</h3>
-      <p>Phoenix had been removed from the repo, but a stale user-level Copilot MCP entry and globally installed Phoenix skills could still activate it. CCE is an owned context engine that should remain available as an opt-in adapter. The first</p>
+      <p>Phoenix had been removed from the repo, but a stale user-level Copilot MCP entry and globally installed Phoenix skills could still activate it. The first</p>
       <footer>
         <span>2026-07-09</span>
         <a href="../solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md">Source</a>

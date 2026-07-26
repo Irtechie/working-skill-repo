@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "passing-superset-reuse",
+      "expected_decision": "reuse",
+      "expected_launches": 0
+    },
+    {
+      "id": "relevant-input-change",
+      "expected_decision": "run",
+      "expected_launches": 1
+    },
+    {
+      "id": "shared-dependency-change",
+      "expected_decision": "run",
+      "expected_launches": 1
+    },
+    {
+      "id": "unrelated-input-change",
+      "expected_decision": "reuse",
+      "expected_launches": 0
+    },
+    {
+      "id": "unknown-impact",
+      "expected_decision": "block",
+      "expected_launches": 0
+    },
+    {
+      "id": "failed-replay-ceiling",
+      "expected_decision": "block",
+      "expected_launches": 0
+    },
+    {
+      "id": "partial-timeout-receipt",
+      "expected_decision": "run",
+      "expected_launches": 1
+    },
+    {
+      "id": "semantic-command-drift",
+      "expected_decision": "run",
+      "expected_launches": 1
+    },
+    {
+      "id": "preintegration-run-namespace",
+      "expected_decision": "run",
+      "expected_launches": 1
+    },
+    {
+      "id": "registry-drift",
+      "expected_decision": "run",
+      "expected_launches": 1
+    },
+    {
+      "id": "headless-browser-batch",
+      "expected_decision": "run",
+      "expected_launches": 1
+    },
+    {
+      "id": "native-gui-unattended",
+      "expected_decision": "block",
+      "expected_launches": 0
+    }
+  ]
+}

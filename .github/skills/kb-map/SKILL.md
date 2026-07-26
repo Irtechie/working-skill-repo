@@ -196,7 +196,7 @@ fallback path. Validate packet files with:
 go run ./cmd/kbcheck graph-route --packet <packet.json>
 ```
 
-File-native packets are valid without Graphify, SCIP, CCE, MCP, a daemon, or a
+File-native packets are valid without Graphify, SCIP, MCP, a daemon, or a
 vector store. Optional providers can add candidate evidence, but stale or
 unsupported provider output must downgrade to a named fallback and source
 inspection. LLM-inferred edges are never exact evidence.

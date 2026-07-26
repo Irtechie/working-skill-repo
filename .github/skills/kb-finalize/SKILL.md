@@ -44,13 +44,13 @@ already opted into a `done.md` workflow.
 5. **Collect memory impact** — scan slice notes for `memory-impact:` and `kb-map-refresh:` entries.
 6. **Review routing evidence honestly** — collect any routing receipts or host evidence linked from the run state, but treat them as telemetry rather than proof of correctness. Missing, unknown, or mismatched provenance does not invalidate already-proven work.
 7. **Identify the branch baseline** — run `git merge-base HEAD main` to establish the diff range.
-8. **Run final snapshot sweep** — invoke `kb-regression-snapshot verify` for all snapshots under `.kb/snapshots/`. If any snapshot fails, STOP before review; later work regressed earlier passing behavior.
+8. **Run one final snapshot milestone** — invoke `kb-regression-snapshot verify -MilestoneId <manifest-id>`. Accept `REUSE` for the exact passing fingerprint; otherwise run once and STOP on failure.
 
 If the manifest has no scope-check notes (older format), fall back to `git diff --name-only $(git merge-base HEAD main)..HEAD` for the file list.
 
 ## Step 1: Code Review
 
-Before code review, run `kb-check` against the completed manifest scope. If deterministic checks fail, route to `kb-repair` or `kb-fix` before `kb-review`. LLM review does not replace executable verification.
+Before review, run `kb-check` on the manifest scope, reusing fresh slice receipts and running only invalidated checks plus the manifest aggregate. Route failures to `kb-repair`/`kb-fix`; LLM review does not replace executable verification.
 
 Do not choose, rerun, or require a different model solely to improve routing telemetry. `kb-finalize` reviews receipts and notes useful observations for future selection, but proof and review gates remain model-independent.
 

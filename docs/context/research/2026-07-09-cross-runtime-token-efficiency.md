@@ -98,7 +98,7 @@ The next implementation should also record:
 
 ## Rejected Approaches
 
-- Make CCE or another context-engine/MCP server required: optional lookup
+- Make a context-engine/MCP server required: optional lookup
   acceleration can help, but mandatory startup adds non-portable schema and
   failure overhead.
 - Optimize raw token count without correctness/proof outcomes: can reward doing
@@ -109,8 +109,7 @@ The next implementation should also record:
 ## Impact On Current Project
 
 - `.github/copilot-instructions.md` is now a thin pointer to `AGENTS.md`.
-- Repo-local provider auto-start files were removed; CCE remains an owned,
-  supported opt-in adapter.
+- Repo-local provider auto-start files were removed.
 - Phoenix remains credited prior art, but no Phoenix runtime/MCP connection is
   part of the bundle.
 - The planner-economy telemetry slice should capture normalized real usage when

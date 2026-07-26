@@ -34,6 +34,10 @@ Usage:
   kbcheck sense --check <path> [--trace <path>] [--root <path>]
   kbcheck trace-verify [--trace <path>] [--root <path>]
   kbcheck accept --check <path> [--trace <path>] [--root <path>]
+  kbcheck proof-receipt-validate --receipt <path> [--root <path>] [--json]
+  kbcheck proof-plan --registry <path> --receipt-dir <path> --request <check-id,...> [--root <path>] [--json]
+  kbcheck proof-run --registry <path> --receipt-dir <path> --request <check-id,...> [--root <path>] [--json]
+  kbcheck proof-governor-selftest [--root <path>]
   kbcheck learning-adoption --result-path <path> [--root <path>]
   kbcheck context-packet --packet <path> [--root <path>] [--json]
   kbcheck context-packet-selftest
@@ -161,6 +165,9 @@ type options struct {
 	packetPath           string
 	telemetryPath        string
 	receiptPath          string
+	receiptDir           string
+	proofRegistryPath    string
+	proofRequest         string
 	evidenceEnvelopePath string
 	cohort               string
 	evidencePath         string
@@ -236,6 +243,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runProofTraceVerifyCommand(root, opts, stdout, stderr)
 	case "accept":
 		return runProofAcceptCommand(root, opts, stdout, stderr)
+	case "proof-receipt-validate":
+		return runProofGovernorReceiptValidateCommand(root, opts, stdout, stderr)
+	case "proof-plan":
+		return runProofGovernorPlanCommand(root, opts, stdout, stderr)
+	case "proof-run":
+		return runProofGovernorExecuteCommand(root, opts, stdout, stderr)
+	case "proof-governor-selftest":
+		return runProofGovernorSelftest(root, stdout, stderr)
 	case "learning-adoption":
 		return runLearningAdoptionCommand(root, opts, stdout, stderr)
 	case "context-packet":
@@ -345,7 +360,7 @@ func parse(args []string) (options, error) {
 		"core": true, "local-release": true, "live-release": true,
 		"ready-set": true, "ready-set-selftest": true, "manifest-contract": true, "manifest-contract-selftest": true, "gate-ledger": true,
 		"run-state": true, "run-state-selftest": true,
-		"sense": true, "trace-verify": true, "accept": true, "learning-adoption": true,
+		"sense": true, "trace-verify": true, "accept": true, "proof-receipt-validate": true, "proof-plan": true, "proof-run": true, "proof-governor-selftest": true, "learning-adoption": true,
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-routing-release": true,
@@ -422,6 +437,9 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.packetPath, "packet", "", "context packet JSON path")
 	fs.StringVar(&opts.telemetryPath, "telemetry", "", "execution telemetry JSON path")
 	fs.StringVar(&opts.receiptPath, "receipt", "", "routing receipt JSON path")
+	fs.StringVar(&opts.receiptDir, "receipt-dir", "", "proof receipt directory")
+	fs.StringVar(&opts.proofRegistryPath, "registry", "", "proof check registry JSON path")
+	fs.StringVar(&opts.proofRequest, "request", "", "comma-separated proof check IDs")
 	fs.StringVar(&opts.evidenceEnvelopePath, "evidence-envelope", "", "routing evidence envelope JSON path")
 	fs.StringVar(&opts.cohort, "cohort", "", "model-routing release cohort")
 	fs.StringVar(&opts.evidencePath, "evidence", "", "model-routing release evidence path")
@@ -517,14 +535,27 @@ func parse(args []string) (options, error) {
 	if packetCommands[opts.command] && opts.packetPath == "" {
 		return options{}, fmt.Errorf("%s requires --packet", opts.command)
 	}
-	if opts.command != "execution-telemetry" && (opts.telemetryPath != "" || opts.receiptPath != "" || opts.evidenceEnvelopePath != "") {
-		return options{}, fmt.Errorf("--telemetry, --receipt, and --evidence-envelope are only supported for execution-telemetry")
+	receiptCommand := opts.command == "execution-telemetry" || opts.command == "proof-receipt-validate"
+	if !receiptCommand && (opts.telemetryPath != "" || opts.receiptPath != "" || opts.evidenceEnvelopePath != "") {
+		return options{}, fmt.Errorf("--telemetry, --receipt, and --evidence-envelope are only supported for receipt commands")
 	}
 	if opts.command == "execution-telemetry" && opts.telemetryPath == "" {
 		return options{}, fmt.Errorf("execution-telemetry requires --telemetry")
 	}
 	if opts.command == "execution-telemetry" && ((opts.receiptPath == "") != (opts.evidenceEnvelopePath == "")) {
 		return options{}, fmt.Errorf("execution-telemetry requires --receipt and --evidence-envelope together")
+	}
+	if opts.command == "proof-receipt-validate" && opts.receiptPath == "" {
+		return options{}, fmt.Errorf("proof-receipt-validate requires --receipt")
+	}
+	if opts.command == "proof-receipt-validate" && (opts.telemetryPath != "" || opts.evidenceEnvelopePath != "") {
+		return options{}, fmt.Errorf("proof-receipt-validate only accepts --receipt")
+	}
+	if opts.command != "proof-plan" && opts.command != "proof-run" && (opts.receiptDir != "" || opts.proofRegistryPath != "" || opts.proofRequest != "") {
+		return options{}, fmt.Errorf("--receipt-dir, --registry, and --request are only supported for proof-plan or proof-run")
+	}
+	if (opts.command == "proof-plan" || opts.command == "proof-run") && (opts.receiptDir == "" || opts.proofRegistryPath == "" || opts.proofRequest == "") {
+		return options{}, fmt.Errorf("%s requires --registry, --receipt-dir, and --request", opts.command)
 	}
 	if opts.command != "model-routing-release" && (opts.cohort != "" || opts.evidencePath != "") {
 		return options{}, fmt.Errorf("--cohort and --evidence are only supported for model-routing-release")

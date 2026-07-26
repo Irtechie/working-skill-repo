@@ -18,10 +18,10 @@ expected_files:
     scope: "cover optional/invalid usage fields and proof outcomes"
   - path: cmd/kbcheck/provider_hygiene.go
     op: create
-    scope: "detect Phoenix provider activation and classify CCE as opt-in"
+    scope: "detect Phoenix provider activation"
   - path: cmd/kbcheck/provider_hygiene_test.go
     op: create
-    scope: "cover forbidden Phoenix and allowed optional CCE configurations"
+    scope: "cover forbidden Phoenix, unrelated providers, and disabled configurations"
   - path: docs/context/eval-map.md
     op: edit
     scope: "record the spike's deterministic proof surfaces"
@@ -33,7 +33,7 @@ resume_when: "slice-003 done"
 next_agent_action: "Add recovery and telemetry fixtures before claiming self-healing."
 human_action: ""
 can_continue_other_slices: true
-notes: "Added normalized optional usage fields and provider-hygiene checks. Phoenix activation fails; CCE remains optional."
+notes: "Added normalized optional usage fields and provider-hygiene checks. Phoenix activation fails."
 ---
 
 # Slice 004 - Recovery and Telemetry Proof
@@ -54,11 +54,11 @@ and provider integrations remain optional.
   mutable packet input or model-authored usage. Host extraction remains
   adapter-specific until Codex/GHCP expose stable measured output.
 - Phoenix activation in repo or standard user config fails provider hygiene.
-- CCE configuration is allowed and labeled optional rather than required.
+- Unrelated provider configuration does not fail the Phoenix-specific audit.
 
 ## Scope Boundary
 
-Do not uninstall or disable CCE. Do not build a UI, daemon, or provider proxy.
+Do not build a UI, daemon, or provider proxy.
 
 ## Verification
 

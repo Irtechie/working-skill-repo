@@ -13,7 +13,7 @@ planner-economy hardening without adding another runtime.
 
 - Active board, manifests, and handoffs agree on completion state.
 - Phoenix has no installed runtime, MCP, skill, hook, or daemon dependency.
-- CCE remains supported but opt-in.
+- Optional context providers remain outside the required runtime.
 - Context packets and optional normalized usage telemetry have executable
   contracts.
 - Loaded-surface reporting distinguishes startup from conditional skills.
@@ -59,5 +59,5 @@ None.
 - User instruction `finish it` authorizes continuous execution and an
   evidence-based architecture recommendation without another planning stop.
 - Final decision: keep KB as lightweight core and payload; context packets are
-  immutable inputs, telemetry is a separate result, CCE is optional, and
-  Phoenix remains attribution/research only.
+  immutable inputs, telemetry is a separate result, and Phoenix remains
+  attribution/research only.

@@ -69,13 +69,13 @@ dirty/worktree fingerprint, limitations, and the exact fallback taken.
 
 ## Why This Slice Exists
 
-Without this boundary, Graphify, SCIP, CCE, or another adapter would define KB's
+Without this boundary, Graphify, SCIP, or another adapter would define KB's
 architecture by accident. A stable packet makes providers replaceable and
 gives later workflow phases one falsifiable input.
 
 ## Acceptance Criteria
 
-- A file-native packet validates without Graphify, SCIP, CCE, MCP, or a daemon.
+- A file-native packet validates without Graphify, SCIP, MCP, or a daemon.
 - Exact, observed, structural, heuristic, and LLM-inferred evidence are distinct.
 - Missing repo identity, revision, source location for load-bearing exact edges,
   or freshness state fails validation.

@@ -77,7 +77,12 @@ Then try a different approach for the same failure. The revert counts as a stuck
 
 ### 3. Re-verify
 
-After each fix, re-run ALL checks — not just the one that failed:
+After each fix, rerun the failed check plus checks selected as impacted by the
+changed inputs. Reuse unchanged passing receipts. Do not replay an identical
+failed command: stop when the failure fingerprint is unchanged, and report the
+specific input or implementation change required before another attempt.
+
+The affected proof set can include:
 
 - **Lint** (always)
 - **Browser checks** (if frontend slice)

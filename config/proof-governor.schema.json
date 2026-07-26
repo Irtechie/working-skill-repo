@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Irtechie/working-skill-repo/config/proof-governor.schema.json",
+  "title": "KB proof governor check and receipt contract",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "spec",
+    "registry_path",
+    "registry_sha256",
+    "check_semantics_sha256",
+    "relevant_inputs_sha256",
+    "environment_sha256",
+    "covered_checks",
+    "inputs",
+    "result",
+    "integrity_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "receipt_id": { "$ref": "#/$defs/sha256" },
+    "registry_path": { "type": "string", "minLength": 1 },
+    "registry_sha256": { "$ref": "#/$defs/sha256" },
+    "check_semantics_sha256": { "$ref": "#/$defs/sha256" },
+    "relevant_inputs_sha256": { "$ref": "#/$defs/sha256" },
+    "environment_sha256": { "$ref": "#/$defs/sha256" },
+    "integrity_sha256": { "$ref": "#/$defs/sha256" },
+    "covered_checks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "role"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "role": { "enum": ["relevant", "oracle"] },
+          "sha256": { "$ref": "#/$defs/sha256" },
+          "missing": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["id", "namespace", "command", "covers", "inputs", "working_dir", "timeout_ms", "expected_exit", "execution_class", "max_age_seconds"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "namespace": {
+          "type": "object",
+          "required": ["goal", "slice", "run"],
+          "properties": {
+            "goal": { "type": "string", "minLength": 1 },
+            "slice": { "type": "string", "minLength": 1 },
+            "run": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "covers": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "inputs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "oracle_files": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "working_dir": { "type": "string", "minLength": 1 },
+        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "expected_exit": { "type": "integer" },
+        "environment": { "type": "object", "additionalProperties": { "type": "string" } },
+        "execution_class": { "enum": ["cli", "headless-browser", "visible-browser", "native-gui"] },
+        "max_age_seconds": { "type": "integer", "minimum": 1 },
+        "external_evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "digest"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "digest": { "$ref": "#/$defs/sha256" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["status", "exit_code", "started_at", "completed_at", "duration_ms"],
+      "properties": {
+        "status": { "enum": ["pass", "fail", "partial", "timeout"] },
+        "exit_code": { "type": "integer" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": "string", "format": "date-time" },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

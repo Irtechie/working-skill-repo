@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/Irtechie/working-skill-repo/internal/graphrouting"
 )
@@ -194,6 +195,7 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	contextPacketContract := manifestHasTopLevelKey(path, "context_packet_contract")
 	impactPacketContract := manifestHasTopLevelKey(path, "impact_packet_contract")
 	workspaceIsolationContract := manifestHasTopLevelKey(path, "workspace_isolation_contract")
+	proofGovernorContract := manifestHasTopLevelKey(path, "proof_governor_contract")
 	if objectiveContract && !manifestHasTopLevelKey(path, "done_check") {
 		issues = append(issues, manifestContractIssue{Code: "missing-done-check", Message: "objective_contract requires a top-level done_check"})
 	}
@@ -201,6 +203,17 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 		issues = append(issues, validateModelSelectionContract(path)...)
 	}
 	for _, slice := range slices {
+		if slice.TestLevel != "" && !validManifestTestLevel(slice.TestLevel) {
+			issues = append(issues, manifestContractIssue{Code: "invalid-test-level", SliceID: slice.ID, Message: "test_level must be none, unit, integration, functional-api, functional-cli, functional-browser, functional-native-gui, or full"})
+		}
+		if proofGovernorContract {
+			if !validProofGovernorExecutionClass(slice.ExecutionClass) {
+				issues = append(issues, manifestContractIssue{Code: "invalid-execution-class", SliceID: slice.ID, Message: "proof_governor_contract requires execution_class cli, headless-browser, visible-browser, or native-gui"})
+			}
+			if slice.TestLevel == "functional-native-gui" && slice.ExecutionClass != "native-gui" {
+				issues = append(issues, manifestContractIssue{Code: "native-gui-class-mismatch", SliceID: slice.ID, Message: "functional-native-gui requires execution_class native-gui"})
+			}
+		}
 		if contextPacketContract {
 			requiresPacket := slice.Status == "pending" || slice.Status == "in_progress"
 			if requiresPacket && slice.ContextPacketPath == "" && slice.NoPacketReason == "" {
@@ -302,6 +315,15 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 		}
 	}
 	return manifestContractResult{OK: len(issues) == 0, Issues: issues}, nil
+}
+
+func validManifestTestLevel(value string) bool {
+	switch value {
+	case "none", "unit", "integration", "functional-api", "functional-cli", "functional-browser", "functional-native-gui", "full":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateModelSelectionContract(path string) []manifestContractIssue {
@@ -511,8 +533,20 @@ func validateAdvanceableGate(manifestPath string, gate manifestGate, allowQuaran
 		if !looksLikeProofPath(item) {
 			continue
 		}
-		if !proofPathExists(manifestPath, item) {
+		proofPath := resolveManifestProofPath(manifestPath, item)
+		if !pathExists(proofPath) {
 			issues = append(issues, manifestContractIssue{Code: "missing-proof-path", GateID: gate.GateID, Message: fmt.Sprintf("proof path does not exist: %s", item)})
+			continue
+		}
+		if strings.HasSuffix(strings.ToLower(item), ".proof.json") {
+			root := proofGovernorRootFromManifest(manifestPath)
+			for _, receiptIssue := range validateProofGovernorReceiptFile(root, proofPath, time.Now().UTC()) {
+				issues = append(issues, manifestContractIssue{
+					Code:    "invalid-proof-receipt",
+					GateID:  gate.GateID,
+					Message: fmt.Sprintf("%s: %s", item, receiptIssue),
+				})
+			}
 		}
 	}
 	return issues
@@ -667,14 +701,35 @@ func looksLikeProofPath(value string) bool {
 }
 
 func proofPathExists(manifestPath, proofItem string) bool {
+	return pathExists(resolveManifestProofPath(manifestPath, proofItem))
+}
+
+func resolveManifestProofPath(manifestPath, proofItem string) string {
 	if filepath.IsAbs(proofItem) {
-		return pathExists(proofItem)
+		return proofItem
 	}
 	rootRelative := filepath.FromSlash(proofItem)
 	if pathExists(rootRelative) {
-		return true
+		return rootRelative
 	}
-	return pathExists(filepath.Join(filepath.Dir(manifestPath), filepath.FromSlash(proofItem)))
+	return filepath.Join(filepath.Dir(manifestPath), filepath.FromSlash(proofItem))
+}
+
+func proofGovernorRootFromManifest(manifestPath string) string {
+	current, err := filepath.Abs(filepath.Dir(manifestPath))
+	if err != nil {
+		return filepath.Dir(manifestPath)
+	}
+	for {
+		if pathExists(filepath.Join(current, "go.mod")) || pathExists(filepath.Join(current, ".git")) {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return filepath.Dir(manifestPath)
+		}
+		current = parent
+	}
 }
 
 func hasManifestIssue(issues []manifestContractIssue, code string) bool {

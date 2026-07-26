@@ -74,8 +74,11 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 |---|---|---|---|
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
+| Plan-run worktree isolation and team-safe integration | 🔄 in progress | P0 | `docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md` — slices 001-002 are done through `e00332c`; manifest and slice-003 leases are active in the single plan-run worktree. |
 | Workflow overview image restoration | 🔧 in_progress | P0 | AMR/DDR review is archived; restore the former routing overview under a distinct asset name after current workflow consolidation is reflected. |
 | Harness-engineering validation recovery | ⬜ pending | P1 | `docs/plans/2026-07-20-000-kb-harness-validation-recovery-manifest.md`; fixes the `kbcheck`/`go test` hang, bounded proof diagnostics, LF-stable `lopopolo/harness-engineering` runner, and combined release/review proof. |
+| DDR route announcement final release gate | 🔒 blocked | P1 | Implementation, focused proof, review repair, 17/17 snapshots, and skill sync are green; `core` and `local-release` each timed out after 59 seconds with no output. Manifest: `docs/plans/2026-07-26-000-kb-ddr-route-announcement-manifest.md` |
+| Change-aware proof governor | 🔒 blocked | P1 | Slices 001-003 and corrective slice-005 are done; slice-005 removed repo-owned GUI approvals and now blocks automatic visible/native execution before launch. Four changed policy skills are hash-identical across all required roots. Slice-004 implementation/focused proof is green, but final `core` found twelve unchanged `cmd/kbrouter` canonical-project-path fixture failures; full sync also retains unrelated `kb-gate`/`safe-shell-quoting` drift. Do not replay `core` or run composing `local-release` until those inputs change. Manifest: `docs/plans/2026-07-26-020-kb-change-aware-proof-governor-manifest.md`. |
 | GHCP AIC/context falsification harness | 🔒 blocked | P1 | Goal: `docs/context/goals/ghcp-aic-falsification.md`; exploratory Qwen Small→Sol Large costs are measured (13.61725 AIC full-fallback proxy vs 13.4155 direct mean; +106.4% tokens), but Sol and Qwen both failed the JSON/proof contract, so no correctness winner exists. Fix provider-contract smoke before more samples. Evidence: `docs/results/2026-07-13-qwen-sol-exploratory-cost.md` |
 | Invisible workflow UX: retire KLFG, preserve consent, report route/proof/AIC | 🔒 blocked | P1 | `docs/plans/2026-07-11-045-kb-invisible-workflow-ux-manifest.md` — waits for overlapping AMR/AIC work to stabilize and explicit plan-to-work consent |
 
@@ -105,6 +108,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Handoff | Status | Route | Created | Stale Check | Link |
 |---|---|---|---|---|---|
+| Plan-run worktree isolation | 🔄 in progress | `kb-work` slice-003 | 2026-07-26 | Protect serialized slice-commit advancement on the owning plan-run branch | `docs/handoffs/active/2026-07-26-plan-run-worktree-isolation.md` |
 
 ## Human Required
 

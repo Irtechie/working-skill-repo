@@ -44,7 +44,7 @@ The spike adds the missing control-plane pieces:
 - context packets that workers consume before acting;
 - telemetry for predicted tier, actual tier/model, proof, rework, escalation,
   and packet sufficiency;
-- provider hygiene that keeps CCE optional and Phoenix disconnected;
+- provider hygiene that keeps optional adapters out of the core and Phoenix disconnected;
 - honest separation of base and conditional loaded skill surfaces.
 
 ## Surface Ownership

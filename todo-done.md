@@ -52,7 +52,7 @@
 ## 2026-07-09
 
 - Finish Skill Repo Hardening - removed Phoenix runtime/MCP/global skills,
-  preserved CCE as an opt-in adapter, deduplicated ambient Copilot
+  kept optional providers outside the required runtime, deduplicated ambient Copilot
   instructions, added bounded context-packet and separate telemetry contracts,
   added semantic provider hygiene, corrected loaded-surface accounting,
   reconciled stale goal/manifest/handoff state, and refreshed compound/learning

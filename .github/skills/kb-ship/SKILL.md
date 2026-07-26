@@ -66,7 +66,10 @@ audited shipping scope and inspect the staged diff.
 
 Run verification against the tree that will be delivered.
 
-- When repo `cmd/kbcheck` exists, run `go run ./cmd/kbcheck local-release`.
+- When repo `cmd/kbcheck` exists, plan one fresh
+  `go run ./cmd/kbcheck local-release` aggregate for the exact delivery tree.
+  Reuse identical child receipts inside that aggregate; do not launch a second
+  unchanged release aggregate in the same release state.
 - Otherwise invoke `kb-check` and run the consuming repo's native release
   checks; record the fallback commands and results.
 - Run both unstaged and staged whitespace checks:

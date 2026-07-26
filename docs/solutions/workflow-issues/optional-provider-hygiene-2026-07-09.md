@@ -9,7 +9,7 @@ severity: high
 applies_when:
   - Adding MCP servers, hooks, context engines, or provider-specific adapters
   - Auditing a machine without making its global state part of contributor proof
-tags: [provider-hygiene, mcp, cce, phoenix, repo-local-gates, portability]
+tags: [provider-hygiene, mcp, phoenix, repo-local-gates, portability]
 ---
 
 # Keep Optional Provider State Out of Repo-Local Gates
@@ -17,8 +17,7 @@ tags: [provider-hygiene, mcp, cce, phoenix, repo-local-gates, portability]
 ## Context
 
 Phoenix had been removed from the repo, but a stale user-level Copilot MCP entry
-and globally installed Phoenix skills could still activate it. CCE is an owned
-context engine that should remain available as an opt-in adapter. The first
+and globally installed Phoenix skills could still activate it. The first
 hygiene check caught provider configuration but accidentally made `core`
 dependent on user-global state and treated any Phoenix text as activation.
 
@@ -38,7 +37,6 @@ dependent on user-global state and treated any Phoenix text as activation.
   - ignore entries with `enabled: false` or `enabled = false`;
   - ignore comments and unrelated attribution text;
   - fail on unreadable or malformed files instead of treating them as clean.
-- Treat CCE entries as optional configuration, not an error.
 - Reject active Phoenix provider entries without deleting Phoenix research or
   attribution.
 - Keep context packets immutable execution input. Store measured runtime usage
@@ -74,17 +72,12 @@ go run ./cmd/kbcheck provider-hygiene --include-user
     "phoenix": {
       "enabled": false,
       "command": "phoenix-mcp"
-    },
-    "context-engine": {
-      "command": "cce",
-      "args": ["serve"]
     }
   }
 }
 ```
 
-The disabled Phoenix entry is ignored; CCE is reported as optional. An enabled
-Phoenix entry fails.
+The disabled Phoenix entry is ignored; an enabled Phoenix entry fails.
 
 ## Related
 

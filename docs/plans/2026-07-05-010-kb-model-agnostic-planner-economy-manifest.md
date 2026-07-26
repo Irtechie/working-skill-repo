@@ -173,7 +173,7 @@ gate_ledger:
     status: passed
     required_evidence:
       - "provider hygiene rejects Phoenix activation"
-      - "CCE remains allowed as an optional adapter"
+      - "optional adapters remain outside required runtime paths"
       - "usage telemetry preserves raw fields"
     proof:
       - cmd/kbcheck/provider_hygiene.go

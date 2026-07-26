@@ -1,6 +1,6 @@
 # Testing Operations
 
-Checked: 2026-07-21
+Checked: 2026-07-26
 
 ## Fast Contributor Commands
 
@@ -53,6 +53,7 @@ manifest-contract-selftest
 marketplace-promotion-selftest
 provider-hygiene
 provider-hygiene-selftest
+proof-governor-selftest
 review-reference-guard
 route-complexity-eval
 skill-eval
@@ -94,6 +95,36 @@ go run ./cmd/kbcheck learning-adoption --result-path <results.json>
 go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet-valid.json
 go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
 ```
+
+### Change-aware proof governor
+
+Register repeatable checks with covered check IDs, relevant working-tree inputs,
+command/environment semantics, execution class, timeout, and receipt age. Then
+use the same registry for planning and execution:
+
+```powershell
+go run ./cmd/kbcheck proof-plan --registry <registry.json> --receipt-dir <receipts> --request <check-id,...>
+go run ./cmd/kbcheck proof-run --registry <registry.json> --receipt-dir <receipts> --request <check-id,...>
+go run ./cmd/kbcheck proof-receipt-validate --receipt <receipt.proof.json>
+go run ./cmd/kbcheck proof-governor-selftest
+```
+
+`RUN` means relevant proof is missing or invalidated. `REUSE` means an
+unexpired passing receipt covers the request against identical relevant inputs.
+`BLOCK` means the request is unknown, an unchanged failed attempt already
+exists, or an attended execution approval is absent/invalid.
+
+Timing is intentionally bounded:
+
+- slice: focused changed-path checks only;
+- manifest: changed-workflow smoke plus one snapshot milestone;
+- release: one fresh `core` and `local-release` aggregate after focused proof.
+
+Browser proof is headless by default. `proof-run` blocks `visible-browser` and
+`native-gui` checks before process launch. If a GUI-only behavior genuinely
+requires an attended session, preserve that exact blocker and let the user/host
+run the bounded session outside the portable proof runner; there is no
+repo-owned approval file or token ceremony.
 
 ### Graph / model routing
 

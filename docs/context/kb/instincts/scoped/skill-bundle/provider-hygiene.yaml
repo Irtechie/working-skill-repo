@@ -10,5 +10,5 @@ instincts:
     last_seen: 2026-07-09
     evidence:
       - "docs/solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md"
-      - "cmd/kbcheck/provider_hygiene_test.go covers optional CCE, active/escaped Phoenix, and disabled JSON/TOML entries"
+      - "cmd/kbcheck/provider_hygiene_test.go covers unrelated providers, active or escaped Phoenix, and disabled JSON or TOML entries"
       - "2026-07-09 multi-agent review caught machine-dependent core and substring-based false positives before completion"

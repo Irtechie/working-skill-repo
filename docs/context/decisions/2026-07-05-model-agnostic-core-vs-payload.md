@@ -42,8 +42,7 @@ Detailed blueprint: `docs/context/decisions/2026-07-05-kb-control-plane-blueprin
 - Context packets are wired into `kb-plan` and `kb-work`.
 - Optional telemetry normalizes runtime/model, turns, input/output/cache tokens,
   proof result, and packet sufficiency while preserving raw values.
-- `kbcheck provider-hygiene` rejects Phoenix activation and permits CCE as an
-  optional adapter.
+- `kbcheck provider-hygiene` rejects Phoenix activation.
 - `surface-report` separates base startup from conditional safety/check skills.
 
 ## Revisit Trigger

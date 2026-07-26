@@ -43,9 +43,9 @@ environment diagnostic such as:
 go run ./cmd/kbcheck provider-hygiene --include-user
 ```
 
-Do not make a clean checkout fail because a maintainer has optional CCE config
-or unrelated global state. Active forbidden providers should still fail the
-explicit machine audit.
+Do not make a clean checkout fail because a maintainer has unrelated global
+state. Active forbidden providers should still fail the explicit machine
+audit.
 
 Install profiles should match the runtime contract. If the "core" runtime tells
 agents to invoke downstream KB skills, install that dependency closure rather

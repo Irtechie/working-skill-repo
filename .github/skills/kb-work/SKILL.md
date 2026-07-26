@@ -199,6 +199,23 @@ exact reason. Do not silently change owners. The orchestrator may make a new
 explicit ownership decision after reviewing the failure; `require` pauses that
 slice instead.
 
+Emit exactly one compact user-visible line after route selection and before mutation or worker dispatch:
+
+```text
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+```
+
+The orchestrator is the sole emitter; a delegated worker receives the emitted
+line as context and must not repeat it. Use `subagent` as the user-facing label
+for internal `delegated` ownership. For `current`, use an evidence-backed route
+name when exposed; otherwise use `current orchestrator`. Name a concrete model
+or alias only when the active host or `kbrouter` proves it callable and
+selected. A named fallback must be proven eligible in the fresh catalog and use
+`evidence-backed-route (conditional; explicit reselect)`; it is never an
+automatic dispatch or owner change. If that evidence is unavailable, say
+`explicit same-tier/higher reselection`. The announcement reports dispatch
+intent; the slice proof remains authoritative.
+
 - Reuse a native host schema or run-scoped CLI catalog only while its
   host/configuration fingerprint is unchanged; refresh it when that fingerprint
   changes.
@@ -248,7 +265,8 @@ slice instead.
 Show a compact preview only when delegated slices exist, for example
 `Delegated Medium — <selected-route>: 004, 007`. This preview is dispatch
 intent for the current ready set only. Do not show candidate ladders. If the
-orchestrator retains every slice, say nothing about models.
+orchestrator retains every slice, omit this grouped preview.
+This preview rule never suppresses the mandatory per-slice DDR route line.
 
 ## Ready-Set Ordering
 
@@ -329,9 +347,15 @@ If the slice plan has fewer than 3 acceptance criteria or no test scenarios:
 
 Before editing, ensure the slice has a recorded test obligation:
 
-- `test_level`: `none`, `unit`, `integration`, `functional-api`, `functional-cli`, `functional-browser`, or `full`
+- `test_level`: `none`, `unit`, `integration`, `functional-api`, `functional-cli`, `functional-browser`, `functional-native-gui`, or `full`
 - `functional_risk`: `none`, `narrow`, `broad`, or `full`
+- `execution_class`: `cli`, `headless-browser`, `visible-browser`, or `native-gui`
 - `model_tier`: `small`, `medium`, or `large` (`tiny` remains readable only as a legacy hint that maps to `small`)
+
+Automatic `visible-browser` and `native-gui` proof fails closed before process
+launch. Keep headless proof agent-owned. When a GUI-only check is genuinely
+required, preserve it as a specific externally attended blocker; do not mint or
+consume a repo-owned approval artifact.
 
 If `test_level` or `functional_risk` is missing, stale, or contradicted by the
 acceptance criteria or `expected_files`, invoke `kb-functional-test` with the
@@ -384,12 +408,15 @@ required tier + bounded packet + active callable surface
 4. For `delegated`, inspect the active host's exact callable-agent schema and
    the live user-local CLI catalog. Select exactly one route that satisfies the
    required tier, task family, tools, context, trust, destination, and risk.
-5. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
+5. Emit the compact DDR route announcement after selection and before mutation
+   or dispatch. Use only host/router evidence for route names and mark any named
+   fallback as conditional on an explicit reselection.
+6. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
    because the orchestrator has heard of it. Host-native and CLI catalogs are
    distinct unless an adapter explicitly proves otherwise.
-6. Run the slice's narrowest deterministic proof. The route receipt proves
+7. Run the slice's narrowest deterministic proof. The route receipt proves
    dispatch provenance only; it does not accept the work.
-7. On failure, use ordinary bounded repair under the same owner. If the required
+8. On failure, use ordinary bounded repair under the same owner. If the required
    authority changes, stop and make the change visible by re-planning or
    recording a new explicit ownership decision. Never silently switch from a
    worker to current or from current to a worker.
@@ -422,12 +449,16 @@ Backend/API/unit checks may supplement this proof, but they cannot replace it. T
 
 Before starting a new slice, invoke `kb-regression-snapshot verify` before Scope Lock and before editing implementation files.
 
-- Verify all previous snapshots under `.kb/snapshots/`.
+- Ask the proof planner for snapshots affected by the pending slice and verify
+  only those IDs. Reuse fresh passing receipts without launching their commands.
+- Run the complete snapshot set once at a declared manifest/release milestone;
+  use the milestone fingerprint to block redundant full replays.
 - If any previous snapshot fails, STOP before new slice execution.
 - Mark the current slice `🔒 blocked` with the failing snapshot path, target, expected vs observed result, and artifact/log path.
 - Do not continue to implementation, QA, or the next slice until the regression is resolved, parked by the human, or explicitly skipped.
 
-This gate catches entropy between slices. It cannot be skipped, overridden, or deferred.
+This gate catches entropy between slices. An affected snapshot cannot be
+skipped, overridden, or deferred, but unrelated snapshots are not replayed.
 
 ### Step 3.0: Scope Forecast and Ledger
 

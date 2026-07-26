@@ -277,6 +277,17 @@ for Codex CLI and user-local routes, where a live CLI may expose
 memory, never merges identities by display name, and never treats an App-only
 target as CLI-callable or vice versa.
 
+Immediately after ownership/route selection and before mutation or dispatch,
+`kb-work` emits one compact line with `current|subagent`, primary route,
+fallback path, required tier, and proof target. This route announcement is evidence-bound:
+concrete names require active host or `kbrouter` evidence. A named fallback is
+conditional on a fresh eligibility check and explicit reselection; it is not an
+automatic dispatch, downward route, or cross-owner fallback.
+
+```text
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+```
+
 Deterministic proof is the validator. A selected owner repairs ordinary bounded
 failures without silently handing the slice to the other owner. If required
 authority changes, `kb-work` re-plans, blocks, or records a new explicit
@@ -380,8 +391,23 @@ through the app UI. Screenshots support evidence; executable assertions are the
 pass/fail oracle.
 
 `kb-regression-snapshot` records deterministic state after each passed slice in
-`.kb/snapshots/<slice-id>.json`, then verifies prior snapshots before the next
-slice starts.
+`.kb/snapshots/<slice-id>.json`. Before another slice, the proof governor
+selects snapshots affected by the pending diff. The complete set runs once at a
+named manifest/release milestone and becomes reusable while its definition
+fingerprint is unchanged.
+
+Registered proof checks carry sealed coverage, relevant working-tree inputs,
+command/environment semantics, namespace, execution class, timeout, and age.
+`kbcheck proof-plan` returns `RUN`, `REUSE`, or `BLOCK`; `proof-run` writes
+content-addressed receipts and a bounded decision audit. Unknown impact runs
+conservatively. Passing superset proof is reusable only for covered requests
+with identical relevant inputs. An unchanged failed fingerprint blocks another
+attempt until code/input changes.
+
+Headless browser proof remains agent-runnable. The portable proof runner always
+blocks visible-browser and native-GUI execution before spawn. Any explicitly
+requested attended GUI session is a bounded user/host action outside
+`proof-run`, with its evidence recorded separately.
 
 `kb-complete` fails the proof gate when a slice only has prose proof. Each slice
 needs command/test path, exit code, timestamp, trace/log/API artifact, or
