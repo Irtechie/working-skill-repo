@@ -199,6 +199,24 @@ exact reason. Do not silently change owners. The orchestrator may make a new
 explicit ownership decision after reviewing the failure; `require` pauses that
 slice instead.
 
+After the ownership decision and, when delegated, route selection, emit exactly
+one compact user-visible line before mutation or worker dispatch:
+
+```text
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+```
+
+The orchestrator is the sole emitter; a delegated worker receives the emitted
+line as context and must not repeat it. Use `subagent` as the user-facing label
+for internal `delegated` ownership. For `current`, use an evidence-backed route
+name when exposed; otherwise use `current orchestrator`. Name a concrete model
+or alias only when the active host or `kbrouter` proves it callable and
+selected. A named fallback must be proven same-tier-or-higher eligible in the
+fresh catalog and use `evidence-backed-route (conditional; explicit reselect)`;
+it is never an automatic dispatch or owner change. If that evidence is
+unavailable, say `explicit same-tier/higher reselection`. The announcement
+reports dispatch intent; the slice proof remains authoritative.
+
 - Reuse a native host schema or run-scoped CLI catalog only while its
   host/configuration fingerprint is unchanged; refresh it when that fingerprint
   changes.
@@ -248,7 +266,8 @@ slice instead.
 Show a compact preview only when delegated slices exist, for example
 `Delegated Medium — <selected-route>: 004, 007`. This preview is dispatch
 intent for the current ready set only. Do not show candidate ladders. If the
-orchestrator retains every slice, say nothing about models.
+orchestrator retains every slice, omit this grouped preview.
+This preview rule never suppresses the mandatory per-slice DDR route line.
 
 ## Ready-Set Ordering
 
@@ -384,12 +403,16 @@ required tier + bounded packet + active callable surface
 4. For `delegated`, inspect the active host's exact callable-agent schema and
    the live user-local CLI catalog. Select exactly one route that satisfies the
    required tier, task family, tools, context, trust, destination, and risk.
-5. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
+5. After the ownership decision and, when delegated, route selection, emit the
+   compact DDR route announcement before mutation or dispatch. Use only
+   host/router evidence for route names and mark any named fallback as
+   conditional on an explicit reselection.
+6. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
    because the orchestrator has heard of it. Host-native and CLI catalogs are
    distinct unless an adapter explicitly proves otherwise.
-6. Run the slice's narrowest deterministic proof. The route receipt proves
+7. Run the slice's narrowest deterministic proof. The route receipt proves
    dispatch provenance only; it does not accept the work.
-7. On failure, use ordinary bounded repair under the same owner. If the required
+8. On failure, use ordinary bounded repair under the same owner. If the required
    authority changes, stop and make the change visible by re-planning or
    recording a new explicit ownership decision. Never silently switch from a
    worker to current or from current to a worker.

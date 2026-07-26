@@ -130,6 +130,17 @@ DDR is shorthand for that decision pattern, not a separate command or artifact
 created by `kb-plan`. Planning records required capability and proof; execution
 records `current` or `delegated` ownership and chooses from live evidence.
 
+Immediately before execution, `kb-work` makes that choice visible:
+
+```text
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+```
+
+Concrete route names come only from the active host or `kbrouter`, never model
+memory. A named fallback is conditional on a fresh same-tier-or-higher
+eligibility check and an explicit reselection; otherwise the line says
+`explicit same-tier/higher reselection`.
+
 ![KB difficulty-driven model selection](docs/assets/kb-model-selection.png)
 
 The model labels in the diagram are illustrative snapshots. They are not a

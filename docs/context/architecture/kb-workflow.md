@@ -277,6 +277,18 @@ for Codex CLI and user-local routes, where a live CLI may expose
 memory, never merges identities by display name, and never treats an App-only
 target as CLI-callable or vice versa.
 
+Immediately after ownership/route selection and before mutation or dispatch,
+`kb-work` emits one compact line with `current|subagent`, primary route,
+fallback path, required tier, and proof target. This route announcement is evidence-bound:
+concrete names require active host or `kbrouter` evidence. A named fallback is
+conditional on a fresh same-tier-or-higher eligibility check and explicit
+reselection; it is not an automatic dispatch, downward route, or cross-owner
+fallback.
+
+```text
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+```
+
 Deterministic proof is the validator. A selected owner repairs ordinary bounded
 failures without silently handing the slice to the other owner. If required
 authority changes, `kb-work` re-plans, blocks, or records a new explicit
