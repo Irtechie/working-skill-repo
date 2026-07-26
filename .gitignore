@@ -11,6 +11,8 @@ __pycache__/
 .atv/
 
 # Optional provider state (per-machine, never part of the portable bundle)
-.cce/
-.claude/settings.local.json
 .mcp.json
+
+# Stray frontend build artifacts (hashed bundles) emitted to repo root
+/avatar-*.js
+/custom-avatars-*.js
