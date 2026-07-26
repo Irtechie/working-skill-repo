@@ -129,6 +129,27 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-26"
     allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
+  - gate_id: slice-slice-003-to-done
+    owner_skill: kb-work
+    status: passed
+    required_evidence:
+      - "A slice commit is accepted only from the exact owning plan-run branch and worktree."
+      - "Owner lineage, clean state, prior-head CAS, descendant/current HEAD, and proof receipt all fail closed."
+      - "Slice and aggregate proof replay before the receipt head advances."
+      - "The advance path creates no branch/worktree and performs no merge, reset, stash, cleanup, push, or delivery."
+      - "The protected oracle showed RED before implementation and remained unchanged through GREEN."
+    proof:
+      - cmd/kbcheck/plan_run_integration_test.go
+      - cmd/kbcheck/plan_run_workspace.go
+      - cmd/kbcheck/main.go
+      - .github/skills/kb-work/SKILL.md
+      - .github/skills/kb-work/references/worktree-isolation.md
+      - .github/skills/kb-work/references/execution-prompt.md
+      - "Focused plan-run advance, integration-head, and slice-commit proof passed."
+      - "Full command package and diff checks passed."
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "kb-work docs/plans/2026-07-26-010-kb-plan-run-worktree-isolation-manifest.md"
 slices:
   - id: slice-001
     title: "Create a manifest-owned plan-run workspace"
@@ -213,21 +234,21 @@ slices:
       command: "go test ./cmd/kbcheck -run 'PlanRunIntegrate|IntegrationHead|ParallelReceipt' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     workspace_mode: shared-serial
     conflict_domains: [file:cmd/kbcheck/plan_run_workspace.go, git:plan-run-branch, skill:kb-work]
     shared_resources: [git:integration-owner, git:plan-run-branch]
     owner: agent
     blocked_reason: ""
     resume_when: ""
-    next_agent_action: "Replace source-HEAD-equals-base integration with serialized integration-head ownership on the explicit plan-run branch."
+    next_agent_action: "Proceed to slice-004 and enforce default-branch delivery and dirty-WIP authority boundaries."
     human_action: ""
     can_continue_other_slices: false
-    notes: "Workers return commits/diffs/proof; only the plan-run coordinator integrates and reruns proof."
+    notes: "execution_owner=delegated; owner_reason=bounded native worker had the amended same-worktree packet and deterministic head/proof oracle while coordinator retained manifest lease, board, and commit acceptance; route announcement emitted before dispatch; plan-run lease generation 1 and slice lease generation 1 were active; scope-forecast: loaded 6 expected files plus 3 lifecycle files; RED: missing advance and proof-receipt API; GREEN: exact PlanRunAdvance, IntegrationHead, and SliceCommit proof passed; full cmd/kbcheck package passed; protected-oracle SHA256 9e5fd5374d819511abeae2dc7801f7bb98fb935a893106c3b700f946f263c8c4 preserved; exact owner/run/worktree/ref lineage, clean state, prior-head CAS, strict descendant/current-HEAD checks, mandatory proof receipt, slice plus aggregate proof replay, and atomic receipt-head advancement are enforced; advance creates no branch/worktree and performs no merge, reset, stash, cleanup, push, or delivery; scope-check: expected=6 lifecycle=3 changed=9 unexplained=0; qa-lint: PASS gofmt and git diff --check; qa-browser: skipped - no UI behavior changed; memory-impact: durable."
     protected_oracles:
       - path: cmd/kbcheck/plan_run_integration_test.go
         role: "serialized same-worktree slice commit and integration-head oracle"
-        sha256: "filled by kb-work after RED/protection"
+        sha256: "9e5fd5374d819511abeae2dc7801f7bb98fb935a893106c3b700f946f263c8c4"
         update_policy: "requires explicit plan amendment"
   - id: slice-004
     title: "Keep default-branch delivery and dirty-WIP authority outside kb-work"
@@ -330,7 +351,7 @@ functional proof, documentation, and required skill propagation.
 |---|---|---|---|---|---|
 | 1 | Create a manifest-owned plan-run workspace | - | tdd / functional-cli | no | done |
 | 2 | Block cross-manifest conflicts before mutation | slice-001 | tdd / functional-cli | no | done |
-| 3 | Advance slice commits only on the owning plan-run branch | slice-002 | tdd / functional-cli | no | pending |
+| 3 | Advance slice commits only on the owning plan-run branch | slice-002 | tdd / functional-cli | no | done |
 | 4 | Keep default-branch delivery and dirty-WIP authority outside kb-work | slice-003 | tdd / functional-cli | no | pending |
 | 5 | Prove and release the multi-plan worktree lifecycle | slice-004 + external release gate | integration / full | no | pending |
 

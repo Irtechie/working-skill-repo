@@ -26,6 +26,8 @@ only into the plan-run branch, and keeps default-branch delivery outside
   conflicting plan groups before mutation while admitting disjoint groups.
 - User correction is binding: one manifest group owns one worktree; every slice
   is shared-serial in it, and this workflow creates no per-slice worktrees.
+- Slice-003 is done: serialized slice commits advance the owning run head only
+  after exact branch/worktree identity, CAS, clean state, and proof replay.
 - The shared `main` checkout has overlapping uncommitted DDR changes in:
   - `.github/skills/kb-work/SKILL.md`
   - `.github/skills/kb-work/references/execution-prompt.md`
@@ -38,10 +40,9 @@ only into the plan-run branch, and keeps default-branch delivery outside
 
 ## Next Agent Action
 
-1. Start amended slice-003 from the owning plan-run worktree.
-2. Accept only serialized slice commits made on that exact branch/worktree and
-   advance the recorded integration head by compare-and-swap.
-3. Rerun aggregate proof in the plan-run worktree before terminal status.
+1. Start slice-004 from the owning plan-run worktree.
+2. Keep default-branch delivery and dirty-WIP authority outside `kb-work`.
+3. Preserve local-only behavior when delivery policy is absent.
 
 ## Human Required
 

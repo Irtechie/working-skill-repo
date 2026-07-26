@@ -49,7 +49,7 @@ Usage:
   kbcheck slice-lease-selftest
   kbcheck plan-run-lease --action acquire|status|renew|expand|release|recover [--run-id <id>] [--manifest <path>] [--root <path>] [--state-root <path>] [--json]
   kbcheck plan-run-lease-selftest
-  kbcheck plan-worktree --action prepare|status|release --manifest <path> --owner-token <token> [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
+  kbcheck plan-worktree --action prepare|status|advance|release --manifest <path> --owner-token <token> [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
@@ -111,85 +111,88 @@ Commands:
 type processRunner func(root string, check Check) CheckResult
 
 type options struct {
-	command              string
-	root                 string
-	json                 bool
-	dryRun               bool
-	verbose              bool
-	list                 bool
-	manifest             string
-	ledger               string
-	config               string
-	verboseOptional      bool
-	fix                  bool
-	fixtureRoot          string
-	route                string
-	baseline             string
-	output               string
-	skillRoot            string
-	agentRoot            string
-	trimLineThreshold    int
-	start                string
-	status               bool
-	runID                string
-	resultRoot           string
-	resultPath           string
-	requiredRunID        string
-	manifestPath         string
-	updateBaseline       bool
-	qualityRoot          string
-	qualityPath          string
-	claimRoot            string
-	claimPath            string
-	minScore             int
-	runRoot              string
-	fixtureID            string
-	all                  bool
-	keepRun              bool
-	sealed               bool
-	runner               string
-	runtime              string
-	model                string
-	agentCommand         string
-	source               string
-	skillID              string
-	approvalReason       string
-	approvedBy           string
-	sourceType           string
-	upstreamRepo         string
-	installTargets       string
-	gate                 string
-	allowedNext          string
-	history              string
-	checkPath            string
-	tracePath            string
-	packetPath           string
-	telemetryPath        string
-	receiptPath          string
-	evidenceEnvelopePath string
-	cohort               string
-	evidencePath         string
-	allowQuarantine      bool
-	sliceLeaseAction     string
-	sliceLeaseStateRoot  string
-	sliceID              string
-	ownerToken           string
-	leaseGeneration      int64
-	leaseTTL             time.Duration
-	leaseFiles           []string
-	leasePrefixes        []string
-	leaseDomains         []string
-	leaseResources       []string
-	baseSHA              string
-	worktreePath         string
-	branchName           string
-	repoIdentity         string
-	codexSkillsRoot      string
-	copilotSkillsRoot    string
-	agentsSkillsRoot     string
-	approved             bool
-	includeUser          bool
-	requireReady         bool
+	command                 string
+	root                    string
+	json                    bool
+	dryRun                  bool
+	verbose                 bool
+	list                    bool
+	manifest                string
+	ledger                  string
+	config                  string
+	verboseOptional         bool
+	fix                     bool
+	fixtureRoot             string
+	route                   string
+	baseline                string
+	output                  string
+	skillRoot               string
+	agentRoot               string
+	trimLineThreshold       int
+	start                   string
+	status                  bool
+	runID                   string
+	resultRoot              string
+	resultPath              string
+	requiredRunID           string
+	manifestPath            string
+	updateBaseline          bool
+	qualityRoot             string
+	qualityPath             string
+	claimRoot               string
+	claimPath               string
+	minScore                int
+	runRoot                 string
+	fixtureID               string
+	all                     bool
+	keepRun                 bool
+	sealed                  bool
+	runner                  string
+	runtime                 string
+	model                   string
+	agentCommand            string
+	source                  string
+	skillID                 string
+	approvalReason          string
+	approvedBy              string
+	sourceType              string
+	upstreamRepo            string
+	installTargets          string
+	gate                    string
+	allowedNext             string
+	history                 string
+	checkPath               string
+	tracePath               string
+	packetPath              string
+	telemetryPath           string
+	receiptPath             string
+	evidenceEnvelopePath    string
+	cohort                  string
+	evidencePath            string
+	allowQuarantine         bool
+	sliceLeaseAction        string
+	sliceLeaseStateRoot     string
+	sliceID                 string
+	ownerToken              string
+	leaseGeneration         int64
+	leaseTTL                time.Duration
+	leaseFiles              []string
+	leasePrefixes           []string
+	leaseDomains            []string
+	leaseResources          []string
+	baseSHA                 string
+	worktreePath            string
+	branchName              string
+	repoIdentity            string
+	expectedIntegrationHead string
+	commitSHA               string
+	proofReceipt            string
+	codexSkillsRoot         string
+	copilotSkillsRoot       string
+	agentsSkillsRoot        string
+	approved                bool
+	includeUser             bool
+	requireReady            bool
 }
 
 func main() {
@@ -400,6 +403,9 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.start, "start", "", "pipeline id to start")
 	fs.BoolVar(&opts.status, "status", false, "show pipeline status")
 	fs.StringVar(&opts.runID, "run-id", "", "pipeline run id")
+	fs.StringVar(&opts.expectedIntegrationHead, "expected-integration-head", "", "expected plan-run integration head for compare-and-swap")
+	fs.StringVar(&opts.commitSHA, "commit-sha", "", "slice commit to accept on the plan-run branch")
+	fs.StringVar(&opts.proofReceipt, "proof-receipt", "", "coordinator-readable slice and aggregate proof receipt")
 	fs.StringVar(&opts.resultRoot, "result-root", "", "skill eval result root")
 	fs.StringVar(&opts.resultPath, "result-path", "", "skill eval result path")
 	fs.StringVar(&opts.requiredRunID, "required-run-id", "", "required eval run id")
@@ -525,8 +531,20 @@ func parse(args []string) (options, error) {
 	if opts.command == "worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice lease state and claim flags are only supported for slice-lease")
 	}
-	if opts.command == "plan-worktree" && (opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
+	if opts.command == "plan-worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice lease state, identity, and claim flags are not supported for plan-worktree")
+	}
+	if opts.command != "plan-worktree" && (opts.expectedIntegrationHead != "" || opts.commitSHA != "" || opts.proofReceipt != "") {
+		return options{}, fmt.Errorf("--expected-integration-head, --commit-sha, and --proof-receipt are only supported for plan-worktree")
+	}
+	if opts.command == "plan-worktree" {
+		if opts.sliceLeaseAction == "advance" {
+			if opts.runID == "" || opts.sliceID == "" || opts.expectedIntegrationHead == "" || opts.commitSHA == "" || opts.proofReceipt == "" || opts.worktreePath == "" || opts.branchName == "" {
+				return options{}, fmt.Errorf("plan-worktree advance requires --run-id, --slice-id, --expected-integration-head, --commit-sha, --proof-receipt, --worktree, and --branch")
+			}
+		} else if opts.sliceID != "" || opts.expectedIntegrationHead != "" || opts.commitSHA != "" || opts.proofReceipt != "" {
+			return options{}, fmt.Errorf("slice advance flags are only supported for plan-worktree advance")
+		}
 	}
 	if opts.command == "slice-lease" && len(opts.leaseDomains) > 0 {
 		return options{}, fmt.Errorf("--domain is only supported for plan-run-lease")

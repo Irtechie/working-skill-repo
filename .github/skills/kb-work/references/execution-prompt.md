@@ -30,12 +30,17 @@ DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-r
 Slice lease:
 <exact slice-lease acquire command, owner token source, generation, renewal/release command, or non-mutating/no-lease reason>
 
+Plan-run workspace:
+<exact manifest-owned worktree, integration ref, run ID, owner token, and
+expected integration head>
+
 Execution policy:
 <one owner decision, capability evidence, exact proof, and escalation triggers>
 
 Instructions:
 1. Read the plan completely.
-2. Set up on the current branch.
+2. Work only in the exact manifest-owned worktree and integration ref above.
+   Do not create or switch branches or create another worktree.
 3. If the slice runs Go inside a workspace sandbox, load
    `references/go-sandbox.md` and apply its environment inside every Go shell
    invocation. Never put its temp overrides on the agent launcher.
@@ -67,9 +72,17 @@ Instructions:
    - functional: workflow/API/CLI/UI path is proven from public surface.
    - verification-only: build/check proves no regression.
 12. Run relevant deterministic checks first, then broader checks when practical.
-13. Release or renew the slice lease with the same owner token and current generation before handing back the slice.
+13. Before any observed write exceeds the plan-run claim, return it for
+    coordinator expansion. A failed expansion requeues before the write.
 14. Stage only files changed for this slice.
-15. Commit only if the user asked for commits.
+15. Commit in the current plan-run worktree only if the user authorized commits.
+    Do not merge, reset, stash, clean, rebase, or amend another slice's commit.
+16. Return the current commit SHA, observed writes, and a machine-readable proof
+    receipt tied to the run, slice, and commit. Do not edit `todo.md`, manifests,
+    handoffs, plan-run receipts, or other lifecycle state.
+17. Renew the slice lease before handing back. The coordinator releases it only
+    after it reruns slice and aggregate proof and atomically advances the
+    expected plan-run integration head.
 
 Do not modify other slices' files unless required for this slice.
 Do not add scope beyond what the plan specifies.

@@ -83,7 +83,7 @@ KB state system unless the repo already opted into `done.md`.
 8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted. For a mutating manifest with `plan_run_worktree_default: true`, prepare or resume its manifest-owned workspace before any slice mutation:
 
    ```powershell
-   go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --owner-token <opaque-plan-token> --base-sha <reviewed-base-sha> --json
+   go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <opaque-plan-token> --base-sha <reviewed-base-sha> --json
    ```
 
    The receipt's immutable base, explicit non-default integration ref, and worktree path become the execution authority. Dirty source changes stay in the source checkout and are never copied implicitly. Run subsequent slice commands from the receipt worktree. The feature's own bootstrap slice may use an explicitly reviewed manually-created topic worktree until `plan-worktree` exists.
@@ -160,9 +160,10 @@ Active handoff files under `docs/handoffs/active/` are restart packets. Create o
 - Before claiming a slice, re-read `todo.md`. If another agent set it to 🔧, do not claim it.
 - The board is the source of truth — not chat history, not the manifest. If the board says done, it's done.
 - Acquire the atomic slice lease BEFORE starting work, then update the board BEFORE mutation and AFTER completing work. This prevents two agents from working the same slice.
-- Isolated workers never directly project canonical lifecycle status. The
-  coordinator serializes integration, reruns proof after merge, and then updates
-  `todo.md`, the manifest, and active handoff.
+- Workers never directly project canonical lifecycle status. The coordinator
+  serializes slice-commit acceptance, reruns slice and aggregate proof in the
+  manifest-owned worktree, advances the receipt with compare-and-swap, and only
+  then updates `todo.md`, the manifest, and active handoff.
 - Also update the manifest to stay in sync, but if they conflict, the board wins.
 - Do not use root **Work Log** as a permanent archive. During execution, add notes only when they help a later agent resume: blockers, verification commands, durable memory impacts, or non-obvious decisions. Routine "slice complete" and verification-success notes belong in `todo-done.md` at feature completion, not in `todo.md`.
 - Blocked is not parked. Use `🔒 blocked` for dependencies, another-agent waits, tool failures, or missing inputs. Use `🧊 Parked / Cold Storage` only for work a human intentionally deferred out of scope.
@@ -525,8 +526,9 @@ Quoting sanity rule: when shell commands, file operations, or test assertions in
 - Do not construct CSS selectors through mixed-quote string concatenation. Use template literals or parameterized locator helpers.
 
 Use `references/execution-prompt.md` as the per-slice execution prompt/checklist. Load it only when starting a slice. When that slice runs Go inside a workspace sandbox, also load `references/go-sandbox.md`; its environment applies to Go shell invocations, never the agent launcher.
-When the slice uses a Git worktree, also load
-`references/worktree-isolation.md` and follow its receipt/integration checklist.
+When the manifest uses its plan-run worktree, also load
+`references/worktree-isolation.md` and follow its same-worktree commit
+acceptance checklist.
 
 ### Step 3.1: Protected Oracle Gate
 
@@ -667,8 +669,20 @@ After the slice completes:
    `allowed_next_action` to the missing proof step.
 
    Worker receipts, route receipts, graph packets, and lease receipts are
-   supporting evidence only. The coordinator reruns proof after integration
-   before setting a slice to `done`.
+   supporting evidence only. For a mutating plan-run slice, the worker commits
+   only in the manifest-owned worktree and returns the commit, observed writes,
+   and proof receipt. The coordinator accepts it with:
+
+   ```powershell
+   go run ./cmd/kbcheck plan-worktree --action advance --manifest <manifest-path> --run-id <run-id> --slice-id <slice-id> --owner-token <plan-token> --expected-integration-head <prior-head> --commit-sha <slice-commit> --proof-receipt <receipt.json> --worktree <exact-plan-worktree> --branch <exact-plan-run-ref> --json
+   ```
+
+   `advance` requires the exact worktree/ref and owner/run lineage, a clean
+   checkout, the expected prior integration head, a current descendant commit,
+   and successful coordinator replay of both slice and aggregate proof. It only
+   advances the receipt head; it never creates or switches a branch, creates a
+   worktree, merges, resets, stashes, or cleans. Failed acceptance leaves
+   lifecycle state and the recorded integration head unchanged.
 
    For manifests with `objective_contract: true`, run
    `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>` after
@@ -699,10 +713,10 @@ After the slice completes:
 
 5. **Release or renew ownership**
    - Renew long-running active leases before expiry with the same owner token and current generation.
-   - For isolated worktree slices, integrate first with
-     `kbcheck worktree --action integrate`, rerun the slice proof on the
-     integration branch, then release with `kbcheck worktree --action release`.
-     Release refuses dirty or unintegrated worktrees and never uses force.
+   - All new plan-run slices commit sequentially in the one manifest-owned
+     worktree. Accept the commit with `plan-worktree --action advance` before
+     releasing its slice lease or projecting lifecycle completion. There is no
+     per-slice worktree, branch, merge, or cleanup path.
    - Release the lease after manifest and board status are updated for `done`,
      `blocked`, `parked`, `skipped`, or `requeued`.
    - If release fails because the generation or owner token differs, STOP: another coordinator may have changed ownership state.

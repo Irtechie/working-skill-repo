@@ -49,13 +49,13 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/plan_run_integration_test.go
     role: "serialized same-worktree slice commit and integration-head oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "9e5fd5374d819511abeae2dc7801f7bb98fb935a893106c3b700f946f263c8c4"
     update_policy: "requires explicit plan amendment"
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Replace source-HEAD-equals-base integration with serialized integration-head ownership on the explicit plan-run branch."
+next_agent_action: "Proceed to slice-004 and enforce default-branch delivery and dirty-WIP authority boundaries."
 human_action: ""
 can_continue_other_slices: false
 ---
