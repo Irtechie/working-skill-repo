@@ -127,4 +127,3 @@ go test ./cmd/kbcheck -run 'DefaultBranchBoundary|DirtyBaseAuthority|DeliveryOwn
 
 Requires slice-003 so the internal integration target is already the plan-run
 branch before the default-branch guard becomes mandatory.
-
