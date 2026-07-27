@@ -113,7 +113,46 @@ This repo is two things:
 2. A development harness that tests whether the bundle, routes, sync targets,
    eval fixtures, marketplace rules, and release gates still match the claims.
 
-## How Planning And Routing Fit Together
+## Routing: Request, Execution, And Continuity
+
+The three diagrams in this section describe one routing system: `kb-start`
+chooses the work lane, DDR chooses the execution owner and capability tier, and
+`kb-map` plus handoffs carry the route across sessions.
+
+### Request Routing With `kb-start`
+
+![KB routing workflow](docs/assets/kb-routing-workflow.png)
+
+`kb-start` applies these routes in priority order. It calls `kb-map` first; the
+first row fires when that map is missing, partial, stale, or rooted in the wrong
+project. This table is the human reference; the current
+`.github/skills/kb-start/SKILL.md` contract remains authoritative.
+
+| Request Signal | Route | Proof or Exit |
+| --- | --- | --- |
+| Memory missing, partial, stale, or rooted in the wrong project | `kb-map` | Project-local map is ready |
+| Durable objective across days or sessions | `kb-goal` | Goal ledger plus terminal proof |
+| One bounded task that should continue until verified or blocked | `kb-task` | Task-owned verification |
+| Explanation or tradeoff discussion with no file change | Direct answer; use `kb-first-principles` behavior when challenged | No work gate |
+| Feature, plan, or manifest should reach its configured endpoint | `kb-complete` | Planning, work, finalization, then configured delivery |
+| Valid manifest is ready to execute; a commit-required plan-run manifest also has explicit local check-in authority | `kb-work` | Per-slice proof and scope gates; without check-in authority the run stops before mutation |
+| Runnable slices are done; review, learning, and cleanup remain | `kb-finalize` | Completion gate |
+| Broken behavior needs reproduction and iterative repair | `kb-troubleshoot` | Reproduction plus regression proof |
+| Architecture needs deeper boundaries or simpler test seams | `kb-architecture-deepening` | Evidence-backed tradeoff |
+| External docs, prior art, or framework behavior may change direction | `kb-research` | Cited note |
+| Large migration, rewrite, or multiple independent workstreams | `kb-epic` | Multiple requirements/manifests before work |
+| Skills, scripts, evals, or proof surfaces must change together | `kb-epic` or a coded pipeline manifest | Cross-surface proof before integration |
+| Clear feature or refactor needs vertical slices | `kb-plan` | Valid manifest and slice plans |
+| Skill-bundle change has sync, docs, eval, or standards implications | `kb-plan` | Contributor checks plus release/sync drift report when propagation is authorized |
+| Fuzzy idea or high-path-dependency product direction | `kb-brainstorm` | Planning questions resolved |
+| Small known bug, typo, or narrow contained edit | `kb-fix` | Targeted proof |
+| Memory, docs, or output are too hard to scan | `kb-compact` | Technical truth preserved with lower reading burden |
+| Legacy `klfg` or `kb-finish` request | `kb-complete` | Compatibility alias; same completion gates |
+
+Handoffs re-enter through `kb-start` and `kb-map`; durable goals route each work
+unit back through these same lanes.
+
+### Planning And Execution Routing
 
 KB separates three decisions that agents often blur together:
 
@@ -124,7 +163,8 @@ KB separates three decisions that agents often blur together:
 2. **The orchestrator chooses the owner once.** Immediately before a slice
    runs, `kb-work` decides whether its own reasoning, accumulated context,
    tools, trust, or authority require `current` execution. Otherwise it selects
-   exactly one qualified same-tier-or-higher worker for `delegated` execution.
+   exactly one qualified same-tier-or-higher worker for `subagent` (delegated)
+   execution.
    It never assumes another host's catalog, routes downward automatically, or
    silently falls back across owners.
 3. **Proof accepts the result.** A routing receipt records what ran; it does not
@@ -143,10 +183,26 @@ Immediately before execution, `kb-work` makes that choice visible:
 DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
 ```
 
+The route line is the HITL (human-in-the-loop) first screen: owner, tier,
+fallback, and proof target without the underlying policy dump. Its purpose is to
+reduce human decisions, not reduce agent instructions. It never approves the
+dispatch by itself; the named proof remains authoritative and must catch a bad
+route or bad result.
+
 Concrete route names come only from the active host or `kbrouter`, never model
 memory. A named fallback is conditional on a fresh same-tier-or-higher
 eligibility check and an explicit reselection; otherwise the line says
 `explicit same-tier/higher reselection`.
+
+Two lightweight signals show whether this actually lowers human load:
+
+| Signal | Measure | Desired Direction |
+| --- | --- | --- |
+| Decisions per slice | Count stops that require a human answer | Down; ordinary routing should require none |
+| Time to orient at a checkpoint | Time from checkpoint arrival until the reviewer knows what happened and what they own | Down without weakening proof or oversight |
+
+Neither signal is instrumented or gated today. They are observations for a few
+representative runs, not harness output or a measured savings claim.
 
 ![KB difficulty-driven model selection](docs/assets/kb-model-selection.png)
 
@@ -184,6 +240,15 @@ Run-only controls remain explicit:
 - `ignore model routing` explicitly chooses current execution;
 - delegated fallback may choose another qualified same-tier or higher worker,
   but never silently switches to the current orchestrator.
+
+### Memory And Handoff Routing
+
+![KB memory loop](docs/assets/kb-memory-loop.png)
+
+`kb-map` anchors every route to the active project. `kb-handoff` preserves the
+minimum restart packet, and the next session returns through `kb-start` and
+`kb-map` rather than relying on chat history. The concrete files and lifecycle
+rules are listed under [Project Memory](#project-memory).
 
 ## What Makes This Different
 
@@ -300,7 +365,7 @@ development harness. The repository is intentionally larger than the installed
 runtime surface.
 
 The installed runtime surface is intentionally smaller than the repository:
-44 skills plus the reviewer/specialist agent catalog.
+46 skills plus the reviewer/specialist agent catalog.
 
 Installed/runtime surface:
 
@@ -443,6 +508,9 @@ KB proof-spine integration status as of July 9, 2026:
 
 ## Common Commands
 
+This is a command index. For the ordered lane decision, see
+[Request Routing With `kb-start`](#request-routing-with-kb-start).
+
 | Command | Use When |
 | --- | --- |
 | `kb-start` | Fresh session, ambiguous ask, or "figure out the right workflow" |
@@ -486,6 +554,8 @@ Routing and memory:
 - `kb-executive-brief` - generate responsibility-first Markdown and only render a visual when relationships justify it
 - `pr-review-workbench` - lazy-load after PR creation to generate an offline
   decision topology with a guided review path, source-backed application-impact
+  ordering, and linked evidence
+- `kb-handoff` - compact a session into a restart packet
 
 Blocker handling is responsibility-first. A user pause stops work immediately
 but is not a technical failure; after a stop signal, the goal does not dispatch,
@@ -495,8 +565,6 @@ remains. `human-required` is reserved for authority, credentials/access,
 private input, irreversible risk, or subjective judgment.
 Every blocker is rechecked before it is repeated, and release or
 optional-capability failures affect only their own delivery scope.
-  ordering, and linked evidence
-- `kb-handoff` - compact a session into a restart packet
 
 Execution lanes:
 
@@ -551,8 +619,6 @@ generalized CE review skill.
 ## Project Memory
 
 The workflow keeps memory in files so sessions can stay short.
-
-![KB memory loop](docs/assets/kb-memory-loop.png)
 
 Required consuming-project memory:
 
