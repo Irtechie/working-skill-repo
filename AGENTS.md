@@ -64,6 +64,10 @@ token must pay rent:
   Never invent an estimate, and do not force a user action when work is done.
 - Keep exact paths, commands, errors, decisions, risks, and safety warnings.
 - Use longer explanations only when they change the decision or reduce rework.
+- Match the format to the information: use plain sentences for a simple answer,
+  ranked bullets for independent points, a table for repeated-field comparison,
+  and one workflow diagram for sequence, dependency, branching, ownership, or
+  state change. A visual must remove mental reconstruction, not decorate.
 - Before asking a question, classify it:
   - **hard response required**: only the user can authorize, supply, or decide
     it and dependent work cannot safely continue;
@@ -72,6 +76,16 @@ token must pay rent:
   - **no response needed**: status, proof, completion, or an agent-owned choice.
 - For a hard question, state the exact ask, why the user must answer, what is blocked, and the recommended option.
 - For a soft preference, state the default and handle it without blocking. Never turn an agent-owned decision into review work for the user.
+- Treat `paused` as execution control, not a technical gate result. A plain
+  pause stops mutation without writing a handoff or converting the task to
+  blocked; `pause and handoff` permits only that bounded state write.
+- Before repeating a blocker, rerun its named sensor or the cheapest owning
+  probe. Keep test, code, controller, UI, and reproducibility failures
+  agent-owned while safe repair remains. Reserve `human-required` for authority,
+  access, private input, irreversible risk, or subjective judgment.
+- Propagate a blocker only through its real dependents. Release, deployment,
+  signing, and optional-capability failures do not erase proven implementation
+  completion.
 - Use plain human language. Define unavoidable jargon once and keep the
   important decision on the primary response surface.
 - Keep stable policy in ambient instructions and volatile task state in

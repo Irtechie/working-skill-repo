@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import re
 import sys
 from pathlib import Path
@@ -42,19 +43,24 @@ def parse_gate_ledger(frontmatter: str) -> list[dict]:
         if not stripped or stripped.startswith("#"):
             continue
 
-        item_match = re.match(r"^-\s+([A-Za-z0-9_-]+):\s*(.*)$", stripped)
-        if item_match:
-            current = {item_match.group(1): unquote(item_match.group(2))}
-            ledger.append(current)
-            current_list = None
-            continue
-
         if current is None:
+            item_match = re.match(r"^-\s+([A-Za-z0-9_-]+):\s*(.*)$", stripped)
+            if item_match:
+                current = {item_match.group(1): unquote(item_match.group(2))}
+                ledger.append(current)
+                current_list = None
             continue
 
         list_item = re.match(r"^-\s+(.*)$", stripped)
         if list_item and current_list:
             current.setdefault(current_list, []).append(unquote(list_item.group(1)))
+            continue
+
+        item_match = re.match(r"^-\s+([A-Za-z0-9_-]+):\s*(.*)$", stripped)
+        if item_match:
+            current = {item_match.group(1): unquote(item_match.group(2))}
+            ledger.append(current)
+            current_list = None
             continue
 
         key_value = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", stripped)
@@ -64,14 +70,183 @@ def parse_gate_ledger(frontmatter: str) -> list[dict]:
             if value == "":
                 current[key] = []
                 current_list = key
-            elif value == "[]":
-                current[key] = []
+            elif (inline := parse_inline_list(value)) is not None:
+                current[key] = inline
                 current_list = None
             else:
                 current[key] = unquote(value)
                 current_list = None
 
     return ledger
+
+
+def parse_inline_list(value: str) -> list[str] | None:
+    value = value.strip()
+    if not (value.startswith("[") and value.endswith("]")):
+        return None
+    inner = value[1:-1].strip()
+    if not inner:
+        return []
+    parts: list[str] = []
+    start = 0
+    quote = ""
+    escaped = False
+    for index, char in enumerate(inner):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and quote == '"':
+            escaped = True
+            continue
+        if quote:
+            if char == quote:
+                quote = ""
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == ",":
+            parts.append(inner[start:index])
+            start = index + 1
+    if quote or escaped:
+        return None
+    parts.append(inner[start:])
+    return [unquote(item.strip()) for item in parts]
+
+
+def blocker_lifecycle_contract_value(frontmatter: str) -> tuple[bool, bool]:
+    for raw in frontmatter.splitlines():
+        if raw.startswith((" ", "\t")):
+            continue
+        match = re.match(r"^blocker_lifecycle_contract:\s*(.*)$", raw.strip())
+        if match:
+            value = unquote(match.group(1)).lower()
+            if value == "true":
+                return True, True
+            if value == "false":
+                return False, True
+            return False, False
+    return False, True
+
+
+def parse_gate_time(value: str) -> datetime | None:
+    value = value.strip()
+    try:
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        if not re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})",
+            value,
+        ):
+            return None
+        normalized = value.replace("Z", "+00:00")
+        fraction = re.search(r"\.(\d{7,9})(?=Z|[+-]\d{2}:\d{2}$)", value)
+        if fraction:
+            normalized = normalized.replace(f".{fraction.group(1)}", f".{fraction.group(1)[:6]}", 1)
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return None
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def parse_gate_timestamp(value: str) -> datetime | None:
+    value = value.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    return parse_gate_time(value)
+
+
+def validate_blocker_lifecycle_gate(gate: dict, now: datetime) -> list[str]:
+    issues: list[str] = []
+    gate_id = str(gate.get("gate_id") or "")
+    status = str(gate.get("status") or "")
+    scope = str(gate.get("gate_scope") or "")
+    responsibility = str(gate.get("responsibility") or "")
+    propagation = str(gate.get("propagation") or "")
+
+    def require(key: str) -> None:
+        if not gate.get(key):
+            issues.append(f"{gate_id or '<missing>'}: missing {key}")
+
+    require("gate_id")
+    require("owner_skill")
+    require("gate_scope")
+    require("allowed_next_action")
+    if scope not in {"implementation", "integration", "release", "deployment", "optional-capability"}:
+        issues.append(f"{gate_id}: invalid gate_scope {scope!r}")
+    if status not in {"pending", "blocked", "needs-human", "quarantined", "passed"}:
+        issues.append(
+            f"{gate_id}: invalid status {status!r}; pause is execution control state, not a gate result"
+        )
+
+    if status in {"blocked", "needs-human"}:
+        for key in (
+            "blockers",
+            "attempted",
+            "affected_scope",
+            "resume_condition",
+            "recheck",
+            "checked_at",
+            "propagation",
+        ):
+            require(key)
+        if status == "needs-human" and responsibility != "human":
+            issues.append(f"{gate_id}: needs-human requires responsibility 'human'")
+        if status == "blocked" and responsibility not in {"agent", "external", "dependency"}:
+            issues.append(
+                f"{gate_id}: blocked requires responsibility agent, external, or dependency"
+            )
+        if propagation not in {"current-gate-only", "dependent-slices-only"}:
+            issues.append(f"{gate_id}: invalid propagation {propagation!r}")
+        if scope in {"release", "deployment", "optional-capability"} and propagation != "current-gate-only":
+            issues.append(f"{gate_id}: release/deployment/optional blocker is over-propagated")
+        checked = parse_gate_timestamp(str(gate.get("checked_at") or ""))
+        if checked is None:
+            issues.append(f"{gate_id}: checked_at must be RFC3339 with timezone")
+        else:
+            age = now - checked
+            if age.total_seconds() > 72 * 3600:
+                issues.append(f"{gate_id}: blocker is stale; rerun {gate.get('recheck')!r}")
+            if age.total_seconds() < -300:
+                issues.append(f"{gate_id}: checked_at is in the future")
+
+    if status in {"passed", "quarantined"}:
+        if parse_gate_time(str(gate.get("passed_at") or "")) is None:
+            issues.append(f"{gate_id}: passed_at must be YYYY-MM-DD or RFC3339")
+        stale_keys = (
+            "responsibility",
+            "affected_scope",
+            "resume_condition",
+            "recheck",
+            "checked_at",
+            "propagation",
+            "attempted",
+        )
+        if any(gate.get(key) for key in stale_keys):
+            issues.append(f"{gate_id}: advanceable gate retains stale blocker metadata")
+        if status == "quarantined":
+            for key in (
+                "quarantined_scope",
+                "quarantine_owner",
+                "quarantine_evidence",
+                "forbidden_claims",
+            ):
+                require(key)
+        elif any(
+            gate.get(key)
+            for key in (
+                "quarantined_scope",
+                "quarantine_owner",
+                "quarantine_evidence",
+                "forbidden_claims",
+            )
+        ):
+            issues.append(f"{gate_id}: passed gate retains stale quarantine metadata")
+    elif gate.get("passed_at"):
+        issues.append(f"{gate_id}: nonadvanceable gate must not retain passed_at")
+    return issues
 
 
 _EXT_RE = re.compile(r"\.(md|json|jsonl|txt|log|png|html|ps1|py|yaml|yml|mjs|sh)$", re.I)
@@ -150,15 +325,38 @@ def main() -> int:
     args = parser.parse_args()
 
     manifest = args.manifest.resolve()
-    ledger = parse_gate_ledger(load_frontmatter(manifest))
+    frontmatter = load_frontmatter(manifest)
+    ledger = parse_gate_ledger(frontmatter)
     if not ledger:
         print(f"FAIL: {manifest} has no gate_ledger list", file=sys.stderr)
         return 2
 
-    gate = next((item for item in ledger if isinstance(item, dict) and item.get("gate_id") == args.gate), None)
+    matches = [
+        item
+        for item in ledger
+        if isinstance(item, dict) and item.get("gate_id") == args.gate
+    ]
+    if len(matches) > 1:
+        print(f"FAIL: duplicate gate_id {args.gate!r}", file=sys.stderr)
+        return 2
+    gate = matches[0] if matches else None
     if not gate:
         print(f"FAIL: gate {args.gate!r} not found", file=sys.stderr)
         return 2
+
+    lifecycle_enabled, lifecycle_valid = blocker_lifecycle_contract_value(frontmatter)
+    if not lifecycle_valid:
+        print(
+            "FAIL: blocker_lifecycle_contract must be true or false",
+            file=sys.stderr,
+        )
+        return 10
+    if lifecycle_enabled:
+        lifecycle_issues = validate_blocker_lifecycle_gate(gate, datetime.now(timezone.utc))
+        if lifecycle_issues:
+            for issue in lifecycle_issues:
+                print(f"FAIL: {issue}", file=sys.stderr)
+            return 10
 
     status = gate.get("status")
     advanceable = {"passed"}

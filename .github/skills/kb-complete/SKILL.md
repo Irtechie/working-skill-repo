@@ -55,13 +55,21 @@ can enforce narrow gates and resume safely.
 Re-read the manifest after every delegated phase. Durable state, not chat memory,
 chooses the next action.
 
+Do not roll a narrow gate up to the whole product. A release-only failure can
+prevent `pr-open` or `landed` while local implementation remains complete. An
+optional provider/platform gate cannot block the configured core product.
+Before repeating any blocker, rerun its recorded recheck sensor.
+
 | Current state | Action |
 |---|---|
 | no valid manifest | `kb-plan <source>` |
 | active with runnable slices | `kb-work <manifest>` |
 | completed with `work-to-complete: passed` | `kb-finalize <manifest>` |
 | reviewed with `complete-to-ship: passed|quarantined` | apply delivery policy |
-| blocked/human-required/parked | persist exact resume condition and stop |
+| paused | stop without changing technical gate status; resume only on explicit user instruction |
+| blocked/human-required on critical path | recheck current state, persist exact owner/scope/resume condition, and stop only affected work |
+| release/deployment/signing blocked after review | preserve implementation-complete state and report delivery blocked |
+| optional capability/platform blocked | defer or quarantine only that capability and continue the configured core endpoint; use `parked` only after explicit human deferral |
 | no state change after one repair | stop with the smallest unblock action |
 
 `kb-work` may invoke `kb-finalize` automatically. Re-read the manifest and skip
@@ -119,9 +127,10 @@ remote-default integration.
 ## Terminal Outcomes
 
 ```text
-KB complete: local|pr-open|landed|nothing-to-deliver|blocked
+KB complete: local|pr-open|landed|nothing-to-deliver|delivery-blocked|blocked
 Manifest: <path>
 Finalization: <complete-to-ship status>
+Implementation: complete|incomplete
 Delivery policy: <local|pr|direct>
 Branch: <branch or none>
 Commit: <sha or none>

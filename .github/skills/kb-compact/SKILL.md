@@ -1,6 +1,6 @@
 ---
 name: kb-compact
-description: Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Use when the user says "compact", "fewer words", "make this terse", "organize the response", "talk to me like a person", "limited time", "low cognitive burden", "token diet", "every token pays rent", or when KB docs are getting too large for routine session startup.
+description: "Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Select the smallest useful presentation: plain language, ranked bullets, a comparison table, a decision block, or a workflow diagram when relationships matter. Use when the user says 'compact', 'fewer words', 'make this terse', 'organize the response', 'talk to me like a person', 'limited time', 'low cognitive burden', 'make this easy to understand', 'show me visually', 'token diet', 'every token pays rent', or when KB docs are getting too large for routine session startup."
 argument-hint: "[file path, response, or doc area to compact]"
 ---
 
@@ -49,6 +49,28 @@ For chat or status output:
 5. Give time estimates only when grounded in observed work or a known wait.
 6. End when complete. Do not manufacture a user action or closing recap.
 
+## Format Selection
+
+Choose the smallest format that prevents the reader from reconstructing the
+relationships themselves. Do not default to bullets, tables, or diagrams.
+
+| Information shape | Best default | Use it when |
+|---|---|---|
+| One answer, outcome, or action | One to three plain sentences | There is no meaningful comparison or sequence |
+| Several independent points | Ranked bullets | Order matters, but the items do not share repeated fields |
+| Options, mappings, states, or repeated fields | Table | Side-by-side comparison removes repeated prose |
+| Sequence, dependency, branching, ownership, or state change | Mermaid or a compact text flow | At least three meaningful nodes and two relationships are easier to scan than describe |
+| One human-owned decision | Decision block | The exact ask, why it matters, what blocks, and the recommendation must stay together |
+| Supporting proof or nuance | `Details` section or linked artifact | It matters, but not before the outcome or decision |
+
+A visual must earn its space. Skip it when it merely redraws a short list, when
+the reader must study a legend, or when prose is faster. Prefer one useful
+visual over several partial ones.
+
+Read [references/response-patterns.md](references/response-patterns.md) when the
+format choice is unclear, the user asks for examples, or a reusable response
+contract is being written. Do not load it for routine one-line answers.
+
 ## Response Responsibility
 
 Before asking the user anything, classify it:
@@ -67,10 +89,12 @@ Use plain human language; define unavoidable jargon once.
 
 1. Identify the artifact and its purpose: startup memory, active task, handoff, research, architecture, or skill text.
 2. Choose mode based on risk and requested scope.
-3. Rewrite for low cognitive burden: clear action, visible state, then optional
+3. Identify the information shape and choose the smallest useful format.
+4. Rewrite for low cognitive burden: clear action, visible state, then optional
    depth.
-4. Verify protected atoms survived exactly.
-5. Report what was compacted and anything intentionally moved or left unchanged.
+5. Verify protected atoms survived exactly and the visual, if any, expresses
+   real relationships.
+6. Report what was compacted and anything intentionally moved or left unchanged.
 
 ## Output Contract
 

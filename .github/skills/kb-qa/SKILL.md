@@ -51,7 +51,13 @@ Pick the transport based on what the slice needs, not a fixed priority list.
    - Playwright preferred for multi-viewport. Headless, spawns 375px/768px/1440px cleanly.
    - Fallback: CDP with device emulation.
 
-4. **None available** → Log: `qa: blocked - no browser transport available (checked: CDP, Playwright, Agent Browser)`. For UI-reachable changes this is a blocking verification gap, not a pass. Add a `🔒 blocked` or `🛑 human-required` entry in `todo.md` with the missing transport/setup.
+4. **None available** → First try the safe agent-owned setup or fallback
+   appropriate to the repo. If no transport can be installed, configured, or
+   reached, log: `qa: blocked - no browser transport available (checked: CDP,
+   Playwright, Agent Browser)`. This is an agent/tool dependency, not
+   human-required. Use `🛑 human-required` only when the missing transport
+   depends on a real user session, MFA, credentials, private input, or another
+   action only the human can perform.
 
 ## Step 1: Connect and Navigate
 
@@ -98,7 +104,11 @@ Do not pass a criterion by looking at a screenshot and deciding it seems right. 
 
 Delete the ephemeral assertion file after the QA pass unless keeping it as a reusable regression test is clearly valuable. Preserve the command output, trace path, screenshot path, or log path needed for manifest proof.
 
-If a visible criterion cannot be expressed as a programmatic assertion, flag it as `🛑 human-required` with the reason. Do not substitute model visual inspection for deterministic proof.
+If a visible criterion is genuinely subjective, flag the exact judgment as
+`🛑 human-required` with the reason. If the criterion should be deterministic
+but no assertion exists yet, that is agent-owned test work: write or repair the
+assertion rather than assigning it to the user. Do not substitute model visual
+inspection for deterministic proof.
 
 **Never read source code during QA.** Test as a user — if you can't verify it from the browser, flag it as needing manual verification.
 
@@ -227,7 +237,10 @@ Actions are transport-agnostic above. Here's the mapping:
 - Screenshot evidence is mandatory for any failure.
 - Write incrementally, don't batch findings.
 - Auth is sacred — never attempt authenticated routes without a real session.
-- If a UI-reachable check can't be verified from the browser, block or flag human-required setup rather than guessing or substituting backend-only verification.
+- If a UI-reachable check cannot be verified from the browser, keep it in
+  agent-owned repair or mark the exact tool dependency blocked after rechecking
+  alternatives. Use human-required only for human-only access or subjective
+  judgment; never guess or substitute backend-only verification.
 
 ## Integration
 

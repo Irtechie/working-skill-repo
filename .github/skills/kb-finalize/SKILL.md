@@ -48,6 +48,12 @@ already opted into a `done.md` workflow.
 
 If the manifest has no scope-check notes (older format), fall back to `git diff --name-only $(git merge-base HEAD main)..HEAD` for the file list.
 
+Before reporting any blocked or human-required item, rerun its named recheck
+sensor or the cheapest owning probe. Keep agent-owned repair failures active
+while meaningful safe progress remains. A release, deployment, signing, or
+optional-capability failure affects that delivery/capability only; it does not
+erase already-proven implementation completion.
+
 ## Step 1: Code Review
 
 Before review, run `kb-check` on the manifest scope, reusing fresh slice receipts and running only invalidated checks plus the manifest aggregate. Route failures to `kb-repair`/`kb-fix`; LLM review does not replace executable verification.
@@ -120,7 +126,10 @@ Mirror the useful part of the original LFG finish pattern: do not leave known, f
    decision. Parallel resolution is allowed only when file scopes are disjoint.
 5. Record: `follow-up-resolution: resolved N, logged M, blocked K`.
 
-Blocked/human-required items stay visible in `todo.md` or the manifest with evidence paths. They must not disappear into chat history.
+Current blocked/human-required items stay visible in `todo.md` or the manifest
+with evidence paths, affected scope, responsibility, resume condition, and
+recheck result. They must not disappear into chat history or broaden beyond
+their dependent scope.
 
 ## Step 2.6: Proof and Demo Evidence Gate
 
@@ -398,7 +407,11 @@ Required proof:
 - cleanup result;
 - alerts list.
 
-If any required proof is missing, set `complete-to-ship` to `blocked` and do not report `KB <name> finalized`.
+If required implementation proof is missing, set `complete-to-ship` to
+`blocked` and do not report `KB <name> finalized`. If implementation proof is
+complete but a delivery-only gate fails, report `Implementation: complete` and
+`Delivery: blocked` with the exact affected gate instead of describing the
+whole objective as blocked.
 
 Update the manifest `status: reviewed` only after `complete-to-ship` is `passed` or explicitly `quarantined` for out-of-scope issues, and after `kb-gate/scripts/check_gate_ledger.py <manifest-path> --gate complete-to-ship --allow-quarantine` passes. Then report:
 

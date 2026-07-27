@@ -17,14 +17,28 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			"no response needed",
 			"what is blocked",
 			"Never turn an agent-owned decision into review work for the user.",
+			"a table for repeated-field comparison",
+			"A visual must remove mental reconstruction",
 		},
 		".github/skills/kb-compact/SKILL.md": {
 			"talk to me like a person",
 			"low cognitive burden",
+			"## Format Selection",
+			"Choose the smallest format",
+			"references/response-patterns.md",
+			"A visual must earn its space",
 			"## Response Responsibility",
 			"Only the user can authorize, supply, or decide it",
 			"State the default and continue unless overridden",
 			"Use plain human language",
+		},
+		".github/skills/kb-compact/references/response-patterns.md": {
+			"## 1. Simple Outcome: Use Plain Language",
+			"## 3. Hard Decision: Keep the Ask Together",
+			"## 4. Repeated Fields: Use a Table",
+			"## 5. Workflow or Dependency: Use One Diagram",
+			"```mermaid",
+			"Order by effect on the person or application",
 		},
 		".github/skills/kb-gate/SKILL.md": {
 			"Response required:",
@@ -32,6 +46,36 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			"Blocked:",
 			"Recommendation:",
 			"Do not ask the user to choose among agent-owned fixes.",
+			"`paused`: execution control, not a gate result.",
+			"cheapest owning sensor",
+			"unrelated ready work continues",
+		},
+		".github/skills/kb-work/SKILL.md": {
+			"An explicit pause is not technical terminal proof.",
+			"Continue unrelated runnable slices.",
+			"Slice execution fails with progress possible",
+		},
+		".github/skills/kb-goal/SKILL.md": {
+			"Treat an explicit user pause as `paused`, never `blocked`.",
+			"do not coerce pause into a",
+			"Before marking or repeating a blocker",
+		},
+		".github/skills/kb-complete/SKILL.md": {
+			"Do not roll a narrow gate up",
+			"Implementation: complete|incomplete",
+			"optional capability/platform blocked",
+		},
+		".github/skills/kb-handoff/SKILL.md": {
+			"before copying any blocker",
+			"use `⏸ paused` only when the user requested",
+		},
+		".github/skills/kb-qa/SKILL.md": {
+			"This is an agent/tool dependency, not",
+			"that is agent-owned test work",
+		},
+		".github/skills/kb-finalize/SKILL.md": {
+			"Before reporting any blocked or human-required item",
+			"`Delivery: blocked`",
 		},
 		".github/skills/kb-ship/SKILL.md": {
 			"What changed / Why it matters",
@@ -64,6 +108,13 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			"hard response only the user can",
 			"low-burden PR first screen",
 			"go run ./cmd/kbbrief",
+			"A user pause stops work but is not a",
+			"Every blocker is rechecked before it is repeated",
+		},
+		"docs/context/architecture/kb-workflow.md": {
+			"### Blocker Lifecycle",
+			"`paused` is rejected as a gate",
+			"Only dependent work stops",
 		},
 	}
 

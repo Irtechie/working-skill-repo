@@ -451,7 +451,10 @@ If `Resolve Before Planning` contains any items:
 
 - Ask the blocking questions now, one at a time, by default.
 - If the user explicitly wants to proceed anyway, first convert each remaining item into an explicit decision, assumption, or `Deferred to Planning` question.
-- If the user chooses to pause instead, present the handoff as paused or blocked rather than complete.
+- If the user chooses to pause instead, stop immediately. Report the run as
+  paused; keep any unresolved planning question separately classified as
+  human-required or agent-owned research. Never use `paused` and `blocked`
+  interchangeably.
 - Do not proceed to planning while `Resolve Before Planning` remains non-empty.
 
 Before invoking `kb-plan`, write or expect a `brainstorm-to-plan` gate record
@@ -533,16 +536,20 @@ To implement after planning: say "yes, then work" or run `kb-work <manifest-path
 If the user pauses with `Resolve Before Planning` still populated, display:
 
 ```text
-KB brainstorm paused.
+KB brainstorm paused at the user's request.
 
 Requirements doc: docs/brainstorms/YYYY-MM-DD-<topic>-requirements.md  # if one was created
 
-Planning is blocked by:
+Questions still required before planning:
 - [Blocking question 1]
 - [Blocking question 2]
 
 Resume with `/kb-brainstorm` when ready to resolve these before planning.
 ```
+
+If the unresolved item is research or another safe agent-owned action, say that
+instead of asking the user to resolve it. On resume, run that work and recheck
+the question gate before requesting input.
 
 ## Quality Checks
 

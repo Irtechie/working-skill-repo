@@ -1,6 +1,7 @@
 # Low-Cognitive-Burden Communication Result
 
-Status: released locally and synchronized to all required global skill roots.
+Status: base release complete; adaptive-format follow-up synchronized, with the
+full release gate still blocked by the known Windows worktree-test hang.
 
 ## Implemented
 
@@ -17,6 +18,10 @@ Status: released locally and synchronized to all required global skill roots.
   and evidence-backed Mermaid from strict source-owned JSON.
 - The newer plan-run shipping protections found in global `kb-ship` were merged
   into the repository before the communication edits.
+- `kb-compact` now selects the smallest useful format from plain language,
+  ranked bullets, tables, decision blocks, and workflow diagrams.
+- Lazy-loaded examples show when each format helps and when a visual would only
+  add noise.
 
 ## Proof
 
@@ -36,11 +41,19 @@ Status: released locally and synchronized to all required global skill roots.
   required issues; `kb-executive-brief`, `kb-ship`, and
   `pr-review-workbench` are hash-identical across the repository, Codex,
   Copilot, and shared-agent roots.
+- PASS: the adaptive-format follow-up's focused communication-contract test,
+  skill lint, independent response forward-test, and five-root `kb-compact`
+  hash comparison.
+- BLOCKED: the follow-up `local-release` reruns did not complete. Both advanced
+  into `go test ./...` and stalled in
+  `TestPlanWorktreeSelftestExercisesDisposableLifecycle`; no failure was
+  attributed to the communication files.
 
 ## Release Boundary
 
-The complete communication, review-artifact, executive-brief, and lazy
-PR-workbench layers are locally released and synchronized. Shareable HTML uses
-a separate downloadable artifact branch; Pages is optional. Commit, push, PR
-creation, PR edits, artifact publication, and Pages deployment remain separate
-mutations and were not performed.
+The base communication, review-artifact, executive-brief, and lazy PR-workbench
+layers are locally released. The adaptive-format follow-up is synchronized but
+not release-gate complete until the existing Windows worktree-test hang is
+resolved. Shareable HTML uses a separate downloadable artifact branch; Pages is
+optional. Commit, push, PR creation, PR edits, artifact publication, and Pages
+deployment remain separate mutations and were not performed.

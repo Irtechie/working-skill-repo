@@ -85,6 +85,28 @@ go run ./cmd/kbcheck workflow-governor-selftest
 
 `go run ./cmd/kbcheck core` includes that selftest.
 
+### Blocker Lifecycle
+
+Workflow state distinguishes execution control from technical proof:
+
+| State | Meaning | Propagation |
+|---|---|---|
+| `paused` | The user stopped execution | No gate mutation; a requested handoff may record paused state |
+| `blocked` | A current agent, dependency, tool, or access impasse remains after recheck | Only dependent work stops |
+| `needs-human` / `human-required` | Only the user can authorize, supply, access, risk-accept, or judge the next step | Only the affected decision and its dependents stop |
+| `repairing` / `in_progress` | The agent can still safely fix or verify the failure | Work continues |
+
+New manifests may opt into `blocker_lifecycle_contract: true`. Each nonterminal
+gate then records scope, responsibility, affected scope, resume condition,
+recheck sensor, check time, and propagation. `paused` is rejected as a gate
+result because the underlying technical gate must keep its real state.
+
+Before a summary, handoff, or completion rollup repeats a blocker, the owning
+skill reruns the named sensor or cheapest current-state probe. Release,
+deployment, signing, and optional-capability failures remain scoped to their
+promotion or capability; they do not turn proven implementation into a
+whole-objective failure.
+
 Not shipped yet: platform hook enforcement that blocks a Codex/Claude stop or
 prompt transition at runtime. The hook layer should mirror the same gate
 classes and ledger checks once the target runtime hook files are implemented.

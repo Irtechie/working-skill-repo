@@ -456,7 +456,7 @@ KB proof-spine integration status as of July 9, 2026:
 | `kb-land` | Internal merge/direct integration and post-integration sync phase |
 | `kb-finish` | Deprecated alias to `kb-complete` |
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
-| `kb-compact` | Memory, docs, or output need low-cognitive-burden, action-first organization |
+| `kb-compact` | Memory, docs, or output need low-burden organization with the smallest useful prose, table, decision block, or workflow view |
 | `kb-executive-brief` | Generate an executive first screen and an optional evidence-backed Mermaid flow |
 | `pr-review-workbench` | Generate a commit-pinned, offline visual PR review after a PR exists |
 | `klfg` | Deprecated alias to `kb-complete` |
@@ -471,10 +471,19 @@ Routing and memory:
 - `kb-goal` - durable objective lane across sessions and KB routes
 - `kb-map` - project-memory lookup, refresh, and project-root anchoring
 - `kb-map-bootstrap` - expensive deep index plus standard memory layout
-- `kb-compact` - lower comprehension and decision effort without losing technical truth
+- `kb-compact` - lower comprehension and decision effort without losing
+  technical truth; choose prose, ranked bullets, a table, a decision block, or
+  one useful workflow diagram based on the information shape
 - `kb-executive-brief` - generate responsibility-first Markdown and only render a visual when relationships justify it
 - `pr-review-workbench` - lazy-load after PR creation to generate an offline
   decision topology with a guided review path, source-backed application-impact
+
+Blocker handling is responsibility-first. A user pause stops work but is not a
+technical failure. Agent-owned code, test, UI, controller, and reproducibility
+problems stay in repair while safe progress remains. `human-required` is
+reserved for authority, credentials/access, private input, irreversible risk,
+or subjective judgment. Every blocker is rechecked before it is repeated, and
+release or optional-capability failures affect only their own delivery scope.
   ordering, and linked evidence
 - `kb-handoff` - compact a session into a restart packet
 

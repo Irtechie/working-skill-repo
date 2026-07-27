@@ -50,6 +50,11 @@ goal contract.
   include `go run ./cmd/kbcheck accept --check <check.json> --trace
   .kb/trace.jsonl`.
 - Mark blocked only with exact blocker, attempted route, and resume condition.
+- Treat an explicit user pause as `paused`, never `blocked`. Stop mutation
+  immediately. A plain pause writes nothing; `pause and handoff` may update only
+  the requested ledger/handoff pointer. If the platform goal API has no paused
+  state, leave it active and rely on the repo ledger; do not coerce pause into a
+  false blocker.
 
 ## Goal Ledger
 
@@ -66,7 +71,7 @@ Use this shape:
 ```markdown
 # <Goal Name>
 
-Status: active|blocked|complete|parked
+Status: active|paused|blocked|complete|parked
 Created: YYYY-MM-DD
 Last updated: YYYY-MM-DD
 
@@ -245,6 +250,8 @@ This prevents a loop from producing work faster than it can be reviewed.
 9. **Decide**:
    - if done criteria and terminal proof are satisfied, mark `complete`;
    - if more units remain, continue or write a handoff and resume next session;
+   - if the user paused, preserve technical state and mark only the goal ledger
+     `paused` when a state write was requested;
    - if blocked, record exact resume criteria and stop honestly.
 
 Do not stop at weaker milestones:
@@ -276,6 +283,13 @@ through the smallest valid KB lane.
 
 A goal is blocked only when further agent work would be fake progress.
 
+Before marking or repeating a blocker, rerun its cheapest owning sensor and
+record `checked_at`. Keep the goal active while any unrelated unit or safe
+agent-owned repair can still make meaningful progress. Release, deployment,
+signing, optional-provider, and optional-platform gates block only that
+promotion/capability unless the objective explicitly defines them as core done
+criteria.
+
 Valid blockers include:
 
 - missing credentials, MFA, paid access, hardware, or private data;
@@ -306,7 +320,7 @@ Final output:
 
 ```text
 Goal: <name>
-Status: complete|blocked|active
+Status: complete|blocked|paused|active
 Route(s): <routes actually run>
 Proof: <commands/artifacts/gates>
 Next: <exact next action or none>

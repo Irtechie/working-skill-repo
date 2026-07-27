@@ -90,8 +90,16 @@ Update `todo.md` only when all are true:
 - the handoff represents active or blocked work.
 
 - add or update a compact row pointing to `docs/handoffs/active/<file>.md`;
-- use `🔒 blocked` for dependency/tool/access waits;
+- before copying any blocker, rerun its named recheck sensor or the cheapest
+  current-state probe and replace stale wording with the current result;
+- use `🔒 blocked` only for a current agent, dependency, tool, or access
+  impasse after safe repair paths are exhausted;
 - use `🛑 human-required` for decisions or inputs only the user can provide;
+- use `⏸ paused` only when the user requested a state-writing handoff; a plain
+  pause does not invoke this skill or authorize a handoff write;
+- keep release, deployment, signing, or optional-capability blockers scoped to
+  that delivery/capability instead of describing the whole implementation as
+  blocked;
 - do not paste the whole handoff into `todo.md`.
 
 Do not create `todo.md` solely for a handoff. If the project has no KB memory yet, write the handoff and set the next action to `kb-map setup <project focus>`.

@@ -35,6 +35,35 @@ If no manifest exists, write the gate record into the active plan, packet,
 handoff, or `todo.md` section and require the next phase to create a manifest
 before execution.
 
+## Blocker Lifecycle
+
+Classify responsibility and affected scope before writing `blocked` or
+`needs-human`.
+
+- `blocked`: an agent-owned repair has reached a real impasse, an external
+  dependency is unavailable, or a required dependency is unresolved.
+- `needs-human`: only the user can authorize, supply, access, or judge the
+  missing input. This maps to `human-required` on slice boards.
+- `paused`: execution control, not a gate result. Preserve the existing gate
+  status. A plain pause authorizes no handoff or state mutation; `pause and
+  handoff` authorizes only that bounded state write.
+
+Before repeating a blocker in chat, a handoff, or a final summary, rerun its
+cheapest owning sensor or inspect current authoritative state. Report stale
+wording as corrected history, not as a current blocker.
+
+Scope propagation is narrow:
+
+- a blocked slice blocks only dependent slices;
+- release, deployment, signing, optional-provider, and optional-platform gates
+  block only that promotion or capability;
+- implementation can be complete while delivery or one optional capability is
+  blocked;
+- unrelated ready work continues.
+
+New manifests should opt into `blocker_lifecycle_contract: true` and use the
+typed fields in `references/gate-ledger.md`.
+
 ## Severity
 
 | Severity | Meaning | Default |
@@ -68,6 +97,10 @@ Ask the human only when resolution requires:
 - destructive/risky operation;
 - choosing between multiple reasonable architecture/product paths;
 - changing the user's stated requirements.
+
+Keep agent-owned test failures, code defects, controller contract gaps, UI
+wiring, reproducibility problems, and missing automation in repair while safe
+progress remains. Do not convert them into review work for the user.
 
 ## Phase Gates
 

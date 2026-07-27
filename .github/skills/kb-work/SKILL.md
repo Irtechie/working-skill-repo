@@ -45,6 +45,12 @@ Terminal means one of:
   exact resume criteria recorded in `todo.md` and the manifest;
 - the user explicitly says to pause or stop.
 
+An explicit pause is not technical terminal proof. Stop mutation immediately
+and preserve the current slice/gate result. A plain `pause` authorizes no
+handoff or board write; `pause and handoff` authorizes only the requested
+restart packet and status pointer. Do not mark a durable goal blocked merely to
+stop automatic continuation.
+
 Default WIP is the safe ready set, not one slice. A slice is ready when its
 blockers are `done` or `skipped`, its status is `pending`, and it is not marked
 as a serial-only gate. Dispatch ready slices together only when the runtime gives
@@ -132,7 +138,7 @@ KB state system unless the repo already opted into `done.md`.
     `kb-map setup` or `kb-models` requests. Do not collect connection details
     here.
 11. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
-12. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
+12. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, do not blindly copy either direction. Recheck the named proof/blocker sensor, inspect ownership/lease state, and reconcile both from current evidence. The board is the coordination surface, not permission to preserve a stale blocker.
 13. **Acquire local slice ownership before board projection or mutation:** for every mutating slice, acquire a slice lease before setting `todo.md` or the manifest to `in_progress`:
 
    ```powershell
@@ -162,11 +168,26 @@ Treat statuses as:
 | Status | Action |
 |--------|--------|
 | `pending` | Eligible once blockers are `done` or `skipped` |
+| `in_progress` | Agent is executing or repairing while meaningful safe progress remains |
 | `done` | Skip |
-| `blocked` | Stop and ask whether to retry, skip, or abort |
+| `paused` | Execution-control/ledger state only when a state write was requested; never replace the technical gate result |
+| `blocked` | Real agent/external/dependency impasse after recheck; stop only dependent slices |
 | `human-required` | Waiting on human action; continue unrelated runnable slices if possible |
 | `parked` | Intentionally out of bounds today; only a human promotes back to active |
 | `skipped` | Skip but keep visible in the summary |
+
+Before writing or reporting `blocked` or `human-required`, use
+`blocker_lifecycle_contract`:
+
+- rerun the cheapest owning sensor;
+- record what was attempted, responsibility, affected scope, exact resume
+  condition, recheck, check time, and propagation;
+- keep test failures, code defects, controller gaps, UI wiring, missing
+  automation, and reproducibility work `in_progress` while repair can continue;
+- use `human-required` only for human-only authority, access, private input,
+  irreversible risk, or subjective judgment;
+- never let release, deployment, signing, optional-provider, or
+  optional-platform status downgrade implementation or unrelated capabilities.
 
 ## Board Sync Protocol
 
@@ -175,9 +196,11 @@ Treat statuses as:
 | Event | Board Update |
 |-------|-------------|
 | Starting a slice | Set status to 🔧 in_progress |
+| Repairing an agent-owned failure | Keep 🔧 in_progress + current repair sensor |
 | Slice completes | Set status to ✅ done |
 | Slice blocked | Set status to 🔒 blocked + reason in notes |
 | Slice needs human action | Set status to 🛑 human-required + exact ask |
+| User pauses | Preserve the prior technical status; write ⏸ paused only when the user requested a handoff/state update |
 | Slice parked by human | Move to 🧊 Parked / Cold Storage with reason |
 | Slice skipped | Set status to ⊘ skipped |
 | All slices done | Prepend compact summary to `todo-done.md`, then remove completed feature section and routine completion logs from `todo.md` |
@@ -186,7 +209,9 @@ Active handoff files under `docs/handoffs/active/` are restart packets. Create o
 
 **Multi-agent rules:**
 - Before claiming a slice, re-read `todo.md`. If another agent set it to 🔧, do not claim it.
-- The board is the source of truth — not chat history, not the manifest. If the board says done, it's done.
+- The board is the coordination source, not an unquestionable proof oracle.
+  Reconcile a conflicting `done`, `blocked`, or `human-required` row against
+  its current gate, proof, and recheck sensor before acting.
 - Acquire the atomic slice lease BEFORE starting work, then update the board BEFORE mutation and AFTER completing work. This prevents two agents from working the same slice.
 - Workers never directly project canonical lifecycle status. The coordinator
   serializes slice-commit acceptance, reruns slice and aggregate proof in the
@@ -368,7 +393,7 @@ safe ready set automatically after:
 - required deterministic checks pass;
 - QA/repair gates pass or are not applicable.
 
-Pause only when a real gate requires it:
+Stop or hold only the affected path when a real gate requires it:
 
 - HITL decision or missing value that cannot be generated safely;
 - blocked/human-required/parked slice with no unrelated runnable work;
@@ -389,7 +414,11 @@ If `hitl: true`:
   - `parallel-blocker` — this slice is blocked, but unrelated slices can continue.
   - `final-validation` — human judgment is useful before release, but not needed for development.
   - `agent-runnable-with-inputs` — human only needs to provide values; the agent can run the check.
-- Stop only the dependent path. If unrelated slices are runnable, mark this slice `blocked` or `human-required`, update `todo.md` and the manifest, then continue those slices.
+- Stop only the dependent path. If unrelated slices are runnable, classify
+  ownership first: use `blocked` for a current agent/dependency/tool impasse and
+  `human-required` only for authority, access, private input, irreversible risk,
+  or subjective judgment. Update `todo.md` and the manifest, then continue
+  those slices.
 - When marking a slice `human-required`, `parked`, or `blocked`, persist: `owner`, `blocked_reason`, `resume_when`, `next_agent_action`, `human_action`, `can_continue_other_slices`, and `parked_at`.
 - Record the user's decision in the slice plan.
 - Update manifest status to `done` for this slice only if the decision completes the slice.
@@ -399,7 +428,9 @@ Missing test inputs are not a reason to ask the user to manually test. If `test_
 
 - Ask for the specific missing value.
 - Use safe generated or fixture values when acceptable.
-- If the input blocks only this slice, mark this slice `human-required` or `blocked` and continue unrelated runnable slices.
+- If the input blocks only this slice, use `human-required` when only the user
+  can provide it; otherwise keep agent-owned repair active or mark the exact
+  dependency `blocked` after recheck. Continue unrelated runnable slices.
 - Resume the slice after the value is available and run the verification yourself.
 
 ### Step 2: Deepen If Thin
@@ -721,8 +752,12 @@ After the slice completes:
 
 1. **Check result**
    - If yes: update manifest `status: done` for this slice and update the body table.
-   - If no and repair/progress is still possible: run `kb-repair` or a bounded fix loop, then retry verification.
-   - If no progress remains: update manifest `status: blocked` or `parked`, add failure notes and resume criteria, then continue unrelated runnable slices.
+   - If no and repair/progress is still possible: keep the slice
+     `in_progress`, run `kb-repair` or a bounded fix loop, then retry
+     verification.
+   - If no progress remains: recheck current state, classify responsibility and
+     affected scope, then update the manifest to `blocked`, `human-required`,
+     or `parked` with lifecycle fields. Continue unrelated runnable slices.
 
    Before setting `status: done`, write or update a gate record
    `slice-<slice_id>-to-done`. This gate must prove: implementation finished,
@@ -845,11 +880,13 @@ merge; only explicitly authorized `kb-land` may integrate the remote default.
 | Selected worker is unavailable before dispatch | Keep the slice unchanged; choose another delegated route explicitly or record a new current-owner decision |
 | Proof fails under the selected owner | Run ordinary bounded repair under the same owner; re-plan or block if the required authority changes |
 | Slice execution fails with progress possible | Run `kb-repair` or a bounded fix loop, then retry verification |
-| Slice execution fails with no progress | Mark only that slice blocked/parked, write resume packet, continue unrelated runnable slices |
+| Slice execution fails with no progress | Recheck, classify owner/scope, mark only that slice blocked or human-required, write the exact resume condition, and continue unrelated runnable slices |
 | Test suite fails after a slice | Run `kb-repair`; if stuck, mark affected slice blocked/parked and continue unrelated runnable slices |
 | HITL critical-path pause | Present context, wait for user, record decision |
 | HITL not on critical path | Park the slice and continue unrelated runnable slices |
-| User says "abort" | Mark remaining slices as `pending`, stop |
+| User says "pause" or "stop" | Stop mutation immediately; preserve technical status and do not convert the run to blocked |
+| User says "pause and handoff" | Write only the bounded restart packet/state pointer, then stop |
+| User says "abort" | Mark remaining slices as `pending` only when the user authorized that state update, then stop |
 | User says "skip" | Mark slice `skipped`, continue to next runnable slice |
 
 ## Resume Support

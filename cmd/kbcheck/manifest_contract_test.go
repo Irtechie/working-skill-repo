@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestManifestContractRequiresDoneGate(t *testing.T) {
@@ -112,6 +113,304 @@ gate_ledger:
 	}
 	if !strings.Contains(out.String(), "PASS: gate=slice-slice-001-to-done") {
 		t.Fatalf("missing pass output: %s", out.String())
+	}
+}
+
+func TestBlockerLifecycleContractAcceptsScopedHumanAndExternalGates(t *testing.T) {
+	checkedAt := time.Now().UTC().Format(time.RFC3339)
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: provider-login
+    owner_skill: kb-work
+    gate_scope: optional-capability
+    status: needs-human
+    required_evidence: []
+    proof: []
+    blockers: ["provider-owned login is required"]
+    attempted: ["confirmed no token-free activation path exists"]
+    responsibility: human
+    affected_scope: "optional live provider activation"
+    resume_condition: "user completes provider-owned login"
+    recheck: "inspect provider activation receipt"
+    checked_at: "`+checkedAt+`"
+    propagation: current-gate-only
+    allowed_next_action: "await provider login while unrelated slices continue"
+  - gate_id: linux-package
+    owner_skill: kb-work
+    gate_scope: release
+    status: blocked
+    required_evidence: []
+    proof: []
+    blockers:
+      - "controller has no Linux package executor"
+    attempted:
+      - "inspected the live controller capability catalog"
+    responsibility: external
+    affected_scope: "Linux release receipt only"
+    resume_condition: "controller publishes a package executor"
+    recheck: "fleet snapshot package capability"
+    checked_at: "`+checkedAt+`"
+    propagation: current-gate-only
+    allowed_next_action: "continue implementation and Windows proof"
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected valid blocker lifecycle contract, got %#v", result)
+	}
+}
+
+func TestBlockerLifecycleContractRejectsMisownedStaleAndOverpropagatedGates(t *testing.T) {
+	stale := time.Now().UTC().Add(-96 * time.Hour).Format(time.RFC3339)
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: agent-repair-called-human
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: needs-human
+    blockers: ["PowerShell wrapper has an exit-code bug"]
+    attempted: ["reproduced the wrapper failure"]
+    responsibility: agent
+    affected_scope: "Windows smoke receipt"
+    resume_condition: "repair the wrapper"
+    recheck: "run focused wrapper test"
+    checked_at: "`+stale+`"
+    propagation: dependent-slices-only
+    allowed_next_action: "kb-fix wrapper"
+  - gate_id: release-rollup
+    owner_skill: kb-complete
+    gate_scope: release
+    status: blocked
+    blockers: ["macOS receipt is unavailable"]
+    attempted: ["confirmed macOS is not a supported platform"]
+    responsibility: external
+    affected_scope: "macOS release only"
+    resume_condition: "add macOS to the supported matrix"
+    recheck: "inspect supported platform matrix"
+    checked_at: "`+time.Now().UTC().Format(time.RFC3339)+`"
+    propagation: dependent-slices-only
+    allowed_next_action: "continue core implementation"
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	for _, code := range []string{"misowned-human-gate", "stale-blocker", "overpropagated-gate"} {
+		if !hasManifestIssue(result.Issues, code) {
+			t.Fatalf("expected %s, got %#v", code, result)
+		}
+	}
+}
+
+func TestBlockerLifecycleContractRejectsPauseAsGateStatus(t *testing.T) {
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: user-pause
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: paused
+    blockers: []
+    allowed_next_action: "wait for resume"
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-gate-status") {
+		t.Fatalf("pause must remain execution control state, got %#v", result)
+	}
+}
+
+func TestBlockerLifecycleContractParsesInlineBlockerLists(t *testing.T) {
+	checkedAt := time.Now().UTC().Format(time.RFC3339)
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: dependency
+    owner_skill: kb-work
+    gate_scope: integration
+    status: blocked
+    blockers: ["upstream contract unavailable"]
+    attempted: ["checked upstream contract"]
+    responsibility: dependency
+    affected_scope: "dependent integration slice"
+    resume_condition: "upstream contract exists"
+    recheck: "test -f contract.json"
+    checked_at: "`+checkedAt+`"
+    propagation: dependent-slices-only
+    allowed_next_action: "continue unrelated slices"
+---
+`)
+	gates, err := parseManifestGates(path)
+	if err != nil {
+		t.Fatalf("parseManifestGates returned error: %v", err)
+	}
+	if len(gates) != 1 || len(gates[0].Blockers) != 1 || len(gates[0].Attempted) != 1 {
+		t.Fatalf("inline lists were not parsed: %#v", gates)
+	}
+}
+
+func TestBlockerLifecycleContractRejectsInvalidBooleanAndDuplicateGateIDs(t *testing.T) {
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: ture
+slices: []
+gate_ledger:
+  - gate_id: duplicate
+    status: passed
+  - gate_id: duplicate
+    status: blocked
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-contract-boolean") {
+		t.Fatalf("invalid lifecycle boolean was accepted: %#v", result)
+	}
+	if _, err := findManifestGate(path, "duplicate"); err == nil || !strings.Contains(err.Error(), "duplicate gate_id") {
+		t.Fatalf("duplicate gate lookup was accepted: %v", err)
+	}
+}
+
+func TestBlockerLifecycleContractRequiresQuarantineBoundary(t *testing.T) {
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: macos-release
+    owner_skill: kb-complete
+    gate_scope: optional-capability
+    status: quarantined
+    required_evidence: ["Windows and Linux are proven"]
+    proof: ["release receipts recorded"]
+    blockers: []
+    passed_at: "2026-07-26"
+    allowed_next_action: "ship supported platforms"
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	for _, code := range []string{"missing-quarantined-scope", "missing-quarantine-owner", "missing-quarantine-evidence", "missing-forbidden-claims"} {
+		if !hasManifestIssue(result.Issues, code) {
+			t.Fatalf("expected %s, got %#v", code, result)
+		}
+	}
+
+	valid := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: macos-release
+    owner_skill: kb-complete
+    gate_scope: optional-capability
+    status: quarantined
+    required_evidence: ["Windows and Linux are proven"]
+    proof: ["release receipts recorded"]
+    blockers: []
+    quarantined_scope: "macOS packaging only"
+    quarantine_owner: "release engineering"
+    quarantine_evidence: ["supported-platform matrix"]
+    forbidden_claims: ["macOS package is available"]
+    passed_at: "2026-07-26"
+    allowed_next_action: "ship supported platforms"
+---
+`)
+	result, err = validateManifestContract(valid)
+	if err != nil || !result.OK {
+		t.Fatalf("valid quarantine boundary failed: result=%#v err=%v", result, err)
+	}
+}
+
+func TestBlockerLifecycleContractRejectsStalePassAndDateOnlyCheck(t *testing.T) {
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: stale-pending
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: pending
+    passed_at: "2026-07-26"
+    allowed_next_action: "run proof"
+  - gate_id: date-only-blocker
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: blocked
+    blockers: ["dependency unavailable"]
+    attempted: ["checked dependency"]
+    responsibility: dependency
+    affected_scope: "integration slice"
+    resume_condition: "dependency responds"
+    recheck: "curl dependency health"
+    checked_at: "2026-07-26"
+    propagation: dependent-slices-only
+    allowed_next_action: "continue unrelated slices"
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !hasManifestIssue(result.Issues, "stale-passed-at") ||
+		!hasManifestIssue(result.Issues, "invalid-blocker-checked-at") {
+		t.Fatalf("expected stale pass and strict timestamp issues, got %#v", result)
+	}
+}
+
+func TestBlockerLifecycleContractPreservesColonAndCommaListItems(t *testing.T) {
+	path := writeManifest(t, `
+---
+blocker_lifecycle_contract: true
+slices: []
+gate_ledger:
+  - gate_id: dependency
+    owner_skill: kb-work
+    gate_scope: integration
+    status: blocked
+    blockers: ["Windows, Linux receipts missing"]
+    attempted:
+      - command: go test ./cmd/kbcheck
+    responsibility: dependency
+    affected_scope: "dependent integration slice"
+    resume_condition: "receipts exist"
+    recheck: "go test ./cmd/kbcheck"
+    checked_at: "`+time.Now().UTC().Format(time.RFC3339)+`"
+    propagation: dependent-slices-only
+    allowed_next_action: "continue unrelated slices"
+---
+`)
+	gates, err := parseManifestGates(path)
+	if err != nil {
+		t.Fatalf("parseManifestGates returned error: %v", err)
+	}
+	if len(gates) != 1 || len(gates[0].Blockers) != 1 ||
+		gates[0].Blockers[0] != "Windows, Linux receipts missing" ||
+		len(gates[0].Attempted) != 1 ||
+		gates[0].Attempted[0] != "command: go test ./cmd/kbcheck" {
+		t.Fatalf("list items were corrupted: %#v", gates)
 	}
 }
 

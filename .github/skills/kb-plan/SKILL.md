@@ -223,6 +223,11 @@ Check the proposed breakdown against:
 - Functional coverage: user-visible or cross-boundary slices include a narrow functional check unless explicitly justified.
 - Test-level classification: each slice says whether unit, integration, API/CLI/browser functional, or full-suite proof is required.
 - HITL: human flags are limited to credentials, external systems, subjective approval, or true decisions.
+- Blocker ownership: `research-first` and agent-fixable gaps are agent-owned;
+  use `needs-human`/`human-required` only when only the human can authorize,
+  supply, access, or judge the missing input.
+- Propagation: release, deployment, signing, optional-provider, and
+  optional-platform gates do not block implementation or unrelated slices.
 - Expected files: each slice declares likely touched files and scope, with enough specificity to guide the first edit. Do not pretend the list is exhaustive when current code may reveal adjacent files.
 - Context packet: material slices provide bounded context or record why a tiny
   slice does not need one. A packet must not embed raw chat history or broad
@@ -363,6 +368,7 @@ created: YYYY-MM-DD
 status: active
 workflow_shape: "<direct-chat|single-skill-edit|skill-bundle-change|pipeline-change|multi-stream-epic>"
 objective_contract: true
+blocker_lifecycle_contract: true
 done_check:
   kind: command_exit
   command: "<single command, gate, or artifact check that proves the whole KB objective is done>"
@@ -385,6 +391,7 @@ model_selection_contract:
 gate_ledger:
   - gate_id: brainstorm-to-plan
     owner_skill: kb-brainstorm
+    gate_scope: implementation
     status: passed
     required_evidence:
       - "<requirements path exists>"
@@ -399,6 +406,7 @@ gate_ledger:
     allowed_next_action: "kb-plan <requirements-path>"
   - gate_id: plan-to-work
     owner_skill: kb-plan
+    gate_scope: implementation
     status: passed
     required_evidence:
       - "<manifest path exists>"
@@ -478,6 +486,12 @@ Brainstorm: `<brainstorm_path>`
 | 2 | <title> | slice-001 | tdd | no | pending |
 | 3 | <title> | - | integration | no | pending |
 ```
+
+For every new gate, set `gate_scope`. When a gate is `blocked` or
+`needs-human`, add the typed lifecycle fields from
+`kb-gate/references/gate-ledger.md`: `attempted`, `responsibility`,
+`affected_scope`, `resume_condition`, `recheck`, `checked_at`, and
+`propagation`. A user pause does not change gate status.
 
 #### Individual Slice Plans: `docs/plans/YYYY-MM-DD-NNN-<type>-<name>-plan.md`
 
@@ -566,6 +580,9 @@ a restart packet, and link the manifest instead of copying its contents.
 - Confirm no dependency cycles exist.
 - Confirm every slice has a verification mode and acceptance criteria.
 - Confirm the manifest has a `plan-to-work` gate with `status: passed` or `status: blocked`; never leave it absent or pending.
+- Confirm new manifests set `blocker_lifecycle_contract: true`, every gate has
+  `gate_scope`, and every blocked/needs-human gate passes the ownership,
+  freshness, resume, and propagation contract.
 - Confirm every generated plan path is listed in the manifest.
 - Confirm the manifest body table matches the YAML frontmatter.
 

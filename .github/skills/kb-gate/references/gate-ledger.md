@@ -33,10 +33,14 @@ gate_ledger:
 | Status | Meaning | May Advance? |
 |---|---|---|
 | `pending` | Gate has not been checked | No |
-| `blocked` | Required evidence missing or unresolved P0/P1 exists | No |
-| `needs-human` | Human-only decision/input required | No |
+| `blocked` | Agent, dependency, or external issue is a real impasse for this gate | No |
+| `needs-human` | Only a human can authorize, supply, or judge the missing input | No |
 | `quarantined` | Known issue excluded from scope with explicit evidence and owner | Yes, only outside quarantined scope |
 | `passed` | Required evidence exists and blockers are resolved/quarantined | Yes |
+
+`needs-human` is the gate-ledger equivalent of a `human-required` slice.
+`paused` is not a gate result. A user pause stops execution while preserving
+the current gate result; it must not be rewritten as `blocked`.
 
 ## Required Fields
 
@@ -49,6 +53,56 @@ gate_ledger:
 - `blockers`: unresolved blockers with severity and owner.
 - `passed_at`: timestamp, only when status is `passed` or `quarantined`.
 - `allowed_next_action`: the only next command/phase allowed after this gate.
+
+## Blocker Lifecycle Contract
+
+New manifests should set:
+
+```yaml
+blocker_lifecycle_contract: true
+```
+
+Every gate then declares `gate_scope` as `implementation`, `integration`,
+`release`, `deployment`, or `optional-capability`.
+
+A `blocked` or `needs-human` gate also records:
+
+```yaml
+attempted:
+  - "<repair or ownership check already performed>"
+responsibility: agent|human|external|dependency
+affected_scope: "<smallest scope that actually cannot advance>"
+resume_condition: "<observable condition that clears the gate>"
+recheck: "<cheapest command or inspection that proves whether it still exists>"
+checked_at: "<RFC3339 timestamp with timezone>"
+propagation: current-gate-only|dependent-slices-only
+```
+
+A `quarantined` gate clears blocker lifecycle fields and instead records:
+
+```yaml
+quarantined_scope: "<exact excluded rows, files, platform, or capability>"
+quarantine_owner: "<owner responsible for the excluded issue>"
+quarantine_evidence:
+  - "<current evidence path or command result>"
+forbidden_claims:
+  - "<claim the next phase must not make>"
+```
+
+Rules:
+
+- Use `needs-human` only with `responsibility: human`.
+- Use `blocked` for `agent`, `external`, or `dependency` impasses only after
+  safe agent repair is exhausted.
+- Recheck the named sensor before repeating a blocker in a handoff or status
+  report. A nonterminal blocker older than 72 hours is stale.
+- Release, deployment, and optional-capability blockers use
+  `current-gate-only`. They do not downgrade implementation or unrelated
+  capabilities.
+- Remove blocker lifecycle metadata when a gate becomes `passed` or
+  `quarantined`. A quarantined gate must retain the separate scope, owner,
+  evidence, and forbidden-claims fields above; a fully passed gate clears them.
+- Nonadvanceable gates must not retain `passed_at`.
 
 ## Hard Rules
 
@@ -64,6 +118,9 @@ gate_ledger:
    missing or stale, stop and repair the ledger before doing work.
 6. If new evidence contradicts a passed gate, downgrade it to `blocked` and set
    `allowed_next_action` to the repair/review step.
+7. A blocked slice stops only dependent slices. Continue unrelated ready work.
+8. A user pause preserves the current technical status and authorizes no new
+   mutation unless the user also requested a handoff/state write.
 
 ## Question Gate Evidence
 

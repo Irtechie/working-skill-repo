@@ -14,14 +14,26 @@ import (
 )
 
 type manifestGate struct {
-	GateID            string
-	OwnerSkill        string
-	Status            string
-	RequiredEvidence  []string
-	Proof             []string
-	Blockers          []string
-	PassedAt          string
-	AllowedNextAction string
+	GateID             string
+	OwnerSkill         string
+	GateScope          string
+	Status             string
+	RequiredEvidence   []string
+	Proof              []string
+	Blockers           []string
+	Attempted          []string
+	Responsibility     string
+	AffectedScope      string
+	ResumeCondition    string
+	Recheck            string
+	CheckedAt          string
+	Propagation        string
+	QuarantinedScope   string
+	QuarantineOwner    string
+	QuarantineEvidence []string
+	ForbiddenClaims    []string
+	PassedAt           string
+	AllowedNextAction  string
 }
 
 type manifestContractIssue struct {
@@ -68,6 +80,14 @@ func runGateLedgerCommand(root string, opts options, stdout, stderr io.Writer) i
 		return 1
 	}
 	issues := validateAdvanceableGate(path, gate, opts.allowQuarantine)
+	lifecycleEnabled, lifecycleValid := manifestBoolContractValue(path, "blocker_lifecycle_contract")
+	if !lifecycleValid {
+		fmt.Fprintln(stderr, "invalid-contract-boolean: blocker_lifecycle_contract must be true or false")
+		return 2
+	}
+	if lifecycleEnabled {
+		issues = append(issues, validateBlockerLifecycleGate(gate, time.Now().UTC())...)
+	}
 	if opts.allowedNext != "" && gate.AllowedNextAction != opts.allowedNext {
 		issues = append(issues, manifestContractIssue{
 			Code:    "allowed-next-mismatch",
@@ -196,6 +216,10 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	impactPacketContract := manifestHasTopLevelKey(path, "impact_packet_contract")
 	workspaceIsolationContract := manifestHasTopLevelKey(path, "workspace_isolation_contract")
 	proofGovernorContract := manifestHasTopLevelKey(path, "proof_governor_contract")
+	blockerLifecycleContract, blockerLifecycleContractValid := manifestBoolContractValue(path, "blocker_lifecycle_contract")
+	if !blockerLifecycleContractValid {
+		issues = append(issues, manifestContractIssue{Code: "invalid-contract-boolean", Message: "blocker_lifecycle_contract must be true or false"})
+	}
 	if objectiveContract && !manifestHasTopLevelKey(path, "done_check") {
 		issues = append(issues, manifestContractIssue{Code: "missing-done-check", Message: "objective_contract requires a top-level done_check"})
 	}
@@ -320,7 +344,176 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 			issues = append(issues, validateAdvanceableGate(path, gate, true)...)
 		}
 	}
+	if blockerLifecycleContract {
+		seen := map[string]bool{}
+		for _, gate := range gates {
+			if seen[gate.GateID] {
+				issues = append(issues, manifestContractIssue{
+					Code:    "duplicate-gate-id",
+					GateID:  gate.GateID,
+					Message: "blocker_lifecycle_contract requires unique gate_id values",
+				})
+			}
+			seen[gate.GateID] = true
+			issues = append(issues, validateBlockerLifecycleGate(gate, time.Now().UTC())...)
+		}
+	}
 	return manifestContractResult{OK: len(issues) == 0, Issues: issues}, nil
+}
+
+func validateBlockerLifecycleGate(gate manifestGate, now time.Time) []manifestContractIssue {
+	issues := []manifestContractIssue{}
+	add := func(code, message string) {
+		issues = append(issues, manifestContractIssue{Code: code, GateID: gate.GateID, Message: message})
+	}
+
+	if strings.TrimSpace(gate.GateID) == "" {
+		add("missing-gate-id", "blocker_lifecycle_contract requires gate_id")
+	}
+	if strings.TrimSpace(gate.OwnerSkill) == "" {
+		add("missing-gate-owner", "blocker_lifecycle_contract requires owner_skill")
+	}
+	if !validBlockerLifecycleGateScope(gate.GateScope) {
+		add("invalid-gate-scope", "gate_scope must be implementation, integration, release, deployment, or optional-capability")
+	}
+	if strings.TrimSpace(gate.AllowedNextAction) == "" {
+		add("missing-allowed-next-action", "blocker_lifecycle_contract requires allowed_next_action")
+	}
+	switch gate.Status {
+	case "pending", "passed", "quarantined":
+	case "blocked", "needs-human":
+		if len(gate.Blockers) == 0 {
+			add("missing-blocker-detail", "blocked and needs-human gates require at least one blocker")
+		}
+		if len(gate.Attempted) == 0 {
+			add("missing-blocker-attempt", "blocked and needs-human gates must record what was attempted or how human-only ownership was confirmed")
+		}
+		if strings.TrimSpace(gate.AffectedScope) == "" {
+			add("missing-affected-scope", "blocked and needs-human gates require affected_scope")
+		}
+		if strings.TrimSpace(gate.ResumeCondition) == "" {
+			add("missing-resume-condition", "blocked and needs-human gates require resume_condition")
+		}
+		if strings.TrimSpace(gate.Recheck) == "" {
+			add("missing-blocker-recheck", "blocked and needs-human gates require a runnable or inspectable recheck sensor")
+		}
+		if strings.TrimSpace(gate.CheckedAt) == "" {
+			add("missing-blocker-checked-at", "blocked and needs-human gates require checked_at")
+		} else if checked, ok := parseGateTimestamp(gate.CheckedAt); !ok {
+			add("invalid-blocker-checked-at", "checked_at must be RFC3339 with timezone")
+		} else {
+			age := now.Sub(checked)
+			if age > 72*time.Hour {
+				add("stale-blocker", fmt.Sprintf("blocker was last checked %s ago; rerun %q before reporting it", age.Round(time.Hour), gate.Recheck))
+			}
+			if age < -5*time.Minute {
+				add("future-blocker-check", "checked_at is in the future")
+			}
+		}
+		if !validBlockerPropagation(gate.Propagation) {
+			add("invalid-blocker-propagation", "propagation must be current-gate-only or dependent-slices-only")
+		}
+		if gate.Status == "needs-human" && gate.Responsibility != "human" {
+			add("misowned-human-gate", "needs-human requires responsibility: human")
+		}
+		if gate.Status == "blocked" && !oneOf(gate.Responsibility, "agent", "external", "dependency") {
+			add("misowned-blocked-gate", "blocked requires responsibility: agent, external, or dependency; use needs-human for human-owned action")
+		}
+		if oneOf(gate.GateScope, "release", "deployment", "optional-capability") && gate.Propagation != "current-gate-only" {
+			add("overpropagated-gate", "release, deployment, and optional-capability blockers may affect only their current gate")
+		}
+	default:
+		add("invalid-gate-status", "status must be pending, blocked, needs-human, quarantined, or passed; pause is execution control state, not a gate result")
+	}
+
+	if isAdvanceableGate(gate.Status, true) {
+		if _, ok := parseGateTime(gate.PassedAt); !ok {
+			add("invalid-passed-at", "passed_at must be YYYY-MM-DD or RFC3339")
+		}
+		if gate.Responsibility != "" || gate.AffectedScope != "" || gate.ResumeCondition != "" ||
+			gate.Recheck != "" || gate.CheckedAt != "" || gate.Propagation != "" || len(gate.Attempted) > 0 {
+			add("stale-blocker-metadata", "advanceable gate must clear prior blocker lifecycle metadata")
+		}
+		if gate.Status == "quarantined" {
+			if strings.TrimSpace(gate.QuarantinedScope) == "" {
+				add("missing-quarantined-scope", "quarantined gate requires quarantined_scope")
+			}
+			if strings.TrimSpace(gate.QuarantineOwner) == "" {
+				add("missing-quarantine-owner", "quarantined gate requires quarantine_owner")
+			}
+			if len(gate.QuarantineEvidence) == 0 {
+				add("missing-quarantine-evidence", "quarantined gate requires quarantine_evidence")
+			}
+			if len(gate.ForbiddenClaims) == 0 {
+				add("missing-forbidden-claims", "quarantined gate requires forbidden_claims")
+			}
+		} else if gate.QuarantinedScope != "" || gate.QuarantineOwner != "" ||
+			len(gate.QuarantineEvidence) > 0 || len(gate.ForbiddenClaims) > 0 {
+			add("stale-quarantine-metadata", "passed gate must clear prior quarantine metadata")
+		}
+	} else if strings.TrimSpace(gate.PassedAt) != "" {
+		add("stale-passed-at", "nonadvanceable gate must not retain passed_at")
+	}
+	return issues
+}
+
+func validBlockerLifecycleGateScope(value string) bool {
+	return oneOf(value, "implementation", "integration", "release", "deployment", "optional-capability")
+}
+
+func validBlockerPropagation(value string) bool {
+	return oneOf(value, "current-gate-only", "dependent-slices-only")
+}
+
+func oneOf(value string, allowed ...string) bool {
+	for _, candidate := range allowed {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func parseGateTime(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UTC(), true
+		}
+	}
+	return time.Time{}, false
+}
+
+func parseGateTimestamp(value string) (time.Time, bool) {
+	parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed.UTC(), true
+}
+
+func manifestBoolContractValue(path, key string) (bool, bool) {
+	frontmatter, err := loadManifestFrontmatter(path)
+	if err != nil {
+		return false, false
+	}
+	for _, line := range strings.Split(frontmatter, "\n") {
+		if countIndent(line) != 0 {
+			continue
+		}
+		found, value, ok := splitYAMLKeyValue(line)
+		if ok && found == key {
+			switch strings.ToLower(strings.TrimSpace(value)) {
+			case "true":
+				return true, true
+			case "false":
+				return false, true
+			default:
+				return false, false
+			}
+		}
+	}
+	return false, true
 }
 
 func validManifestTestLevel(value string) bool {
@@ -551,10 +744,18 @@ func findManifestGate(path, gateID string) (manifestGate, error) {
 	if err != nil {
 		return manifestGate{}, err
 	}
-	for _, gate := range gates {
+	var match *manifestGate
+	for i := range gates {
+		gate := gates[i]
 		if gate.GateID == gateID {
-			return gate, nil
+			if match != nil {
+				return manifestGate{}, fmt.Errorf("duplicate gate_id %q", gateID)
+			}
+			match = &gates[i]
 		}
+	}
+	if match != nil {
+		return *match, nil
 	}
 	return manifestGate{}, fmt.Errorf("gate %q not found", gateID)
 }
@@ -664,6 +865,11 @@ func parseManifestGates(path string) ([]manifestGate, error) {
 			currentList = ""
 			continue
 		}
+		if values, ok := parseSimpleInlineList(value); ok {
+			assignManifestGateList(current, key, values)
+			currentList = ""
+			continue
+		}
 		assignManifestGateValue(current, key, value)
 		currentList = ""
 	}
@@ -671,6 +877,54 @@ func parseManifestGates(path string) ([]manifestGate, error) {
 		gates = append(gates, *current)
 	}
 	return gates, nil
+}
+
+func parseSimpleInlineList(value string) ([]string, bool) {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "[") || !strings.HasSuffix(value, "]") {
+		return nil, false
+	}
+	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(value, "["), "]"))
+	if inner == "" {
+		return []string{}, true
+	}
+	parts := []string{}
+	start := 0
+	var quote rune
+	escaped := false
+	for index, char := range inner {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if char == '\\' && quote == '"' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if char == quote {
+				quote = 0
+			}
+			continue
+		}
+		if char == '\'' || char == '"' {
+			quote = char
+			continue
+		}
+		if char == ',' {
+			parts = append(parts, inner[start:index])
+			start = index + 1
+		}
+	}
+	if quote != 0 || escaped {
+		return nil, false
+	}
+	parts = append(parts, inner[start:])
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		values = append(values, cleanYAMLScalar(part))
+	}
+	return values, true
 }
 
 func loadManifestFrontmatter(path string) (string, error) {
@@ -705,8 +959,26 @@ func assignManifestGateValue(gate *manifestGate, key, value string) {
 		gate.GateID = value
 	case "owner_skill":
 		gate.OwnerSkill = value
+	case "gate_scope":
+		gate.GateScope = value
 	case "status":
 		gate.Status = value
+	case "responsibility":
+		gate.Responsibility = value
+	case "affected_scope":
+		gate.AffectedScope = value
+	case "resume_condition":
+		gate.ResumeCondition = value
+	case "recheck":
+		gate.Recheck = value
+	case "checked_at":
+		gate.CheckedAt = value
+	case "propagation":
+		gate.Propagation = value
+	case "quarantined_scope":
+		gate.QuarantinedScope = value
+	case "quarantine_owner":
+		gate.QuarantineOwner = value
 	case "passed_at":
 		gate.PassedAt = value
 	case "allowed_next_action":
@@ -722,6 +994,12 @@ func assignManifestGateList(gate *manifestGate, key string, values []string) {
 		gate.Proof = values
 	case "blockers":
 		gate.Blockers = values
+	case "attempted":
+		gate.Attempted = values
+	case "quarantine_evidence":
+		gate.QuarantineEvidence = values
+	case "forbidden_claims":
+		gate.ForbiddenClaims = values
 	}
 }
 
@@ -733,6 +1011,12 @@ func appendManifestGateList(gate *manifestGate, key, value string) {
 		gate.Proof = append(gate.Proof, value)
 	case "blockers":
 		gate.Blockers = append(gate.Blockers, value)
+	case "attempted":
+		gate.Attempted = append(gate.Attempted, value)
+	case "quarantine_evidence":
+		gate.QuarantineEvidence = append(gate.QuarantineEvidence, value)
+	case "forbidden_claims":
+		gate.ForbiddenClaims = append(gate.ForbiddenClaims, value)
 	}
 }
 
