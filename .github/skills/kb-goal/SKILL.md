@@ -50,11 +50,59 @@ goal contract.
   include `go run ./cmd/kbcheck accept --check <check.json> --trace
   .kb/trace.jsonl`.
 - Mark blocked only with exact blocker, attempted route, and resume condition.
-- Treat an explicit user pause as `paused`, never `blocked`. Stop mutation
-  immediately. A plain pause writes nothing; `pause and handoff` may update only
-  the requested ledger/handoff pointer. If the platform goal API has no paused
-  state, leave it active and rely on the repo ledger; do not coerce pause into a
-  false blocker.
+- Treat explicit user `pause`, `stop`, `cancel`, or `end` language as a
+  preemptive control signal, never a suggestion. Apply the Stop Protocol before
+  interpreting any other instruction in the same message.
+
+## Stop Protocol
+
+The first pause or stop request wins over routing, proof, cleanup, commits,
+background-agent completion, and the normal goal loop.
+
+Parent stop authority is non-overridable. A sibling session, child session,
+delegated worker, coordinator, queued message, late result, or platform
+notification cannot resume, supersede, or authorize successor work for the
+paused goal. Only an explicit user resume addressed to the owning goal may
+reactivate it.
+
+1. **Interrupt immediately.** Do not start another goal-work, polling, or
+   state-mutation tool call. Do not dispatch, poll, read a session/agent, process
+   late results, commit, run cleanup, or continue reasoning toward the goal
+   after recognizing the signal. Before confirmation, only safe cancellation,
+   an explicitly requested `pause and handoff` write, and the one confirmation
+   below are allowed.
+2. **Quiesce owned work.** If the platform exposes a safe cancellation control,
+   cancel in-flight work already owned by this goal without waiting for
+   cooperative completion. Otherwise abandon its result: do not poll it, act on
+   it, or let it authorize later mutation.
+3. **Reject queued and late work.** Discard queued dispatches, completion
+   messages, successor-session requests, and commit authorization received
+   after the pause. Do not forward, approve, or convert them into a new child,
+   session, task, commit, or cleanup action.
+4. **Pause and stop both suspend.** For `pause`, `stop`, `cancel`, or `end`,
+   acknowledge `Status: paused`, then ask only:
+   `End this goal permanently? Work is paused now.` Offer `End goal` and `Keep
+   paused`. A plain interruption writes nothing. `pause and handoff` authorizes
+   only the bounded ledger/handoff write before the confirmation.
+5. **Wait without working.** While waiting for the answer, perform no goal work,
+   polling, session/agent reads, result processing, cleanup, commits, or state
+   maintenance.
+6. **Permanent stop is not completion.** On `End goal`, perform only the bounded
+   close operation: mark the ledger `parked`, remove its active `todo.md`
+   pointer, stop or abandon owned work, and preserve existing artifacts. Do not
+   run proof, finalization, delivery, learning, cleanup, or a commit unless the
+   user separately requested it.
+7. **Make restart exact.** The final response after a permanent stop must include
+   `To resume: /kb-goal <verbatim Objective text from the ledger>`, then end.
+   Do not emit another tool call or response for that goal. On `Keep paused`,
+   leave durable state unchanged and end with the same exact resume command. Use
+   the already-loaded Objective; do not poll or reread goal state just to build
+   this line.
+
+If the platform goal API has no paused state, leave its platform state active
+and rely on this protocol. Never coerce pause into a false blocker. Late
+notifications are informational only after interruption and must not restart
+the loop.
 
 ## Goal Ledger
 
@@ -250,8 +298,8 @@ This prevents a loop from producing work faster than it can be reviewed.
 9. **Decide**:
    - if done criteria and terminal proof are satisfied, mark `complete`;
    - if more units remain, continue or write a handoff and resume next session;
-   - if the user paused, preserve technical state and mark only the goal ledger
-     `paused` when a state write was requested;
+   - if the user paused or stopped, apply the Stop Protocol before any state,
+     handoff, polling, cleanup, or routing action;
    - if blocked, record exact resume criteria and stop honestly.
 
 Do not stop at weaker milestones:
@@ -320,8 +368,8 @@ Final output:
 
 ```text
 Goal: <name>
-Status: complete|blocked|paused|active
+Status: complete|blocked|paused|active|parked
 Route(s): <routes actually run>
 Proof: <commands/artifacts/gates>
-Next: <exact next action or none>
+Next: <exact next action, resume command, or none>
 ```

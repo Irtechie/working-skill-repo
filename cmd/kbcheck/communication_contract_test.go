@@ -56,8 +56,14 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			"Slice execution fails with progress possible",
 		},
 		".github/skills/kb-goal/SKILL.md": {
-			"Treat an explicit user pause as `paused`, never `blocked`.",
-			"do not coerce pause into a",
+			"preemptive control signal, never a suggestion",
+			"## Stop Protocol",
+			"Do not start another goal-work, polling, or",
+			"End this goal permanently? Work is paused now.",
+			"To resume: /kb-goal <verbatim Objective text from the ledger>",
+			"Parent stop authority is non-overridable.",
+			"Reject queued and late work",
+			"Never coerce pause into a false blocker.",
 			"Before marking or repeating a blocker",
 		},
 		".github/skills/kb-complete/SKILL.md": {
@@ -108,13 +114,18 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			"hard response only the user can",
 			"low-burden PR first screen",
 			"go run ./cmd/kbbrief",
-			"A user pause stops work but is not a",
+			"A user pause stops work immediately",
+			"after a stop signal, the goal does not dispatch",
+			"No sibling, child, or coordinator may override the parent freeze",
 			"Every blocker is rechecked before it is repeated",
 		},
 		"docs/context/architecture/kb-workflow.md": {
 			"### Blocker Lifecycle",
 			"`paused` is rejected as a gate",
 			"Only dependent work stops",
+			"User interruption has higher priority than that loop.",
+			"Parent pause and stop authority is non-overridable",
+			"returns the exact `To resume: /kb-goal <objective>` command",
 		},
 	}
 

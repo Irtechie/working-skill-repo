@@ -91,7 +91,7 @@ Workflow state distinguishes execution control from technical proof:
 
 | State | Meaning | Propagation |
 |---|---|---|
-| `paused` | The user stopped execution | No gate mutation; a requested handoff may record paused state |
+| `paused` | The user preemptively stopped execution | No new dispatch, polling, late-result reads, cleanup, commits, or gate mutation; a requested handoff may record paused state |
 | `blocked` | A current agent, dependency, tool, or access impasse remains after recheck | Only dependent work stops |
 | `needs-human` / `human-required` | Only the user can authorize, supply, access, risk-accept, or judge the next step | Only the affected decision and its dependents stop |
 | `repairing` / `in_progress` | The agent can still safely fix or verify the failure | Work continues |
@@ -196,6 +196,17 @@ several manifests over days, but it completes only when the goal ledger's
 terminal proof matches the original objective. Under a goal, brainstorm stops are minimized:
 the agent resolves the best path from repo evidence, research, and safe
 assumptions, and asks only for true `ask-now` blockers.
+
+User interruption has higher priority than that loop. `pause` ends goal activity
+immediately. `pause`, `stop`, `cancel`, or `end` suspends activity before asking
+whether to park the goal permanently or keep it paused. The controller does not
+poll agents or sessions, consume late results, run cleanup, commit, or dispatch
+more work while awaiting confirmation.
+Parent pause and stop authority is non-overridable: sibling sessions, child
+sessions, coordinators, queued messages, and late results cannot authorize
+successor work or a commit. Only an explicit user resume addressed to the owning
+goal can reactivate it. A permanent end parks—not completes—the ledger and
+returns the exact `To resume: /kb-goal <objective>` command.
 
 `kb-work` auto-invokes only `kb-finalize`, which cannot publish. Explicit
 `kb-complete` applies project delivery policy after finalization. `kb-finish`

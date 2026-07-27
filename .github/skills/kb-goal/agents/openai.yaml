@@ -1,4 +1,4 @@
 interface:
   display_name: "KB Goal"
   short_description: "Durable objective governor"
-  default_prompt: "Use $kb-goal to keep a long-lived objective moving through KB routes until it is proven complete or honestly blocked."
+  default_prompt: "Use $kb-goal to keep a long-lived objective moving through KB routes until it is proven complete, honestly blocked, or preemptively paused or stopped by the user."

@@ -13,6 +13,7 @@ const (
 	jobObjectExtendedLimitInformationClass = 9
 	jobObjectLimitKillOnJobClose           = 0x00002000
 	createSuspended                        = 0x00000004
+	createBreakawayFromJob                 = 0x01000000
 	processSetQuota                        = 0x0100
 	processTerminate                       = 0x0001
 	processSuspendResume                   = 0x0800
@@ -72,7 +73,7 @@ func configureProcessTree(cmd *exec.Cmd) error {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	cmd.SysProcAttr.CreationFlags |= createSuspended
+	cmd.SysProcAttr.CreationFlags |= createSuspended | createBreakawayFromJob
 	return nil
 }
 

@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -40,5 +41,16 @@ func TestC1WindowsJobObjectKillsGrandchild(t *testing.T) {
 		} else if !os.IsNotExist(err) {
 			t.Fatalf("attempt %d stat sentinel: %v", attempt, err)
 		}
+	}
+}
+
+func TestConfigureProcessTreeRequestsBreakawayBeforeJobAssignment(t *testing.T) {
+	cmd := &exec.Cmd{}
+	if err := configureProcessTree(cmd); err != nil {
+		t.Fatal(err)
+	}
+	want := uint32(createSuspended | createBreakawayFromJob)
+	if cmd.SysProcAttr == nil || cmd.SysProcAttr.CreationFlags&want != want {
+		t.Fatalf("creation flags = 0x%x, want suspended and breakaway flags 0x%x", cmd.SysProcAttr.CreationFlags, want)
 	}
 }

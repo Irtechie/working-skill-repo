@@ -82,6 +82,15 @@ complete or honestly blocked. Under a goal, brainstorming is low-interruption:
 the agent picks the best path from evidence and asks only for true planning
 blockers.
 
+Pause and stop are preemptive controls, not steering suggestions. `pause`,
+`stop`, `cancel`, or `end` interrupts goal work immediately, then asks whether
+to end the goal or keep it paused. No dispatch, polling, cleanup, or state
+maintenance continues while awaiting that answer. A confirmed end parks the
+ledger without claiming completion and prints the exact `/kb-goal <objective>`
+command needed to resume it.
+No sibling, child, or coordinator may override the parent freeze; queued or
+late successor work is rejected.
+
 For recurring or trend-improvement goals, `kb-goal` can also record a live
 steering loop: set point, sensor, controller, actuator, scope gate, batch size,
 WIP bound, dampener, and steering memory. This is optional. It helps repeated
@@ -478,12 +487,14 @@ Routing and memory:
 - `pr-review-workbench` - lazy-load after PR creation to generate an offline
   decision topology with a guided review path, source-backed application-impact
 
-Blocker handling is responsibility-first. A user pause stops work but is not a
-technical failure. Agent-owned code, test, UI, controller, and reproducibility
-problems stay in repair while safe progress remains. `human-required` is
-reserved for authority, credentials/access, private input, irreversible risk,
-or subjective judgment. Every blocker is rechecked before it is repeated, and
-release or optional-capability failures affect only their own delivery scope.
+Blocker handling is responsibility-first. A user pause stops work immediately
+but is not a technical failure; after a stop signal, the goal does not dispatch,
+poll, read late results, clean up, or commit. Agent-owned code, test, UI,
+controller, and reproducibility problems stay in repair while safe progress
+remains. `human-required` is reserved for authority, credentials/access,
+private input, irreversible risk, or subjective judgment.
+Every blocker is rechecked before it is repeated, and release or
+optional-capability failures affect only their own delivery scope.
   ordering, and linked evidence
 - `kb-handoff` - compact a session into a restart packet
 
