@@ -45,7 +45,7 @@ func runModelsSelect(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&opts.tier, "tier", "", "small, medium, or large")
 	fs.StringVar(&opts.attemptTier, "attempt-tier", "", "experimental AMR compatibility only; omitted by normal DDR")
 	fs.StringVar(&opts.executionOwner, "execution-owner", "", "orchestrator decision: current or delegated")
-	fs.StringVar(&opts.ownerReason, "owner-reason", "", "why the orchestrator retained or delegated execution")
+	fs.StringVar(&opts.ownerReason, "owner-reason", "", "delegated rationale, or current: reasoning-required|context-required|tool-required|authority-required|trust-required|user-required|no-qualified-route (optional ': explanation')")
 	fs.StringVar(&opts.tierReason, "tier-reason", "", "why this capability tier is required")
 	fs.StringVar(&opts.taskFamily, "task-family", "", "task family")
 	fs.Var(&opts.tools, "tool", "required tool; repeatable")

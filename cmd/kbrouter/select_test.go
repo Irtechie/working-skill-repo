@@ -55,6 +55,30 @@ func TestModelsSelectRequiresExplicitOwnershipDecision(t *testing.T) {
 	}
 }
 
+func TestModelsSelectRejectsVagueCurrentOwnerReason(t *testing.T) {
+	skipIfPrivateACLUnsupported(t)
+	fixture := newDispatchFixture(t, "select-invalid-current-reason")
+	fixture.installCatalog()
+	prepared, err := prepareRunRoot(fixture.projectRoot, fixture.runRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := saveDispatchTrustedState(fixture.userRoot, prepared, loadRunCatalogForTest(t, fixture.runRoot)); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--execution-owner", "current", "--owner-reason", "this is complex", "--tier-reason", "fixture medium capability", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--json")
+	if code != 1 || stderr != "" {
+		t.Fatalf("vague current reason was not returned as invalid work: code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	var out selectOutput
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Status != modelrouting.SelectionUnavailable || out.ErrorClass != "invalid-work-request" {
+		t.Fatalf("unexpected invalid current reason output: %#v", out)
+	}
+}
+
 func TestModelsSelectReportsExplicitAttemptAndPlannedCorrectionTiers(t *testing.T) {
 	skipIfPrivateACLUnsupported(t)
 	fixture := newDispatchFixture(t, "select-attempt-cli")

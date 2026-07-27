@@ -749,7 +749,7 @@ func TestDiscoveredCurrentRouteCanRetainExplicitCurrentOwnership(t *testing.T) {
 	request := modelrouting.WorkRequest{
 		PlannedTier:    modelrouting.TierLarge,
 		ExecutionOwner: modelrouting.ExecutionOwnerCurrent,
-		OwnerReason:    "orchestrator reasoning required",
+		OwnerReason:    "reasoning-required: orchestrator reasoning required",
 		TierReason:     "large reasoning task",
 		TaskFamily:     "code",
 		Tools:          []string{"apply_patch", "go test"},

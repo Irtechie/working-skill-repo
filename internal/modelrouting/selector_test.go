@@ -36,6 +36,67 @@ func TestSelectRouteCurrentOwnerWinsEvenWhenDelegatedWorkersExist(t *testing.T) 
 	}
 }
 
+func TestSelectRouteCurrentOwnerRequiresRecognizedReasonCode(t *testing.T) {
+	now := fixedNow()
+	catalog := catalogWithCurrent(now, nil)
+
+	for name, reason := range map[string]string{
+		"vague":             "this looks complex",
+		"empty explanation": "reasoning-required:",
+		"recognized code":   "reasoning-required: cross-file synthesis needs the orchestrator context",
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := broadRequest(TierLarge)
+			req.ExecutionOwner = ExecutionOwnerCurrent
+			req.OwnerReason = reason
+
+			decision, err := selectForTest(t, catalog, req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+			if name == "recognized code" {
+				if err != nil || decision.Status != SelectionCurrent {
+					t.Fatalf("recognized current exception was rejected: decision=%#v err=%v", decision, err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrInvalidWorkRequest) || decision.Status != SelectionUnavailable {
+				t.Fatalf("invalid current reason was accepted: decision=%#v err=%v", decision, err)
+			}
+		})
+	}
+}
+
+func TestSelectRouteCurrentNoQualifiedRouteRequiresNoEligibleWorker(t *testing.T) {
+	now := fixedNow()
+	req := broadRequest(TierLarge)
+	req.ExecutionOwner = ExecutionOwnerCurrent
+	req.OwnerReason = "no-qualified-route: no matching worker route"
+
+	withWorker := catalogWithCurrent(now, []Route{
+		provenRoute("worker-large", ClassLarge, "openai", "codex", "named-agent", "worker-large", "code", now.Add(time.Hour)),
+	})
+	decision, err := selectForTest(t, withWorker, req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if !errors.Is(err, ErrInvalidWorkRequest) || decision.Status != SelectionUnavailable {
+		t.Fatalf("no-qualified-route skipped an eligible worker: decision=%#v err=%v", decision, err)
+	}
+
+	decision, err = selectForTest(t, catalogWithCurrent(now, nil), req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil || decision.Status != SelectionCurrent || decision.Current.ModelID != "current-gpt" {
+		t.Fatalf("no-qualified-route did not retain qualified current owner: decision=%#v err=%v", decision, err)
+	}
+}
+
+func TestSelectRouteDelegatedOwnerAcceptsWorkflowSpecificReason(t *testing.T) {
+	now := fixedNow()
+	req := broadRequest(TierMedium)
+	req.OwnerReason = "selected after live capability lookup"
+	catalog := catalogWithCurrent(now, []Route{
+		provenRoute("worker-medium", ClassMedium, "openai", "codex", "named-agent", "worker-medium", "code", now.Add(time.Hour)),
+	})
+	decision, err := selectForTest(t, catalog, req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
+	if err != nil || decision.Status != SelectionRouted || len(decision.Routes) != 1 {
+		t.Fatalf("delegated workflow reason was rejected: decision=%#v err=%v", decision, err)
+	}
+}
+
 func TestSelectRouteCurrentOwnerMustMeetCapabilityEnvelope(t *testing.T) {
 	now := fixedNow()
 	catalog := catalogWithCurrent(now, nil)

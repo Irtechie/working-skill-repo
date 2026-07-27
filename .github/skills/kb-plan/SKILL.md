@@ -244,16 +244,28 @@ and any objective-contract fields. If any proof is missing, set
 
 `model_tier` records the minimum execution capability the orchestrator judges
 necessary for the slice. It is not a permanent worker assignment and not a
-proof level. Verification requirements stay the same regardless of tier.
-`kb-work` decides whether the current orchestrator must retain execution because
-its reasoning, context, tools, or authority are required, or whether one
-qualified worker may execute the bounded slice. The plan does not record a
-model, route alias, provider, or `attempt_tier`.
+proof level. Verification requirements stay the same regardless of tier. The
+orchestrator owns planning, tier judgment, selection, supervision, proof, and
+synthesis; one qualified same-tier-or-higher subagent normally owns bounded
+execution. `kb-work` may retain execution only through its recognized
+current-owner exception gate. The plan does not record a model, route alias,
+provider, or `attempt_tier`.
+
+That owner rule is per slice. Plan dependencies, `conflict_domains`, and
+`shared_resources` so `kb-work` can run every safe independent ready slice on
+its own qualified subagent in parallel. Do not invent dependencies merely to
+serialize work.
 
 The planner never chooses a native model, extra-route alias, provider, adapter,
 endpoint, or transport. The current master resolves live native routes and any
 saved project source preference immediately before work. The actual route
 belongs in the receipt. Only run-scoped `require <model>` hard-pins.
+
+Treat tiers as portable complexity requirements. The same planned `medium`
+slice may resolve to different concrete models when any compatible CLI or host
+picks it up. At pickup, that runner's orchestrator chooses from its exact live,
+qualified routes; never copy a model name from another host or freeze an
+example route into the plan.
 
 | Tier | Good fit | Do not assign |
 |---|---|---|
@@ -269,8 +281,9 @@ capability is needed, not merely name a task type.
 Legacy `tiny` remains readable as a `small`-lane hint only. When unsure, choose
 the higher tier. Subjective design direction, philosophy/policy judgment,
 unresolved architecture, weak proof, and security/auth/data-boundary decisions
-normally require the current orchestrator or HITL. Straightforward code is not
-enough by itself to justify delegation or a lower tier.
+may justify a recognized current-owner exception or HITL. Complexity must be
+tied to the reasoning, context, tool, authority, or trust requirement it
+creates. Straightforward code is not enough by itself to justify a lower tier.
 
 ### Workspace Isolation Contract
 
@@ -361,6 +374,7 @@ model_tier_contract:
 model_selection_contract:
   timing: work-time
   decision_owner: orchestrator
+  default_owner: delegated
   owner_choice: current-or-delegated
   max_owner_decisions_per_slice: 1
   catalog: active-host-plus-user-local

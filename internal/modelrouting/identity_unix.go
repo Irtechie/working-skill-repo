@@ -5,8 +5,13 @@ package modelrouting
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 )
+
+func canonicalizeExistingPath(path string) (string, error) {
+	return filepath.EvalSymlinks(path)
+}
 
 func fileObjectIdentity(path string) (string, error) {
 	information, err := os.Stat(path)

@@ -245,12 +245,22 @@ tier records minimum execution capability (`small`, `medium`, `large`; legacy
 does not freeze a worker.
 
 Plans contain tier, requirements, risk, and proof only. They never name a model,
-route alias, source preference, adapter, endpoint, or transport. The current
-orchestrator decides once whether its own reasoning, accumulated context, tools,
-trust, or authority require `current` execution. Otherwise it chooses
-`delegated` and selects exactly one qualified same-tier-or-higher worker. The
-receipt records that owner and the actual route. Only run-scoped
-`require <model>` hard-pins a delegated route.
+route alias, source preference, adapter, endpoint, or transport. The
+orchestrator owns planning, minimum-tier judgment, selection, supervision,
+proof, and synthesis. One qualified same-tier-or-higher subagent normally owns
+each bounded slice. This is one owner per slice, not one worker per plan: every
+safe independent ready slice may run on its own tier-qualified subagent in
+parallel when dependencies, writes, and shared resources are isolated. The
+orchestrator may retain execution only through a recognized reason gate:
+required reasoning, accumulated context, tools, authority, trust, an explicit
+user requirement, or a proved lack of qualified routes. The receipt records
+that owner and the actual route. Only run-scoped `require <model>` hard-pins a
+delegated route.
+
+The tier is portable across hosts. When a plan is picked up, any compatible CLI
+or host maps each ready slice to an exact live route on its own callable
+surface. Different runners may choose different concrete models for the same
+tier without changing the plan.
 
 Ordinary map/bootstrap and native-only work ask no routing questions. Explicit
 `kb-models` setup may add user-local OpenAI-compatible/LiteLLM routes whose
@@ -264,9 +274,10 @@ Host-native and CLI/local delegation are distinct executable branches:
 
 ```text
 required tier + bounded packet
-  -> current reasoning/context/tools/authority required? current execution
-  -> native host target chosen? invoke the exact callable-agent schema directly
-  -> CLI or user-local target chosen? kbrouter discover/select/dispatch
+  -> recognized current-owner exception? current execution
+  -> otherwise inspect native host and CLI/user-local routes
+  -> select one qualified same-tier-or-higher subagent
+  -> no qualified route? record no-qualified-route and validate current
   -> deterministic proof accepts or rejects the result
 ```
 

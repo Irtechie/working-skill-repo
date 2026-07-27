@@ -225,7 +225,16 @@ risk, tools, context, and proof without freezing a model name. `kb-work` reads
 the active host's exact callable schema, then merges optional user-local
 OpenAI-compatible/LiteLLM extras for delegated selection. Extra origin, hosting
 class, and trust are independent: an extra may be self-hosted, provider-hosted,
-or unknown. The orchestrator chooses `current` or `delegated` once; delegated
+or unknown. A planned tier is portable: any compatible CLI or host may map the
+same slice to a different concrete model when it picks the plan up. The
+selected model is runtime receipt data, not durable plan state. The
+orchestrator scopes the work, sets its minimum tier, and
+supervises proof; one qualified subagent normally executes each bounded slice.
+That is one owner per slice, not one worker per plan: safe independent ready
+slices run in parallel when their dependencies, writes, and shared resources
+are isolated. Keeping execution on the orchestrator is a semi-gated exception
+for required reasoning, accumulated context, tools, authority, trust, an
+explicit user requirement, or a proved lack of qualified routes. Delegated
 selection falls sideways and then upward and never crosses back to current
 silently. Routing receipts are attribution evidence, while deterministic work
 proof remains the acceptance authority. Endpoints, auth references, approvals,
@@ -236,7 +245,7 @@ Current evidence is deliberately conservative:
 | Surface | Status |
 | --- | --- |
 | Orchestrator-owned current execution and ordinary proof | Supported |
-| Owner-first selector and one-worker delegated selection | Deterministic conformance |
+| Delegation-first selector, current-owner exception gate, and one-worker-per-slice selection | Deterministic conformance |
 | Codex CLI plus a trusted OpenAI-compatible/LiteLLM route | Candidate; live support not qualified |
 | Automatic surgical correction | Unsupported; fails closed before worker launch or mutation |
 | GHCP, exact Codex App attribution, TinyBoss, generic MCP, direct chat-completions worker | Parked |

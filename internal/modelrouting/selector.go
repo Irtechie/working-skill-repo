@@ -102,6 +102,10 @@ func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyConte
 			decision.Status = SelectionUnavailable
 			return decision, ErrInvalidWorkRequest
 		}
+		if currentOwnerReasonCode(req.OwnerReason) == "no-qualified-route" && len(eligibleRoutes(catalog, req, policy, ledger, now)) > 0 {
+			decision.Status = SelectionUnavailable
+			return decision, ErrInvalidWorkRequest
+		}
 		if !currentEligible(catalog.Current, req, policy, now) {
 			decision.Status, decision.Current = SelectionUnavailable, catalog.Current
 			return decision, nil
@@ -158,7 +162,7 @@ func validWorkRequest(req WorkRequest) bool {
 	if !validTierRequest(req) {
 		return false
 	}
-	if !validExecutionOwner(req.ExecutionOwner) || strings.TrimSpace(req.OwnerReason) == "" || strings.TrimSpace(req.TierReason) == "" {
+	if !validExecutionOwner(req.ExecutionOwner) || !validOwnerReason(req.ExecutionOwner, req.OwnerReason) || strings.TrimSpace(req.TierReason) == "" {
 		return false
 	}
 	if req.ProjectID == "" || req.TaskFamily == "" || len(req.Tools) == 0 || req.ContextSize <= 0 || !validRisk(req.Risk) {
@@ -179,6 +183,33 @@ func validWorkRequest(req WorkRequest) bool {
 
 func validExecutionOwner(owner ExecutionOwner) bool {
 	return owner == ExecutionOwnerCurrent || owner == ExecutionOwnerDelegated
+}
+
+func validOwnerReason(owner ExecutionOwner, reason string) bool {
+	if strings.TrimSpace(reason) == "" {
+		return false
+	}
+	if owner == ExecutionOwnerDelegated {
+		// Delegated ownership remains extensible: callers may record the bounded
+		// worker-selection rationale that is useful to their workflow.
+		return true
+	}
+	code, explanation, hasExplanation := strings.Cut(strings.TrimSpace(reason), ":")
+	code = strings.TrimSpace(code)
+	if hasExplanation && strings.TrimSpace(explanation) == "" {
+		return false
+	}
+	switch code {
+	case "reasoning-required", "context-required", "tool-required", "authority-required", "trust-required", "user-required", "no-qualified-route":
+		return true
+	default:
+		return false
+	}
+}
+
+func currentOwnerReasonCode(reason string) string {
+	code, _, _ := strings.Cut(strings.TrimSpace(reason), ":")
+	return strings.TrimSpace(code)
 }
 
 func validTierRequest(req WorkRequest) bool {

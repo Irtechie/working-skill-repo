@@ -118,7 +118,19 @@ KB state system unless the repo already opted into `done.md`.
    ```
 
    A failed expansion means requeue before the write. Renew, release, and recover also require the exact owner token and current generation.
-10. **Read optional execution policy** - normal work uses orchestrator-directed DDR: decide once whether the current orchestrator retains the slice or delegates it to one qualified worker. AMR is a separate testing-stage benchmark and is never enabled or required by ordinary `kb-work`. Read any personal project source preference from user-local `kb-models` state; an unsaved preference means `automatic`. Ordinary work never pauses for a routing-priority question. Offer and persist `automatic`, `self-hosted-first`, or `native-first` only during explicit `kb-map setup` or `kb-models` requests. Do not collect connection details here.
+10. **Read optional execution policy** - normal work uses delegation-first DDR:
+    the orchestrator scopes the slice, sets the minimum tier, and supervises
+    proof; one qualified subagent normally executes each bounded slice. Run the
+    safe independent ready set in parallel when isolation and non-overlap are
+    proved. Current execution is a semi-gated exception with a recognized
+    reason. AMR is a separate
+    testing-stage benchmark and is never enabled or required by ordinary
+    `kb-work`. Read any personal project source preference from user-local
+    `kb-models` state; an unsaved preference means `automatic`. Ordinary work
+    never pauses for a routing-priority question. Offer and persist
+    `automatic`, `self-hosted-first`, or `native-first` only during explicit
+    `kb-map setup` or `kb-models` requests. Do not collect connection details
+    here.
 11. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
 12. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, the board wins — another agent may have updated it. Reconcile the manifest from the board before proceeding.
 13. **Acquire local slice ownership before board projection or mutation:** for every mutating slice, acquire a slice lease before setting `todo.md` or the manifest to `in_progress`:
@@ -266,15 +278,30 @@ reports dispatch intent; the slice proof remains authoritative.
 - Treat `model_tier` as the minimum execution capability. New tiers are
   `small`, `medium`, and `large`; `planner` is an orchestration/review role.
   Legacy `tiny` maps to the `small` lane as a compatibility hint only.
-- Before dispatch, the current orchestrator reasons about the slice and records
-  exactly one owner: `current` when its reasoning, accumulated context, tools,
-  trust, or authority are required; otherwise `delegated` when one bounded
-  worker can complete the slice at the required tier.
+- Resolve that portable tier when the plan is picked up. Any compatible CLI or
+  host may map the same slice to a different concrete model because callable
+  surfaces differ. Select only from that runner's exact live evidence and
+  record the concrete route in the runtime receipt, never the durable plan.
+- Before dispatch, the current orchestrator bounds the slice, sets the minimum
+  tier, and records exactly one owner. Default to `delegated` and select one
+  qualified subagent. Retain `current` only through the exception gate below.
+- The current-owner exception gate accepts only `reasoning-required`,
+  `context-required`, `tool-required`, `authority-required`, `trust-required`,
+  `user-required`, or `no-qualified-route`, optionally followed by a short
+  explanation. Complexity alone is not a reason; state why the orchestrator's
+  reasoning, context, tools, authority, or trust boundary is necessary.
+- `no-qualified-route` is valid only after inspecting both the active host's
+  callable-agent surface and the live CLI/user-local catalog. If a qualified
+  same-tier-or-higher subagent exists, use it.
 - For `current`, validate the active orchestrator against tier, current tools,
-  context, trust, destination, and risk. Do not search workers first.
+  context, trust, destination, and risk.
 - For `delegated`, select exactly one qualified route at the required tier,
   preferring a qualified same-tier route and then a higher tier. Do not
   automatically route downward or fall back to the current model.
+- "Exactly one" is per slice, not per plan. Select one owner for every slice in
+  the safe independent ready set and dispatch those subagents in parallel when
+  the manifest dependencies, write leases, and shared-resource claims prove
+  isolation. Serialize only the slices that collide or depend on each other.
 - Apply the saved user-local project source priority only after eligibility. `automatic`
   lets the current master choose by evidence, `self-hosted-first` prefers
   eligible user-local extra routes, and `native-first` prefers eligible
@@ -428,36 +455,46 @@ must be versioned and reported beside proof outcomes.
 ### Step 2.6: Orchestrator Ownership Decision (DDR)
 
 Immediately before a ready slice runs, the current orchestrator makes one
-owner-first decision:
+semi-gated delegation decision:
 
 ```text
 required tier + bounded packet + active callable surface
-  -> current reasoning/context/tools/authority required? retain current
-  -> otherwise choose one qualified delegated worker
+  -> recognized current-owner exception? retain current and record why
+  -> otherwise inspect live routes and choose one qualified subagent
+  -> no qualified route? record no-qualified-route and validate current
   -> run deterministic proof
   -> failure stays with that owner for ordinary bounded repair, or re-plan/block
 ```
 
-1. Read the slice packet and required tier. Reason about ambiguity, accumulated
-   session context, tool access, trust, destination, authority, and risk. Code
-   alone does not imply delegation.
-2. Record `execution_owner: current|delegated`, an observable `owner_reason`,
-   and `tier_reason`.
-3. For `current`, validate the current route and execute without first searching
-   for a cheaper or lower-tier worker.
-4. For `delegated`, inspect the active host's exact callable-agent schema and
-   the live user-local CLI catalog. Select exactly one route that satisfies the
-   required tier, task family, tools, context, trust, destination, and risk.
-5. After the ownership decision and, when delegated, route selection, emit the
+1. Read the slice packet and required tier. Keep decomposition, tier judgment,
+   selection, supervision, proof, and synthesis with the orchestrator.
+2. Default `execution_owner` to `delegated`. For every slice in the safe
+   independent ready set, inspect the active host's exact callable-agent schema
+   and the live user-local CLI catalog, then select exactly one route that
+   satisfies that slice's required tier, task family, tools, context, trust,
+   destination, and risk. Dispatch the isolated slice owners in parallel.
+3. Retain `current` only when one recognized reason applies:
+   `reasoning-required`, `context-required`, `tool-required`,
+   `authority-required`, `trust-required`, `user-required`, or
+   `no-qualified-route`. Add a short explanation after the code when it reduces
+   ambiguity.
+4. Treat `no-qualified-route` as a lookup result, not an intuition. Prove that
+   neither the active host nor CLI/user-local surface exposes a qualified
+   same-tier-or-higher subagent, then validate the current route. Other current
+   exceptions may skip worker lookup when the reason itself makes delegation
+   inappropriate.
+5. Record `execution_owner: current|delegated`, the gated `owner_reason`, and
+   `tier_reason`.
+6. After the ownership decision and, when delegated, route selection, emit the
    compact DDR route announcement before mutation or dispatch. Use only
    host/router evidence for route names and mark any named fallback as
    conditional on an explicit reselection.
-6. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
+7. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
    because the orchestrator has heard of it. Host-native and CLI catalogs are
    distinct unless an adapter explicitly proves otherwise.
-7. Run the slice's narrowest deterministic proof. The route receipt proves
+8. Run the slice's narrowest deterministic proof. The route receipt proves
    dispatch provenance only; it does not accept the work.
-8. On failure, use ordinary bounded repair under the same owner. If the required
+9. On failure, use ordinary bounded repair under the same owner. If the required
    authority changes, stop and make the change visible by re-planning or
    recording a new explicit ownership decision. Never silently switch from a
    worker to current or from current to a worker.
@@ -537,7 +574,9 @@ This gate pairs with Step 3.6 (Diff-Scope Verification). The point is traceabili
 
 ### Step 3: Execute
 
-Use a fresh sub-agent when the platform supports delegated execution and the user has permitted it. Otherwise execute the slice locally while keeping the scope limited to this slice.
+Use the selected fresh subagent when the platform supports delegated execution.
+If no qualified route exists, record the `no-qualified-route` exception before
+executing locally. Keep the scope limited to this slice.
 
 Immediately before dispatch, acquire the slice lease and apply Step 2.6 once.
 The orchestrator either retains the slice or dispatches it to the one selected

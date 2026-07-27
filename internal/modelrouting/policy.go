@@ -399,7 +399,7 @@ func CanonicalProjectIdentity(root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	canonical, err := filepath.EvalSymlinks(abs)
+	canonical, err := canonicalizeExistingPath(abs)
 	if err != nil {
 		return "", fmt.Errorf("canonicalize project path: %w", err)
 	}
@@ -466,7 +466,7 @@ func gitCommonDirectory(gitRoot string) (string, error) {
 			gitDir = filepath.Join(gitRoot, gitDir)
 		}
 	}
-	gitDir, err = filepath.EvalSymlinks(filepath.Clean(gitDir))
+	gitDir, err = canonicalizeExistingPath(filepath.Clean(gitDir))
 	if err != nil {
 		return "", err
 	}
@@ -484,7 +484,7 @@ func gitCommonDirectory(gitRoot string) (string, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	common, err = filepath.EvalSymlinks(filepath.Clean(common))
+	common, err = canonicalizeExistingPath(filepath.Clean(common))
 	if err != nil {
 		return "", err
 	}

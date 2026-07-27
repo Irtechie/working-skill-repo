@@ -4,6 +4,17 @@
 
 ## 2026-07-26
 
+- Delegation-first DDR owner gate - plans keep portable complexity tiers;
+  whichever compatible CLI picks up the plan maps each slice to an exact live,
+  qualified model; independent ready slices use separate subagents in parallel;
+  and current-orchestrator execution requires a recognized, evidence-backed
+  exception. The selector rejects vague current-owner reasons and disproves
+  `no-qualified-route` when an eligible CLI route exists. Windows junction and
+  canonical repo paths now share project identity while missing paths fail
+  closed. The existing routing image was retained unchanged. Proof: focused
+  canonical and junction tests passed; `local-release` passed all required
+  checks; and global sync reported 138/138 matches.
+
 - Consolidated workflow/review release - reconciled eight worktrees without
   overwriting donors; proved both dirty detached proof worktrees contain zero
   unseen blobs; retained DDR while removing AMR from the README; preserved the

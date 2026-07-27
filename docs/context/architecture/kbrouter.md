@@ -2,10 +2,10 @@
 
 ## Purpose
 
-`cmd\kbrouter` discovers callable routes and applies an owner-first DDR
-decision: validate current execution or select exactly one delegated worker by
-required tier and risk. It stores optional user/project route preferences and
-enforces attended approval for sensitive route use.
+`cmd\kbrouter` discovers callable routes and applies delegation-first DDR:
+select exactly one qualified worker by required tier and risk, or validate a
+semi-gated current-owner exception. It stores optional user/project route
+preferences and enforces attended approval for sensitive route use.
 
 ## Read First
 
@@ -37,7 +37,21 @@ enforces attended approval for sensitive route use.
 
 - Planning stores minimum capability tiers (`small`, `medium`, `large`), not
   concrete models.
-- The orchestrator chooses `current` or `delegated` once at work time.
+- The active runner resolves that portable tier at plan pickup. Any compatible
+  CLI or host may legitimately select a different concrete model for the same
+  slice; the chosen model belongs in the runtime receipt.
+- The orchestrator owns planning, minimum-tier judgment, selection, supervision,
+  proof, and synthesis. A qualified subagent normally owns bounded execution.
+- Ownership is singular per slice, not per plan. The KB coordinator may select
+  and dispatch many isolated ready slices in parallel; `kbrouter` returns one
+  route for each individual selection request.
+- Current execution requires one recognized exception reason:
+  `reasoning-required`, `context-required`, `tool-required`,
+  `authority-required`, `trust-required`, `user-required`, or
+  `no-qualified-route`.
+- `no-qualified-route` must be proved against the active host surface and the
+  CLI/user-local catalog. `kbrouter` can disprove it from eligible CLI routes;
+  the caller remains responsible for checking host-native targets.
 - `kbrouter` selects Codex CLI and optional user-local routes only. Native App
   targets execute through the active host's exact callable-agent tool and do
   not enter this catalog. App and CLI identities remain distinct unless an
@@ -70,4 +84,6 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
 - Discovery can probe trusted OpenAI-compatible endpoints, but only when the
   explicit probe path is chosen.
 - Route receipts record what ran; proof still belongs to downstream checks.
+- Windows junctions and canonical paths resolve through the same filesystem
+  object identity; missing roots fail closed.
 - AMR remains an experimental benchmark and is not part of normal selection.
