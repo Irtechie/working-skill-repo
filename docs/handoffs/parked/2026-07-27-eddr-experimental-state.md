@@ -21,43 +21,21 @@ endpoint, or host-path match in these three files.
 
 ## Active Benchmark Cohort
 
-Checked at: `2026-07-28T00:10:16-04:00`
+Checked at: `2026-07-28T05:10:46Z`
 Worktree: `deaderestpool-ubiquitous-system`
 Branch: `deaderestpool-model-routing-benchmark`
 HEAD: `831e794fe2273131c75d34d797393d6aa890e92d`
 Owner: `Model routing benchmark` session
 State: owner-controlled DDR cohort followed by same-fixture AMR
 
-Path-only status: 415 dirty paths (15 modified, 400 untracked).
-Checkpoint: `81f4351e72eb85e2d886a757bf2f77321fee7be2`.
+Path-only status: 15 modified files and 10 untracked status entries. Untracked
+directory entries may contain many files, so this is a status-entry count, not
+an expanded file count.
 
-This is an owner-local Copilot checkpoint, not a delivered or remote
-preservation ref. It contains generated evidence and host-local runtime data,
-so it must never be pushed, cherry-picked, or merged. It is cited only to make
-the path inventory reproducible in the preserved worktree.
+The prior 415-path local checkpoint inventory is historical. Active state has
+advanced beyond it, so it must not be used as the current convergence sensor.
 
-The checkpoint is an exact path snapshot relative to the branch HEAD:
-
-```powershell
-git diff --name-only 831e794fe2273131c75d34d797393d6aa890e92d 81f4351e72eb85e2d886a757bf2f77321fee7be2
-```
-
-It contains:
-
-| Path group | Count |
-|---|---:|
-| `evals/ddr-model-benchmark/**` | 391 |
-| `cmd/amrbench/**` | 5 |
-| `docs/context/**` | 5 |
-| `docs/results/**` | 5 |
-| `evals/amr-model-benchmark/**` | 3 |
-| `.github/skills/**` | 2 |
-| `cmd/kbcheck/**` | 1 |
-| `docs/brainstorms/**` | 1 |
-| `evals/cross-model-benchmarks/**` | 1 |
-| `README.md` | 1 |
-
-The 15 modified paths are:
+The exact modified files are:
 
 - `.github/skills/kb-plan/SKILL.md`
 - `README.md`
@@ -74,6 +52,19 @@ The 15 modified paths are:
 - `evals/amr-model-benchmark/README.md`
 - `evals/amr-model-benchmark/config.json`
 - `evals/amr-model-benchmark/fixtures/retry-after-parser/SPEC.md`
+
+The exact untracked status entries are:
+
+- `.github/skills/kb-ddr-plan/`
+- `docs/brainstorms/2026-07-27-portable-local-subagent-routing-requirements.md`
+- `docs/context/research/2026-07-27-ddr-cost-routing-benchmark.md`
+- `docs/results/2026-07-27-ddr-cost-routing-evidence.pptx`
+- `docs/results/2026-07-27-ddr-guide-conformance-pair.json`
+- `docs/results/2026-07-27-ddr-hosted-model-matrix.json`
+- `docs/results/2026-07-27-ddr-local-route-readiness.json`
+- `docs/results/2026-07-27-ddr-real-execution.json`
+- `evals/cross-model-benchmarks/ddr-portable-plans.json`
+- `evals/ddr-model-benchmark/`
 
 The owner issued a hard stop against convergence, cleanup, delivery, or
 reservation release while the cohort runs. This handoff records the parent
@@ -105,8 +96,9 @@ in
 `evals/ddr-model-benchmark/evidence/layered-access-policy-medium/luna-workspace`.
 No further Luna changes or DDR proof gate remain for PR #2 convergence.
 
-Resume condition for future benchmark promotion work: the owner supplies a new
-explicit objective and claim boundary. Then run:
+Resume condition for convergence: the owner supplies the final cohort safe-stop
+package after five DDR asks and planned same-fixture AMR, or the user explicitly
+terminates or parks the campaign. Then run:
 
 `/kb-goal Reconcile all remaining valuable Irtechie/working-skill-repo work into clean, reviewable check-ins tonight.`
 
