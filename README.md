@@ -468,6 +468,21 @@ then runs `kb-finalize` for review, follow-up resolution, proof, learning, memor
 refresh, and cleanup. "All slices passed" is progress; finalization and
 configured delivery determine done.
 
+After durable delivery, `kb-complete` registers the exact work ID, project
+session, worktree, branch, and delivered commit for terminal cleanup.
+`kb-start` reaps eligible receipts from a different session with
+`kbcheck terminal-cleanup`: local-only work retains its committed branch,
+PR-only work retains feature refs, and a separately proven integrated endpoint
+deletes only the exact merged local feature ref with compare-and-swap. Receipts
+bind a Git-admin generation marker, real path, and observed remote ref SHAs;
+rewrites, moved/recreated/locked worktrees, and squash/rebase integration without
+provider proof are retained. The guard refreshes remote authority immediately
+before each destructive action, fails closed without an authoritative remote
+default, and never force-removes the current session (ID or path), primary,
+tracked/untracked/ignored dirty,
+actively claimed, moved, default, or uncontained target. Host UI session
+records and race-safe remote branch deletion remain host/provider-owned.
+
 ## Execution Model
 
 The pipeline is built around task shape, not a fixed ceremony:

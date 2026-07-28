@@ -38,7 +38,7 @@ Then branch by task:
 | Model routing | `model-routing-release`, `provider-hygiene` | Checking route evidence boundaries and optional-provider hygiene |
 | Skill quality / eval | `skill-lint`, `route-eval`, `skill-eval*`, `eval-run-*`, `surface-report`, `minimality` | Scoring skill docs, route fixtures, captured results, and surface size |
 | Sync / marketplace | `skill-sync-report`, `doctor`, `review-reference-guard`, `marketplace-firebreak`, `marketplace-promote` | Inspecting or repairing install drift and enforcing reusable-skill policy |
-| Concurrency / isolation | `scope-lease`, `slice-lease`, `worktree` | Local lease and isolated worktree coordination |
+| Concurrency / isolation | `scope-lease`, `slice-lease`, `worktree`, `terminal-cleanup` | Local lease, isolated worktree coordination, and delivery-gated terminal retirement |
 
 ## Canonical Commands
 
@@ -47,6 +47,7 @@ go run ./cmd/kbcheck core --list
 go run ./cmd/kbcheck core
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbcheck graph-routing-eval --require-ready
+go test ./cmd/kbcheck -run TerminalCleanup -count=1
 go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
 ```
 
@@ -68,5 +69,12 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
 - `graph-routing-eval --require-ready` is deterministic fixture proof only. It
   does not certify live graph providers.
 - `model-routing-release` validates evidence honesty, not live AMR promotion.
+- `terminal-cleanup` removes only registered Git worktrees from a different
+  session after queue and delivery proof. Receipts bind a Git-admin generation
+  marker, real path, and observed remote ref SHAs; sweep requires monotonic
+  remote evolution and exact-SHA local-ref deletion. It refreshes exact remote
+  authority immediately before each destructive action and fails closed when no
+  remote default can be resolved. Squash/rebase merge proof, host UI records,
+  and remote feature refs remain host/provider-owned.
 - `eval-run-codex` and `eval-run-ghcp` dry-run surfaces are safe defaults; live
   runs are explicit and require host auth.

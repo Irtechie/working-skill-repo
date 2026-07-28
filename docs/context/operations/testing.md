@@ -1,6 +1,6 @@
 # Testing Operations
 
-Checked: 2026-07-26
+Checked: 2026-07-28
 
 ## Fast Contributor Commands
 
@@ -96,6 +96,7 @@ go run ./cmd/kbcheck learning-adoption --result-path <results.json>
 go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet-valid.json
 go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
 go run ./cmd/kbcheck plan-worktree-selftest
+go test ./cmd/kbcheck -run TerminalCleanup -count=1
 ```
 
 `plan-worktree-selftest` is the canonical manifest-worktree lifecycle proof. It
@@ -110,6 +111,14 @@ artifact directory; successful CLI runs remove their disposable state.
 The package tests additionally enforce exact commit-diff/claim agreement,
 current integration-head slice acquisition, immutable proof archives, one
 in-flight slice per manifest worktree, and terminal completion/release CAS.
+
+`TerminalCleanup` tests use disposable repositories and worktrees only. They
+prove active-claim, current-session, primary/default, dirty/ignored, locked,
+missing, moved/recreated, broken-admin-round-trip, unpushed, and rewritten-ref
+refusals; no-remote nonstandard-default refusal; between-receipt remote refresh;
+Go/PowerShell queue-lock interoperability on Windows; local branch retention;
+PR topic containment; mixed-target ledgers; and exact-SHA merged local-ref
+deletion without touching existing user worktrees.
 
 ### Change-aware proof governor
 

@@ -8,7 +8,9 @@ README. The README is the front door; this file is the operating model.
 The workflow is meant to make every new task safe to start in a fresh session:
 
 1. Finish or pause the current task with a handoff.
-2. Close the old session.
+2. After durable delivery, register terminal cleanup and release the work claim.
+   A coordinator or later session removes the old Git worktree; the current
+   executing session never deletes itself.
 3. Start a new session in the project repo.
 4. Run `kb-start <next task or handoff>`.
 
@@ -384,6 +386,24 @@ atomically releases the plan-run lease; direct release of a manifest-owned plan
 lease is refused. Worktree release rechecks the same CAS before non-force
 removal.
 
+Configured delivery owns the later terminal-session boundary. `kb-complete`
+registers a cleanup receipt under the Git common directory only after local
+branch durability, pushed-topic containment, or remote-default containment is
+proven. It then releases the shared work claim as done. A different
+`kb-start` session runs `terminal-cleanup --action sweep --session-id
+<current-project-session-id>`, which rechecks the queue, exact branch/HEAD,
+tracked/untracked/ignored status, Git worktree registration, delivery
+containment and monotonic observed ref SHAs, Git-admin generation/round-trip,
+real path, primary/default boundaries, and current-session ID/path exclusion
+before non-force removal. It holds the queue lock across the final claim reread,
+refreshes remote-default evidence immediately before each worktree removal, and
+refreshes again before direct-mode local-ref deletion. Unresolved remote
+authority blocks cleanup, including local-only repositories with no configured
+remote. Local-only completion keeps its branch; the PR-only
+endpoint always keeps local and remote refs; a separately registered integrated
+endpoint may delete only the exact matching local feature ref. Remote ref
+deletion and host UI session records remain provider/host-owned.
+
 Multiple manifests may run concurrently only while their live file, prefix,
 conflict-domain, and shared-resource claims remain disjoint. A collision reports
 the owning run and requeues before mutation. Delivery is a later explicit
@@ -399,6 +419,7 @@ The deterministic lifecycle proof is:
 
 ```powershell
 go run ./cmd/kbcheck plan-worktree-selftest
+go test ./cmd/kbcheck -run TerminalCleanup -count=1
 ```
 
 It creates a disposable Git repository through the public fresh-start path,

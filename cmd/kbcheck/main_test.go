@@ -40,6 +40,36 @@ func TestParseCoreVerbose(t *testing.T) {
 	}
 }
 
+func TestParseTerminalCleanupArgs(t *testing.T) {
+	opts, err := parse([]string{
+		"terminal-cleanup", "--action", "register",
+		"--work-id", "terminal-worktree-cleanup",
+		"--session-id", "session-1",
+		"--worktree", "feature-worktree",
+		"--branch", "feature/cleanup",
+		"--commit-sha", "abc123",
+		"--delivery-mode", "pr",
+		"--remote", "origin",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.command != "terminal-cleanup" || opts.sliceLeaseAction != "register" ||
+		opts.workID != "terminal-worktree-cleanup" || opts.sessionID != "session-1" ||
+		opts.deliveryMode != "pr" || opts.remote != "origin" {
+		t.Fatalf("unexpected terminal cleanup options: %+v", opts)
+	}
+	if _, err := parse([]string{"terminal-cleanup", "--action", "register"}); err == nil {
+		t.Fatal("incomplete terminal cleanup registration passed")
+	}
+	if _, err := parse([]string{"terminal-cleanup", "--action", "sweep"}); err == nil {
+		t.Fatal("terminal cleanup sweep without current session passed")
+	}
+	if _, err := parse([]string{"terminal-cleanup", "--action", "sweep", "--session-id", "sweeper", "--branch", "feature/cleanup"}); err == nil {
+		t.Fatal("target flags on terminal cleanup sweep passed")
+	}
+}
+
 func TestParseRejectsJSONForCore(t *testing.T) {
 	_, err := parse([]string{"core", "--json"})
 	if err == nil {

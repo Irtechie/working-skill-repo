@@ -56,6 +56,7 @@ Usage:
   kbcheck plan-worktree --action prepare|status|advance|complete|release --manifest <path> --owner-token <token> [--commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference>] [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck plan-worktree-selftest [--root <path>]
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
+  kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
@@ -108,6 +109,7 @@ Commands:
 	plan-worktree  Prepare and inspect a manifest-owned plan-run workspace.
 	plan-worktree-selftest  Exercise two isolated plan runs in a disposable repository.
 	worktree       Deprecated compatibility command for legacy isolated slice worktrees.
+	terminal-cleanup  Register and safely reap durably delivered terminal worktrees.
 	graph-route    Validate provider-neutral graph/evidence impact packets.
 	graph-routing-lifecycle-selftest  Validate graph routing lifecycle invariants.
 	graph-routing-eval  Score graph routing correctness and local concurrency safety fixtures.
@@ -206,6 +208,10 @@ type options struct {
 	commitAuthorizedBy      string
 	commitApprovalRef       string
 	legacySliceWorktree     bool
+	workID                  string
+	sessionID               string
+	deliveryMode            string
+	remote                  string
 }
 
 func main() {
@@ -302,6 +308,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runPlanWorktreeSelftest(root, stdout, stderr)
 	case "worktree":
 		return runWorktreeCommand(root, opts, stdout, stderr)
+	case "terminal-cleanup":
+		return runTerminalCleanupCommand(root, opts, stdout, stderr)
 	case "scope-lease":
 		return runScopeLeaseCommand(root, opts, stdout, stderr)
 	case "scope-lease-selftest":
@@ -387,7 +395,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-routing-release": true,
-		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true,
+		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -482,6 +490,10 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.commitAuthorizedBy, "commit-authorized-by", "", "actor that explicitly authorized local plan-run commits")
 	fs.StringVar(&opts.commitApprovalRef, "commit-approval-ref", "", "durable reference to the local commit authorization")
 	fs.BoolVar(&opts.legacySliceWorktree, "legacy-slice-worktree", false, "explicitly enable the deprecated per-slice worktree compatibility command")
+	fs.StringVar(&opts.workID, "work-id", "", "stable KB work queue objective id")
+	fs.StringVar(&opts.sessionID, "session-id", "", "Copilot project session id")
+	fs.StringVar(&opts.deliveryMode, "delivery-mode", "", "delivery mode: local, pr, or direct")
+	fs.StringVar(&opts.remote, "remote", "", "delivery remote name")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, err
 	}
@@ -551,7 +563,7 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree"
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup"
 	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
 	}
@@ -564,8 +576,11 @@ func parse(args []string) (options, error) {
 	if opts.command == "plan-worktree" && (opts.sliceLeaseStateRoot != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice lease state, identity, and claim flags are not supported for plan-worktree")
 	}
-	if opts.command != "plan-worktree" && (opts.expectedIntegrationHead != "" || opts.commitSHA != "" || opts.proofReceipt != "") {
-		return options{}, fmt.Errorf("--expected-integration-head, --commit-sha, and --proof-receipt are only supported for plan-worktree")
+	if opts.command != "plan-worktree" && (opts.expectedIntegrationHead != "" || opts.proofReceipt != "") {
+		return options{}, fmt.Errorf("--expected-integration-head and --proof-receipt are only supported for plan-worktree")
+	}
+	if opts.command != "plan-worktree" && opts.command != "terminal-cleanup" && opts.commitSHA != "" {
+		return options{}, fmt.Errorf("--commit-sha is only supported for plan-worktree and terminal-cleanup")
 	}
 	if opts.command != "plan-worktree" && (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") {
 		return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree")
@@ -591,6 +606,34 @@ func parse(args []string) (options, error) {
 		} else if opts.sliceID != "" || opts.expectedIntegrationHead != "" || opts.commitSHA != "" || opts.proofReceipt != "" {
 			return options{}, fmt.Errorf("slice advance flags are only supported for plan-worktree advance")
 		}
+	}
+	if opts.command == "terminal-cleanup" {
+		if opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" ||
+			opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL ||
+			len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 ||
+			len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 ||
+			opts.baseSHA != "" || opts.repoIdentity != "" {
+			return options{}, fmt.Errorf("lease identity and claim flags are not supported for terminal-cleanup")
+		}
+		switch opts.sliceLeaseAction {
+		case "register":
+			if opts.workID == "" || opts.sessionID == "" || opts.worktreePath == "" ||
+				opts.branchName == "" || opts.commitSHA == "" || opts.deliveryMode == "" {
+				return options{}, fmt.Errorf("terminal-cleanup register requires --work-id, --session-id, --worktree, --branch, --commit-sha, and --delivery-mode")
+			}
+		case "sweep":
+			if opts.sessionID == "" {
+				return options{}, fmt.Errorf("terminal-cleanup sweep requires --session-id for current-session exclusion")
+			}
+			if opts.workID != "" || opts.worktreePath != "" ||
+				opts.branchName != "" || opts.commitSHA != "" || opts.deliveryMode != "" || opts.remote != "" {
+				return options{}, fmt.Errorf("terminal-cleanup sweep reads registered receipts and accepts only --session-id as cleanup identity")
+			}
+		default:
+			return options{}, fmt.Errorf("terminal-cleanup action must be register or sweep")
+		}
+	} else if opts.workID != "" || opts.sessionID != "" || opts.deliveryMode != "" || opts.remote != "" {
+		return options{}, fmt.Errorf("--work-id, --session-id, --delivery-mode, and --remote are only supported for terminal-cleanup")
 	}
 	if opts.command == "slice-lease" && len(opts.leaseDomains) > 0 {
 		return options{}, fmt.Errorf("--domain is only supported for plan-run-lease")

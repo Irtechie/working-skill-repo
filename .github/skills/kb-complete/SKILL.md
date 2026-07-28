@@ -135,6 +135,55 @@ but write access never enables it automatically and it never authorizes merge.
 Only `kb-land`, under explicit direct or authorized auto-merge policy, owns
 remote-default integration.
 
+## Terminal Worktree Retirement
+
+Register cleanup only after the configured endpoint is durably proven:
+
+- `local`: the worktree is clean, `HEAD` is committed, the exact local feature
+  branch ref still points to the delivered commit, and at least one configured
+  remote authoritatively identifies a different default branch;
+- `pr`: the fetched remote topic contains the delivered commit; an open PR may
+  lose its worktree, but its local and remote feature refs remain until
+  integration is proven;
+- `direct`: the fetched authoritative remote default contains the delivered
+  commit. Use this integrated endpoint after either a direct push or a proven
+  PR merge; `pr` always means PR-only/open and retains feature refs.
+
+When `cmd/kbcheck` provides the guard, register the exact terminal target before
+releasing ownership:
+
+```powershell
+go run ./cmd/kbcheck terminal-cleanup --action register `
+  --work-id <work-id> --session-id <project-session-id> `
+  --worktree <exact-worktree> --branch <exact-feature-branch> `
+  --commit-sha <delivered-commit> --delivery-mode <local|pr|direct> `
+  [--remote <delivery-remote>] --root <project-root>
+```
+
+Then release the shared work claim as `done`. Do not register cleanup for
+`blocked`, `delivery-blocked`, pending/unverified delivery, or unrelated dirty
+work. Ask a coordinator or later `kb-start` session to run
+`terminal-cleanup --action sweep --session-id <current-project-session-id>`;
+the current executing session cannot delete itself even when its process runs
+outside the recorded worktree. The guard removes no worktree with force and
+preserves ignored files as dirt. Registration records the linked-worktree admin
+directory, random generation marker, real path, authoritative remote-default
+names and SHAs, and any required topic SHA. Sweep requires remote refs to advance
+monotonically from that evidence, validates the bidirectional Git admin
+round-trip, refreshes remote authority immediately before each destructive
+action, and removes refs only with exact-SHA compare-and-swap. A missing,
+rewritten, or renamed default blocks and requires re-registration. Local-only completion
+retains its durable branch ref. `pr` completion retains feature refs even if the
+commit later appears on default. Only a receipt registered as the proven
+integrated `direct` endpoint deletes the exact matching merged local feature
+ref; squash/rebase integration remains blocked until provider-backed merge
+proof exists. Remote feature-ref deletion remains provider/host-owned because
+plain Git deletion has no race-safe compare-and-swap.
+
+If the native guard is unavailable, do not improvise filesystem deletion.
+Report the exact session ID, worktree, branch, commit, delivery proof, and
+`cleanup: deferred-host` for an external owner.
+
 ## Terminal Outcomes
 
 ```text
@@ -148,6 +197,7 @@ Commit: <sha or none>
 PR: <url or none>
 Integration: <not-requested|pending-review|merged|direct>
 Sync: <not-configured|done|blocked>
+Cleanup: <registered|deferred-current-session|deferred-host|blocked>
 Next: none|<exact resume action>
 ```
 
