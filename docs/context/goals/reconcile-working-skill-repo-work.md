@@ -47,7 +47,7 @@ AMR/DDR/EDDR benchmark experiments.
 |---|---|---|---|---|
 | Stop-control product work | kb-fix -> kb-start inventory | `docs/handoffs/done/2026-07-27-redundant-stop-control-snapshot.md` | complete | product work is on `origin/main` at `a495444`; owner worktree clean |
 | Convergence stop-control branch | kb-start inventory | `deaderestpool-convergence-stop-controls` | complete | clean session, no commits, no diff |
-| AMR/DDR/EDDR exception | owner-controlled cohort | `docs/handoffs/parked/2026-07-27-eddr-experimental-state.md` | parked | exact 415-path checkpoint inventory and immutable planning ref |
+| AMR/DDR/EDDR exception | owner-controlled cohort | `docs/handoffs/parked/2026-07-27-eddr-experimental-state.md` | parked | current 15-modified/10-untracked-entry owner snapshot and immutable planning ref |
 | Duplicate project registration | kb-start inventory | duplicate registration | parked | owns no sessions; metadata removal unsafe while its path is an active worktree |
 | Goal evidence and memory | kb-goal | this ledger and `todo-done.md` | complete | PR #2, refs, commands, parked paths, and blockers recorded |
 
@@ -64,6 +64,6 @@ AMR/DDR/EDDR benchmark experiments.
 - Harness failure is separate: `go test ./cmd/kbcheck -run '^TestPlanWorktreeSelftestExercisesDisposableLifecycle$' -v -count=1 -timeout 90s` exits 1 after timing out while blocked in `gitOutput`. It blocks `core`/`local-release`, not the independently passing containment proof.
 - Required `kb-plan` global drift is part of the active EDDR exception: canonical repo SHA-256 prefix `8DD84B239838`; all three experimental global copies use prefix `D0610845BBB8`. Do not overwrite either side until the cohort owner releases the experiment.
 - Delivery: PR #2, branch `deaderestpool-reconcile-skill-work`. The active cohort remains independently owner-controlled; this goal's completion parks its exact snapshot without stopping or claiming completion of that experiment.
-- Merge boundary: PR #2 is ready independently of DDR. It contains only reconciliation records and the parked-exception contract; it does not contain the active benchmark checkpoint, generated evidence, experimental `kb-plan` copy, or model runtime state.
+- Merge boundary: PR #2 is ready independently of DDR. It contains only reconciliation records and the parked-exception contract; it does not contain the active benchmark state, generated evidence, experimental `kb-plan` copy, or model runtime state.
 - Qwen's prescribed DDR acquire is terminal `INFRASTRUCTURE NOT-RUN` after the launcher failed before allocation. No reservation, cleanup target, endpoint, retry obligation, or non-DDR work remains from that attempt.
 - Luna resumed from durable state with all four work items complete; `go test ./...` and `go vet ./...` pass in its layered-access-policy workspace. No DDR proof gate remains for PR #2 convergence.
