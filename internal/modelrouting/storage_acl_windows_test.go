@@ -4,10 +4,12 @@ package modelrouting
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -104,6 +106,7 @@ func TestProjectJSONDoesNotReplaceRepositoryDACL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	before, err := windowsDescriptorString(uintptr(unsafe.Pointer(&beforeDescriptor[0])), ownerSecurityInformation|daclSecurityInformation)
 	if err != nil {
 		t.Fatal(err)
@@ -121,5 +124,45 @@ func TestProjectJSONDoesNotReplaceRepositoryDACL(t *testing.T) {
 	}
 	if !strings.EqualFold(before, after) {
 		t.Fatalf("project save changed repository DACL\nbefore: %s\nafter:  %s", before, after)
+	}
+}
+
+func TestSharedProjectLockPreservesInheritedWindowsACL(t *testing.T) {
+	root := t.TempDir()
+	lockPath := filepath.Join(root, "work-queue.lock")
+	if err := os.WriteFile(lockPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	beforeDescriptor, err := getWindowsFileDescriptor(lockPath, ownerSecurityInformation|daclSecurityInformation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := windowsDescriptorString(
+		uintptr(unsafe.Pointer(&beforeDescriptor[0])),
+		ownerSecurityInformation|daclSecurityInformation,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := AcquireSharedProjectLock(root, "work-queue.lock", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := lock.Close(); err != nil {
+		t.Fatal(err)
+	}
+	afterDescriptor, err := getWindowsFileDescriptor(lockPath, ownerSecurityInformation|daclSecurityInformation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := windowsDescriptorString(
+		uintptr(unsafe.Pointer(&afterDescriptor[0])),
+		ownerSecurityInformation|daclSecurityInformation,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.EqualFold(before, after) {
+		t.Fatalf("shared lock changed inherited Windows ACL\nbefore: %s\nafter:  %s", before, after)
 	}
 }

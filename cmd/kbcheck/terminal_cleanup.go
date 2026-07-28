@@ -366,7 +366,7 @@ func sweepOneTerminalCleanup(opts terminalCleanupOptions, receipt terminalCleanu
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
-	lock, err := modelrouting.AcquirePrivateStateLock(filepath.Dir(queuePath), "work-queue.lock", timeout)
+	lock, err := modelrouting.AcquireSharedProjectLock(filepath.Dir(queuePath), "work-queue.lock", timeout)
 	if err != nil {
 		return terminalCleanupResult{}, fmt.Errorf("acquire shared work queue lock: %w", err)
 	}

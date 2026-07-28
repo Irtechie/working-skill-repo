@@ -74,7 +74,10 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
   marker, real path, and observed remote ref SHAs; sweep requires monotonic
   remote evolution and exact-SHA local-ref deletion. It refreshes exact remote
   authority immediately before each destructive action and fails closed when no
-  remote default can be resolved. Squash/rebase merge proof, host UI records,
-  and remote feature refs remain host/provider-owned.
+  remote default can be resolved. Its shared queue lock preserves
+  repository-inherited permissions/ACLs while using the same fail-closed OS
+  file lock as the PowerShell queue helper; private model-routing locks retain
+  strict private ACL hardening. Squash/rebase merge proof, host UI records, and
+  remote feature refs remain host/provider-owned.
 - `eval-run-codex` and `eval-run-ghcp` dry-run surfaces are safe defaults; live
   runs are explicit and require host auth.

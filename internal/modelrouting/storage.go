@@ -110,21 +110,37 @@ type PrivateStateLock struct {
 }
 
 func AcquirePrivateStateLock(root, name string, timeout time.Duration) (*PrivateStateLock, error) {
+	return acquireStateLock(root, name, timeout, true)
+}
+
+// AcquireSharedProjectLock uses the same fail-closed OS file lock as private
+// state without replacing repository-inherited permissions or ACLs.
+func AcquireSharedProjectLock(root, name string, timeout time.Duration) (*PrivateStateLock, error) {
+	return acquireStateLock(root, name, timeout, false)
+}
+
+func acquireStateLock(root, name string, timeout time.Duration, private bool) (*PrivateStateLock, error) {
 	if strings.TrimSpace(name) == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\`) {
 		return nil, ErrUnsafePath
 	}
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	if err := os.MkdirAll(root, 0o700); err != nil {
+	directoryMode := os.FileMode(0o777)
+	if private {
+		directoryMode = 0o700
+	}
+	if err := os.MkdirAll(root, directoryMode); err != nil {
 		return nil, err
 	}
 	absRoot, err := filepath.Abs(filepath.Clean(root))
 	if err != nil {
 		return nil, err
 	}
-	if err := secureStorageDirectoryChain(absRoot, absRoot); err != nil {
-		return nil, err
+	if private {
+		if err := secureStorageDirectoryChain(absRoot, absRoot); err != nil {
+			return nil, err
+		}
 	}
 	lockPath, err := safeStoragePath(absRoot, name)
 	if err != nil {
@@ -137,7 +153,11 @@ func AcquirePrivateStateLock(root, name string, timeout time.Duration) (*Private
 	} else if !errors.Is(statErr, os.ErrNotExist) {
 		return nil, statErr
 	}
-	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	fileMode := os.FileMode(0o666)
+	if private {
+		fileMode = 0o600
+	}
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, fileMode)
 	if err != nil {
 		return nil, err
 	}
@@ -147,11 +167,13 @@ func AcquirePrivateStateLock(root, name string, timeout time.Duration) (*Private
 			_ = file.Close()
 		}
 	}()
-	if err := file.Chmod(0o600); err != nil {
-		return nil, err
-	}
-	if err := secureStorageFileSecurity(lockPath); err != nil {
-		return nil, err
+	if private {
+		if err := file.Chmod(0o600); err != nil {
+			return nil, err
+		}
+		if err := secureStorageFileSecurity(lockPath); err != nil {
+			return nil, err
+		}
 	}
 	opened, err := file.Stat()
 	if err != nil {
