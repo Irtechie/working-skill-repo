@@ -459,16 +459,16 @@ func runBenchmark(args []string, out io.Writer) error {
 	if *mode == "direct" {
 		direct, err = resolveRuntimeModel(cfg, routes, *modelAlias, *modelRunner, *modelProfile, task.PlannedTier)
 		if err != nil {
-			return err
+			return handleModelResolutionError(out, err)
 		}
 	} else {
 		attempt, err = resolveRuntimeModel(cfg, routes, *attemptAlias, *attemptRunner, *attemptProfile, task.AttemptTier)
 		if err != nil {
-			return err
+			return handleModelResolutionError(out, err)
 		}
 		driver, err = resolveRuntimeModel(cfg, routes, *driverAlias, *driverRunner, *driverProfile, task.PlannedTier)
 		if err != nil {
-			return err
+			return handleModelResolutionError(out, err)
 		}
 		if attempt.Tier != task.AttemptTier {
 			return errors.New("AMR attempt model must exactly match the task attempt tier")
@@ -549,6 +549,47 @@ func runBenchmark(args []string, out io.Writer) error {
 	return encoder.Encode(results)
 }
 
+type infrastructureNotReadyError struct {
+	reason string
+}
+
+var errInfrastructureNotRun = errors.New("benchmark not run because infrastructure is not ready")
+
+func (err *infrastructureNotReadyError) Error() string {
+	return err.reason
+}
+
+type infrastructureNotRunReport struct {
+	SchemaVersion         int     `json:"schema_version"`
+	TestStatus            string  `json:"test_status"`
+	InfrastructureOutcome string  `json:"infrastructure_outcome"`
+	ModelOutcome          *string `json:"model_outcome"`
+	Reason                string  `json:"reason"`
+}
+
+func writeInfrastructureNotRun(out io.Writer, reason string) error {
+	encoder := json.NewEncoder(out)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(infrastructureNotRunReport{
+		SchemaVersion:         1,
+		TestStatus:            "not-run",
+		InfrastructureOutcome: "not-ready",
+		ModelOutcome:          nil,
+		Reason:                reason,
+	})
+}
+
+func handleModelResolutionError(out io.Writer, err error) error {
+	var notReady *infrastructureNotReadyError
+	if !errors.As(err, &notReady) {
+		return err
+	}
+	if writeErr := writeInfrastructureNotRun(out, notReady.Error()); writeErr != nil {
+		return fmt.Errorf("write infrastructure not-run report: %w", writeErr)
+	}
+	return fmt.Errorf("%w: %s", errInfrastructureNotRun, notReady.Error())
+}
+
 func resolveRuntimeModel(cfg config, routes runtimeRouteCatalog, modelID, runner, profile, tier string) (modelSpec, error) {
 	_ = cfg
 	if strings.TrimSpace(modelID) == "" {
@@ -558,6 +599,11 @@ func resolveRuntimeModel(cfg config, routes runtimeRouteCatalog, modelID, runner
 		if route.ModelID == modelID && route.Runner == runner && route.Profile == profile {
 			if route.Tier != tier {
 				return modelSpec{}, fmt.Errorf("runtime model %q is tier %q, expected %q", modelID, route.Tier, tier)
+			}
+			if !route.Available {
+				return modelSpec{}, &infrastructureNotReadyError{
+					reason: fmt.Sprintf("runtime model %q has observed route evidence but is not available", modelID),
+				}
 			}
 			return modelSpec{Alias: modelID, Model: modelID, Runner: runner, Tier: tier, Profile: profile}, nil
 		}
@@ -835,7 +881,7 @@ func directPrompt(task taskSpec, workspace string) string {
 }
 
 func directPromptWithContext(task taskSpec, workspace string, selected contextPayload) string {
-	return executionPacket("DIRECT PLANNED-TIER IMPLEMENTATION", task, workspace, selected.Worker, "", "")
+	return executionPacket("DIRECT PLANNED-TIER IMPLEMENTATION", task, workspace, selected.Base, selected.Worker, "", "")
 }
 
 func attemptPrompt(task taskSpec, workspace string) string {
@@ -843,7 +889,7 @@ func attemptPrompt(task taskSpec, workspace string) string {
 }
 
 func attemptPromptWithContext(task taskSpec, workspace string, selected contextPayload) string {
-	return executionPacket("BOUNDED SMALL AMR ATTEMPT", task, workspace, selected.Worker, "", "")
+	return executionPacket("BOUNDED SMALL AMR ATTEMPT", task, workspace, selected.Base, selected.Worker, "", "")
 }
 
 func correctionPrompt(task taskSpec, workspace, diff, failure string) string {
@@ -851,10 +897,10 @@ func correctionPrompt(task taskSpec, workspace, diff, failure string) string {
 }
 
 func correctionPromptWithContext(task taskSpec, workspace, diff, failure string, selected contextPayload) string {
-	return executionPacket("PLANNED-TIER FULL FALLBACK", task, workspace, selected.Reviewer, bounded(diff, 8000), bounded(failure, 3000))
+	return executionPacket("PLANNED-TIER FULL FALLBACK", task, workspace, selected.Base, selected.Reviewer, bounded(diff, 8000), bounded(failure, 3000))
 }
 
-func executionPacket(role string, task taskSpec, workspace, overlay, diff, failure string) string {
+func executionPacket(role string, task taskSpec, workspace, base, overlay, diff, failure string) string {
 	acceptance := readPacketFile(workspace, "SPEC.md", 16*1024)
 	var sources []string
 	for _, relative := range task.MutablePaths {
@@ -898,6 +944,9 @@ PROTECTED PROOF INPUTS (DO NOT EDIT):
 PROOF RUN BY TRUSTED HARNESS:
 %s
 
+SELECTED BASE CONTEXT:
+%s
+
 EXECUTION RULES:
 - Solve the objective now from this packet; do not ask for more context.
 - Do not call tools.
@@ -906,7 +955,7 @@ EXECUTION RULES:
 - %s
 %s
 OUTPUT CONTRACT:
-Return exactly one JSON object, no markdown and no prose:
+Return exactly one JSON object with no extra fields, markdown, or prose:
 %s
 
 FINAL INSTRUCTION:
@@ -919,6 +968,7 @@ Implement the task now. Your entire response must be the JSON object above with 
 		strings.Join(sources, "\n"),
 		strings.Join(protected, "\n"),
 		strings.Join(task.Verify, " "),
+		base,
 		overlay,
 		extra,
 		outputContract,
@@ -942,13 +992,18 @@ func applyDraftResponse(workspace, output string) error {
 }
 
 func applyDraftResponseAllowed(workspace, output string, mutablePaths []string) error {
-	payload := extractJSONObject(output)
-	if payload == "" {
-		return errors.New("model returned no JSON object")
-	}
 	var response draftResponse
-	if err := json.Unmarshal([]byte(payload), &response); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(strings.TrimSpace(output)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&response); err != nil {
 		return fmt.Errorf("decode model JSON: %w", err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("model returned multiple JSON values")
+		}
+		return fmt.Errorf("model returned trailing content: %w", err)
 	}
 	if len(response.Files) == 0 || len(response.Files) > 8 {
 		return errors.New("model returned invalid file count")
@@ -1031,19 +1086,6 @@ func mutablePathKey(path string) string {
 		return strings.ToLower(path)
 	}
 	return path
-}
-
-func extractJSONObject(value string) string {
-	start := strings.Index(value, "{")
-	if start < 0 {
-		return ""
-	}
-	decoder := json.NewDecoder(strings.NewReader(value[start:]))
-	var raw json.RawMessage
-	if err := decoder.Decode(&raw); err != nil {
-		return ""
-	}
-	return string(raw)
 }
 
 func preflightProof(command []string) error {

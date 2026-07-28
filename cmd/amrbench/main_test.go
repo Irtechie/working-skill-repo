@@ -133,10 +133,23 @@ func TestApplyDraftResponseValidatesAllFilesBeforeWriting(t *testing.T) {
 	}
 }
 
-func TestExtractJSONObjectStopsAfterFirstValue(t *testing.T) {
-	got := extractJSONObject(`prefix {"files":[]} trailing } noise`)
-	if got != `{"files":[]}` {
-		t.Fatalf("extracted %q", got)
+func TestStrictDraftResponseRejectsPrefixAndTrailing(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("before"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	valid := `{"files":[{"path":"main.go","content":"after"}]}`
+	for _, output := range []string{
+		"prefix " + valid,
+		"```json\n" + valid + "\n```",
+		valid + " trailing",
+		valid + ` {"files":[{"path":"main.go","content":"second"}]}`,
+		`{"files":[{"path":"main.go","content":"after","note":"extra"}]}`,
+		`{"files":[{"path":"main.go","content":"after"}],"summary":"done"}`,
+	} {
+		if err := applyDraftResponseAllowed(root, output, []string{"main.go"}); err == nil {
+			t.Fatalf("non-JSON-only response passed: %q", output)
+		}
 	}
 }
 
@@ -164,12 +177,19 @@ func TestCorrectionPromptIsBoundedAndRequestsSurgicalRepair(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "SPEC.md"), []byte("return success"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	prompt := correctionPrompt(task, root, strings.Repeat("x", 20000), strings.Repeat("y", 10000))
+	prompt := correctionPromptWithContext(
+		task,
+		root,
+		strings.Repeat("x", 20000),
+		strings.Repeat("y", 10000),
+		contextPayload{Base: "CORRECTION_BASE_MARKER"},
+	)
 	if len(prompt) > 20000 {
 		t.Fatalf("prompt is unexpectedly large: %d", len(prompt))
 	}
 	if !strings.Contains(prompt, "PLANNED-TIER FULL FALLBACK") ||
-		!strings.Contains(prompt, "ALLOWED WRITES (EXACT; NO NEW FILES)") {
+		!strings.Contains(prompt, "ALLOWED WRITES (EXACT; NO NEW FILES)") ||
+		!strings.Contains(prompt, "SELECTED BASE CONTEXT:\nCORRECTION_BASE_MARKER") {
 		t.Fatalf("missing surgical correction contract: %s", prompt)
 	}
 }
@@ -216,6 +236,29 @@ func TestAttemptPromptIsAPlanShapedExecutionPacket(t *testing.T) {
 	}
 	if strings.Index(prompt, "OBJECTIVE:") > strings.Index(prompt, "CURRENT MUTABLE SOURCES:") {
 		t.Fatal("objective is buried after source context")
+	}
+}
+
+func TestSelectedContextBasePacketReachesExecutionPrompt(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "SPEC.md"), []byte("Return one."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	task := taskSpec{
+		Prompt:       "Implement One.",
+		Verify:       []string{"go", "test", "./..."},
+		MutablePaths: []string{"main.go"},
+		ProofHashes:  map[string]string{"main_test.go": strings.Repeat("a", 64)},
+	}
+	prompt := attemptPromptWithContext(task, root, contextPayload{
+		Base:   "MINIMAL_CONTEXT_MARKER",
+		Worker: "Keep scope bounded.",
+	})
+	if !strings.Contains(prompt, "SELECTED BASE CONTEXT:\nMINIMAL_CONTEXT_MARKER") {
+		t.Fatalf("selected base packet was not sent to the model:\n%s", prompt)
 	}
 }
 

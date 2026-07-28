@@ -150,7 +150,7 @@ func loadRuntimeRouteCatalog(path string) (runtimeRouteCatalog, string, error) {
 		key := route.ModelID + "\x00" + route.Runner + "\x00" + route.Profile
 		if route.ModelID == "" || !stringIn(route.Runner, "ghcp", "byok") ||
 			!stringIn(route.Tier, "small", "medium", "large") ||
-			!route.Available || seen[key] {
+			seen[key] {
 			return catalog, "", fmt.Errorf("runtime route catalog contains an invalid or duplicate route")
 		}
 

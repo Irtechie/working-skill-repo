@@ -62,3 +62,44 @@ func TestApprovalRejectsChangedMatrixBeforeBudgetReservation(t *testing.T) {
 		t.Fatal("incomplete approval passed")
 	}
 }
+
+func TestRouteCatalogPreservesUnavailableInfrastructureEvidence(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now().UTC()
+	evidence := routeProbeEvidence{
+		SchemaVersion: 1,
+		ModelID:       "qwen",
+		Runner:        "byok",
+		Profile:       "qwen-local",
+		Tier:          "small",
+		Available:     false,
+		ObservedAt:    now.Add(-time.Minute).Format(time.RFC3339),
+		ExpiresAt:     now.Add(time.Hour).Format(time.RFC3339),
+	}
+	evidenceContent, _ := json.Marshal(evidence)
+	evidencePath := filepath.Join(root, "qwen-probe.json")
+	if err := os.WriteFile(evidencePath, evidenceContent, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	evidenceHash, err := fileSHA256(evidencePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog := runtimeRouteCatalog{SchemaVersion: 1, Routes: []runtimeRoute{{
+		ModelID: "qwen", Runner: "byok", Profile: "qwen-local", Tier: "small",
+		Available: false, EvidencePath: "qwen-probe.json", EvidenceSHA256: evidenceHash,
+	}}}
+	catalogContent, _ := json.Marshal(catalog)
+	catalogPath := filepath.Join(root, "routes.json")
+	if err := os.WriteFile(catalogPath, catalogContent, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, _, err := loadRuntimeRouteCatalog(catalogPath)
+	if err != nil {
+		t.Fatalf("unavailable route evidence was rejected instead of classified: %v", err)
+	}
+	if len(loaded.Routes) != 1 || loaded.Routes[0].Available {
+		t.Fatalf("route=%+v", loaded.Routes)
+	}
+}

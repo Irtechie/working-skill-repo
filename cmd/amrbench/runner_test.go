@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -57,6 +59,49 @@ func TestRuntimeModelResolutionKeepsRoutesOutOfConfig(t *testing.T) {
 	}
 	if _, err := resolveRuntimeModel(config{}, routes, "runtime-model", "ghcp", "", "small"); err == nil {
 		t.Fatal("tier-mismatched runtime model passed")
+	}
+}
+
+func TestRuntimeModelUnavailableIsInfrastructureNotRun(t *testing.T) {
+	routes := runtimeRouteCatalog{SchemaVersion: 1, Routes: []runtimeRoute{
+		{ModelID: "qwen", Runner: "byok", Profile: "qwen-local", Tier: "small", Available: false},
+	}}
+	_, err := resolveRuntimeModel(config{}, routes, "qwen", "byok", "qwen-local", "small")
+	var notReady *infrastructureNotReadyError
+	if !errors.As(err, &notReady) {
+		t.Fatalf("unavailable route was not classified as infrastructure not-run: %v", err)
+	}
+}
+
+func TestInfrastructureNotRunReportHasNoModelOutcome(t *testing.T) {
+	var out bytes.Buffer
+	reason := "qwen has no ready replicas"
+	if err := writeInfrastructureNotRun(&out, reason); err != nil {
+		t.Fatal(err)
+	}
+	var report map[string]any
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report["test_status"] != "not-run" || report["infrastructure_outcome"] != "not-ready" ||
+		report["model_outcome"] != nil || report["schema_version"] != float64(1) ||
+		report["reason"] != reason {
+		t.Fatalf("report=%v", report)
+	}
+}
+
+func TestInfrastructureNotRunReportReturnsNonzeroStatus(t *testing.T) {
+	var out bytes.Buffer
+	err := handleModelResolutionError(&out, &infrastructureNotReadyError{reason: "qwen unavailable"})
+	if !errors.Is(err, errInfrastructureNotRun) {
+		t.Fatalf("err=%v", err)
+	}
+	var report infrastructureNotRunReport
+	if decodeErr := json.Unmarshal(out.Bytes(), &report); decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	if report.TestStatus != "not-run" || report.ModelOutcome != nil {
+		t.Fatalf("report=%+v", report)
 	}
 }
 
