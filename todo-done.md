@@ -2,6 +2,18 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-27
+
+- Remaining skill-repo reconciliation - designated the canonical project and
+  quarantined its duplicate registration without deleting worktrees or
+  branches; confirmed stop-control behavior was already integrated at
+  `a495444`; cleaned the redundant owner snapshot; proved Windows process
+  containment with targeted build, vet, and repeated tests; preserved EDDR
+  planning at `parked/eddr-planning-2026-07-27`; and recorded the active
+  benchmark as the sole 415-path owner-controlled exception. Delivery: PR #2.
+  The separate `kbcheck` plan-worktree timeout and experimental `kb-plan`
+  global drift remain accurately scoped outside the passing containment proof.
+
 ## 2026-07-26
 
 - Delegation-first DDR owner gate - plans keep portable complexity tiers;
