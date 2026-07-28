@@ -80,6 +80,9 @@ reservation release while the cohort runs. This handoff records the parent
 goal's authorized exception; it does not transfer mutation authority or park
 the owner's live execution.
 
+PR #2 may merge while this exception remains active. Merging the handoff does
+not merge, push, approve, release, or otherwise mutate the checkpoint or cohort.
+
 Resume condition: the owner sends its final exact path, proof, claim-boundary,
 and clean-or-preserved-state package at a safe stop. Then run:
 
