@@ -269,7 +269,7 @@ func TestTerminalCleanupSerializesAgainstQueueClaims(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lock, err := modelrouting.AcquirePrivateStateLock(filepath.Dir(queuePath), "work-queue.lock", time.Second)
+	lock, err := modelrouting.AcquireSharedProjectLock(filepath.Dir(queuePath), "work-queue.lock", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,14 +322,14 @@ func TestTerminalCleanupLockIsCompatibleWithPowerShell(t *testing.T) {
 	if !pathExists(readyPath) {
 		t.Fatalf("PowerShell lock did not become ready: %s", output.String())
 	}
-	if lock, err := modelrouting.AcquirePrivateStateLock(lockDir, "work-queue.lock", 100*time.Millisecond); err == nil {
+	if lock, err := modelrouting.AcquireSharedProjectLock(lockDir, "work-queue.lock", 100*time.Millisecond); err == nil {
 		_ = lock.Close()
 		t.Fatal("Go lock acquired while PowerShell held FileShare.None")
 	}
 	if err := command.Wait(); err != nil {
 		t.Fatalf("PowerShell lock process failed: %v: %s", err, output.String())
 	}
-	lock, err := modelrouting.AcquirePrivateStateLock(lockDir, "work-queue.lock", time.Second)
+	lock, err := modelrouting.AcquireSharedProjectLock(lockDir, "work-queue.lock", time.Second)
 	if err != nil {
 		t.Fatalf("Go lock did not acquire after PowerShell released it: %v", err)
 	}

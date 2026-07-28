@@ -120,6 +120,12 @@ Go/PowerShell queue-lock interoperability on Windows; local branch retention;
 PR topic containment; mixed-target ledgers; and exact-SHA merged local-ref
 deletion without touching existing user worktrees.
 
+`TestSharedProjectLockPreservesInheritedWindowsACL` proves the shared project
+lock leaves an inherited Windows DACL unchanged. Set
+`KB_SHARED_LOCK_PROBE_DIR` to a real repository `.copilot-kb` directory and run
+`TestSharedProjectLockProductionProbe` for a non-mutating acquire/release probe
+against an existing queue lock.
+
 ### Change-aware proof governor
 
 Register repeatable checks with covered check IDs, relevant working-tree inputs,

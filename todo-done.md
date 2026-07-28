@@ -4,6 +4,15 @@
 
 ## 2026-07-28
 
+- Terminal cleanup shared-lock ACL follow-up - split repository-shared lock
+  acquisition from private-state ACL hardening. Shared queue locks now preserve
+  inherited Windows ACLs and use umask-governed project modes on Unix while
+  retaining symlink, same-file, timeout, LockFileEx/flock, and PowerShell
+  exclusivity guards. Proof: exact production queue-directory acquire/release,
+  inherited-DACL and first-creation-mode regressions, full affected tests,
+  cross-platform build, vet, and focused security/correctness review with zero
+  unresolved P0-P2.
+
 - Terminal Copilot worktree cleanup after durable delivery - added the native
   `kbcheck terminal-cleanup` register/sweep guard and wired `kb-complete`,
   `kb-start`, `kb-ship`, and `kb-land`. Receipts bind work/session identity,
