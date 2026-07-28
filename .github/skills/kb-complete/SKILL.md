@@ -40,20 +40,26 @@ can enforce narrow gates and resume safely.
 ## Input Resolution
 
 1. Run `kb-map lookup <request>` and resolve the active project root.
-2. If input is a manifest, use it.
-3. If input is a slice plan, requirements doc, brainstorm, or handoff, follow
+2. Before any mutating phase, claim or resume the stable objective in the shared
+   `kb-start` work queue with the current project session ID. If another live
+   session owns it, stop successor creation and report that session.
+3. If input is a manifest, use it.
+4. If input is a slice plan, requirements doc, brainstorm, or handoff, follow
    its source/manifest pointers before creating duplicate artifacts.
-4. If input is a clear feature description with no manifest, invoke
+5. If input is a clear feature description with no manifest, invoke
    `kb-plan <input>` with execution intent.
-5. If material product or architecture questions remain, route through
+6. If material product or architecture questions remain, route through
    `kb-brainstorm` before planning.
-6. If input is blank, resume the single active manifest from `todo.md`. Ask only
+7. If input is blank, resume the single active manifest from `todo.md`. Ask only
    when multiple active manifests are genuinely plausible.
 
 ## State-Driven Loop
 
 Re-read the manifest after every delegated phase. Durable state, not chat memory,
 chooses the next action.
+
+Heartbeat the shared work claim after every delegated phase. Publish `done`,
+`blocked`, or `superseded` before terminal output.
 
 Do not roll a narrow gate up to the whole product. A release-only failure can
 prevent `pr-open` or `landed` while local implementation remains complete. An
@@ -74,6 +80,11 @@ Before repeating any blocker, rerun its recorded recheck sensor.
 
 `kb-work` may invoke `kb-finalize` automatically. Re-read the manifest and skip
 already-proven phases rather than repeating review or learning.
+
+Treat a passing exact-tree proof receipt as durable phase evidence. `kb-complete`
+must not rerun it merely because orchestration moved from work to finalize,
+ship, or land. Rerun only invalidated checks when relevant files, dependencies,
+test configuration, environment identity, or the delivery tree changed.
 
 ## Delivery Policy
 

@@ -29,6 +29,10 @@ goal contract.
   are all under the verified repo root. Never carry an active goal from a prior
   session, sibling checkout, global memory, or chat history into another repo.
 - Run `kb-map lookup <goal>` before creating, resuming, or routing a goal.
+- Before creating run state or delegating work, claim the goal's stable work ID
+  through `kb-start/scripts/work_queue.ps1`. Record the project session ID,
+  branch, worktree, scope, status, and heartbeat. An existing live claim blocks
+  successor-session creation, not the owning session's work.
 - Store goal state in the active repo, not in global memory or chat history.
 - Route each work unit through `kb-start` unless the ledger already names a
   valid next action such as `kb-work <manifest>`, `kb-finalize <manifest>`, or
@@ -289,6 +293,7 @@ This prevents a loop from producing work faster than it can be reviewed.
    the `kbcheck run-state` guard before choosing another route.
 5. **Choose next unit** - identify the smallest work unit that moves the goal.
 6. **Delegate** - invoke the route from the ledger or route through `kb-start`.
+   Heartbeat the shared work claim before delegation and after the route returns.
 7. **Verify unit** - require the delegated lane's gate evidence. For manifests
    with `objective_contract: true`, require `go run ./cmd/kbcheck
    manifest-contract --manifest <manifest-path>` to pass before accepting a
@@ -301,6 +306,8 @@ This prevents a loop from producing work faster than it can be reviewed.
    - if the user paused or stopped, apply the Stop Protocol before any state,
      handoff, polling, cleanup, or routing action;
    - if blocked, record exact resume criteria and stop honestly.
+10. **Publish terminal status** - update the shared claim to `blocked`, `done`,
+   or `superseded`. Never leave a completed or abandoned goal `in_progress`.
 
 Do not stop at weaker milestones:
 

@@ -38,10 +38,32 @@ The core loop is six skills:
 | `kb-map` | Build or read repo-local memory so fresh sessions recover quickly |
 | `kb-fix` | Handle narrow bugs and small contained edits |
 | `kb-plan` | Turn clear work into vertical slices with verification |
-| `kb-work` | Execute ready slices and prove each one |
+| `kb-work` | Execute ready slices with narrow proof and batch shared checks |
 | `kb-complete` | Take a feature, plan, or manifest to its configured local, PR, or direct endpoint |
 
 Everything else is an internal phase, compatibility alias, or optional depth.
+
+### One owner, one useful proof wave
+
+Before mutation, `kb-start` writes a repository-wide work claim under the Git
+common directory. Every worktree sees the same work ID, project session ID,
+branch, worktree, status, and heartbeat. A second session reports the active
+owner instead of repeating discovery, implementation, or tests. The default is
+one owner per work ID and at most three active work IDs per repository.
+
+Verification is mandatory but not replayed at every workflow phase:
+
+1. Each slice runs its narrowest deterministic proof after its code stabilizes.
+2. A coherent group of dependent slices runs shared integration, functional,
+   and regression checks once at its proof-batch boundary.
+3. Review fixes invalidate only affected receipts.
+4. The final delivery tree runs one exact-tree aggregate.
+5. Finalize and ship reuse that receipt while the tree, check inputs, and
+   environment identity remain unchanged.
+
+Protected oracles and auth, secrets, destructive data, public-contract, and
+live/deploy boundaries still receive immediate targeted checks. They do not
+justify replaying unrelated suites.
 
 ## Learning Wiki
 

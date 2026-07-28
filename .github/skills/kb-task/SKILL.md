@@ -25,6 +25,9 @@ This is a task runner, not a separate implementation lane. It uses `kb-map` for 
    - Run `kb-map lookup <task>`.
    - If repo memory is missing, let `kb-map` invoke setup/bootstrap in the active project root.
    - If the current root is a portable skill bundle but the task belongs to another app, ask for the app project path before writing project memory or handoffs.
+   - Before a mutating route, claim a stable work ID with the shared queue from
+     `kb-start`. Include the project session ID so another session can inspect
+     or contact the owner if the heartbeat goes stale.
 
 2. **Frame from first principles**
    - State the real goal in one sentence.
@@ -59,13 +62,17 @@ This is a task runner, not a separate implementation lane. It uses `kb-map` for 
 5. **Verify**
    - Run the repo's deterministic checks for touched behavior.
    - For UI/user-visible changes, verify through the rendered UI with real navigation, clicks, inputs, and DOM assertions when available.
-   - Re-run checks after review or repair changes.
+   - After review or repair changes, rerun only checks whose recorded inputs
+     changed. Reuse unaffected passing receipts.
+   - Run one exact-tree aggregate after the last code-affecting change; delivery
+     reuses it while the tree and check inputs remain identical.
    - Record command, exit status, artifact path, or exact blocker.
 
 6. **Close**
    - Update project memory when behavior, routes, commands, architecture, or active state changed.
    - Create a `kb-handoff` only if work must continue in a fresh session or is blocked.
    - Finish with a concise summary, files changed, verification run, and remaining blockers if any.
+   - Publish `done`, `blocked`, or `superseded` to the shared work queue.
 
 ## Autonomy Boundaries
 

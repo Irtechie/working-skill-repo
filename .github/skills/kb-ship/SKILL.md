@@ -67,9 +67,12 @@ audited shipping scope and inspect the staged diff.
 
 Run verification against the tree that will be delivered.
 
-- When repo `cmd/kbcheck` exists, run `go run ./cmd/kbcheck local-release`.
+- When repo `cmd/kbcheck` exists, ask its proof planner for the final exact-tree
+  release checks. Reuse a matching passing final receipt. Run
+  `go run ./cmd/kbcheck local-release` only when the receipt is absent,
+  invalidated, or does not cover required release checks.
 - Otherwise invoke `kb-check` and run the consuming repo's native release
-  checks; record the fallback commands and results.
+  checks only when no matching final receipt exists; record RUN/REUSE decisions.
 - Run both unstaged and staged whitespace checks:
   `git diff --check` and `git diff --cached --check`.
 - Run required browser/API/CLI release proof from the manifest.
@@ -82,9 +85,11 @@ commit.
 
 - If the remote topic branch exists, fetch it and integrate without force or
   shared-history rewriting.
-- After any merge, rebase, or conflict resolution changes `HEAD`, rerun all
-  release checks and re-audit the full branch diff against the remote default
-  branch before push. Remote commits do not bypass shipping scope review.
+- After any merge, rebase, or conflict resolution changes `HEAD`, ask the proof
+  planner which receipts were invalidated. Run those checks and one final
+  exact-tree aggregate; reuse unaffected checks. Re-audit the full branch diff
+  against the remote default before push. Remote commits do not bypass shipping
+  scope review.
 - Require no unmerged entries and a clean audited index.
 - Push explicitly to the selected non-default remote topic ref and set that ref
   as upstream.

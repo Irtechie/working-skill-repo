@@ -126,6 +126,10 @@ func TestRepairPolicyRejectsUnconditionalReplayLanguage(t *testing.T) {
 		},
 		".github/skills/kb-work/SKILL.md": {
 			"Verify all previous snapshots under `.kb/snapshots/`",
+			"reruns slice and aggregate proof",
+		},
+		".github/skills/kb-ship/SKILL.md": {
+			"rerun all release checks",
 		},
 	}
 	for relative, forbidden := range files {
@@ -136,6 +140,36 @@ func TestRepairPolicyRejectsUnconditionalReplayLanguage(t *testing.T) {
 		for _, phrase := range forbidden {
 			if strings.Contains(string(content), phrase) {
 				t.Errorf("%s retains unconditional replay phrase %q", relative, phrase)
+			}
+		}
+	}
+}
+
+func TestProofCadencePolicyRequiresReuseAndBatchBoundaries(t *testing.T) {
+	root := proofExecutionRepoRoot(t)
+	required := map[string][]string{
+		".github/skills/kb-check/SKILL.md": {
+			"Slice-local proof",
+			"Proof-batch aggregate",
+			"Final exact-tree proof",
+			"`REUSE` is proof",
+		},
+		".github/skills/kb-work/SKILL.md": {
+			"Proof Batch Cadence",
+			"Do not run the manifest aggregate after each slice",
+		},
+		".github/skills/kb-ship/SKILL.md": {
+			"Reuse a matching passing final receipt",
+		},
+	}
+	for relative, phrases := range required {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, phrase := range phrases {
+			if !strings.Contains(string(content), phrase) {
+				t.Errorf("%s is missing proof cadence rule %q", relative, phrase)
 			}
 		}
 	}

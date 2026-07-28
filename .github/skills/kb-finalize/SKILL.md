@@ -37,14 +37,17 @@ already opted into a `done.md` workflow.
 
 ## Pre-Flight
 
-1. **Read the manifest** — confirm `status: completed` (all slices done/skipped). If slices are still `pending` or `in_progress`, stop: "This manifest has unfinished slices. Run `kb-work` first."
-2. **Validate gate ledger** — the manifest must contain `gate_ledger` with `work-to-complete` set to `passed`, and every completed slice must have a passing `slice-<id>-to-done` gate. New manifests use `allowed_next_action: kb-finalize <manifest-path>`; accept legacy `kb-complete <manifest-path>` while old plans remain active. Run the checker against the recorded allowed action. If missing, blocked, or the checker fails, stop and invoke `kb-work <manifest-path>` or `kb-gate` to repair the ledger. Do not run finalization from a manifest that merely says `status: completed`.
-3. **Validate objective contract** — if the manifest has `objective_contract: true`, run `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>`. Confirm the top-level `done_check` is present and each completed slice has `proof_check` evidence or an accepted `no_check_reason` recorded in slice notes/gates. If missing, stop and return to `kb-work` for proof repair.
-4. **Collect scope context** — scan each slice's `notes` field for `scope-check:` and `scope-discovery:` entries. Build the combined list of actually changed, scope-verified files across all slices. This becomes the review scope.
-5. **Collect memory impact** — scan slice notes for `memory-impact:` and `kb-map-refresh:` entries.
-6. **Review routing evidence honestly** — collect any routing receipts or host evidence linked from the run state, but treat them as telemetry rather than proof of correctness. Missing, unknown, or mismatched provenance does not invalidate already-proven work.
-7. **Identify the branch baseline** — run `git merge-base HEAD main` to establish the diff range.
-8. **Run one final snapshot milestone** — invoke `kb-regression-snapshot verify -MilestoneId <manifest-id>`. Accept `REUSE` for the exact passing fingerprint; otherwise run once and STOP on failure.
+1. **Require the shared work claim** — verify the current project session owns
+   the manifest's live `kb-start` queue entry and heartbeat it before review or
+   proof. Do not let a successor finalizer duplicate an active owner's work.
+2. **Read the manifest** — confirm `status: completed` (all slices done/skipped). If slices are still `pending` or `in_progress`, stop: "This manifest has unfinished slices. Run `kb-work` first."
+3. **Validate gate ledger** — the manifest must contain `gate_ledger` with `work-to-complete` set to `passed`, and every completed slice must have a passing `slice-<id>-to-done` gate. New manifests use `allowed_next_action: kb-finalize <manifest-path>`; accept legacy `kb-complete <manifest-path>` while old plans remain active. Run the checker against the recorded allowed action. If missing, blocked, or the checker fails, stop and invoke `kb-work <manifest-path>` or `kb-gate` to repair the ledger. Do not run finalization from a manifest that merely says `status: completed`.
+4. **Validate objective contract** — if the manifest has `objective_contract: true`, run `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>`. Confirm the top-level `done_check` is present and each completed slice has `proof_check` evidence or an accepted `no_check_reason` recorded in slice notes/gates. If missing, stop and return to `kb-work` for proof repair.
+5. **Collect scope context** — scan each slice's `notes` field for `scope-check:` and `scope-discovery:` entries. Build the combined list of actually changed, scope-verified files across all slices. This becomes the review scope.
+6. **Collect memory impact** — scan slice notes for `memory-impact:` and `kb-map-refresh:` entries.
+7. **Review routing evidence honestly** — collect any routing receipts or host evidence linked from the run state, but treat them as telemetry rather than proof of correctness. Missing, unknown, or mismatched provenance does not invalidate already-proven work.
+8. **Identify the branch baseline** — run `git merge-base HEAD main` to establish the diff range.
+9. **Run one final snapshot milestone** — invoke `kb-regression-snapshot verify -MilestoneId <manifest-id>`. Accept `REUSE` for the exact passing fingerprint; otherwise run once and STOP on failure.
 
 If the manifest has no scope-check notes (older format), fall back to `git diff --name-only $(git merge-base HEAD main)..HEAD` for the file list.
 
@@ -56,11 +59,20 @@ erase already-proven implementation completion.
 
 ## Step 1: Code Review
 
-Before review, run `kb-check` on the manifest scope, reusing fresh slice receipts and running only invalidated checks plus the manifest aggregate. Route failures to `kb-repair`/`kb-fix`; LLM review does not replace executable verification.
+Before review, run `kb-check proof-plan` on the manifest scope. Reuse fresh
+slice and proof-batch receipts and run only checks needed to make review safe.
+Do not run the final exact-tree aggregate solely to enter review; schedule it
+after review fixes in Step 2.6. Route failures to `kb-repair`/`kb-fix`; LLM
+review does not replace executable verification.
 
 Do not choose, rerun, or require a different model solely to improve routing telemetry. `kb-finalize` reviews receipts and notes useful observations for future selection, but proof and review gates remain model-independent.
 
-If the manifest contains slices with `test_level` of `integration`, `functional-api`, `functional-cli`, `functional-browser`, or `full`, run `kb-functional-test` before `kb-review` to confirm the functional coverage is real and not mock-only. Also run it when the diff shows user-visible, API/CLI, persistence, auth, streaming, or integration changes without an adequate recorded test level.
+If the manifest contains slices with `test_level` of `integration`,
+`functional-api`, `functional-cli`, `functional-browser`, or `full`, require a
+matching proof-batch `kb-functional-test` receipt before `kb-review`. Reuse it
+when fresh; run it only when absent or invalidated. Also require it when the diff
+shows user-visible, API/CLI, persistence, auth, streaming, or integration
+changes without an adequate recorded test level.
 
 If the final diff includes `.tsx`, `.jsx`, `.vue`, or `.svelte` files, or any changed behavior primarily reached through the rendered UI, require `functional-browser` evidence before completion. Backend/API/unit-only proof is insufficient for those changes.
 
@@ -136,18 +148,22 @@ their dependent scope.
 Run a final evidence pass after review fixes, because review changes can alter
 behavior.
 
-1. Re-run `kb-check` or the narrow deterministic commands affected by review
-   fixes.
+1. Use `kb-check proof-plan`; rerun only narrow deterministic commands whose
+   inputs changed during review fixes. Reuse every unaffected receipt.
 2. If user-visible, API/CLI, browser, persistence, auth, streaming, or
-   integration behavior changed, run `kb-functional-test` again on the final
-   diff. For browser/UI work, verify through the rendered UI with Playwright
-   where viable, or the repo/platform authenticated browser transport when
-   Playwright cannot access the route.
+   integration behavior changed during review, invalidate and rerun only its
+   affected `kb-functional-test`. Otherwise reuse the proof-batch receipt.
+   For browser/UI work, verify through the rendered UI with Playwright where
+   viable, or the repo/platform authenticated browser transport when Playwright
+   cannot access the route.
 3. If the change is visual, workflow-heavy, reviewer-facing, or the user/PR
    expects a demo, capture demo evidence. Use a repo-local `feature-video` or
    equivalent demo skill if installed; otherwise capture screenshots, logs, or a
    concise manual demo checklist and add an alert with the missing tool.
-4. Store proof in the manifest notes: commands run, routes/screens/workflows
+4. Run one final exact-tree aggregate after the last code-affecting review fix.
+   If an identical final receipt already exists, record `REUSE` instead.
+5. Store proof in the manifest notes: commands run or reused, input/tree
+   fingerprints, routes/screens/workflows
    checked, artifacts created, and any skipped proof with reason.
 
 Every slice must have machine-verifiable proof recorded in the manifest before completion can continue.
