@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repo ships 44 `SKILL.md` files under `.github\skills\`. They define the KB
+This repo ships 45 `SKILL.md` files under `.github\skills\`. They define the KB
 workflow lanes, CE review/compound helpers, todo helpers, and learning/utilities
 used by Codex, Copilot, and shared agents.
 
@@ -13,7 +13,7 @@ Supporting reviewer/specialist agents live under `.github\agents\*.agent.md`.
 | Group | Skills |
 |---|---|
 | Entry / routing | `kb-start`, `kb-task`, `kb-map`, `kb-map-bootstrap`, `kb-memory-review`, `kb-goal`, `kb-epic` |
-| Requirements / planning | `kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-research`, `kb-first-principles` |
+| Requirements / planning | `kb-brainstorm`, `kb-plan`, `kb-ddr-plan`, `kb-gate`, `kb-research`, `kb-first-principles` |
 | Execution / repair | `kb-work`, `kb-fix`, `kb-troubleshoot`, `kb-repair`, `tdd` |
 | Verification / eval | `kb-check`, `kb-functional-test`, `kb-qa`, `kb-regression-snapshot`, `kb-eval-map` |
 | Completion / delivery | `kb-complete`, `kb-finalize`, `kb-review`, `kb-ship`, `kb-land`, `kb-finish`, `klfg` |
@@ -38,6 +38,7 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-compact` | Reduce comprehension effort and select the smallest useful response format | Use when KB docs or outputs are noisy, hard to scan, or need a table/flow to expose relationships |
 | `kb-complete` | Single state-aware end-to-end completion command | Use to take work from current state to configured endpoint |
 | `kb-configure` | Set optional per-project execution/delivery policy | Use to inspect or change attempts/delivery settings |
+| `kb-ddr-plan` | Choose a minimum execution tier and write a sufficient no-code execution contract | Invoked by `kb-plan` for runnable slices |
 | `kb-epic` | Coordinate large multi-workstream initiatives | Use for migrations, rewrites, or large related backlogs |
 | `kb-eval-map` | Map repo-native eval surfaces | Use during bootstrap or when eval strategy is unclear |
 | `kb-finalize` | Post-work review/learning/cleanup pipeline | Usually invoked after `kb-work` |

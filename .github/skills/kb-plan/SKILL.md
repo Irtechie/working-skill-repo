@@ -14,14 +14,16 @@ Break work into independently executable **vertical slices** (tracer bullets). E
 
 1. Read the brainstorm, PRD, or feature description.
 2. Draft thin end-to-end slices with dependencies and verification modes.
-3. Review the breakdown yourself against the source material; ask the user only for blocking decisions.
-4. Write one KB manifest plus one plan file per slice.
-5. Create or update the manifest `gate_ledger`; `plan-to-work` must be
+3. Invoke `kb-ddr-plan` for every runnable slice to choose the minimum capable
+   tier and produce an execution-grade plan contract without writing the code.
+4. Review the breakdown yourself against the source material; ask the user only for blocking decisions.
+5. Write one KB manifest plus one plan file per slice.
+6. Create or update the manifest `gate_ledger`; `plan-to-work` must be
    `passed` before `kb-work` may execute.
-6. After writing the manifest, continue to `kb-work <manifest-path>` only when
+7. After writing the manifest, continue to `kb-work <manifest-path>` only when
    execution was requested or an orchestrator called this plan. Otherwise ask
    once and print the exact next command.
-7. Stage or commit only the generated files when the user explicitly asked for a commit.
+8. Stage or commit only the generated files when the user explicitly asked for a commit.
 
 ## Interaction Method
 
@@ -164,9 +166,9 @@ Break the work into thin end-to-end slices. For each slice, determine:
 - **Verification mode** - tdd / integration / verification-only / hitl. For `tdd`, record the oracle path/command before implementation whenever practical.
 - **Test level** - none / unit / integration / functional-api / functional-cli / functional-browser / functional-native-gui / full
 - **Functional risk** - none / narrow / broad / full
-- **Model tier** - the `small` / `medium` / `large` correction and authority
-  tier required if the first implementation attempt fails; Planner is a
-  separate orchestration role
+- **Model tier** - the minimum `small` / `medium` / `large` execution
+  capability judged sufficient to complete the frozen plan unaided; Planner is
+  a separate orchestration role
 - **Model tier reason** - one falsifiable explanation tied to uncertainty,
   blast radius, coupling, reversibility, authority, or verification burden
 - **Model requirements** - capabilities, tools, context, risk, and proof shape the work-time selector must consider
@@ -232,6 +234,9 @@ Check the proposed breakdown against:
 - Context packet: material slices provide bounded context or record why a tiny
   slice does not need one. A packet must not embed raw chat history or broad
   tool catalogs.
+- Plan sufficiency: `kb-ddr-plan` confirms that the selected tier can execute
+  from source-derived contracts, invariants, boundaries, and proof without
+  stronger-model rescue or implementation code hidden in the plan.
 
 Ask the user only when a material decision remains. Otherwise proceed and record assumptions.
 
@@ -245,50 +250,27 @@ criteria, `expected_files`, verification mode, `test_level`, `functional_risk`,
 and any objective-contract fields. If any proof is missing, set
 `status: blocked` and do not invoke `kb-work`.
 
-### Model Tier Contract
+### Model Tier And Plan Sufficiency Contract
 
-`model_tier` records the minimum execution capability the orchestrator judges
-necessary for the slice. It is not a permanent worker assignment and not a
-proof level. Verification requirements stay the same regardless of tier. The
-orchestrator owns planning, tier judgment, selection, supervision, proof, and
-synthesis; one qualified same-tier-or-higher subagent normally owns bounded
-execution. `kb-work` may retain execution only through its recognized
-current-owner exception gate. The plan does not record a model, route alias,
-provider, or `attempt_tier`.
+Invoke `kb-ddr-plan` before finalizing every runnable slice. It owns the tier
+rubric, minimum sufficient execution contract, no-code leakage boundary,
+failure diagnosis, and whole-route economic accounting.
 
-That owner rule is per slice. Plan dependencies, `conflict_domains`, and
-`shared_resources` so `kb-work` can run every safe independent ready slice on
-its own qualified subagent in parallel. Do not invent dependencies merely to
-serialize work.
+`model_tier` records the minimum execution capability judged sufficient for the
+frozen plan. It is not a permanent worker assignment, a post-failure correction
+tier, or a proof level. Verification remains unchanged regardless of tier.
+Every runnable slice still includes a falsifiable `model_tier_reason`, non-empty
+`model_requirements`, and observable `escalation_triggers`.
 
-The planner never chooses a native model, extra-route alias, provider, adapter,
-endpoint, or transport. The current master resolves live native routes and any
-saved project source preference immediately before work. The actual route
-belongs in the receipt. Only run-scoped `require <model>` hard-pins.
+Keep tiers portable. The plan never records a model, route alias, provider,
+adapter, endpoint, transport, or production `attempt_tier`. `kb-work` resolves
+the live route at pickup and records it in the receipt. Plan dependencies,
+`conflict_domains`, and `shared_resources` so independent slices remain
+parallelizable without inventing dependencies.
 
-Treat tiers as portable complexity requirements. The same planned `medium`
-slice may resolve to different concrete models when any compatible CLI or host
-picks it up. At pickup, that runner's orchestrator chooses from its exact live,
-qualified routes; never copy a model name from another host or freeze an
-example route into the plan.
-
-| Tier | Good fit | Do not assign |
-|---|---|---|
-| `small` | narrow mechanical code edits, straightforward tests, local docs updates with clear examples | ambiguous architecture, cross-boundary behavior, user-visible workflows without stronger review |
-| `medium` | ordinary vertical slices, focused refactors, integration wiring with clear acceptance criteria | high-risk architecture/security/data migrations, unresolved product calls |
-| `large` | decomposition, hard debugging, architecture/security decisions, broad migrations, final synthesis/review | tasks with no executable proof path |
-
-Every runnable slice must include `model_tier_reason`, non-empty
-`model_requirements`, and observable `escalation_triggers`. A tier label without
-those fields fails `manifest-contract`. The reason must state why that minimum
-capability is needed, not merely name a task type.
-
-Legacy `tiny` remains readable as a `small`-lane hint only. When unsure, choose
-the higher tier. Subjective design direction, philosophy/policy judgment,
-unresolved architecture, weak proof, and security/auth/data-boundary decisions
-may justify a recognized current-owner exception or HITL. Complexity must be
-tied to the reasoning, context, tool, authority, or trust requirement it
-creates. Straightforward code is not enough by itself to justify a lower tier.
+Legacy `tiny` remains readable as a `small` hint. When evidence is incomplete,
+choose the higher tier rather than writing the implementation into the plan to
+make a lower tier appear sufficient.
 
 ### Workspace Isolation Contract
 
@@ -413,6 +395,7 @@ gate_ledger:
       - "<all slice plan paths exist>"
       - "DAG has no missing blockers or cycles"
       - "each slice has acceptance criteria, expected_files, verification, test_level, functional_risk, model_tier"
+      - "each runnable slice passed kb-ddr-plan tier, sufficiency, token-budget, and leakage checks"
       - "objective_contract manifests have done_check and each slice has proof_check or a justified no_check_reason"
     proof:
       - docs/plans/YYYY-MM-DD-000-kb-<name>-manifest.md
@@ -539,6 +522,9 @@ The plan body should include:
 - Acceptance criteria
 - Minimum execution tier and why its reasoning, context, tools, trust, and
   authority are sufficient for the slice
+- Execution contract from `kb-ddr-plan`: objective, repository route, behavior,
+  source-derived invariants and edge cases, implementation boundaries, proof,
+  stop conditions, plan token budget, and leakage check
 - Expected files (must match `expected_files` in frontmatter as the initial forecast; actual touched files may expand during `kb-work` when justified by the acceptance criteria and recorded in the scope ledger)
 - Test scenarios specific enough for TDD or integration verification
 - Proof check: the command, artifact, browser/API/CLI assertion, or accepted
