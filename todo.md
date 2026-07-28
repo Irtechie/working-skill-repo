@@ -72,7 +72,6 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
-| Reconcile remaining skill-repo work | 🔒 blocked | P0 | `docs/context/goals/reconcile-working-skill-repo-work.md`; waits only for the owner-controlled DDR/AMR cohort package |
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
 | Workflow overview image restoration | 🔧 in_progress | P0 | AMR/DDR review is archived; restore the former routing overview under a distinct asset name after current workflow consolidation is reflected. |

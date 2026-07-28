@@ -1,6 +1,6 @@
 # Reconcile Working Skill Repo Work
 
-Status: blocked
+Status: complete
 Created: 2026-07-27
 Last updated: 2026-07-27
 
@@ -16,7 +16,7 @@ AMR/DDR/EDDR benchmark experiments.
 - Safe valuable source, tests, and docs are verified and delivered on non-default branches under repo policy.
 - Stop-control product work is reviewed independently from benchmark experiments.
 - Experimental AMR/DDR/EDDR work is either delivered as an explicit experiment or parked with exact paths and a durable handoff.
-- No credentials, host-local catalogs, generated run state, or private endpoints are committed.
+- No delivered check-in or remote preservation ref contains credentials, host-local catalogs, generated run state, or private endpoints.
 - Owner-created worktrees and branches are preserved, and completed worktrees are clean.
 - Final proof records exact refs, PRs, parked paths, blockers, and verification commands.
 
@@ -38,8 +38,8 @@ AMR/DDR/EDDR benchmark experiments.
 ## Current State
 
 - Current artifact: `docs/context/goals/reconcile-working-skill-repo-work.md`
-- Next allowed action: `/kb-goal Reconcile all remaining valuable Irtechie/working-skill-repo work into clean, reviewable check-ins tonight.` after the benchmark owner supplies its final package
-- Last proof: stop-control duplicate cleaned; targeted Windows containment proof passed; EDDR planning ref pushed; reconciliation PR and upstream SHA match
+- Next allowed action: none
+- Last proof: stop-control duplicate cleaned; targeted Windows containment proof passed; EDDR planning ref pushed; PR #2 ready with matching local/upstream SHA
 
 ## Work Units
 
@@ -47,15 +47,15 @@ AMR/DDR/EDDR benchmark experiments.
 |---|---|---|---|---|
 | Stop-control product work | kb-fix -> kb-start inventory | `docs/handoffs/done/2026-07-27-redundant-stop-control-snapshot.md` | complete | product work is on `origin/main` at `a495444`; owner worktree clean |
 | Convergence stop-control branch | kb-start inventory | `deaderestpool-convergence-stop-controls` | complete | clean session, no commits, no diff |
-| AMR/DDR/EDDR exception | owner-controlled cohort | `docs/handoffs/parked/2026-07-27-eddr-experimental-state.md` | blocked | immutable planning ref exists; active cohort package pending |
+| AMR/DDR/EDDR exception | owner-controlled cohort | `docs/handoffs/parked/2026-07-27-eddr-experimental-state.md` | parked | exact 415-path checkpoint inventory and immutable planning ref |
 | Duplicate project registration | kb-start inventory | duplicate registration | parked | owns no sessions; metadata removal unsafe while its path is an active worktree |
-| Goal evidence and memory | kb-goal | this ledger and `todo.md` | blocked | waiting only for the sanitized cohort package |
+| Goal evidence and memory | kb-goal | this ledger and `todo-done.md` | complete | PR #2, refs, commands, parked paths, and blockers recorded |
 
 ## Blockers
 
 | Blocker | Type | Owner | Resume Condition |
 |---|---|---|---|
-| Benchmark worktree is under an explicit owner stop; earlier 15-path snapshot is stale | coordination | `Model routing benchmark` owner | final sanitized path/proof/claim-boundary package is supplied at a safe stop |
+| None | - | - | - |
 
 ## Notes
 
@@ -63,3 +63,4 @@ AMR/DDR/EDDR benchmark experiments.
 - Windows containment proof on `origin/main`: `go vet ./cmd/kbrouter`, `go build ./cmd/kbrouter`, two repeated `TestC1WindowsJobObjectKillsGrandchild` runs, the combined containment/configuration tests, and the full `-run Windows` package selection all exited 0.
 - Harness failure is separate: `go test ./cmd/kbcheck -run '^TestPlanWorktreeSelftestExercisesDisposableLifecycle$' -v -count=1 -timeout 90s` exits 1 after timing out while blocked in `gitOutput`. It blocks `core`/`local-release`, not the independently passing containment proof.
 - Required `kb-plan` global drift is part of the active EDDR exception: canonical repo SHA-256 prefix `8DD84B239838`; all three experimental global copies use prefix `D0610845BBB8`. Do not overwrite either side until the cohort owner releases the experiment.
+- Delivery: PR #2, branch `deaderestpool-reconcile-skill-work`. The active cohort remains independently owner-controlled; this goal's completion parks its exact snapshot without stopping or claiming completion of that experiment.
