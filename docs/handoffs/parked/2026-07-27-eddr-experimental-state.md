@@ -83,6 +83,14 @@ the owner's live execution.
 PR #2 may merge while this exception remains active. Merging the handoff does
 not merge, push, approve, release, or otherwise mutate the checkpoint or cohort.
 
+## Qwen Infrastructure Disposition
+
+Qwen is `INFRASTRUCTURE NOT-RUN`. Its single prescribed acquire ended
+`descriptive_only` after an `allocation-launcher-v2` `AttributeError`. It was
+not retried after reboot. Owner `ddr-medium-qwen-20260727-c5047831` has no
+remaining reservation, cleanup target, or endpoint. This is permitted DDR
+outlier evidence, not unfinished non-DDR work or a model-result claim.
+
 Resume condition: the owner sends its final exact path, proof, claim-boundary,
 and clean-or-preserved-state package at a safe stop. Then run:
 
