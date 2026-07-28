@@ -16,9 +16,26 @@ On every fresh session or ambiguous work request:
 
 1. Invoke `kb-map lookup <user request>`.
 2. Let `kb-map` decide whether lookup, refresh, or bootstrap is required.
-3. After `kb-map` returns project context, check or claim the shared work queue,
+3. After the project root is resolved, reap eligible terminal work from a
+   different session when the repo provides the native guard:
+
+   ```powershell
+   go run ./cmd/kbcheck terminal-cleanup --action sweep `
+     --session-id <current-project-session-id> --root <project-root>
+   ```
+
+   The guard holds the shared lock across the final claim reread and refreshes
+   authoritative remote evidence immediately before each destructive removal;
+   direct delivery refreshes again before local-ref compare-and-swap. Repos with
+   no authoritative remote default fail closed. It must preserve the current executing session by both
+   session ID and worktree path, primary checkout, tracked/untracked/ignored
+   dirt, locked/moved/recreated worktrees, active queue claims, rewritten or
+   uncontained commits, and unresolved paths. A cleanup-only blocker does not
+   block unrelated startup work; report it when it overlaps the requested
+   branch/worktree or requires host-owned session-record deletion.
+4. After `kb-map` returns project context, check or claim the shared work queue,
    then classify the user request and route it.
-4. If `kb-map` reports stale work or missing memory, honor that before executing work.
+5. If `kb-map` reports stale work or missing memory, honor that before executing work.
 
 ## Shared Work Queue Gate
 

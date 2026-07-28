@@ -2,6 +2,19 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-28
+
+- Terminal Copilot worktree cleanup after durable delivery - added the native
+  `kbcheck terminal-cleanup` register/sweep guard and wired `kb-complete`,
+  `kb-start`, `kb-ship`, and `kb-land`. Receipts bind work/session identity,
+  Git-admin generation, real path, delivered SHA, and live remote evidence.
+  Cleanup fails closed for current, primary, dirty/ignored, locked,
+  moved/recreated, active-claim, no-authority, rewritten, uncontained, and
+  squash/rebase-unproved targets; direct-mode local ref deletion uses exact-SHA
+  compare-and-swap. Proof: 21 disposable cleanup tests, full `cmd/kbcheck`,
+  vet, diff integrity, Windows Go/PowerShell lock interoperability, and focused
+  adversarial re-review with zero unresolved P0-P2.
+
 ## 2026-07-27
 
 - Remaining skill-repo reconciliation - designated the canonical project and

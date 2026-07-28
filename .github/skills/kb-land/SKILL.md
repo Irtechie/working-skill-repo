@@ -85,7 +85,12 @@ Run only when `post_merge_sync: true` and remote-default integration is proven.
 
 - Fetch and update local knowledge of the remote default without discarding
   unrelated work.
-- Delete topic branches/worktrees only when merged, clean, and safe.
+- Record proof that the fetched remote default contains the delivered commit;
+  include the exact remote-default ref and delivered SHA for `kb-complete`,
+  which registers the proven integrated endpoint as terminal cleanup mode
+  `direct` whether integration came from an authorized PR merge or direct push.
+- Delete topic branches/worktrees only through the terminal cleanup guard when
+  merged, clean, unclaimed, outside the current executing session, and safe.
 - Do not switch branches in a dirty shared checkout merely for cosmetic cleanup.
 
 ## Output
@@ -95,6 +100,7 @@ KB land: landed|pending-review|blocked|nothing-to-land
 Mode: pr|direct
 Remote default: <remote>/<branch>
 Integrated commit: <sha or none>
+Remote containment: <remote/default>@<sha or none>
 PR: <url or none>
 Sync: <done|not-configured|blocked>
 Blocker: <none or exact reason>

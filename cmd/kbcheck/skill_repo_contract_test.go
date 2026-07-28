@@ -57,6 +57,10 @@ func TestDeliveryOwnerSkillContracts(t *testing.T) {
 		t.Fatal(err)
 	}
 	required := map[string][]string{
+		".github/skills/kb-start/SKILL.md": {
+			"terminal-cleanup --action sweep",
+			"current executing session",
+		},
 		".github/skills/kb-work/SKILL.md": {
 			"never merges or pushes a resolved default branch",
 			"Missing delivery policy is local-only",
@@ -66,15 +70,19 @@ func TestDeliveryOwnerSkillContracts(t *testing.T) {
 			"reviewed manifest-owned plan-run branch is the only delivery candidate",
 			"Absent policy is always local-only",
 			"PR/manual is the recommended team policy",
+			"terminal-cleanup --action register",
+			"release the shared work claim",
 		},
 		".github/skills/kb-ship/SKILL.md": {
 			"reviewed plan-run topic branch is the only shipping candidate",
 			"PR/manual stops with the correctly based open PR",
 			"`kb-ship` never merges it",
+			"remote topic contains the delivered commit",
 		},
 		".github/skills/kb-land/SKILL.md": {
 			"only KB skill authorized to integrate the resolved remote default branch",
 			"Absence of delivery policy is local-only",
+			"remote default contains the delivered commit",
 		},
 		".github/skills/kb-configure/SKILL.md": {
 			"mode: local",

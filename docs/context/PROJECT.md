@@ -43,6 +43,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install-kb.ps1 -Target all
 go run ./cmd/kbcheck core --list
 go run ./cmd/kbcheck core
 go run ./cmd/kbcheck plan-worktree-selftest
+go test ./cmd/kbcheck -run TerminalCleanup -count=1
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbrouter --help
 go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
@@ -115,6 +116,13 @@ docs are:
   there serially, and disjoint manifests may run concurrently.
   `plan-worktree-selftest` proves the local collision and recovery boundary
   without touching the source checkout or performing delivery.
+- [verified] Terminal cleanup is delivery-evidence gated. The current/primary,
+  dirty, locked, actively claimed, moved/recreated, default, rewritten, and
+  uncontained targets are preserved; unresolved remote-default authority also
+  blocks cleanup. A later session verifies the Git-admin
+  generation and observed remote SHAs, removes the Git worktree, and deletes
+  only an exact merged local feature ref with compare-and-swap. Squash/rebase
+  proof, host UI records, and remote-ref deletion remain host-owned.
 - [verified] `cmd/amrbench run` remains non-dry blocked until a trusted
   human-approval verifier exists.
 - [verified] `.github/workflows\` is currently empty; proof is local CLI-driven

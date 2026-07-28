@@ -94,6 +94,9 @@ commit.
 - Push explicitly to the selected non-default remote topic ref and set that ref
   as upstream.
 - Fetch again and require local `HEAD` and the upstream SHA to match exactly.
+- Record that the fetched remote topic contains the delivered commit, including
+  the exact remote, topic ref, and commit SHA. `kb-complete` consumes this
+  evidence when registering terminal cleanup.
 - A failed push is a blocker to resolve, not success.
 
 ## Pull Request
@@ -165,6 +168,7 @@ KB ship: shipped|nothing-to-ship|blocked
 Branch: <branch>
 Commit: <sha or none>
 PR: <url or none>
+Remote containment: <remote/topic>@<sha or none>
 Blocker: <none or exact reason>
 Next: <none or exact recovery action>
 ```
