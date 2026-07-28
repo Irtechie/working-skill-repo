@@ -13,12 +13,14 @@ enforce the requested verification mode, and pause on HITL tasks.
 ## Quick Start
 
 1. Read the KB manifest.
-2. Validate the dependency DAG and statuses.
-3. Verify the manifest `gate_ledger` allows `kb-work`; repair or block if `plan-to-work` is not passed.
-4. Confirm execution once unless the user already asked to run/execute/work the manifest.
-5. Execute the safe ready set without asking between slices.
-6. Update the manifest after each slice so the workflow is resumable.
-7. After all runnable slices are terminal, write the `work-to-complete` gate and immediately invoke `kb-finalize <manifest-path>` unless the user explicitly said to stop before finalization.
+2. Require the shared `kb-start` work claim for this manifest and session before
+   plan-run preparation, leases, status projection, delegation, or tests.
+3. Validate the dependency DAG and statuses.
+4. Verify the manifest `gate_ledger` allows `kb-work`; repair or block if `plan-to-work` is not passed.
+5. Confirm execution once unless the user already asked to run/execute/work the manifest.
+6. Execute the safe ready set without asking between slices.
+7. Update the manifest and shared queue heartbeat after each slice.
+8. After all runnable slices are terminal, write the `work-to-complete` gate and immediately invoke `kb-finalize <manifest-path>` unless the user explicitly said to stop before finalization.
 
 ## Input
 
@@ -109,6 +111,9 @@ KB state system unless the repo already opted into `done.md`.
    byte-for-byte in the source checkout. Run subsequent slice commands from the
    receipt worktree. The feature's own bootstrap slice may use an explicitly
    reviewed manually-created topic worktree until `plan-worktree` exists.
+   Before this step, require a live shared work-queue claim owned by the current
+   project session. The plan-run receipt and leases refine that early claim; they
+   do not replace it.
 9. **Acquire manifest mutation authority before board projection, slice claims, or mutation:** collect the manifest's forecast `expected_files`, path prefixes, `conflict_domains`, and `shared_resources`, then atomically claim them from the plan-run worktree:
 
    ```powershell
@@ -214,9 +219,10 @@ Active handoff files under `docs/handoffs/active/` are restart packets. Create o
   its current gate, proof, and recheck sensor before acting.
 - Acquire the atomic slice lease BEFORE starting work, then update the board BEFORE mutation and AFTER completing work. This prevents two agents from working the same slice.
 - Workers never directly project canonical lifecycle status. The coordinator
-  serializes slice-commit acceptance, reruns slice and aggregate proof in the
-  manifest-owned worktree, advances the receipt with compare-and-swap, and only
-  then updates `todo.md`, the manifest, and active handoff.
+  serializes slice-commit acceptance, validates or runs the slice-local proof in
+  the manifest-owned worktree, runs aggregate proof only at a declared proof
+  batch boundary, advances the receipt with compare-and-swap, and only then
+  updates `todo.md`, the manifest, and active handoff.
 - Also update the manifest to stay in sync, but if they conflict, the board wins.
 - Do not use root **Work Log** as a permanent archive. During execution, add notes only when they help a later agent resume: blockers, verification commands, durable memory impacts, or non-obvious decisions. Routine "slice complete" and verification-success notes belong in `todo-done.md` at feature completion, not in `todo.md`.
 - Blocked is not parked. Use `🔒 blocked` for dependencies, another-agent waits, tool failures, or missing inputs. Use `🧊 Parked / Cold Storage` only for work a human intentionally deferred out of scope.
@@ -554,11 +560,31 @@ When `test_level` is `functional-browser`, these steps are mandatory:
 
 Backend/API/unit checks may supplement this proof, but they cannot replace it. This gate cannot be skipped, overridden, or deferred.
 
+### Step 2.8: Proof Batch Cadence
+
+Before tests, assign the slice to a coherent proof batch:
+
+- Run narrow slice-local proof after the slice code stabilizes.
+- Run protected-oracle and safety-boundary checks immediately when touched.
+- Do not run the manifest aggregate after each slice.
+- Run aggregate integration/functional/regression proof once when the dependent
+  slice group is integrated or when a declared batch boundary is reached.
+- The final slice or final review-fixed tree must carry one exact-tree aggregate.
+- At every phase boundary, ask `kb-check` for `RUN`, `REUSE`, or `BLOCK`; a fresh
+  passing receipt is accepted across workers, coordinators, sessions, and
+  worktrees when its tree and relevant-input fingerprints match.
+
+If a worker returns a passing slice receipt for the exact accepted commit and
+inputs, the coordinator validates the receipt instead of rerunning the command
+solely because ownership changed. A changed commit or relevant input invalidates
+that receipt and requires the affected check.
+
 ### Step 2.9: Regression Snapshot Gate
 
-Before starting a new slice, invoke `kb-regression-snapshot verify` before Scope Lock and before editing implementation files.
+Before starting a new proof batch, invoke `kb-regression-snapshot verify` before
+Scope Lock and before editing implementation files.
 
-- Ask the proof planner for snapshots affected by the pending slice and verify
+- Ask the proof planner for snapshots affected by the pending batch and verify
   only those IDs. Reuse fresh passing receipts without launching their commands.
 - Run the complete snapshot set once at a declared manifest/release milestone;
   use the milestone fingerprint to block redundant full replays.
@@ -566,7 +592,7 @@ Before starting a new slice, invoke `kb-regression-snapshot verify` before Scope
 - Mark the current slice `🔒 blocked` with the failing snapshot path, target, expected vs observed result, and artifact/log path.
 - Do not continue to implementation, QA, or the next slice until the regression is resolved, parked by the human, or explicitly skipped.
 
-This gate catches entropy between slices. An affected snapshot cannot be
+This gate catches entropy between coherent batches. An affected snapshot cannot be
 skipped, overridden, or deferred, but unrelated snapshots are not replayed.
 
 ### Step 3.0: Scope Forecast and Ledger
@@ -763,15 +789,17 @@ After the slice completes:
    `slice-<slice_id>-to-done`. This gate must prove: implementation finished,
    scope check passed, protected oracles were preserved or explicitly amended,
    deterministic checks ran, functional/browser checks ran when required,
-   regression snapshot captured, memory impact was classified, and the slice's
-   `proof_check` passed or its `no_check_reason` was accepted by the manifest
-   contract. If any proof is missing, leave the slice `blocked` and set
+   a regression snapshot was captured when the slice closed a declared proof
+   batch, memory impact was classified, and the slice's `proof_check` passed or
+   its `no_check_reason` was accepted by the manifest contract. If required
+   proof is missing, leave the slice `blocked` and set
    `allowed_next_action` to the missing proof step.
 
    Worker receipts, route receipts, graph packets, and lease receipts are
    supporting evidence only. For a mutating plan-run slice, the worker returns
    uncommitted implementation changes and proof evidence. The coordinator keeps
-   the slice lease active, reruns proof, projects the slice gate/status plus
+   the slice lease active, validates a matching proof receipt or runs only
+   invalidated proof, projects the slice gate/status plus
    audited board/handoff changes in the same manifest-owned worktree, and makes
    one final slice commit containing both implementation and lifecycle state.
    The proof receipt's `observed_writes` must exactly match that whole commit.
@@ -783,7 +811,8 @@ After the slice completes:
 
    `advance` requires the exact worktree/ref and owner/run lineage, a clean
    checkout, the expected prior integration head, a current descendant commit,
-   and successful coordinator replay of both slice and aggregate proof. It only
+   and successful coordinator execution or reuse of slice proof plus aggregate
+   proof when this slice closes a declared proof batch. It only
    advances the receipt head; it never creates or switches a branch, creates a
    worktree, merges, resets, stashes, or cleans. Failed acceptance leaves
    lifecycle state and the recorded integration head unchanged.
@@ -800,12 +829,17 @@ After the slice completes:
 3. **Run verification**
    - Invoke `kb-check` for deterministic verification.
    - Prefer existing scripts, lint, typecheck, tests, browser checks, builds, and CI-equivalent commands over LLM inspection.
-   - If a full suite is too expensive or unavailable, run the narrowest deterministic check that proves the slice and record why.
+   - Run the narrowest deterministic check that proves the slice. Defer expensive
+     integration/e2e/full suites to the coherent proof-batch boundary unless this
+     slice touches a protected or safety-critical boundary.
    - Invoke `kb-functional-test` whenever `test_level` is `integration`, `functional-api`, `functional-cli`, `functional-browser`, or `full`, or when user-visible/cross-boundary changes appear despite a lower test level.
    - If the slice fixed a known failure with a runnable sensor, record RED-before-GREEN proof with `go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl`.
    - For UI-reachable changes, record UI proof: route/screen exercised, interaction performed, assertion made, browser transport used, and screenshot path when applicable. Do not mark the slice done with backend-only proof if a UI path exists.
-   - After Step 3.8 QA passes, invoke `kb-regression-snapshot capture <slice-id>` with a compact spec for what changed. Store `.kb/snapshots/<slice-id>.json`.
-   - Record `test-level: <value>; functional-risk: <value>; proof: <command/artifact>; snapshot: <path/result>` in the manifest notes.
+   - When this slice closes a proof batch, invoke `kb-regression-snapshot capture
+     <slice-id>` after Step 3.8 QA passes. Store `.kb/snapshots/<slice-id>.json`.
+   - Record `test-level: <value>; functional-risk: <value>; proof:
+     <command/artifact>; proof-batch: <id/open|closed>; snapshot: <path/result|deferred-to-batch>`
+     in the manifest notes.
    - Record the slice's `proof_check` command/artifact/result or accepted
      `no_check_reason` in the manifest notes.
 
@@ -846,7 +880,9 @@ delivers the branch.
 When all slices are `done` or intentionally `skipped`:
 
 1. Update manifest `status: completed`.
-2. Run final verification.
+2. Run or reuse one exact-tree aggregate for the completed manifest. Do not
+   replay fresh slice/batch receipts; execute only checks invalidated by the
+   final tree, then record the aggregate receipt.
 3. Run `kb-gate` if verification, QA, repair, or functional-test checks surfaced P0/P1/P2/P3/P4 issues. P0/P1 block completion while unresolved, but safe/actionable blockers should be rectified before asking the user. P2/P3/P4 do not block by severity alone.
 4. Write `work-to-complete` in the manifest `gate_ledger`. Required proof: every non-skipped slice has a passing `slice-<id>-to-done` gate, skipped slices have explicit reason, final verification command/result is recorded, no unresolved P0/P1 exists, board/manifest are synced, and `scope-verified-files` is populated. Set `allowed_next_action: kb-finalize <manifest-path>` and run `kb-gate/scripts/check_gate_ledger.py <manifest-path> --gate work-to-complete --allowed-next "kb-finalize <manifest-path>"`. If the gate is not passed or the checker fails, do not invoke `kb-finalize`.
 5. **Refresh project memory** — if any slice has `memory-impact: durable` or `refresh=pending`, run `kb-map refresh` before archiving. Update affected architecture, operation, decision, research, `todo.md`, and handoff pointers. Add manifest note: `kb-map-refresh: done` or `kb-map-refresh: skipped - <reason>`.

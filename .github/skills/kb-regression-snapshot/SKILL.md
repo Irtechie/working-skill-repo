@@ -1,12 +1,13 @@
 ---
 name: kb-regression-snapshot
-description: Capture and replay deterministic regression snapshots between KB slices. Use after a slice passes QA to freeze passing state, and before future slices start to prove earlier slice behavior has not regressed.
+description: Capture and replay deterministic regression snapshots at coherent KB proof-batch boundaries. Use after an integrated slice group passes QA and before a later batch touches covered behavior.
 argument-hint: "[capture|verify plus slice id/spec path]"
 ---
 
 # KB Regression Snapshot
 
-Freeze what passed so later slices cannot quietly break it.
+Freeze what passed so later proof batches cannot quietly break it without
+replaying the same snapshots between tightly coupled slices.
 
 This is not a test-design skill. The LLM defines the smallest useful snapshot spec. The runner executes it mechanically.
 
@@ -47,7 +48,8 @@ Store snapshots at:
 
 ## Capture
 
-After a slice passes `kb-check`, `kb-functional-test`, and `kb-qa`, build a compact spec from what changed:
+After a coherent slice group passes its proof-batch `kb-check`,
+`kb-functional-test`, and `kb-qa`, build a compact spec from what changed:
 
 | Change | Snapshot checks |
 |---|---|
@@ -62,9 +64,10 @@ Do not store secrets, cookies, tokens, credentials, or large response bodies. St
 
 ## Verify
 
-Before the next slice starts execution, select only snapshots whose declared
-inputs or covered behavior are affected by the new diff, then run `verify
--SnapshotId`. A no-scope verify request fails closed.
+Before the next proof batch starts execution, select only snapshots whose
+declared inputs or covered behavior are affected by the planned batch, then run
+`verify -SnapshotId`. Do not replay snapshots between slices in the same batch.
+A no-scope verify request fails closed.
 
 Run the complete snapshot set once at a genuine manifest/release milestone with
 `-MilestoneId`. The runner fingerprints the selected snapshot definitions and
@@ -86,11 +89,11 @@ run verification from the canonical Git worktree path when snapshot commands use
 path containment or symlink checks. Record the canonical path used. Do not
 rewrite snapshots merely because an alias path fails.
 
-For isolated worktree slices, snapshot verification runs before worktree
+For isolated worktree batches, snapshot verification runs before worktree
 preparation in the coordinator checkout. Snapshot capture after integration runs
-from the source checkout after the coordinator has rerun proof. Workers may
+from the source checkout after the coordinator has run or reused proof. Workers may
 return snapshot specs or artifacts in their receipts, but coordinator capture is
-the authoritative cross-slice replay surface.
+the authoritative cross-batch replay surface.
 
 ## Output
 

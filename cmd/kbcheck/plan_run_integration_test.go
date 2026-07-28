@@ -30,11 +30,15 @@ func TestPlanRunAdvanceAcceptsSequentialSliceCommitsWithIntegrationHeadCAS(t *te
 		commit := gitOutput(worktree, "rev-parse", "HEAD")
 		observed := []string{sliceID + ".txt", filepath.ToSlash(manifestRelative)}
 		sliceLease := acquireAdvanceTestSliceLease(t, receipt, sliceID, observed...)
+		var aggregate *planRunProofCommand
+		if index == 1 {
+			aggregate = &planRunProofCommand{Args: []string{"git", "status", "--porcelain"}, Expect: 0, ExpectOutput: ""}
+		}
 		proof := writeAdvanceProofReceipt(t, planRunProofReceipt{
 			SchemaVersion: 1, KBID: receipt.KBID, RunID: "run-sequential", SliceID: sliceID,
 			CommitSHA: commit, ObservedWrites: observed,
 			SliceProof:     planRunProofCommand{Args: []string{"git", "rev-parse", "--verify", "HEAD"}, Expect: 0},
-			AggregateProof: &planRunProofCommand{Args: []string{"git", "status", "--porcelain"}, Expect: 0, ExpectOutput: ""},
+			AggregateProof: aggregate,
 		})
 		result, err := executePlanRunWorkspace(planRunWorkspaceOptions{
 			Action: "advance", ManifestPath: manifest, OwnerToken: "owner-sequential",

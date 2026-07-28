@@ -542,11 +542,10 @@ func advancePlanRunWorkspace(opts planRunWorkspaceOptions, snapshot planRunWorks
 	if issue := replayPlanRunProof(snapshot.Worktree, "slice proof", proof.SliceProof); issue != "" {
 		return blockedPlanRunWorkspace("advance", issue, &snapshot), nil
 	}
-	if proof.AggregateProof == nil {
-		return blockedPlanRunWorkspace("advance", "aggregate proof is required", &snapshot), nil
-	}
-	if issue := replayPlanRunProof(snapshot.Worktree, "aggregate proof", *proof.AggregateProof); issue != "" {
-		return blockedPlanRunWorkspace("advance", issue, &snapshot), nil
+	if proof.AggregateProof != nil {
+		if issue := replayPlanRunProof(snapshot.Worktree, "aggregate proof", *proof.AggregateProof); issue != "" {
+			return blockedPlanRunWorkspace("advance", issue, &snapshot), nil
+		}
 	}
 
 	stateRoot, err := resolveSliceLeaseStateRoot(sliceLeaseCommandOptions{RepoRoot: opts.RepoRoot})
@@ -874,6 +873,7 @@ func validateAcceptedPlanRunProofs(
 		safePathPart(receipt.KBID),
 	)
 	acceptedSlices := map[string]bool{}
+	finalAggregateSeen := false
 	for _, accepted := range receipt.AcceptedProofs {
 		archive, err := filepath.Abs(filepath.Clean(accepted.Archive))
 		if err != nil {
@@ -900,6 +900,7 @@ func validateAcceptedPlanRunProofs(
 			proof.SliceID != accepted.SliceID || proof.CommitSHA != accepted.CommitSHA {
 			return fmt.Sprintf("accepted proof archive lineage mismatch for %s", accepted.SliceID)
 		}
+		finalAggregateSeen = proof.AggregateProof != nil
 		acceptedSlices[accepted.SliceID] = true
 	}
 	slices, err := parseManifestSlices(manifestPath)
@@ -915,6 +916,9 @@ func validateAcceptedPlanRunProofs(
 	if last.SliceID != receipt.LastSliceID || last.CommitSHA != receipt.LastSliceCommit ||
 		last.Archive != receipt.LastProofArchive || last.SHA256 != receipt.LastProofSHA256 {
 		return "last accepted proof summary does not match the immutable proof ledger"
+	}
+	if !finalAggregateSeen {
+		return "final accepted proof requires aggregate proof"
 	}
 	return ""
 }

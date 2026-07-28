@@ -18,6 +18,36 @@ file used as the behavior target must still match the recorded SHA unless the
 plan explicitly updated the oracle. This prevents the model from moving the
 target after implementation starts.
 
+## Proof Cadence
+
+Tests stay mandatory, but execution follows three levels:
+
+1. **Slice-local proof** — after a slice's code stabilizes, run the narrowest
+   deterministic check that can fail for that slice. Run protected-oracle and
+   safety-boundary checks immediately. Do not run the manifest aggregate here.
+2. **Proof-batch aggregate** — after a coherent group of dependent slices is
+   integrated, run affected integration, functional, smoke, and regression
+   checks once for the group. Tightly coupled slices should share this boundary
+   instead of replaying the same aggregate after each slice.
+3. **Final exact-tree proof** — after review fixes and the last code-affecting
+   edit, run one delivery-level aggregate against the exact tree to be shipped.
+
+A passing receipt is reusable across phases, sessions, and worktrees when its
+command semantics, relevant-input fingerprint, environment fingerprint, and
+tree are unchanged. `REUSE` is proof; do not rerun a command to produce a newer
+timestamp, improve provenance, enter another phase, or repeat a summary.
+
+Relevant code, dependency, test-config, generated-contract, environment, merge,
+rebase, or conflict-resolution changes invalidate only receipts whose inputs
+changed. Docs/status/manifest edits that are not check inputs do not invalidate
+code proof. Auth, secrets, destructive data, public contracts, and live/deploy
+boundaries still get immediate targeted proof plus final exact-tree proof, but
+unchanged receipts are reused between those points.
+
+Do not run the same full suite at slice completion, work completion,
+finalization, and shipping. Use `proof-plan` at every phase boundary and execute
+only `RUN`; preserve `REUSE`.
+
 ## Check Sources
 
 Discover commands from:
@@ -85,8 +115,9 @@ For UI-reachable changes, the check must exercise the rendered UI. Do not substi
 Default timing:
 
 - Slice: narrow functional check for the changed path.
-- Manifest complete: broader smoke tests over changed workflows.
-- Ship: full functional/e2e suite when practical.
+- Coherent proof batch: broader smoke tests over the integrated workflows once.
+- Final exact tree: full functional/e2e suite when required and practical.
+- Ship: reuse the final exact-tree receipt unless shipping changed its inputs.
 
 Headless by default. Do not spawn visible browser windows from multiple workers; serialize browser/e2e checks.
 

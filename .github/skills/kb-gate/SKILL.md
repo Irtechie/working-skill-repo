@@ -150,7 +150,9 @@ Blocked: <specific dependent work that cannot continue>
 Recommendation: <one evidence-backed option and why>
 ```
 
-After fixing safe/actionable issues, rerun the relevant review/check, then continue if the remaining findings are deferred or non-blocking.
+After fixing safe/actionable issues, rerun only reviews/checks invalidated by the
+changed inputs. Reuse unaffected passing receipts, then continue if the
+remaining findings are deferred or non-blocking.
 
 If the user asks not to fix findings:
 

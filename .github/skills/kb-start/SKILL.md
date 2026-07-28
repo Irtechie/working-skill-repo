@@ -16,8 +16,52 @@ On every fresh session or ambiguous work request:
 
 1. Invoke `kb-map lookup <user request>`.
 2. Let `kb-map` decide whether lookup, refresh, or bootstrap is required.
-3. After `kb-map` returns project context, classify the user request and route it.
+3. After `kb-map` returns project context, check or claim the shared work queue,
+   then classify the user request and route it.
 4. If `kb-map` reports stale work or missing memory, honor that before executing work.
+
+## Shared Work Queue Gate
+
+Before any mutating route, successor session, plan-run worktree, test wave, or
+delegated worker starts, publish an early repository-wide work claim:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.copilot\skills\kb-start\scripts\work_queue.ps1" `
+  -Action claim `
+  -WorkId <stable-kebab-case-objective> `
+  -SessionId <project-session-id> `
+  -Branch <branch> `
+  -Summary "<one-line outcome>" `
+  -Scope "<paths or subsystem>" `
+  -Status in_progress
+```
+
+The queue lives under the Git common directory, so every worktree sees the same
+claims. A mutating session without a session ID must stop before work. Read-only
+answers do not need a claim.
+
+- Default WIP is three active sessions per repository and one active session per
+  `work_id`.
+- On conflict, do not open a successor or repeat discovery/tests. Report the
+  owning `session_id`, branch, worktree, status, and heartbeat; coordinate with
+  or inspect that session.
+- Heartbeat with `-Action update` at every route/phase boundary and before a
+  long test wave.
+- Use statuses `queued`, `in_progress`, `blocked`, `done`, and `superseded`.
+- Mark `blocked` with the exact resume condition. Mark `done` or `superseded`
+  before cleanup. Never silently abandon an active claim.
+- `-Action list -StaleMinutes 60` identifies claims whose session may have died;
+  inspect that exact session ID before takeover. Stale is a review signal, not
+  automatic permission to overwrite work.
+
+Every startup response for mutating work must include:
+
+```text
+Work: <work_id>
+Status: <queued|in_progress|blocked|done|superseded>
+Session: <project-session-id>
+Branch: <branch>
+```
 
 If `kb-map` cannot identify a valid active project root, ask the user to change into the project directory or provide the project path before routing. Drive roots such as `E:\`, home directories, and global skill/config folders are not valid project roots unless the user explicitly chose them. Do not route from global handoffs or home-directory memory when the user is working in a repo.
 
