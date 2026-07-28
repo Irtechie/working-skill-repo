@@ -91,8 +91,22 @@ not retried after reboot. Owner `ddr-medium-qwen-20260727-c5047831` has no
 remaining reservation, cleanup target, or endpoint. This is permitted DDR
 outlier evidence, not unfinished non-DDR work or a model-result claim.
 
-Resume condition: the owner sends its final exact path, proof, claim-boundary,
-and clean-or-preserved-state package at a safe stop. Then run:
+## Luna Proof Disposition
+
+The resumed Luna executor found all four durable todos/plan items already done.
+It inspected the benchmark fixture and passed both:
+
+```powershell
+go test ./...
+go vet ./...
+```
+
+in
+`evals/ddr-model-benchmark/evidence/layered-access-policy-medium/luna-workspace`.
+No further Luna changes or DDR proof gate remain for PR #2 convergence.
+
+Resume condition for future benchmark promotion work: the owner supplies a new
+explicit objective and claim boundary. Then run:
 
 `/kb-goal Reconcile all remaining valuable Irtechie/working-skill-repo work into clean, reviewable check-ins tonight.`
 

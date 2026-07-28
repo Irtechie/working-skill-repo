@@ -66,3 +66,4 @@ AMR/DDR/EDDR benchmark experiments.
 - Delivery: PR #2, branch `deaderestpool-reconcile-skill-work`. The active cohort remains independently owner-controlled; this goal's completion parks its exact snapshot without stopping or claiming completion of that experiment.
 - Merge boundary: PR #2 is ready independently of DDR. It contains only reconciliation records and the parked-exception contract; it does not contain the active benchmark checkpoint, generated evidence, experimental `kb-plan` copy, or model runtime state.
 - Qwen's prescribed DDR acquire is terminal `INFRASTRUCTURE NOT-RUN` after the launcher failed before allocation. No reservation, cleanup target, endpoint, retry obligation, or non-DDR work remains from that attempt.
+- Luna resumed from durable state with all four work items complete; `go test ./...` and `go vet ./...` pass in its layered-access-policy workspace. No DDR proof gate remains for PR #2 convergence.
