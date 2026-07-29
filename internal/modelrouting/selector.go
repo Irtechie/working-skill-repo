@@ -74,7 +74,7 @@ type SelectionDecision struct {
 func SelectRoute(validated ValidatedCatalog, req WorkRequest, policy PolicyContext, override RunOverride, ledger AttemptLedger, now time.Time) (SelectionDecision, error) {
 	catalog := cloneCatalog(validated.catalog)
 	decision := selectionDecisionForRequest(req)
-	decision.Preference = normalizedRoutePreference(override.Prefer)
+	decision.Preference = effectiveRoutePreference(override.Prefer, req.Risk)
 	if override.Mode == OverrideIgnore {
 		decision.ExecutionOwner = ExecutionOwnerCurrent
 		decision.OwnerReason = "user-required"
@@ -229,6 +229,14 @@ func validRoutePreference(preference RoutePreference) bool {
 
 func normalizedRoutePreference(preference RoutePreference) RoutePreference {
 	if preference == "" {
+		return PreferenceAutomatic
+	}
+	return preference
+}
+
+func effectiveRoutePreference(preference RoutePreference, risk RiskLevel) RoutePreference {
+	preference = normalizedRoutePreference(preference)
+	if risk == RiskBroad && preference == PreferenceSelfHostedFirst {
 		return PreferenceAutomatic
 	}
 	return preference
@@ -391,6 +399,11 @@ func automaticEligible(route Route, req WorkRequest, floor CapabilityClass, now 
 		return false
 	}
 	evidence := route.Capability
+	if route.Hosting == HostingSelfHosted && route.Adapter == "openai-compatible" &&
+		route.DispatchMethod == "chat-completions" && req.Risk == RiskNormal &&
+		evidence.Source == EvidenceDeclared && !evidence.DispatchProven {
+		return capabilityEnvelopeEligible(route, req, floor)
+	}
 	if !(evidence.DispatchQualified || evidence.DispatchProven) || (evidence.Source != EvidenceKBReceipt && evidence.Source != EvidenceAdapterPrior) {
 		return false
 	}

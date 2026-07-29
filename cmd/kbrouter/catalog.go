@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -915,41 +914,7 @@ func defaultOpenAICompatibleModelsFetcher(ctx context.Context, endpoint modelrou
 	target := *endpoint.URL
 	target.Path = strings.TrimRight(target.Path, "/") + "/models"
 	target.RawQuery = ""
-	transport := &http.Transport{
-		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-			host, port, err := net.SplitHostPort(address)
-			if err != nil {
-				host = address
-			}
-			if !strings.EqualFold(host, endpoint.URL.Hostname()) {
-				return nil, fmt.Errorf("cross-origin dial refused")
-			}
-			if port == "" {
-				if endpoint.URL.Scheme == "https" {
-					port = "443"
-				} else {
-					port = "80"
-				}
-			}
-			dialer := net.Dialer{}
-			var lastErr error
-			for _, ip := range endpoint.PinnedIPs {
-				conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
-				if err == nil {
-					return conn, nil
-				}
-				lastErr = err
-			}
-			return nil, lastErr
-		},
-		TLSClientConfig: &tls.Config{ServerName: endpoint.TLSServerName, MinVersion: tls.VersionTLS12},
-	}
-	client := http.Client{
-		Transport: transport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := newOpenAICompatibleClient(endpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
 	if err != nil {
 		return nil, err
@@ -1773,7 +1738,7 @@ func routeProjectSelectable(route modelrouting.Route, policy modelrouting.Policy
 			return true
 		}
 	}
-	return route.Boundary != modelrouting.BoundaryPrivate
+	return false
 }
 
 func routeAuthApproved(route modelrouting.Route, policy modelrouting.PolicyContext, now time.Time) bool {

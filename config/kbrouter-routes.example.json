@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "routes": [
+    {
+      "alias": "<fill-stable-alias>",
+      "model_id": "<fill-model-id>",
+      "endpoint": "<fill-openai-compatible-v1-endpoint>",
+      "auth_env": "",
+      "boundary": "private",
+      "hosting": "self-hosted",
+      "retention": "none",
+      "training_use": "no",
+      "residency": "local",
+      "trust_provenance": "<fill-operator-controlled-provenance>",
+      "capability": {
+        "class": "small",
+        "task_family": "code",
+        "tools": [
+          "text"
+        ],
+        "context_size": 4096,
+        "risk": "normal"
+      }
+    }
+  ]
+}

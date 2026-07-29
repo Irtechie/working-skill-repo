@@ -25,7 +25,7 @@ Router receipt:
 kbrouter dispatch receipt with slice-unique artifact names>
 
 Route announcement:
-DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | return: <none|parent-on-first-local-failure|required-alias-block> | tier: <small|medium|large> | proof: <short-proof-target>
 
 Slice lease:
 <exact slice-lease acquire command, owner token source, generation, renewal/release command, or non-mutating/no-lease reason>

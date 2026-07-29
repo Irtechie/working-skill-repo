@@ -316,31 +316,28 @@ required tier + bounded packet
   -> deterministic proof accepts or rejects the result
 ```
 
-The active host's callable schema is authoritative for native targets. For
-example, a Codex App schema may expose Sol and Terra. `kbrouter` is authoritative
-for Codex CLI and user-local routes, where a live CLI may expose
-`gpt-5.4-mini`. The orchestrator never infers callable targets from model
-memory, never merges identities by display name, and never treats an App-only
-target as CLI-callable or vice versa.
+The active host's callable schema is authoritative for native targets.
+`kbrouter` is authoritative for CLI and user-local routes. The orchestrator
+never infers callable targets from model memory, never merges identities by
+display name, and never treats a host-only target as CLI-callable or vice versa.
 
 Immediately after ownership/route selection and before mutation or dispatch,
 `kb-work` emits one compact line with `current|subagent`, primary route,
-fallback path, required tier, and proof target. This route announcement is evidence-bound:
-concrete names require active host or `kbrouter` evidence. A named fallback is
-conditional on a fresh same-tier-or-higher eligibility check and explicit
-reselection; it is not an automatic dispatch, downward route, or cross-owner
-fallback.
+parent-return behavior, required tier, and proof target. The route announcement is evidence-bound:
+concrete names require active host or `kbrouter` evidence.
+An eligible local route gets one attempt. Failure returns directly to the active
+parent; do not select a second local route.
 
 ```text
-DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | return: <none|parent-on-first-local-failure|required-alias-block> | tier: <small|medium|large> | proof: <short-proof-target>
 ```
 
 Deterministic proof is the validator. A selected owner repairs ordinary bounded
 failures without silently handing the slice to the other owner. If required
 authority changes, `kb-work` re-plans, blocks, or records a new explicit
-ownership decision. Delegated selection may move sideways to a qualified
-same-tier route or upward before dispatch, but it never routes downward
-automatically or falls back to current.
+ownership decision. Local DDR never chooses a second local route. The active
+parent continues with its current model or host-native selector after a
+structured parent return.
 
 Adaptive Model Routing (AMR) remains an unpromoted experimental benchmark.
 Normal work never passes `attempt_tier`, never requires a lower-tier trial, and

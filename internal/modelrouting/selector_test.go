@@ -156,6 +156,15 @@ func TestSelectRouteDelegatedOwnerChoosesExactlyOneAndNeverFallsBackToCurrent(t 
 	}
 }
 
+func TestSelfHostedPreferenceAppliesOnlyToNormalRisk(t *testing.T) {
+	if got := effectiveRoutePreference(PreferenceSelfHostedFirst, RiskBroad); got != PreferenceAutomatic {
+		t.Fatalf("broad risk retained self-hosted preference: %q", got)
+	}
+	if got := effectiveRoutePreference(PreferenceSelfHostedFirst, RiskNormal); got != PreferenceSelfHostedFirst {
+		t.Fatalf("normal risk lost self-hosted preference: %q", got)
+	}
+}
+
 func TestSelectRouteRejectsMissingOrInvalidOwnershipMetadata(t *testing.T) {
 	now := fixedNow()
 	for name, mutate := range map[string]func(*WorkRequest){
@@ -321,12 +330,12 @@ func TestSelectRoutePreferenceReordersOnlyAlreadyEligibleSameTierRoutes(t *testi
 		t.Fatal(err)
 	}
 	policy.Trusted.RouteApprovals = []RouteApproval{{ProjectID: "project-a", RouteFingerprint: fingerprint, ExpiresAt: now.Add(time.Hour)}}
-	decision, err := selectForTest(t, catalogWithCurrent(now, []Route{hosted, local}), broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceSelfHostedFirst}, AttemptLedger{}, now)
+	decision, err := selectForTest(t, catalogWithCurrent(now, []Route{hosted, local}), normalRequest(TierMedium), policy, RunOverride{Prefer: PreferenceSelfHostedFirst}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertAliases(t, decision, []string{"local"})
-	decision, err = selectForTest(t, catalogWithCurrent(now, []Route{hosted, local}), broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
+	decision, err = selectForTest(t, catalogWithCurrent(now, []Route{hosted, local}), normalRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -355,12 +364,12 @@ func TestOriginHostingAndQualifiedProofRemainIndependent(t *testing.T) {
 		policy.Trusted.RouteApprovals = append(policy.Trusted.RouteApprovals, RouteApproval{ProjectID: "project-a", RouteFingerprint: fingerprint, ExpiresAt: now.Add(time.Hour)})
 	}
 	catalog := catalogWithCurrent(now, []Route{privateProvider, selfHosted, native})
-	decision, err := selectForTest(t, catalog, broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceSelfHostedFirst}, AttemptLedger{}, now)
+	decision, err := selectForTest(t, catalog, normalRequest(TierMedium), policy, RunOverride{Prefer: PreferenceSelfHostedFirst}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertAliases(t, decision, []string{"self-hosted"})
-	decision, err = selectForTest(t, catalog, broadRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
+	decision, err = selectForTest(t, catalog, normalRequest(TierMedium), policy, RunOverride{Prefer: PreferenceNativeFirst}, AttemptLedger{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1161,6 +1170,12 @@ func broadRequest(tier Tier) WorkRequest {
 		TaskFamily: "code", Tools: []string{"apply_patch", "go test"},
 		ContextSize: 4096, Risk: RiskBroad, ProjectID: "project-a",
 	}
+}
+
+func normalRequest(tier Tier) WorkRequest {
+	request := broadRequest(tier)
+	request.Risk = RiskNormal
+	return request
 }
 
 func catalogWithCurrent(now time.Time, routes []Route) Catalog {

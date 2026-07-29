@@ -6,6 +6,7 @@
 *.test.exe
 __pycache__/
 *.pyc
+kbrouter-routes.local.json
 
 # ATV runtime eval/pipeline bookkeeping (not skill source)
 .atv/

@@ -555,6 +555,28 @@ func TestTrustIsSeparateExplicitProjectBoundAndRevocable(t *testing.T) {
 	}
 }
 
+func TestHostedExtraRouteRequiresExplicitProjectApproval(t *testing.T) {
+	userRoot := t.TempDir()
+	code, stdout, stderr := runForTest(
+		"models", "add", "--user-root", userRoot, "--project-root", ".", "--scope", "user",
+		"--alias", "hosted.unapproved", "--model", "remote-model",
+		"--adapter", "openai-compatible", "--dispatch-method", "chat-completions",
+		"--destination", "hosted-unapproved", "--endpoint", "https://models.example.invalid/v1",
+		"--boundary", "hosted", "--retention", "session", "--training-use", "no",
+		"--residency", "declared", "--trust-provenance", "operator import", "--class", "small",
+	)
+	if code != 0 {
+		t.Fatalf("add hosted route exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	policy, err := policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if routeProjectSelectable(loadUserCatalogForTest(t, userRoot).Routes[0], policy) {
+		t.Fatal("unapproved hosted extra route became selectable")
+	}
+}
+
 func TestConcurrentApprovalPreservesInterveningDenial(t *testing.T) {
 	userRoot := t.TempDir()
 	addTrustedRouteForTest(t, userRoot, "local.one", "model-one", "http://127.0.0.1:4000/v1")

@@ -11,8 +11,8 @@ The configured state belongs to the operating-system user:
 | Endpoint approvals | `~/.kb/trust.json` | No |
 | Per-project source priority | `~/.kb/project-priorities.json` | No |
 
-Use `kbrouter models` to manage these files. Do not hand-edit them. This lets
-different users and CLIs expose different models without repository changes.
+Use `kbrouter models` to manage these files. Do not hand-edit them. Runtime reads
+canonical `~/.kb` state, never the repository import file.
 
 ## What To Collect
 
@@ -41,7 +41,21 @@ by `kbrouter`. A file path or MCP address is not enough to configure a route.
 Expose the model through an OpenAI-compatible or LiteLLM `/v1` endpoint and
 configure the endpoint's model ID.
 
-## Register A Route
+## Import A Route
+
+Copy the checked-in placeholder to the ignored operator file, fill it, and
+import it:
+
+```powershell
+Copy-Item config\kbrouter-routes.example.json kbrouter-routes.local.json
+kbrouter models import --file kbrouter-routes.local.json
+```
+
+The import is strict, bounded, non-symlinked, and atomic. It rejects unknown
+fields, placeholders, endpoint credentials, and auth values. `auth_env` stores
+only an environment-variable name. Import never grants or renews trust.
+
+## Register One Route Directly
 
 No-auth local route:
 
@@ -125,14 +139,60 @@ Difficulty-Driven Routing (DDR) is the normal path:
 3. Otherwise it chooses `delegated` and selects exactly one qualified
    same-tier-or-higher route. Native App targets execute through the App's exact
    callable-agent tool; CLI and user-local targets execute through `kbrouter`.
-4. Neither owner silently falls back to the other. A failed or unavailable route
-   requires an explicit new decision, re-plan, or block.
-5. Deterministic proof remains authoritative regardless of which route ran.
+4. An eligible local route receives exactly one attempt for a canonical
+   project/run/slice. Endpoint/model unavailability, bounded probe failure,
+   timeout, 5xx, dispatch failure, or deterministic proof failure emits a
+   `parent-return` receipt (exit `10`) and returns immediately to the active
+   parent.
+5. A returned local result is `awaiting-proof`. The parent runs the named
+   deterministic proof and records `pass|fail` with `kbrouter ddr resolve`.
+6. The parent continues with its active model or host-native selection logic.
+   It does not wait for setup, ask for model approval, select a second local
+   route, or use a hardcoded provider fallback.
+7. `require <alias>` remains the explicit hard pin and blocks that slice when
+   the route cannot complete.
+8. Deterministic proof remains authoritative regardless of which route ran.
 
-The orchestrator must not assume model names from memory. For example, a Codex
-App agent schema may expose Sol and Terra while a CLI catalog exposes
-`gpt-5.4-mini`; those are separate callable surfaces unless an adapter proves
-otherwise.
+Write the bounded request under ignored project state (for example,
+`.kb\ddr\request.json`) using `config\kbrouter-ddr-request.example.json` and its
+schema. Then invoke:
+
+```powershell
+kbrouter ddr attempt `
+  --project-root <project-root> `
+  --run-id <run-id> `
+  --slice-id <slice-id> `
+  --alias <alias> `
+  --request <project-root>\.kb\ddr\request.json `
+  --tier <small|medium|large> `
+  --tier-reason "<reason>" `
+  --task-family <family> `
+  --tool <tool> `
+  --context-size <tokens> `
+  --risk normal `
+  --sensitive-data=<true|false> `
+  --json
+```
+
+On `awaiting-proof`, consume the response exactly once, run the named
+deterministic proof, then resolve:
+
+```powershell
+kbrouter ddr resolve `
+  --project-root <project-root> `
+  --run-id <run-id> `
+  --slice-id <slice-id> `
+  --proof-result <pass|fail> `
+  --proof-command "<exact command>" `
+  --proof-artifact-hash sha256:<64-hex-digest> `
+  --json
+```
+
+Exit `0` means a response awaits proof or proof completed, `10` means structured
+parent return, `3` means a required alias blocked, and `2` means invalid usage.
+
+The orchestrator must not assume model names from memory. Host-native and CLI
+catalogs are separate callable surfaces unless an adapter proves otherwise.
 
 Adaptive Model Routing (AMR) is not promoted. Normal work does not configure or
 pass `attempt_tier`, does not require a lower-tier trial, and does not use AMR
