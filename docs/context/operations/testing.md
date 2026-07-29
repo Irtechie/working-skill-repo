@@ -89,10 +89,19 @@ workflow-governor-selftest
 
 ```powershell
 npm run test
+npm run test:universal-ui-skills
+npm run pack:universal-ui-skills
 npm run test:install:core
 npm run test:install:full
 node ./bin/check-release-tag.mjs --tag v<package-version>
 ```
+
+`test:universal-ui-skills` checks canonical frontmatter parity, excludes skill
+Markdown bodies and machine-private paths, exercises the lazy React route with
+a synthetic `ShellContextV1`, verifies offline scriptless contract
+conformance, and binds the committed tarball to its release-lock SHA-256.
+`pack:universal-ui-skills` regenerates the npm tarball and
+`release/universal-ui.release-lock.json`.
 
 ### Workflow proof and state
 
