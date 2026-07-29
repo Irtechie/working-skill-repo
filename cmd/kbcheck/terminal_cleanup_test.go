@@ -249,6 +249,146 @@ func TestTerminalCleanupDirectIntegrationDeletesOnlyMergedLocalRef(t *testing.T)
 	}
 }
 
+func TestTerminalCleanupSweepUsesStableRootWhenRootEqualsTarget(t *testing.T) {
+	root, worktree, branch, _ := prepareDirectTerminalCleanup(t, "root-target")
+
+	result, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "sweep", RepoRoot: worktree, CurrentWorktree: t.TempDir(),
+		CurrentSession: "sweeper", Now: time.Now().UTC(),
+	})
+	if err != nil || !result.OK || result.Receipt == nil || result.Receipt.Status != "released" {
+		t.Fatalf("root-equals-target cleanup failed: result=%#v err=%v", result, err)
+	}
+	if pathExists(worktree) {
+		t.Fatal("root-equals-target worktree still exists")
+	}
+	if !samePath(result.Receipt.RepoRoot, root) {
+		t.Fatalf("cleanup receipt lost the stable primary root: got=%s want=%s", result.Receipt.RepoRoot, root)
+	}
+	if got := gitOutput(root, "show-ref", "--verify", "refs/heads/"+branch); got != "" {
+		t.Fatalf("root-equals-target merged local ref still exists: %s", got)
+	}
+}
+
+func TestTerminalCleanupReconcilesEmptyPartialRemoval(t *testing.T) {
+	root, worktree, branch, _ := prepareDirectTerminalCleanup(t, "partial-empty")
+	runGitForSliceLease(t, root, "worktree", "remove", worktree)
+	if err := os.Mkdir(worktree, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "sweep", RepoRoot: root, CurrentWorktree: root,
+		CurrentSession: "sweeper", Now: time.Now().UTC(),
+	})
+	if err != nil || !result.OK || result.Receipt == nil || result.Receipt.Status != "released" {
+		t.Fatalf("empty partial removal was not reconciled: result=%#v err=%v", result, err)
+	}
+	if pathExists(worktree) {
+		t.Fatal("empty partial residual directory still exists")
+	}
+	if got := gitOutput(root, "show-ref", "--verify", "refs/heads/"+branch); got != "" {
+		t.Fatalf("partial removal retained merged local ref: %s", got)
+	}
+}
+
+func TestTerminalCleanupRejectsNonEmptyPartialResidual(t *testing.T) {
+	root, worktree, branch, commit := prepareDirectTerminalCleanup(t, "partial-nonempty")
+	runGitForSliceLease(t, root, "worktree", "remove", worktree)
+	writeFile(t, filepath.Join(worktree, "preserve.txt"), "local data\n")
+
+	result, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "sweep", RepoRoot: root, CurrentWorktree: root,
+		CurrentSession: "sweeper", Now: time.Now().UTC(),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Issue, "residual") {
+		t.Fatalf("non-empty partial residual was accepted: result=%#v err=%v", result, err)
+	}
+	if !pathExists(filepath.Join(worktree, "preserve.txt")) {
+		t.Fatal("non-empty partial residual data was removed")
+	}
+	if got := gitOutput(root, "rev-parse", "refs/heads/"+branch); got != commit {
+		t.Fatalf("non-empty residual changed local ref: got=%s want=%s", got, commit)
+	}
+}
+
+func TestTerminalCleanupRejectsPartialBranchIdentityMismatch(t *testing.T) {
+	root, worktree, branch, commit := prepareDirectTerminalCleanup(t, "partial-mismatch")
+	runGitForSliceLease(t, root, "worktree", "remove", worktree)
+	if err := os.Mkdir(worktree, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mergedHead := gitOutput(root, "rev-parse", "HEAD")
+	runGitForSliceLease(t, root, "update-ref", "refs/heads/"+branch, mergedHead, commit)
+
+	result, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "sweep", RepoRoot: root, CurrentWorktree: root,
+		CurrentSession: "sweeper", Now: time.Now().UTC(),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Issue, "branch") {
+		t.Fatalf("partial branch identity mismatch was accepted: result=%#v err=%v", result, err)
+	}
+	if !pathExists(worktree) {
+		t.Fatal("identity mismatch removed the empty residual path")
+	}
+	if got := gitOutput(root, "rev-parse", "refs/heads/"+branch); got != mergedHead {
+		t.Fatalf("identity mismatch changed moved local ref: got=%s want=%s", got, mergedHead)
+	}
+}
+
+func TestTerminalCleanupRejectsPartialReceiptIdentityMismatch(t *testing.T) {
+	root, worktree, branch, commit := prepareDirectTerminalCleanup(t, "partial-receipt-mismatch")
+	runGitForSliceLease(t, root, "worktree", "remove", worktree)
+	if err := os.Mkdir(worktree, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	receipts, err := loadTerminalCleanupReceipts(root)
+	if err != nil || len(receipts) != 1 {
+		t.Fatalf("load cleanup receipt: receipts=%#v err=%v", receipts, err)
+	}
+	receipt := receipts[0]
+	receipt.WorktreeToken = ""
+	if err := saveTerminalCleanupReceipt(root, receipt); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "sweep", RepoRoot: root, CurrentWorktree: root,
+		CurrentSession: "sweeper", Now: time.Now().UTC(),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Issue, "identity evidence") {
+		t.Fatalf("partial receipt identity mismatch was accepted: result=%#v err=%v", result, err)
+	}
+	if !pathExists(worktree) {
+		t.Fatal("receipt identity mismatch removed the empty residual path")
+	}
+	if got := gitOutput(root, "rev-parse", "refs/heads/"+branch); got != commit {
+		t.Fatalf("receipt identity mismatch changed local ref: got=%s want=%s", got, commit)
+	}
+}
+
+func TestMatchingTerminalCleanupClaimFindsExactDuplicateIdentity(t *testing.T) {
+	receipt := terminalCleanupReceipt{
+		WorkID: "duplicate-work", SessionID: "duplicate-session",
+		Branch: "feature/exact", Worktree: filepath.Join(t.TempDir(), "exact"),
+	}
+	queue := []terminalCleanupQueueEntry{
+		{
+			WorkID: receipt.WorkID, SessionID: receipt.SessionID,
+			Branch: "feature/stale", Worktree: filepath.Join(t.TempDir(), "stale"), Status: "done",
+		},
+		{
+			WorkID: receipt.WorkID, SessionID: receipt.SessionID,
+			Branch: receipt.Branch, Worktree: receipt.Worktree, Status: "done",
+		},
+	}
+
+	claim, issue := matchingTerminalCleanupClaim(queue, receipt)
+	if issue != "" || claim.Branch != receipt.Branch || !samePath(claim.Worktree, receipt.Worktree) {
+		t.Fatalf("exact duplicate identity was not selected: claim=%#v issue=%q", claim, issue)
+	}
+}
+
 func TestTerminalCleanupSerializesAgainstQueueClaims(t *testing.T) {
 	root := initWorktreeRepo(t)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "queue-lock")
@@ -839,6 +979,29 @@ func configureTerminalCleanupRemote(t *testing.T, root string) {
 	defaultBranch := gitOutput(root, "branch", "--show-current")
 	runGitForSliceLease(t, root, "push", "-u", "origin", defaultBranch)
 	runGitForSliceLease(t, "", "--git-dir", remote, "symbolic-ref", "HEAD", "refs/heads/"+defaultBranch)
+}
+
+func prepareDirectTerminalCleanup(t *testing.T, suffix string) (string, string, string, string) {
+	t.Helper()
+	root := initWorktreeRepo(t)
+	worktree, branch, commit := createTerminalCleanupWorktree(t, root, suffix)
+	defaultBranch := gitOutput(root, "branch", "--show-current")
+	runGitForSliceLease(t, root, "merge", "--no-ff", "--no-edit", branch)
+	runGitForSliceLease(t, root, "push", "origin", defaultBranch)
+	workID := suffix + "-cleanup"
+	sessionID := "session-" + suffix
+	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
+		WorkID: workID, SessionID: sessionID, Branch: branch, Worktree: worktree, Status: "done",
+	})
+	registered, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "register", WorkID: workID, SessionID: sessionID,
+		Worktree: worktree, Branch: branch, CommitSHA: commit, DeliveryMode: "direct",
+		Remote: "origin", RepoRoot: root, CurrentWorktree: root, Now: time.Now().UTC(),
+	})
+	if err != nil || !registered.OK {
+		t.Fatalf("direct register failed: result=%#v err=%v", registered, err)
+	}
+	return root, worktree, branch, commit
 }
 
 func writeTerminalCleanupQueue(t *testing.T, root string, entries ...terminalCleanupQueueEntry) {

@@ -393,13 +393,19 @@ tracked/untracked/ignored status, Git worktree registration, delivery
 containment and monotonic observed ref SHAs, Git-admin generation/round-trip,
 real path, primary/default boundaries, and current-session ID/path exclusion
 before non-force removal. It holds the queue lock across the final claim reread,
+captures the primary checkout as a stable Git command context before removal,
 refreshes remote-default evidence immediately before each worktree removal, and
 refreshes again before direct-mode local-ref deletion. Unresolved remote
 authority blocks cleanup, including local-only repositories with no configured
 remote. Local-only completion keeps its branch; the PR-only
 endpoint always keeps local and remote refs; a separately registered integrated
 endpoint may delete only the exact matching local feature ref. Remote ref
-deletion and host UI session records remain provider/host-owned.
+deletion and host UI session records remain provider/host-owned. If a prior
+non-force run already removed Git registration but Windows retained the exact
+empty target directory, a later stable-root retry reconciles only after the
+saved admin identity is absent and the receipt, done claim, branch SHA, and
+delivery evidence still match. Non-empty residuals and identity mismatches
+remain untouched.
 
 Multiple manifests may run concurrently only while their live file, prefix,
 conflict-domain, and shared-resource claims remain disjoint. A collision reports

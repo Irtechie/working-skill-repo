@@ -74,7 +74,12 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
   marker, real path, and observed remote ref SHAs; sweep requires monotonic
   remote evolution and exact-SHA local-ref deletion. It refreshes exact remote
   authority immediately before each destructive action and fails closed when no
-  remote default can be resolved. Its shared queue lock preserves
+  remote default can be resolved. Sweep captures the primary checkout as its
+  stable Git command context before removal, so `--root` may identify the target
+  worktree itself. A retry may reconcile only an exact empty residual directory
+  after a prior non-force removal, and only while the saved admin identity is
+  gone and the receipt, queue claim, branch SHA, and delivery evidence still
+  match; any residual data or identity drift remains blocked. Its shared queue lock preserves
   repository-inherited permissions/ACLs while using the same fail-closed OS
   file lock as the PowerShell queue helper; private model-routing locks retain
   strict private ACL hardening. Squash/rebase merge proof, host UI records, and
