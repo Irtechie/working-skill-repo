@@ -273,7 +273,9 @@ progress, and four no-progress route decisions. A failure means the agent should
 refresh context, re-plan, or ask a focused human question instead of continuing
 to bounce between lanes.
 
-`kb-plan` produces vertical slices with expected files, verification,
+`kb-plan` first runs applicable document-review personas once against the full
+requirements source, resolves plan-wide findings, and records the
+`pre_slice_review` receipt. It then produces vertical slices with expected files, verification,
 dependencies, test level, functional risk, model tier, and HITL flags. Model
 tier records minimum execution capability (`small`, `medium`, `large`; legacy
 `tiny` maps to `small`). It never lowers the executable proof requirement and

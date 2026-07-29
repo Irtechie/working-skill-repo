@@ -108,6 +108,7 @@ go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execut
 go run ./cmd/kbcheck plan-worktree-selftest
 go test ./cmd/kbcheck -run TerminalCleanup -count=1
 go test ./cmd/kbcheck -run 'CargoStorage|CargoBuildStorage' -count=1
+go test ./cmd/kbcheck -run 'PreSliceReview|PlanWideSpecialistReviewContract' -count=1
 ```
 
 `plan-worktree-selftest` is the canonical manifest-worktree lifecycle proof. It

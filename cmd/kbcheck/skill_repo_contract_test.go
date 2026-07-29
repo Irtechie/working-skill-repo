@@ -172,3 +172,58 @@ func TestCargoBuildStorageContract(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanWideSpecialistReviewContract(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]string{
+		".github/skills/kb-plan/SKILL.md": {
+			"document-review mode:headless",
+			"Do not invoke `document-review` for a small, mechanically constrained, low-risk source",
+			"pre_slice_review_contract: true",
+			"pre_slice_review",
+			"source_sha256",
+			"review_artifact_sha256",
+			"persona_evidence_json",
+			"not_required_reason",
+		},
+		".github/skills/document-review/SKILL.md": {
+			"requirements-wide review belongs before `kb-plan` decomposes the source into slices",
+			"never dispatch one document-review persona per slice",
+			"`spec-flow-analyzer`",
+			"reviewers are analysis-only",
+			"docs/results/document-reviews/",
+		},
+		".github/skills/kb-brainstorm/SKILL.md": {
+			"run reviewers only when their findings could materially change",
+			"document-review mode:headless",
+			"source SHA-256 still matches",
+			"do not dispatch placeholder personas",
+		},
+		".github/skills/kb-work/SKILL.md": {
+			"pre_slice_review",
+			"document-review personas are not slice implementation owners",
+			"return to `kb-plan` for one new requirements-wide review",
+			"Do not rerun plan-wide specialist personas per slice",
+		},
+		".github/skills/kb-work/references/execution-prompt.md": {
+			"Pre-slice review receipt:",
+			"You are an implementation owner, not a document-review persona",
+			"Do not rerun plan-wide specialist review",
+		},
+	}
+	for relative, tokens := range required {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatalf("read %s: %v", relative, err)
+		}
+		text := strings.ToLower(strings.Join(strings.Fields(string(content)), " "))
+		for _, token := range tokens {
+			if !strings.Contains(text, strings.ToLower(strings.Join(strings.Fields(token), " "))) {
+				t.Errorf("%s missing plan-wide specialist-review contract %q", relative, token)
+			}
+		}
+	}
+}

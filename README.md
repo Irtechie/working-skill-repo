@@ -37,7 +37,7 @@ The core loop is six skills:
 | `kb-start` | Pick the smallest correct lane for the request |
 | `kb-map` | Build or read repo-local memory so fresh sessions recover quickly |
 | `kb-fix` | Handle narrow bugs and small contained edits |
-| `kb-plan` | Turn clear work into vertical slices with verification |
+| `kb-plan` | Review the full requirements once, then create vertical slices with verification |
 | `kb-work` | Execute ready slices with narrow proof and batch shared checks |
 | `kb-complete` | Take a feature, plan, or manifest to its configured local, PR, or direct endpoint |
 
@@ -763,7 +763,7 @@ reliability, frontend races, schema drift, deployment, prior comments,
 language-specific reviewers, and adversarial review.
 
 Document-review uses its own lens agents: coherence, feasibility, product,
-design, security, scope, and adversarial document review.
+design, flow, security, scope, and adversarial document review.
 
 Deep dive: [KB workflow architecture](docs/context/architecture/kb-workflow.md)
 and [kb-review persona catalog](.github/skills/kb-review/references/persona-catalog.md).

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,6 +48,30 @@ type manifestContractIssue struct {
 type manifestContractResult struct {
 	OK     bool                    `json:"ok"`
 	Issues []manifestContractIssue `json:"issues"`
+}
+
+type preSliceReviewArtifact struct {
+	ReviewID          string                    `json:"review_id"`
+	Source            string                    `json:"source"`
+	SourceSHA256      string                    `json:"source_sha256"`
+	ReviewedAt        string                    `json:"reviewed_at"`
+	DocumentType      string                    `json:"document_type"`
+	Mode              string                    `json:"mode"`
+	SelectedPersonas  []string                  `json:"selected_personas"`
+	CompletedPersonas []string                  `json:"completed_personas"`
+	PersonaEvidence   map[string]string         `json:"persona_evidence"`
+	FailedPersonas    []string                  `json:"failed_personas"`
+	FindingsResolved  int                       `json:"findings_resolved"`
+	UnresolvedP0      int                       `json:"unresolved_p0"`
+	UnresolvedP1      int                       `json:"unresolved_p1"`
+	ResidualFindings  int                       `json:"residual_findings"`
+	ResidualItems     []preSliceResidualFinding `json:"residual_items"`
+}
+
+type preSliceResidualFinding struct {
+	Severity   string `json:"severity"`
+	Title      string `json:"title"`
+	Constraint string `json:"constraint"`
 }
 
 func runManifestContractCommand(root string, opts options, stdout, stderr io.Writer) int {
@@ -216,6 +242,19 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	impactPacketContract := manifestHasTopLevelKey(path, "impact_packet_contract")
 	workspaceIsolationContract := manifestHasTopLevelKey(path, "workspace_isolation_contract")
 	proofGovernorContract := manifestHasTopLevelKey(path, "proof_governor_contract")
+	preSliceReviewContract, preSliceReviewContractValid := manifestBoolContractValue(path, "pre_slice_review_contract")
+	if !preSliceReviewContractValid {
+		issues = append(issues, manifestContractIssue{Code: "invalid-contract-boolean", Message: "pre_slice_review_contract must be true or false"})
+	}
+	manifestSchema, manifestSchemaQuoted, manifestSchemaDuplicate := manifestTopLevelScalarDetails(path, "manifest_schema")
+	if manifestSchema != "" {
+		version, err := strconv.Atoi(manifestSchema)
+		if err != nil || version < 1 || manifestSchemaQuoted || manifestSchemaDuplicate {
+			issues = append(issues, manifestContractIssue{Code: "invalid-manifest-schema", Message: "manifest_schema must be a positive integer"})
+		} else if version >= 2 && !preSliceReviewContract {
+			issues = append(issues, manifestContractIssue{Code: "missing-pre-slice-review-contract", Message: "manifest_schema 2 or newer requires pre_slice_review_contract: true"})
+		}
+	}
 	blockerLifecycleContract, blockerLifecycleContractValid := manifestBoolContractValue(path, "blocker_lifecycle_contract")
 	if !blockerLifecycleContractValid {
 		issues = append(issues, manifestContractIssue{Code: "invalid-contract-boolean", Message: "blocker_lifecycle_contract must be true or false"})
@@ -228,6 +267,9 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	}
 	if workspaceIsolationContract {
 		issues = append(issues, validateWorkspaceIsolationContract(path)...)
+	}
+	if preSliceReviewContract {
+		issues = append(issues, validatePreSliceReviewContract(path)...)
 	}
 	for _, slice := range slices {
 		if slice.TestLevel != "" && !validManifestTestLevel(slice.TestLevel) {
@@ -497,23 +539,29 @@ func manifestBoolContractValue(path, key string) (bool, bool) {
 	if err != nil {
 		return false, false
 	}
+	foundValue := false
+	valueResult := false
 	for _, line := range strings.Split(frontmatter, "\n") {
 		if countIndent(line) != 0 {
 			continue
 		}
-		found, value, ok := splitYAMLKeyValue(line)
+		found, value, quoted, ok := splitYAMLScalarNode(line)
 		if ok && found == key {
+			if foundValue || quoted {
+				return false, false
+			}
+			foundValue = true
 			switch strings.ToLower(strings.TrimSpace(value)) {
 			case "true":
-				return true, true
+				valueResult = true
 			case "false":
-				return false, true
+				valueResult = false
 			default:
 				return false, false
 			}
 		}
 	}
-	return false, true
+	return valueResult, true
 }
 
 func validManifestTestLevel(value string) bool {
@@ -594,12 +642,297 @@ func validateWorkspaceIsolationContract(path string) []manifestContractIssue {
 	return issues
 }
 
+func validatePreSliceReviewContract(path string) []manifestContractIssue {
+	nodes, err := manifestNestedScalarNodes(path, "pre_slice_review")
+	if err != nil {
+		return []manifestContractIssue{{Code: "invalid-pre-slice-review", Message: err.Error()}}
+	}
+	values := scalarNodeValues(nodes)
+	add := func(issues []manifestContractIssue, message string) []manifestContractIssue {
+		return append(issues, manifestContractIssue{Code: "invalid-pre-slice-review", Message: message})
+	}
+	issues := []manifestContractIssue{}
+	for _, key := range []string{"findings_resolved", "unresolved_p0", "unresolved_p1", "residual_findings"} {
+		if node, ok := nodes[key]; ok && (node.quoted || !isUnsignedDecimal(node.value)) {
+			issues = add(issues, fmt.Sprintf("pre_slice_review %s must be an unquoted non-negative integer", key))
+		}
+	}
+	allowedFields := map[string]bool{
+		"status": true, "source": true, "source_sha256": true, "mode": true,
+		"review_id": true, "reviewed_at": true, "review_artifact": true,
+		"review_artifact_sha256": true, "persona_evidence_json": true,
+		"selected_personas_json": true, "completed_personas_json": true,
+		"failed_personas_json": true, "findings_resolved": true,
+		"unresolved_p0": true, "unresolved_p1": true, "residual_findings": true,
+		"not_required_reason": true,
+	}
+	for key := range values {
+		if !allowedFields[key] {
+			issues = add(issues, fmt.Sprintf("pre_slice_review contains unknown field %s", key))
+		}
+	}
+	if values["mode"] != "requirements-wide" {
+		issues = add(issues, "pre_slice_review mode must be requirements-wide")
+	}
+	status := values["status"]
+	switch status {
+	case "passed":
+		issues = append(issues, validatePassedPreSliceReview(path, values)...)
+	case "not-required":
+		if strings.TrimSpace(values["not_required_reason"]) == "" {
+			issues = add(issues, "not-required pre_slice_review requires not_required_reason")
+		}
+	default:
+		issues = add(issues, "pre_slice_review status must be passed or not-required")
+	}
+	return issues
+}
+
+func validatePassedPreSliceReview(path string, values map[string]string) []manifestContractIssue {
+	add := func(issues []manifestContractIssue, message string) []manifestContractIssue {
+		return append(issues, manifestContractIssue{Code: "invalid-pre-slice-review", Message: message})
+	}
+	issues := []manifestContractIssue{}
+	source := strings.TrimSpace(values["source"])
+	if source == "" || source == "direct-chat" || filepath.IsAbs(source) {
+		issues = add(issues, "passed pre_slice_review requires a repo-relative requirements source")
+	} else {
+		root := manifestRepoRoot(path)
+		sourcePath := filepath.Clean(filepath.Join(root, filepath.FromSlash(source)))
+		relative, relErr := filepath.Rel(root, sourcePath)
+		if relErr != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			issues = add(issues, "passed pre_slice_review source must stay inside the repository")
+		} else if content, readErr := readContainedRepoFile(root, sourcePath); readErr != nil {
+			issues = add(issues, fmt.Sprintf("passed pre_slice_review source is unreadable: %v", readErr))
+		} else {
+			want := strings.ToLower(strings.TrimSpace(values["source_sha256"]))
+			got := fmt.Sprintf("%x", sha256.Sum256(content))
+			if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(want) || want != got {
+				issues = add(issues, "passed pre_slice_review source_sha256 must match the current requirements source")
+			}
+		}
+	}
+	if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{5,127}$`).MatchString(values["review_id"]) {
+		issues = add(issues, "passed pre_slice_review requires a stable kebab-case review_id")
+	}
+	if _, parseErr := time.Parse(time.RFC3339, values["reviewed_at"]); parseErr != nil {
+		issues = add(issues, "passed pre_slice_review reviewed_at must be RFC3339")
+	}
+	personas := map[string]string{}
+	if err := json.Unmarshal([]byte(values["persona_evidence_json"]), &personas); err != nil || len(personas) == 0 {
+		issues = add(issues, "passed pre_slice_review persona_evidence_json must be a nonempty JSON object")
+	} else {
+		allowed := map[string]bool{
+			"coherence-reviewer": true, "feasibility-reviewer": true,
+			"product-lens-reviewer": true, "design-lens-reviewer": true,
+			"spec-flow-analyzer": true, "security-lens-reviewer": true,
+			"scope-guardian-reviewer": true, "adversarial-document-reviewer": true,
+		}
+		for persona, reason := range personas {
+			if !allowed[persona] {
+				issues = add(issues, fmt.Sprintf("pre_slice_review persona %s is not allowed", persona))
+			}
+			if !validPersonaSelectionReason(persona, reason) {
+				issues = add(issues, fmt.Sprintf("pre_slice_review persona %s requires a specific selection reason", persona))
+			}
+		}
+		for _, required := range []string{"coherence-reviewer", "feasibility-reviewer"} {
+			if _, ok := personas[required]; !ok {
+				issues = add(issues, fmt.Sprintf("passed pre_slice_review requires completed %s", required))
+			}
+		}
+	}
+	var failed []string
+	if err := json.Unmarshal([]byte(values["failed_personas_json"]), &failed); err != nil {
+		issues = add(issues, "passed pre_slice_review failed_personas_json must be a JSON array")
+	} else if len(failed) != 0 {
+		issues = add(issues, "passed pre_slice_review cannot contain failed personas")
+	}
+	selected := decodePersonaList(values["selected_personas_json"], "selected_personas_json", &issues)
+	completed := decodePersonaList(values["completed_personas_json"], "completed_personas_json", &issues)
+	if !sameStringSet(completed, mapKeys(personas)) {
+		issues = add(issues, "completed_personas_json must exactly match persona_evidence_json")
+	}
+	if !sameStringSet(selected, append(append([]string{}, completed...), failed...)) {
+		issues = add(issues, "selected_personas_json must exactly equal completed plus failed personas")
+	}
+	for _, key := range []string{"findings_resolved", "unresolved_p0", "unresolved_p1", "residual_findings"} {
+		count, parseErr := strconv.Atoi(values[key])
+		if parseErr != nil || count < 0 {
+			issues = add(issues, fmt.Sprintf("pre_slice_review %s must be a nonnegative integer", key))
+		}
+	}
+	for _, key := range []string{"unresolved_p0", "unresolved_p1"} {
+		if values[key] != "0" {
+			issues = add(issues, fmt.Sprintf("passed pre_slice_review requires %s: 0", key))
+		}
+	}
+	issues = append(issues, validatePreSliceReviewArtifact(path, values, personas, selected, completed, failed)...)
+	return issues
+}
+
+func validatePreSliceReviewArtifact(path string, values map[string]string, personas map[string]string, selected, completed, failed []string) []manifestContractIssue {
+	add := func(issues []manifestContractIssue, message string) []manifestContractIssue {
+		return append(issues, manifestContractIssue{Code: "invalid-pre-slice-review", Message: message})
+	}
+	issues := []manifestContractIssue{}
+	root := manifestRepoRoot(path)
+	artifact := strings.TrimSpace(values["review_artifact"])
+	if artifact == "" || filepath.IsAbs(artifact) {
+		return add(issues, "passed pre_slice_review requires a repo-relative review_artifact")
+	}
+	artifactPath := filepath.Clean(filepath.Join(root, filepath.FromSlash(artifact)))
+	relative, relErr := filepath.Rel(root, artifactPath)
+	if relErr != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return add(issues, "passed pre_slice_review review_artifact must stay inside the repository")
+	}
+	content, readErr := readContainedRepoFile(root, artifactPath)
+	if readErr != nil {
+		return add(issues, fmt.Sprintf("passed pre_slice_review review_artifact is unreadable: %v", readErr))
+	}
+	wantHash := strings.ToLower(strings.TrimSpace(values["review_artifact_sha256"]))
+	gotHash := fmt.Sprintf("%x", sha256.Sum256(content))
+	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(wantHash) || wantHash != gotHash {
+		issues = add(issues, "passed pre_slice_review review_artifact_sha256 must match the review artifact")
+	}
+	var receipt preSliceReviewArtifact
+	decoder := json.NewDecoder(strings.NewReader(string(content)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&receipt); err != nil {
+		return add(issues, fmt.Sprintf("invalid pre-slice review artifact: %v", err))
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return add(issues, "invalid pre-slice review artifact: trailing JSON content")
+	}
+	expectedCounts := map[string]int{
+		"findings_resolved": parseNonnegativeInt(values["findings_resolved"]),
+		"unresolved_p0":     parseNonnegativeInt(values["unresolved_p0"]),
+		"unresolved_p1":     parseNonnegativeInt(values["unresolved_p1"]),
+		"residual_findings": parseNonnegativeInt(values["residual_findings"]),
+	}
+	if receipt.ReviewID != values["review_id"] ||
+		receipt.Source != values["source"] ||
+		receipt.SourceSHA256 != values["source_sha256"] ||
+		receipt.ReviewedAt != values["reviewed_at"] ||
+		receipt.DocumentType != "requirements" ||
+		receipt.Mode != "requirements-wide" ||
+		!sameStringSet(receipt.SelectedPersonas, selected) ||
+		!sameStringSet(receipt.CompletedPersonas, completed) ||
+		!equalStringMap(receipt.PersonaEvidence, personas) ||
+		!equalStringSlice(receipt.FailedPersonas, failed) ||
+		receipt.FindingsResolved != expectedCounts["findings_resolved"] ||
+		receipt.UnresolvedP0 != expectedCounts["unresolved_p0"] ||
+		receipt.UnresolvedP1 != expectedCounts["unresolved_p1"] ||
+		receipt.ResidualFindings != expectedCounts["residual_findings"] {
+		issues = add(issues, "pre_slice_review manifest fields must exactly match the review artifact")
+	}
+	if !sameStringSet(receipt.CompletedPersonas, mapKeys(receipt.PersonaEvidence)) ||
+		!sameStringSet(receipt.SelectedPersonas, append(append([]string{}, receipt.CompletedPersonas...), receipt.FailedPersonas...)) {
+		issues = add(issues, "review artifact persona lifecycle is inconsistent")
+	}
+	if len(receipt.ResidualItems) != receipt.ResidualFindings {
+		issues = add(issues, "review artifact residual_items must match residual_findings")
+	}
+	for _, item := range receipt.ResidualItems {
+		if !oneOf(item.Severity, "P2", "P3") || strings.TrimSpace(item.Title) == "" || strings.TrimSpace(item.Constraint) == "" {
+			issues = add(issues, "review artifact residual items require P2/P3 severity, title, and actionable constraint")
+		}
+	}
+	return issues
+}
+
+func decodePersonaList(raw, field string, issues *[]manifestContractIssue) []string {
+	var values []string
+	if err := json.Unmarshal([]byte(raw), &values); err != nil || len(values) == 0 {
+		*issues = append(*issues, manifestContractIssue{
+			Code: "invalid-pre-slice-review", Message: fmt.Sprintf("%s must be a nonempty JSON array", field),
+		})
+	}
+	return values
+}
+
+func mapKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func sameStringSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	counts := map[string]int{}
+	for _, value := range left {
+		counts[value]++
+	}
+	for _, value := range right {
+		counts[value]--
+		if counts[value] < 0 {
+			return false
+		}
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func parseNonnegativeInt(value string) int {
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 {
+		return -1
+	}
+	return parsed
+}
+
+func equalStringMap(left, right map[string]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key, value := range left {
+		if right[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func equalStringSlice(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
 func manifestHasPlanRunDefault(path string) bool {
 	values, err := manifestNestedScalars(path, "workspace_isolation_contract")
 	return err == nil && values["plan_run_worktree_default"] == "true"
 }
 
 func manifestNestedScalars(path, section string) (map[string]string, error) {
+	nodes, err := manifestNestedScalarNodes(path, section)
+	if err != nil {
+		return nil, err
+	}
+	return scalarNodeValues(nodes), nil
+}
+
+type manifestScalarNode struct {
+	value  string
+	quoted bool
+}
+
+func manifestNestedScalarNodes(path, section string) (map[string]manifestScalarNode, error) {
 	frontmatter, err := loadManifestFrontmatter(path)
 	if err != nil {
 		return nil, err
@@ -608,14 +941,16 @@ func manifestNestedScalars(path, section string) (map[string]string, error) {
 	start := -1
 	for index, line := range lines {
 		if countIndent(line) == 0 && strings.TrimSpace(line) == section+":" {
+			if start >= 0 {
+				return nil, fmt.Errorf("manifest contains duplicate %s sections", section)
+			}
 			start = index
-			break
 		}
 	}
 	if start < 0 {
 		return nil, fmt.Errorf("manifest has no %s section", section)
 	}
-	values := map[string]string{}
+	values := map[string]manifestScalarNode{}
 	for _, line := range lines[start+1:] {
 		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
 			continue
@@ -626,17 +961,32 @@ func manifestNestedScalars(path, section string) (map[string]string, error) {
 		if countIndent(line) != 2 {
 			continue
 		}
-		key, value, ok := splitYAMLKeyValue(strings.TrimSpace(line))
+		key, value, quoted, ok := splitYAMLScalarNode(strings.TrimSpace(line))
 		if ok {
-			values[key] = value
+			if _, exists := values[key]; exists {
+				return nil, fmt.Errorf("%s contains duplicate field %s", section, key)
+			}
+			values[key] = manifestScalarNode{value: value, quoted: quoted}
 		}
 	}
 	return values, nil
 }
 
+func scalarNodeValues(nodes map[string]manifestScalarNode) map[string]string {
+	values := make(map[string]string, len(nodes))
+	for key, node := range nodes {
+		values[key] = node.value
+	}
+	return values
+}
+
 func manifestRepoRoot(path string) string {
 	current := filepath.Dir(path)
 	for {
+		if _, err := os.Stat(filepath.Join(current, ".git")); err == nil {
+			return current
+		}
+
 		if _, err := os.Stat(filepath.Join(current, "config", "skill-quality.json")); err == nil {
 			return current
 		}
@@ -646,6 +996,22 @@ func manifestRepoRoot(path string) string {
 		}
 		current = parent
 	}
+}
+
+func readContainedRepoFile(root, path string) ([]byte, error) {
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve repository root: %w", err)
+	}
+	resolvedPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil, err
+	}
+	relative, err := filepath.Rel(resolvedRoot, resolvedPath)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("resolved path escapes the repository")
+	}
+	return os.ReadFile(resolvedPath)
 }
 
 func manifestHasObjectiveContract(path string) bool {
@@ -688,6 +1054,32 @@ func manifestHasTopLevelKey(path, want string) bool {
 		}
 	}
 	return false
+}
+
+func manifestTopLevelScalar(path, want string) string {
+	value, _, _ := manifestTopLevelScalarDetails(path, want)
+	return value
+}
+
+func manifestTopLevelScalarDetails(path, want string) (value string, quoted, duplicate bool) {
+	frontmatter, err := loadManifestFrontmatter(path)
+	if err != nil {
+		return "", false, false
+	}
+	for _, line := range strings.Split(frontmatter, "\n") {
+		if countIndent(line) != 0 {
+			continue
+		}
+		key, parsed, parsedQuoted, ok := splitYAMLScalarNode(line)
+		if ok && key == want {
+			if value != "" {
+				duplicate = true
+			}
+			value = parsed
+			quoted = parsedQuoted
+		}
+	}
+	return value, quoted, duplicate
 }
 
 func validModelTier(value string) bool {
@@ -946,11 +1338,76 @@ func loadManifestFrontmatter(path string) (string, error) {
 }
 
 func splitYAMLKeyValue(value string) (string, string, bool) {
+	key, scalar, _, ok := splitYAMLScalarNode(value)
+	return key, scalar, ok
+}
+
+func splitYAMLScalarNode(value string) (string, string, bool, bool) {
 	parts := strings.SplitN(value, ":", 2)
 	if len(parts) != 2 {
-		return "", "", false
+		return "", "", false, false
 	}
-	return strings.TrimSpace(parts[0]), cleanYAMLScalar(parts[1]), true
+	raw := strings.TrimSpace(stripYAMLInlineComment(parts[1]))
+	quoted := len(raw) >= 2 &&
+		((raw[0] == '"' && raw[len(raw)-1] == '"') || (raw[0] == '\'' && raw[len(raw)-1] == '\''))
+	return strings.TrimSpace(parts[0]), cleanYAMLScalar(raw), quoted, true
+}
+
+func stripYAMLInlineComment(value string) string {
+	var quote rune
+	escaped := false
+	for index, current := range value {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if quote == '"' && current == '\\' {
+			escaped = true
+			continue
+		}
+		if current == '\'' || current == '"' {
+			if quote == 0 {
+				quote = current
+			} else if quote == current {
+				quote = 0
+			}
+			continue
+		}
+		if current == '#' && quote == 0 && (index == 0 || value[index-1] == ' ' || value[index-1] == '\t') {
+			return strings.TrimSpace(value[:index])
+		}
+	}
+	return strings.TrimSpace(value)
+}
+
+func isUnsignedDecimal(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, current := range value {
+		if current < '0' || current > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func validPersonaSelectionReason(persona, reason string) bool {
+	basis := map[string]string{
+		"coherence-reviewer":            "consistency-risk:",
+		"feasibility-reviewer":          "delivery-risk:",
+		"product-lens-reviewer":         "product-risk:",
+		"design-lens-reviewer":          "interaction-risk:",
+		"spec-flow-analyzer":            "flow-risk:",
+		"security-lens-reviewer":        "security-risk:",
+		"scope-guardian-reviewer":       "scope-risk:",
+		"adversarial-document-reviewer": "adversarial-risk:",
+	}[persona]
+	if basis == "" || !strings.HasPrefix(strings.ToLower(strings.TrimSpace(reason)), basis) {
+		return false
+	}
+	evidence := strings.TrimSpace(reason[len(basis):])
+	return len(strings.Fields(evidence)) >= 4
 }
 
 func assignManifestGateValue(gate *manifestGate, key, value string) {

@@ -40,6 +40,12 @@ Then branch by task:
 | Sync / marketplace | `skill-sync-report`, `doctor`, `review-reference-guard`, `marketplace-firebreak`, `marketplace-promote` | Inspecting or repairing install drift and enforcing reusable-skill policy |
 | Concurrency / isolation | `scope-lease`, `slice-lease`, `worktree`, `terminal-cleanup`, `cargo-storage` | Local leases, worktree coordination, terminal retirement, and shared Cargo build storage |
 
+`manifest-contract` also validates opt-in `pre_slice_review_contract` receipts:
+schema-v2 triggered plans must bind the review to the current requirements
+SHA-256, use allowlisted persona-to-reason evidence, and have no failed personas
+or unresolved P0/P1 findings. Proportional plans may instead record a specific
+`not_required_reason`; manifests without a schema remain legacy-compatible.
+
 ## Canonical Commands
 
 ```powershell

@@ -13,15 +13,17 @@ Break work into independently executable **vertical slices** (tracer bullets). E
 ## Quick Start
 
 1. Read the brainstorm, PRD, or feature description.
-2. Draft thin end-to-end slices with dependencies and verification modes.
-3. Review the breakdown yourself against the source material; ask the user only for blocking decisions.
-4. Write one KB manifest plus one plan file per slice.
-5. Create or update the manifest `gate_ledger`; `plan-to-work` must be
+2. Before drafting any slices, run the applicable specialist personas once
+   against the full requirements source and resolve their findings.
+3. Draft thin end-to-end slices with dependencies and verification modes.
+4. Review the breakdown yourself against the reviewed source material; ask the user only for blocking decisions.
+5. Write one KB manifest plus one plan file per slice.
+6. Create or update the manifest `gate_ledger`; `plan-to-work` must be
    `passed` before `kb-work` may execute.
-6. After writing the manifest, continue to `kb-work <manifest-path>` only when
+7. After writing the manifest, continue to `kb-work <manifest-path>` only when
    execution was requested or an orchestrator called this plan. Otherwise ask
    once and print the exact next command.
-7. Stage or commit only the generated files when the user explicitly asked for a commit.
+8. Stage or commit only the generated files when the user explicitly asked for a commit.
 
 ## Interaction Method
 
@@ -56,9 +58,74 @@ exact next command.
 7. If no source exists and the handoff is concrete enough, plan from the handoff and record `source: handoff`.
 8. If no source exists and the handoff leaves material product or architecture decisions open, stop and route to `kb-brainstorm`.
 
-**If input is a feature description:** Proceed directly to decomposition.
+**If input is a feature description:** Proceed directly only when the request
+does not meet the plan-wide specialist-review triggers below. When it does,
+route through `kb-brainstorm` first so the reviewers receive one durable
+requirements source; do not invent slices before that review.
 
 ## Core Rules
+
+### Plan-Wide Specialist Review Before Slicing
+
+Specialist document reviewers have plan-wide jobs. Before drafting any slices,
+first decide whether specialist review is likely to change the requirements,
+scope, risk controls, or decomposition. Do not invoke `document-review` for a
+small, mechanically constrained, low-risk source merely because planning is
+running. Invoke it when one or more of these signals create a material question:
+
+- more than five requirements or implementation units;
+- material product, design, user-flow, scope, or architecture decisions;
+- auth, security, privacy, payments, data migration, external API, or other
+  trust-boundary risk;
+- a new abstraction, framework, or path-dependent technical direction.
+
+When triggered, invoke `document-review mode:headless <requirements-path>` on
+the full requirements source once. Let `document-review` select only the
+personas whose role can materially change this source; do not run the full
+roster by default or activate a persona from a keyword alone. Resolve
+auto-fixes and all P0/P1 findings before decomposition. Route remaining
+judgment through `kb-gate`; do not defer a plan-wide persona to one reviewer run
+per slice.
+
+If the first pass reports P0/P1 findings, fix or resolve them and run one
+bounded confirmation pass. Only the final artifact with zero unresolved P0/P1
+and no failed selected personas may authorize slicing.
+
+Reuse a headless review artifact produced by `kb-brainstorm` when its
+`source_sha256` still matches the current requirements file and it has no failed
+personas or unresolved P0/P1 findings. Otherwise rerun `document-review` once.
+Research that changes requirements invalidates the old artifact.
+
+If a direct chat request triggers specialist review but has no durable
+requirements document, invoke `kb-brainstorm` to create one first. Simple,
+bounded requests may skip the specialist pass, but the manifest must record a
+specific `not_required_reason`.
+
+Record the result in the manifest:
+
+```yaml
+pre_slice_review:
+  status: passed|not-required
+  source: <requirements-path or direct-chat>
+  source_sha256: <sha256 of the reviewed requirements file>
+  mode: requirements-wide
+  review_id: <stable review run ID>
+  reviewed_at: <RFC3339 timestamp>
+  review_artifact: <repo-relative docs/results/document-reviews/*.json path>
+  review_artifact_sha256: <sha256 of the review artifact>
+  persona_evidence_json: '<JSON object mapping each completed persona to its fixed-basis: specific-evidence reason>'
+  selected_personas_json: '<JSON array of every dispatched persona>'
+  completed_personas_json: '<JSON array of every successful persona>'
+  failed_personas_json: '[]'
+  findings_resolved: <count>
+  unresolved_p0: 0
+  unresolved_p1: 0
+  residual_findings: <count>
+  not_required_reason: <required only when status is not-required>
+```
+
+A later whole-plan document review may check the generated DAG for coherence,
+but it is not a substitute for requirements review before slicing.
 
 ### Vertical Slices Only
 
@@ -152,8 +219,16 @@ as `kb-brainstorm <requirements-path>`.
 
 Use the `kb-map` context already loaded. When material uncertainty remains—
 especially security, payments, external APIs, privacy, or unfamiliar framework
-behavior—invoke `kb-research` and point affected slices to its evidence. Carry
-relevant active landmines into constraints and verification.
+behavior—invoke `kb-research` and incorporate any requirement-changing evidence
+into the source before specialist review. Carry relevant active landmines into
+constraints and verification.
+
+### 1.6. Review Requirements as One Document
+
+Apply the plan-wide specialist-review contract after requirement-changing
+research and before creating slice IDs, dependencies, or per-slice owners.
+Consume a matching reusable receipt or run one headless review, resolve safe
+fixes, and stop on unresolved P0/P1 or material user decisions.
 
 ### 2. Draft Vertical Slices
 
@@ -185,8 +260,11 @@ Break the work into thin end-to-end slices. For each slice, determine:
 - **Context packet** - for non-trivial slices, the bounded execution payload:
   memory/source files already checked, deterministic prefetch, constraints,
   acceptance/proof targets, minimum execution tier, allowed tools/search
-  policy, and escalation triggers. Tiny doc-only or mechanical slices may omit it with a
-  one-line reason.
+  policy, and escalation triggers. Copy every applicable structured
+  `residual_items[].constraint` from the bound pre-slice review artifact; do not
+  reduce them to a count or generic constraint. Tiny doc-only or mechanical
+  slices may omit the packet with a one-line reason only when no review
+  constraint applies.
 
 Each entry in `expected_files` should specify:
   - `path` — the file path
@@ -239,7 +317,10 @@ Run `kb-gate` before writing final plans when validation surfaces P0/P1/P2/P3 is
 
 Before handing off to `kb-work`, write a `plan-to-work` gate in the manifest.
 Load `kb-gate/references/gate-ledger.md` if needed. The gate must include proof
-for: manifest path, every slice plan path, dependency DAG validation, acceptance
+for: the `pre_slice_review` receipt bound to the current source SHA-256 with
+zero unresolved P0/P1 and no failed personas, or a specific
+`not_required_reason`,
+manifest path, every slice plan path, dependency DAG validation, acceptance
 criteria, `expected_files`, verification mode, `test_level`, `functional_risk`,
 `model_tier`, model requirements, escalation triggers, HITL classification, any protected oracle policy,
 and any objective-contract fields. If any proof is missing, set
@@ -362,6 +443,7 @@ Create a manifest and individual slice plans.
 ```yaml
 ---
 type: kb-manifest
+manifest_schema: 2
 kb_id: kb-YYYY-MM-DD-<name>
 brainstorm_path: docs/brainstorms/<source-file>.md
 created: YYYY-MM-DD
@@ -369,6 +451,25 @@ status: active
 workflow_shape: "<direct-chat|single-skill-edit|skill-bundle-change|pipeline-change|multi-stream-epic>"
 objective_contract: true
 blocker_lifecycle_contract: true
+pre_slice_review_contract: true
+pre_slice_review:
+  status: <passed|not-required>
+  source: <requirements-path or direct-chat>
+  source_sha256: <required when passed>
+  mode: requirements-wide
+  review_id: <required when passed>
+  reviewed_at: <required RFC3339 timestamp when passed>
+  review_artifact: <repo-relative docs/results/document-reviews/*.json path>
+  review_artifact_sha256: <required when passed>
+  persona_evidence_json: '<JSON object mapping completed personas to fixed-basis: specific-evidence reasons>'
+  selected_personas_json: '<JSON array of every dispatched persona>'
+  completed_personas_json: '<JSON array of every successful persona>'
+  failed_personas_json: '[]'
+  findings_resolved: <count>
+  unresolved_p0: 0
+  unresolved_p1: 0
+  residual_findings: <count>
+  not_required_reason: <required only when status is not-required>
 done_check:
   kind: command_exit
   command: "<single command, gate, or artifact check that proves the whole KB objective is done>"
