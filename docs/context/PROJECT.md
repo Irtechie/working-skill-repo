@@ -122,7 +122,10 @@ docs are:
   blocks cleanup. A later session verifies the Git-admin
   generation and observed remote SHAs, removes the Git worktree, and deletes
   only an exact merged local feature ref with compare-and-swap. Squash/rebase
-  proof, host UI records, and remote-ref deletion remain host-owned.
+  proof, host UI records, and remote-ref deletion remain host-owned. Sweep uses
+  the primary checkout as a stable Git context even when `--root` is the target;
+  guarded retry can reconcile only an exact empty residual after registration
+  is gone and all saved branch, receipt, claim, and delivery identities match.
 - [verified] `cmd/amrbench run` remains non-dry blocked until a trusted
   human-approval verifier exists.
 - [verified] `.github/workflows\` is currently empty; proof is local CLI-driven

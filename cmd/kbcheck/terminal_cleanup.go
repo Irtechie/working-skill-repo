@@ -18,6 +18,8 @@ import (
 
 const terminalCleanupSchemaVersion = 2
 
+var terminalCleanupRetryDelays = []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond}
+
 type terminalCleanupOptions struct {
 	Action             string
 	WorkID             string
@@ -182,6 +184,10 @@ func executeTerminalCleanup(opts terminalCleanupOptions) (terminalCleanupResult,
 	}
 	if action == "register" {
 		return registerTerminalCleanup(opts)
+	}
+	opts.RepoRoot, err = terminalCleanupPrimaryCheckout(opts.RepoRoot)
+	if err != nil {
+		return blockedTerminalCleanup("sweep", err.Error(), nil), nil
 	}
 	if strings.TrimSpace(opts.CurrentSession) == "" {
 		return blockedTerminalCleanup("sweep", "current session-id is required", nil), nil
@@ -426,14 +432,23 @@ func sweepOneTerminalCleanupLocked(
 		}
 		if !registered {
 			if pathExists(receipt.Worktree) {
-				return blockedTerminalCleanup("sweep", "target path exists but is not a registered Git worktree", &receipt), nil
-			}
-			for _, worktree := range worktrees {
-				if token, _ := readTerminalWorktreeMarker(worktree.Path); token == receipt.WorktreeToken {
-					return blockedTerminalCleanup("sweep", "registered worktree moved to a different path after cleanup registration", &receipt), nil
+				if issue := reconcileTerminalPartialRemoval(opts.RepoRoot, receipt, worktrees); issue != "" {
+					return blockedTerminalCleanup("sweep", issue, &receipt), nil
 				}
+				receipt.Status = "worktree-removed"
+				receipt.RemovedAt = opts.Now.Format(time.RFC3339Nano)
+				receipt.UpdatedAt = receipt.RemovedAt
+				if err := saveTerminalCleanupReceipt(opts.RepoRoot, receipt); err != nil {
+					return terminalCleanupResult{}, err
+				}
+			} else {
+				for _, worktree := range worktrees {
+					if token, _ := readTerminalWorktreeMarker(worktree.Path); token == receipt.WorktreeToken {
+						return blockedTerminalCleanup("sweep", "registered worktree moved to a different path after cleanup registration", &receipt), nil
+					}
+				}
+				return blockedTerminalCleanup("sweep", "registered worktree and admin identity are missing; scoped prune or manual recovery is required", &receipt), nil
 			}
-			return blockedTerminalCleanup("sweep", "registered worktree and admin identity are missing; scoped prune or manual recovery is required", &receipt), nil
 		} else {
 			if target.Branch != receipt.Branch || target.Head != receipt.CommitSHA {
 				return blockedTerminalCleanup("sweep", "registered worktree identity moved after cleanup registration", &receipt), nil
@@ -506,10 +521,106 @@ func sweepOneTerminalCleanupLocked(
 	return terminalCleanupResult{OK: true, Action: "sweep", Receipt: &receipt}, nil
 }
 
+func reconcileTerminalPartialRemoval(
+	root string,
+	receipt terminalCleanupReceipt,
+	worktrees map[string]terminalGitWorktree,
+) string {
+	if receipt.WorktreeToken == "" || receipt.WorktreeGitDir == "" ||
+		receipt.WorktreeRealPath == "" || !receipt.EvidenceRecorded {
+		return "partial cleanup receipt is missing registered worktree identity evidence"
+	}
+	for _, worktree := range worktrees {
+		if token, _ := readTerminalWorktreeMarker(worktree.Path); token == receipt.WorktreeToken {
+			return "registered worktree moved to a different path after cleanup registration"
+		}
+	}
+	common, err := terminalCleanupCommonDir(root)
+	if err != nil {
+		return err.Error()
+	}
+	adminParent := filepath.Dir(receipt.WorktreeGitDir)
+	expectedAdminParent := filepath.Join(common, "worktrees")
+	if !samePath(adminParent, expectedAdminParent) {
+		return "partial cleanup receipt admin identity is outside the registered Git common directory"
+	}
+	if pathExists(adminParent) {
+		adminParent, err = filepath.EvalSymlinks(adminParent)
+		if err != nil {
+			return "partial cleanup receipt admin parent is unreadable"
+		}
+		expectedAdminParent, err = filepath.EvalSymlinks(expectedAdminParent)
+		if err != nil {
+			return "registered Git worktree admin parent is unreadable"
+		}
+		if !samePath(adminParent, expectedAdminParent) {
+			return "partial cleanup receipt admin identity resolves outside the registered Git common directory"
+		}
+	}
+	if pathExists(receipt.WorktreeGitDir) {
+		return "target path exists but is not a registered Git worktree; its Git admin identity was not removed"
+	}
+	localRef := "refs/heads/" + receipt.Branch
+	if current := gitOutput(root, "rev-parse", localRef+"^{commit}"); current != receipt.CommitSHA {
+		return "local branch ref does not match the cleanup receipt; partial reconciliation refused"
+	}
+	if _, issue := validateTerminalDelivery(root, receipt, nil); issue != "" {
+		return issue
+	}
+	return removeTerminalEmptyResidualWithRetry(receipt)
+}
+
+func removeTerminalEmptyResidualWithRetry(receipt terminalCleanupReceipt) string {
+	issue := ""
+	for _, delay := range terminalCleanupRetryDelays {
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+		currentIssue, retryable := inspectTerminalEmptyResidual(receipt)
+		if currentIssue != "" {
+			issue = currentIssue
+			if !retryable {
+				return issue
+			}
+			continue
+		}
+		if err := os.Remove(receipt.Worktree); err == nil {
+			return ""
+		} else {
+			issue = "remove empty partial cleanup residual directory: " + err.Error()
+		}
+	}
+	return issue
+}
+
+func inspectTerminalEmptyResidual(receipt terminalCleanupReceipt) (string, bool) {
+	info, err := os.Lstat(receipt.Worktree)
+	if err != nil {
+		return "partial cleanup residual directory is unreadable: " + err.Error(), true
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return "partial cleanup residual path is not an exact directory", false
+	}
+	realPath, err := filepath.EvalSymlinks(receipt.Worktree)
+	if err != nil {
+		return "partial cleanup residual real path is unreadable: " + err.Error(), true
+	}
+	if !samePath(realPath, receipt.WorktreeRealPath) {
+		return "partial cleanup residual real path does not match the registered target", false
+	}
+	entries, err := os.ReadDir(receipt.Worktree)
+	if err != nil {
+		return "partial cleanup residual directory is unreadable: " + err.Error(), true
+	}
+	if len(entries) != 0 {
+		return "partial cleanup residual directory is not empty; local data is preserved", false
+	}
+	return "", false
+}
+
 func removeTerminalWorktreeWithRetry(root, worktree string) string {
-	delays := []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond}
 	var output string
-	for _, delay := range delays {
+	for _, delay := range terminalCleanupRetryDelays {
 		if delay > 0 {
 			time.Sleep(delay)
 		}
@@ -806,14 +917,18 @@ func gitCommitContains(root, containerRef, commit string) (bool, string) {
 }
 
 func matchingTerminalCleanupClaim(queue []terminalCleanupQueueEntry, receipt terminalCleanupReceipt) (terminalCleanupQueueEntry, string) {
+	identityFound := false
 	for _, entry := range queue {
 		if entry.WorkID != receipt.WorkID || entry.SessionID != receipt.SessionID {
 			continue
 		}
-		if entry.Branch != receipt.Branch || !samePath(entry.Worktree, receipt.Worktree) {
-			return entry, "queue claim identity does not match cleanup target"
+		identityFound = true
+		if entry.Branch == receipt.Branch && samePath(entry.Worktree, receipt.Worktree) {
+			return entry, ""
 		}
-		return entry, ""
+	}
+	if identityFound {
+		return terminalCleanupQueueEntry{}, "queue claim identity does not match cleanup target"
 	}
 	return terminalCleanupQueueEntry{}, "matching work queue claim is unavailable"
 }
