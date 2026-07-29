@@ -164,7 +164,19 @@ KB state system unless the repo already opted into `done.md`.
     graph-dependent claims but permits explicit file-native source inspection.
     Packet and routing receipts are orientation evidence; they cannot mark a
     slice done or replace the slice's functional proof.
-16. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
+16. **Resolve the build-storage contract:** before a ready slice can run Cargo,
+    use `kb-check` to create either a native `cargo-storage --action resolve`
+    receipt accepted by `cargo-storage --action validate-ready`, or the
+    fail-closed portable fallback when the consuming repo lacks `cmd/kbcheck`.
+    Apply the returned exact `CARGO_TARGET_DIR` across every slice, worker,
+    repair, proof batch, session, and worktree. Pass the native receipt path or
+    portable fallback record in the execution prompt; do not duplicate the
+    native schema in a context packet. A temporary target must be created first
+    in native mode by
+    `cargo-storage --action register-temp` with an approved parent and technical
+    reason. Never invent a phase-, probe-, worker-, slice-, or run-named target
+    for isolation. For non-Rust work, record `build-storage: not-applicable`.
+17. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
 
 After initial execution starts, do not ask before moving from one safe ready set
 to the next.
@@ -567,7 +579,7 @@ When `test_level` is `functional-browser`, these steps are mandatory:
 2. Use Playwright to navigate to the actual feature route/screen in the rendered UI. Use CDP or the repo/platform authenticated browser transport only when Playwright cannot access an authenticated/corporate route.
 3. Exercise the happy path with real clicks, keyboard input, form input, navigation, or other visible controls.
 4. Capture screenshots of key pass/fail states and assert observable rendered outcomes after the action.
-5. Clean up artifacts created during testing: test data, screenshots/traces when no longer needed, temp files, and browser state per repo QA cleanup rules.
+5. Clean up artifacts created during testing: test data, screenshots/traces when no longer needed, temp files, and browser state per repo QA cleanup rules. Do not remove the stable shared Cargo target; only an explicitly recorded run-owned temporary target is eligible for finalization cleanup.
 
 Backend/API/unit checks may supplement this proof, but they cannot replace it. This gate cannot be skipped, overridden, or deferred.
 
@@ -662,6 +674,11 @@ Use `references/execution-prompt.md` as the per-slice execution prompt/checklist
 When the manifest uses its plan-run worktree, also load
 `references/worktree-isolation.md` and follow its same-worktree commit
 acceptance checklist.
+
+Every delegated worker receives the native execution-ready receipt path or
+portable fallback record and exact applied environment. A worker must return a
+conflict instead of replacing the stable Cargo target with a new target
+directory.
 
 ### Step 3.1: Protected Oracle Gate
 

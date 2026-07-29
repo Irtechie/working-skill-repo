@@ -57,6 +57,7 @@ Usage:
   kbcheck plan-worktree-selftest [--root <path>]
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name>] [--root <path>] [--json]
+  kbcheck cargo-storage --action resolve|register-temp|finalize|validate-ready|not-applicable|validate --run-id <id> [--cache-root <path>] [--target <path> --temp-root <path> --reason <text>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
@@ -212,6 +213,10 @@ type options struct {
 	sessionID               string
 	deliveryMode            string
 	remote                  string
+	cargoCacheRoot          string
+	cargoTarget             string
+	cargoTempRoot           string
+	cargoReason             string
 }
 
 func main() {
@@ -310,6 +315,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runWorktreeCommand(root, opts, stdout, stderr)
 	case "terminal-cleanup":
 		return runTerminalCleanupCommand(root, opts, stdout, stderr)
+	case "cargo-storage":
+		return runCargoStorageCommand(root, opts, stdout, stderr)
 	case "scope-lease":
 		return runScopeLeaseCommand(root, opts, stdout, stderr)
 	case "scope-lease-selftest":
@@ -395,7 +402,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-routing-release": true,
-		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true,
+		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -494,6 +501,10 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.sessionID, "session-id", "", "Copilot project session id")
 	fs.StringVar(&opts.deliveryMode, "delivery-mode", "", "delivery mode: local, pr, or direct")
 	fs.StringVar(&opts.remote, "remote", "", "delivery remote name")
+	fs.StringVar(&opts.cargoCacheRoot, "cache-root", "", "stable Cargo cache root")
+	fs.StringVar(&opts.cargoTarget, "target", "", "run-owned temporary Cargo target")
+	fs.StringVar(&opts.cargoTempRoot, "temp-root", "", "approved parent for a run-owned temporary Cargo target")
+	fs.StringVar(&opts.cargoReason, "reason", "", "technical isolation reason for a temporary Cargo target")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, err
 	}
@@ -563,7 +574,7 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup"
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup" || opts.command == "cargo-storage"
 	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
 	}
@@ -634,6 +645,39 @@ func parse(args []string) (options, error) {
 		}
 	} else if opts.workID != "" || opts.sessionID != "" || opts.deliveryMode != "" || opts.remote != "" {
 		return options{}, fmt.Errorf("--work-id, --session-id, --delivery-mode, and --remote are only supported for terminal-cleanup")
+	}
+	if opts.command == "cargo-storage" {
+		switch opts.sliceLeaseAction {
+		case "resolve":
+			if opts.runID == "" {
+				return options{}, fmt.Errorf("cargo-storage resolve requires --run-id")
+			}
+			if opts.cargoTarget != "" || opts.cargoTempRoot != "" || opts.cargoReason != "" {
+				return options{}, fmt.Errorf("cargo-storage resolve does not accept temporary-target flags")
+			}
+		case "register-temp":
+			if opts.runID == "" || opts.cargoTarget == "" || opts.cargoTempRoot == "" || opts.cargoReason == "" {
+				return options{}, fmt.Errorf("cargo-storage register-temp requires --run-id, --target, --temp-root, and --reason")
+			}
+		case "not-applicable":
+			if opts.runID == "" || opts.cargoReason == "" {
+				return options{}, fmt.Errorf("cargo-storage not-applicable requires --run-id and --reason")
+			}
+			if opts.cargoCacheRoot != "" || opts.cargoTarget != "" || opts.cargoTempRoot != "" {
+				return options{}, fmt.Errorf("cargo-storage not-applicable accepts only --reason")
+			}
+		case "finalize", "validate-ready", "validate":
+			if opts.runID == "" {
+				return options{}, fmt.Errorf("cargo-storage %s requires --run-id", opts.sliceLeaseAction)
+			}
+			if opts.cargoCacheRoot != "" || opts.cargoTarget != "" || opts.cargoTempRoot != "" || opts.cargoReason != "" {
+				return options{}, fmt.Errorf("cargo-storage %s reads the run receipt and accepts no path flags", opts.sliceLeaseAction)
+			}
+		default:
+			return options{}, fmt.Errorf("cargo-storage action must be resolve, register-temp, finalize, validate-ready, not-applicable, or validate")
+		}
+	} else if opts.cargoCacheRoot != "" || opts.cargoTarget != "" || opts.cargoTempRoot != "" || opts.cargoReason != "" {
+		return options{}, fmt.Errorf("--cache-root, --target, --temp-root, and --reason are only supported for cargo-storage")
 	}
 	if opts.command == "slice-lease" && len(opts.leaseDomains) > 0 {
 		return options{}, fmt.Errorf("--domain is only supported for plan-run-lease")

@@ -2,6 +2,16 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-29
+
+- Stable Cargo build storage across KB workflows - replaced phase/run-specific
+  targets with a project-keyed native resolver and fail-closed portable
+  fallback; added serialized receipts, guarded temporary targets, crash-safe
+  cleanup, exact accounting validation, and no-Cargo completion. Synchronized
+  all 46 skills across Codex, Copilot, and shared-agent globals. Proof: focused
+  Cargo tests, full `cmd/kbcheck`, vet, `core` 38/38, `local-release`, sync
+  138/138, and multi-agent review with all P0/P1 findings resolved.
+
 ## 2026-07-28
 
 - Workflow overview image restoration - replaced the README's legacy

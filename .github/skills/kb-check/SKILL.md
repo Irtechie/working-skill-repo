@@ -61,6 +61,55 @@ Discover commands from:
 
 Prefer existing project commands over invented commands.
 
+## Cargo Build Storage
+
+Before any selected command invokes Cargo, use the native resolver only after a
+capability probe confirms the project's `cmd/kbcheck help` output includes
+`cargo-storage`:
+
+```powershell
+go run ./cmd/kbcheck cargo-storage --action resolve --run-id <run-id> --root <project-root> --json
+go run ./cmd/kbcheck cargo-storage --action validate-ready --run-id <run-id> --root <project-root> --json
+```
+
+The native resolver derives one collision-resistant target from canonical
+repository identity, treats an external absolute `CARGO_TARGET_DIR` as a cache
+root keyed by that identity, shares the result across linked worktrees,
+fingerprints Cargo config, serializes receipt updates, and returns the exact
+`CARGO_TARGET_DIR` to apply. Its receipt under the Git common directory is the
+only build-storage handoff between checks, workers, sessions, and phases.
+
+If the capability probe fails because `cmd/kbcheck` is absent or predates
+`cargo-storage`, use the portable fail-closed fallback: require an existing
+absolute external
+`CARGO_TARGET_DIR`, treat it as a cache root, append the first 24 lowercase hex
+characters of SHA-256 over the canonical absolute Git common-directory path,
+create that project-keyed child, and apply it unchanged to every Cargo command.
+If the configured path already ends with that exact project key, reuse it
+instead of appending the key again.
+Use the host's built-in SHA-256 utility; if canonicalization or hashing is
+unavailable, block Cargo rather than inventing a target. Record
+`portable-fallback`, the canonical identity, and the exact applied path in the
+workflow state. Temporary targets and automated deletion are prohibited in
+fallback mode, so finalization records retained bytes and zero removed bytes.
+
+Never create check-, repair-, reproduction-, probe-, worker-, slice-, or
+run-specific targets such as `target-check`, `target-repair`, `target-repro`,
+`release-api-probe-target`, or a `cargo-target` directory under an agent temp
+root. A new target forces Cargo to rebuild the dependency graph and is not test
+isolation. Do not run `cargo clean` against the stable shared target while
+another consumer may be active.
+
+A temporary target is allowed only in native mode after the native
+`register-temp` action creates an ownership marker under an approved temporary
+root for a documented technical incompatibility. Finalization owns deletion
+through the same native guard. Never delete or rotate the stable shared target
+as routine KB cleanup.
+
+When the selected proof set contains no Cargo command and native `cmd/kbcheck`
+is present, create the machine-validated terminal state with
+`cargo-storage --action not-applicable --run-id <run-id> --reason <reason>`.
+
 ## Workflow
 
 1. Run `go run ./cmd/kbcheck core --list` when present to inspect discovered commands.
@@ -70,7 +119,8 @@ Prefer existing project commands over invented commands.
    replay a command that has a fresh passing receipt or an identical failed
    fingerprint.
 4. Run selected checks in this order when available: format/lint, typecheck/static analysis, unit tests, integration/e2e/browser checks, build/package, security/dependency audit.
-5. Capture command, exit code, relevant output, and proof receipt.
+5. Capture command, exit code, relevant output, proof receipt, and the resolved
+   Cargo target path when Cargo ran.
 6. If a check fails, route to `kb-repair` or `kb-fix`; do not ask the user to test normal app behavior.
 7. If a check is missing, add a small reusable script or test when practical, then document it in `docs/context/operations/testing.md`.
 

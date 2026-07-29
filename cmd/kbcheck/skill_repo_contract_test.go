@@ -103,3 +103,72 @@ func TestDeliveryOwnerSkillContracts(t *testing.T) {
 		}
 	}
 }
+
+func TestCargoBuildStorageContract(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]string{
+		".github/skills/kb-check/SKILL.md": {
+			"cargo-storage --action resolve",
+			"cargo-storage --action validate-ready",
+			"cargo-storage --action not-applicable",
+			"capability probe confirms the project's `cmd/kbcheck help` output includes `cargo-storage`",
+			"absent or predates `cargo-storage`",
+			"treat it as a cache root, append the first 24 lowercase hex characters of SHA-256",
+			"If the configured path already ends with that exact project key, reuse it",
+			"Temporary targets and automated deletion are prohibited in fallback mode",
+		},
+		".github/skills/kb-fix/SKILL.md": {
+			"native `cargo-storage resolve` receipt validated by `validate-ready`",
+			"Preserve the exact `CARGO_TARGET_DIR` through every fix and verification attempt",
+			"target-repro",
+		},
+		".github/skills/kb-troubleshoot/SKILL.md": {
+			"native `cargo-storage resolve` receipt accepted by `validate-ready`",
+			"Reuse its exact `CARGO_TARGET_DIR` for diagnosis, fixes, retries, probes, and final verification",
+			"target-repro",
+		},
+		".github/skills/kb-repair/SKILL.md": {
+			"native validated receipt or fail-closed portable fallback contract",
+			"apply its exact `CARGO_TARGET_DIR`",
+			"target-repair",
+		},
+		".github/skills/kb-work/SKILL.md": {
+			"receipt accepted by `cargo-storage --action validate-ready`",
+			"Apply the returned exact `CARGO_TARGET_DIR` across every slice, worker, repair, proof batch, session, and worktree",
+			"A temporary target must be created first in native mode",
+		},
+		".github/skills/kb-work/references/execution-prompt.md": {
+			"Build-storage contract:",
+			"require a native receipt accepted by `cargo-storage --action validate-ready` or a `kb-check` portable-fallback record",
+			"Do not replace it with a phase-, worker-, or run-specific target",
+		},
+		".github/skills/kb-finalize/SKILL.md": {
+			"cargo-storage --action finalize",
+			"retained_bytes",
+			"removed_bytes",
+			"temporary targets and deletion were prohibited",
+		},
+		".github/skills/kb-complete/SKILL.md": {
+			"cargo-storage --action validate",
+			"done-portable-fallback",
+			"Recompute the canonical Git common-directory identity and its 24-hex project key",
+			"`removed_bytes` to be zero, and no temporary target entries",
+			"not-applicable",
+		},
+	}
+	for relative, tokens := range required {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatalf("read %s: %v", relative, err)
+		}
+		text := strings.ToLower(strings.Join(strings.Fields(string(content)), " "))
+		for _, token := range tokens {
+			if !strings.Contains(text, strings.ToLower(strings.Join(strings.Fields(token), " "))) {
+				t.Errorf("%s missing Cargo build-storage contract %q", relative, token)
+			}
+		}
+	}
+}

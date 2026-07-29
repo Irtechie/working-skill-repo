@@ -4,8 +4,8 @@ Last deep review: 2026-07-21
 
 ## Counters Since Last Review
 
-- Completed KB cycles: 15
-- Durable memory refreshes: 3 (current run; earlier history not reconstructed)
+- Completed KB cycles: 16
+- Durable memory refreshes: 4 (current run; earlier history not reconstructed)
 - Closed handoffs: 3 (current run; earlier history not reconstructed)
 - Contradiction signals: 3
 - Overlap signals: 2

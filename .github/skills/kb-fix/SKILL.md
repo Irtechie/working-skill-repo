@@ -18,10 +18,17 @@ Fix narrowly, verify yourself, and escalate when the bug is not actually small.
 
 1. **Orient** - classify as regression, known bug, flaky behavior, environment issue, or missing requirement.
 2. **Reproduce** - build an agent-runnable signal: failing test, command, browser flow, curl, fixture, or logs.
+   When the signal invokes Cargo, consume the `kb-check` build-storage contract
+   before the first run: a native `cargo-storage resolve` receipt validated by
+   `validate-ready`, or its fail-closed portable fallback. Preserve the exact
+   `CARGO_TARGET_DIR` through every fix and verification attempt. Do not create
+   `target-repro` or another reproduction-specific target.
 3. **Micro-plan** - before editing, write a compact plan with the reproduced signal, likely cause, intended file/behavior target, protected test/oracle files, and exact verification command/probe.
 4. **Hypothesize** - write 1-3 falsifiable causes before editing.
 5. **Fix narrowly** - edit the smallest responsible area.
-6. **Verify** - rerun the reproduction and relevant tests. For UI bugs, use browser verification when available.
+6. **Verify** - rerun the reproduction and relevant tests in the same build
+   environment, including the resolved Cargo target. For UI bugs, use browser
+   verification when available.
 7. **Record** - update `todo.md`, handoff files if needed, and learning docs when the fix teaches something reusable.
 8. **Refresh memory if durable** - run `kb-map refresh` when the fix changes behavior, architecture, run/test commands, integrations, sharp edges, or "do not repeat" knowledge. Skip with a note when the fix is cosmetic or isolated.
 

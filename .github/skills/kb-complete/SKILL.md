@@ -137,6 +137,28 @@ remote-default integration.
 
 ## Terminal Worktree Retirement
 
+Before terminal completion or worktree retirement, branch on the same
+`cmd/kbcheck help` capability probe used by `kb-check`. In native mode,
+validate the build-storage cleanup receipt produced by `kb-finalize`:
+
+```powershell
+go run ./cmd/kbcheck cargo-storage --action validate --run-id <run-id> --root <project-root> --json
+```
+
+It must be native `done`, native machine-validated `not-applicable`, portable
+`done-portable-fallback` with
+`removed_bytes: 0`, or `not-applicable` only when no Cargo command ran. A
+missing or `blocked` receipt blocks cleanup completion; it does not downgrade
+already-proven implementation. Never compensate by deleting a stable shared
+Cargo target.
+
+In portable-fallback mode, do not invoke unavailable native validation.
+Recompute the canonical Git common-directory identity and its 24-hex project
+key, then require the fallback record's identity and absolute target to match,
+the target basename to equal that key, status to be `done-portable-fallback`,
+`removed_bytes` to be zero, and no temporary target entries to exist. Any
+mismatch blocks cleanup completion.
+
 Register cleanup only after the configured endpoint is durably proven:
 
 - `local`: the worktree is clean, `HEAD` is committed, the exact local feature
@@ -197,6 +219,7 @@ Commit: <sha or none>
 PR: <url or none>
 Integration: <not-requested|pending-review|merged|direct>
 Sync: <not-configured|done|blocked>
+Build storage: <done retained_bytes=N removed_bytes=N|not-applicable|blocked>
 Cleanup: <registered|deferred-current-session|deferred-host|blocked>
 Next: none|<exact resume action>
 ```

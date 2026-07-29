@@ -30,6 +30,13 @@ This is the autonomous debugging lane. Use `kb-fix` for tiny known bugs; use `kb
 
 2. **Collect live evidence**
    - Run the narrowest relevant app command first: failing test, lint/typecheck/build, dev server, CLI command, API probe, or reproduction script.
+   - Before the first Cargo command, consume the `kb-check` build-storage
+     contract: a native `cargo-storage resolve` receipt accepted by
+     `validate-ready`, or its fail-closed portable fallback. Reuse its exact
+     `CARGO_TARGET_DIR` for diagnosis, fixes, retries, probes, and final
+     verification. Do not create
+     `target-repro`, `target-check`, probe-specific, or iteration-specific
+     targets.
    - For UI behavior, start or reuse the dev server, then use the best browser transport available:
      - CDP for authenticated/internal sessions.
      - Playwright for local/public UI checks and repeatable assertions.
@@ -64,6 +71,9 @@ This is the autonomous debugging lane. Use `kb-fix` for tiny known bugs; use `kb
 
 7. **Verify and iterate**
    - Re-run the original reproduction.
+   - Keep the original build-storage environment unchanged; a fresh Cargo
+     target is not a clean reproduction and invalidates comparison with the
+     prior failure.
    - If a proof-spine check was recorded, run `sense` again and require `go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl` before closing.
    - Run the relevant regression checks from `kb-check`.
    - For UI bugs, run browser assertions through the rendered UI and capture console/network cleanliness after each interaction.

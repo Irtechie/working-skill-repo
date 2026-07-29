@@ -395,13 +395,30 @@ Prune ephemeral artifacts. Heavy KB usage generates file sprawl — clean it up 
 
 3. **Plan files** — leave manifests and slice plans in `docs/plans/`. Lightweight reference material, useful for tracing decisions.
 
-4. **Log cleanup** in the manifest notes:
+4. **Cargo build storage** — when Cargo ran in native mode, execute:
+
+   ```powershell
+   go run ./cmd/kbcheck cargo-storage --action finalize --run-id <run-id> --root <project-root> --json
+   ```
+
+   The native guard reads the versioned Git-common-directory receipt, preserves
+   the stable target, validates each temporary target's canonical containment
+   and random ownership marker immediately before exact-path deletion, and
+   writes the build-storage cleanup receipt with `retained_bytes`,
+   `removed_bytes`, and unresolved paths. Never infer cleanup targets from
+   names, glob for `target*`, or delete a parent temp root. Record
+   `not-applicable` only when no Cargo command ran; a missing or unsafe receipt
+   is `blocked`. In portable-fallback mode, temporary targets and deletion were
+   prohibited; record the exact retained target and measured
+   `retained_bytes`, `removed_bytes: 0`, and `status: done-portable-fallback`.
+
+5. **Log cleanup** in the manifest notes:
 
    ```text
    cleanup: screenshots pruned, observations trimmed to 90d
    ```
 
-5. **Todo hygiene** — verify `todo.md` contains only active rows, `🔒 blocked` rows, `🛑 human-required` rows, the `🧊 Parked / Cold Storage` section, or handoff-pointer work. If the completed feature or routine slice completion logs remain there, move a compact summary to `todo-done.md` and remove those entries from `todo.md`. `todo.md` must keep its `## Rules` section at the top; do not depend on `todo_rules.md`, `todo-rules.md`, or any separate rules file.
+6. **Todo hygiene** — verify `todo.md` contains only active rows, `🔒 blocked` rows, `🛑 human-required` rows, the `🧊 Parked / Cold Storage` section, or handoff-pointer work. If the completed feature or routine slice completion logs remain there, move a compact summary to `todo-done.md` and remove those entries from `todo.md`. `todo.md` must keep its `## Rules` section at the top; do not depend on `todo_rules.md`, `todo-rules.md`, or any separate rules file.
 
 ## Step 5: Done
 
@@ -421,6 +438,8 @@ Required proof:
 - project-memory refresh/skip proof;
 - memory-maintenance update;
 - cleanup result;
+- build-storage cleanup receipt, including `retained_bytes` and
+  `removed_bytes`, or a valid `not-applicable` result;
 - alerts list.
 
 If required implementation proof is missing, set `complete-to-ship` to

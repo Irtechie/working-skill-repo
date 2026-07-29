@@ -82,6 +82,13 @@ changed inputs. Reuse unchanged passing receipts. Do not replay an identical
 failed command: stop when the failure fingerprint is unchanged, and report the
 specific input or implementation change required before another attempt.
 
+Preserve the failed check's stable per-project Cargo target and build-storage
+environment for every retry. Never create `target-repair`, `target-check`, or
+an iteration-specific target to make a repair look isolated. If the incoming
+failure lacks the `kb-check` native validated receipt or fail-closed portable
+fallback contract, resolve it once before rerunning and apply its exact
+`CARGO_TARGET_DIR`.
+
 The affected proof set can include:
 
 - **Lint** (always)

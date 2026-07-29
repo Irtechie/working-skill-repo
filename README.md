@@ -415,6 +415,10 @@ Installed/runtime surface:
   - Copilot guidance
 - `cmd/kbcheck` - optional Go quality/release gate entrypoint
 
+Cargo workflows use `cmd/kbcheck cargo-storage` when that optional entrypoint is
+present. Consuming repos without it use the skill's fail-closed fallback: one
+absolute project-keyed target, no temporary targets, and no automated deletion.
+
 Development scaffolding that is usually not copied into consuming projects:
 
 - `docs/` - this bundle's own memory and reference docs
