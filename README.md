@@ -137,13 +137,24 @@ This repo is two things:
 
 ## Routing: Request, Execution, And Continuity
 
-The three diagrams in this section describe one routing system: `kb-start`
-chooses the work lane, DDR chooses the execution owner and capability tier, and
-`kb-map` plus handoffs carry the route across sessions.
+The workflow overview and two supporting diagrams describe one routing system:
+`kb-start` chooses the work lane, DDR chooses the execution owner and capability
+tier, and `kb-map` plus handoffs carry the route across sessions.
+
+### KB Workflow Overview
+
+![KB workflow overview](docs/assets/kb-workflow-overview.png)
+
+Every request enters through `kb-start`, which asks `kb-map` to anchor the work
+to project memory before choosing the smallest fitting lane. Planned execution
+uses DDR to select one qualified same-tier-or-higher subagent by default,
+retaining current execution only through a qualified exception and never
+routing downward automatically. Targeted proof is reused when still valid, one
+exact-tree gate checks the final promotion candidate after review fixes, and
+configured delivery stops at local completion, an open PR, or direct
+integration. Handoffs and restarts return through `kb-start` and `kb-map`.
 
 ### Request Routing With `kb-start`
-
-![KB routing workflow](docs/assets/kb-routing-workflow.png)
 
 `kb-start` applies these routes in priority order. It calls `kb-map` first; the
 first row fires when that map is missing, partial, stale, or rooted in the wrong

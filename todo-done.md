@@ -4,6 +4,15 @@
 
 ## 2026-07-28
 
+- Workflow overview image restoration - replaced the README's legacy
+  AMR-oriented routing graphic with the source-backed
+  `docs/assets/kb-workflow-overview.png`. The new overview follows the current
+  KB loop from `kb-start` and `kb-map` through the smallest fitting lane, DDR
+  ownership, targeted and exact-tree proof, configured local/PR/direct
+  delivery, and handoff/restart re-entry. The DDR model-selection and memory-loop
+  supporting visuals remain unchanged. Proof: exact image/README contract,
+  rendered-image inspection, diff integrity, and independent Opus 5 review.
+
 - Terminal cleanup shared-lock ACL follow-up - split repository-shared lock
   acquisition from private-state ACL hardening. Shared queue locks now preserve
   inherited Windows ACLs and use umask-governed project modes on Unix while
