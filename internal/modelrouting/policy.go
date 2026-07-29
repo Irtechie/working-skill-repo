@@ -312,7 +312,8 @@ func routeAllowedByPolicy(route Route, req WorkRequest, policy PolicyContext, no
 	if hasRouteDenial(route, req.ProjectID, policy.Trusted.RouteDenials, policy.RouteSources) {
 		return false
 	}
-	if route.Boundary == BoundaryPrivate && !hasRouteApproval(route, req.ProjectID, policy.Trusted.RouteApprovals, policy.RouteSources, now) {
+	if (route.Boundary == BoundaryPrivate || route.ManagementOrigin == OriginExtra) &&
+		!hasRouteApproval(route, req.ProjectID, policy.Trusted.RouteApprovals, policy.RouteSources, now) {
 		return false
 	}
 	if req.SensitiveData {
@@ -327,6 +328,12 @@ func routeAllowedByPolicy(route Route, req WorkRequest, policy PolicyContext, no
 		}
 	}
 	return true
+}
+
+// RouteAllowedByPolicy exposes the canonical project/trust policy gate to
+// transport-specific dispatchers.
+func RouteAllowedByPolicy(route Route, req WorkRequest, policy PolicyContext, now time.Time) bool {
+	return routeAllowedByPolicy(route, req, policy, now)
 }
 
 func projectTrustMatches(policy PolicyContext, projectID string) bool {

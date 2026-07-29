@@ -29,7 +29,8 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			"one compact user-visible line before mutation or worker dispatch",
 			"The orchestrator is the sole emitter",
 			"otherwise use `current orchestrator`",
-			"(conditional; explicit reselect)",
+			"parent-on-first-local-failure",
+			"Do not select a second local route.",
 			"This preview rule never suppresses the mandatory per-slice DDR route line.",
 		},
 		".github/skills/kb-work/references/execution-prompt.md": {
@@ -52,9 +53,11 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			"recognized reason gate",
 			"The active host's callable schema is authoritative for native targets.",
 			"`kbrouter` is authoritative",
-			"for Codex CLI and user-local routes",
+			"for CLI and user-local routes",
 			"Normal work never passes `attempt_tier`",
 			"route announcement is evidence-bound",
+			"parent-on-first-local-failure",
+			"do not select a second local route",
 		},
 		"README.md": {
 			"A planned tier is portable",
@@ -62,7 +65,7 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			"one owner per slice, not one worker per plan",
 			"semi-gated exception",
 			"DDR route: <current|subagent> | primary:",
-			"A named fallback is conditional",
+			"No second local route is selected.",
 		},
 	}
 	for path, needles := range required {
@@ -78,7 +81,7 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 		}
 	}
 
-	canonicalAnnouncement := "DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>"
+	canonicalAnnouncement := "DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | return: <none|parent-on-first-local-failure|required-alias-block> | tier: <small|medium|large> | proof: <short-proof-target>"
 	skillText := readDDRContractFile(t, root, ".github/skills/kb-work/SKILL.md")
 	executionPrompt := readDDRContractFile(t, root, ".github/skills/kb-work/references/execution-prompt.md")
 	if err := validateDDREmissionContract(skillText, executionPrompt, canonicalAnnouncement); err != nil {
@@ -114,11 +117,11 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			skill:  skillText + "\n" + canonicalAnnouncement + "\n",
 			prompt: executionPrompt,
 		},
-		"named fallback permits a lower tier": {
+		"parent return permits a second local route": {
 			skill: strings.Replace(
 				skillText,
-				"A named fallback must be proven same-tier-or-higher eligible",
-				"A named fallback may be lower-tier when eligible",
+				"Do not select a second local route.",
+				"Select another local route before returning to the parent.",
 				1,
 			),
 			prompt: executionPrompt,
@@ -166,7 +169,7 @@ func validateDDREmissionContract(skillText, executionPrompt, canonicalAnnounceme
 		"After the ownership decision and, when delegated, route selection, emit exactly",
 		"one compact user-visible line before mutation or worker dispatch",
 		"The orchestrator is the sole emitter",
-		"A named fallback must be proven same-tier-or-higher eligible",
+		"Do not select a second local route.",
 	} {
 		if !strings.Contains(skillText, required) {
 			return fmt.Errorf("kb-work skill missing DDR emission invariant %q", required)

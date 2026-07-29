@@ -29,11 +29,12 @@ When the user explicitly asks to set up or add routes:
 1. Show host-native discovered routes without persisting them.
 2. Offer only connection classes the current router implements: a user-local
    OpenAI-compatible or LiteLLM route.
-3. Quick-add collects a stable alias, model ID, endpoint, and optional auth
-   environment-variable name into user-local state. Hosting defaults to
-   `unknown` unless explicitly declared `self-hosted` or `provider-hosted`.
-   Capability and policy metadata keep conservative defaults; never put
-   connection values or secrets in a plan or tracked project policy.
+3. Prefer the checked-in placeholder/import flow. The operator copies
+   `config/kbrouter-routes.example.json` to the ignored
+   `kbrouter-routes.local.json`, fills it, and runs
+   `kbrouter models import --file kbrouter-routes.local.json`. Import validates
+   and canonicalizes routes into `~/.kb/models.json`; runtime never reads the
+   repository file.
 4. Use the attended trust/approval flow below before private-route execution.
 5. After at least one extra route is dispatch-qualified and eligible, explicit
    setup may offer the user-local project source preference: `automatic`
@@ -41,6 +42,11 @@ When the user explicitly asks to set up or add routes:
 
 Generic MCP model dispatch is not implemented. Do not offer or claim it until a
 versioned dispatch adapter and conformance fixtures exist.
+
+Import never creates, renews, or changes approval. It accepts only
+environment-variable names in `auth_env`; unknown fields, auth values,
+credentials embedded in URLs, placeholders, symlinks, and oversized input fail
+closed.
 
 ### Quick Add Local OpenAI-Compatible/LiteLLM
 
@@ -100,6 +106,7 @@ project files.
 ## Commands
 
 - Inspect without mutation: `kbrouter models show` or `kbrouter models doctor`.
+- Import explicit operator configuration: `kbrouter models import --file <path>`.
 - Discover for one run: `kbrouter models discover --run-root <run-root> --current-model <id>`.
 - Select without mutation: `kbrouter models select --run-root <run-root> --run-id <id> --tier <small|medium|large> --tier-reason <reason> --execution-owner <current|delegated> --owner-reason <reason> --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] --json`. `--tier` is the minimum execution capability. Normal work never passes `--attempt-tier`.
 - Add reusable routes only with explicit user scope: `kbrouter models add --scope user ...`. Production user state always lives under the operating-system user's `~/.kb`; a repository cannot redirect credential-consuming commands to its own catalog.
@@ -119,7 +126,8 @@ project files.
   otherwise `delegated`.
 - For delegated work, discover the active host schema and live user-local
   catalog, then select exactly one qualified same-tier or higher route. Do not
-  automatically route downward or fall back to current.
+  automatically route downward. One failed local DDR attempt returns control to
+  the active parent; it never selects a second local route.
 - AMR remains a separate experimental benchmark. Normal `kb-work` never passes
   `--attempt-tier` and never requires an AMR trial.
 - Do not create user or project catalog files during ordinary startup, `show`, `doctor`, or `discover`.
@@ -145,8 +153,23 @@ project files.
   requires current capability validation and ordinary proof gates.
 - Never infer callable aliases from model memory. Use the exact host-native
   agent schema for native delegation and the live CLI/user-local catalog for CLI
-  and local routes. Do not conflate App-only and CLI-only aliases.
+  and local routes. Do not conflate host-only and CLI-only aliases.
 - Route receipts do not validate work. Deterministic proof remains authoritative.
+- For an already configured and approved route, `kbrouter ddr attempt` accepts a
+  canonical project/run/slice, required tier/task/tools/context, and a bounded
+  request file. It durably reserves and permits one network attempt only. A
+  returned result has status `awaiting-proof`; run the named deterministic proof
+  and call `kbrouter ddr resolve` with its `pass|fail` receipt.
+- Exit `10` with status `parent-return` means the active parent continues using
+  its current model or host-native selection. It must not wait for setup, choose
+  a second local route, or hardcode a provider/model fallback. Replay before
+  proof emits `result-not-retained`; an uncertain reserved attempt emits
+  `attempt-state-uncertain`. Neither retries. `--require` instead emits
+  `blocked`.
+- Default bounds are 2 seconds for `/models` and 20 seconds for dispatch;
+  callers may lower them, but cannot exceed 5 seconds and 60 seconds. Receipts
+  record probe, dispatch, and total latency. The response is never persisted in
+  the receipt.
 - Keep endpoints and auth environment-variable names in user-local storage only.
 - Tracked project files may contain stable alias narrowing constraints only;
   they must not contain personal source priority, model IDs, endpoints, auth

@@ -19,10 +19,13 @@ const usage = `kbrouter routes KB model work without weakening proof gates.
 
 Usage:
   kbrouter dispatch --run-root <path> --run-id <id> --slice-id <id> --packet <path> --route-alias <alias> --model <id> [--json]
+  kbrouter ddr attempt --run-id <id> --slice-id <id> --alias <alias> --request <path> --tier <tier> --tier-reason <reason> --task-family <id> --tool <id> --context-size <n> --risk normal --sensitive-data=true|false [--require] [--json]
+  kbrouter ddr resolve --run-id <id> --slice-id <id> --proof-result pass|fail --proof-command <command> --proof-artifact-hash sha256:<hex> [--json]
   kbrouter models show [--user-root <path>] [--project-root <path>] [--json]
   kbrouter models discover --run-root <path> [--user-root <path>] [--current-model <id>] [--probe-openai-compatible] [--json]
   kbrouter models select --run-root <path> --run-id <id> --tier <small|medium|large> [--attempt-tier <small|medium>] --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] [--json]
   kbrouter models priority --project-root <path> (--mode automatic|self-hosted-first|native-first | --clear | --reset) [--json]
+  kbrouter models import --file <path> [--project-root <path>] [--json]
   kbrouter models add --scope user|project [options]
   kbrouter models remove --scope user|project --alias <alias>
   kbrouter models prefer --scope user|project --alias <alias>
@@ -34,6 +37,24 @@ Usage:
   kbrouter models ignore-routing --scope user|project
   kbrouter models doctor [--user-root <path>] [--project-root <path>] [--probe] [--json]
   kbrouter models calibrate --alias <alias> [--user-root <path>] [--json]
+`
+
+const ddrAttemptUsage = `Usage:
+  kbrouter ddr attempt --run-id <id> --slice-id <id> --alias <alias> --request <project-file> --tier <small|medium|large> --tier-reason <reason> --task-family <id> --tool <id> --context-size <n> --risk normal --sensitive-data=true|false [--probe-timeout <duration>] [--timeout <duration>] [--require] [--json]
+
+Exit 0 returns awaiting-proof, 3 blocks a required route, 10 returns control to the parent, and 1/2 report internal/usage errors.
+`
+
+const ddrResolveUsage = `Usage:
+  kbrouter ddr resolve --run-id <id> --slice-id <id> --proof-result pass|fail --proof-command <command> --proof-artifact-hash sha256:<hex> [--json]
+
+Exit 0 accepts proof, 3 blocks a required route, 10 returns control to the parent, and 1/2 report internal/usage errors.
+`
+
+const modelsImportUsage = `Usage:
+  kbrouter models import --file <operator-file> [--json]
+
+Imports strict route configuration into canonical user-local state without changing trust.
 `
 
 type approvalPrompt struct {
@@ -87,6 +108,41 @@ func main() {
 	os.Exit(code)
 }
 
+func hasHelpArg(args []string) bool {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExactArg(args []string, target string) bool {
+	for _, arg := range args {
+		if arg == target {
+			return true
+		}
+	}
+	return false
+}
+
+func commandError(stdout, stderr io.Writer, jsonMode bool, exitCode int, code, message string) int {
+	if jsonMode {
+		if printResult(stdout, stderr, map[string]any{
+			"schema_version": 1,
+			"status":         "error",
+			"error": map[string]string{
+				"code": code, "message": message,
+			},
+		}, true, nil) != 0 {
+			return 1
+		}
+		return exitCode
+	}
+	fmt.Fprintln(stderr, message)
+	return exitCode
+}
+
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		fmt.Fprint(stdout, usage)
@@ -94,6 +150,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	if args[0] == "dispatch" {
 		return runDispatch(args[1:], stdout, stderr)
+	}
+	if args[0] == "ddr" {
+		if len(args) < 2 {
+			fmt.Fprintln(stderr, "ddr requires the attempt or resolve subcommand")
+			return 2
+		}
+		switch args[1] {
+		case "attempt":
+			return runDDRAttempt(args[2:], stdout, stderr)
+		case "resolve":
+			return runDDRResolve(args[2:], stdout, stderr)
+		default:
+			fmt.Fprintln(stderr, "ddr requires the attempt or resolve subcommand")
+			return 2
+		}
 	}
 	if args[0] != "models" {
 		fmt.Fprintf(stderr, "unsupported command %q\n", args[0])
@@ -112,6 +183,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runModelsSelect(args[2:], stdout, stderr)
 	case "priority":
 		return runModelsPriority(args[2:], stdout, stderr)
+	case "import":
+		return runModelsImport(args[2:], stdout, stderr)
 	case "add":
 		return runModelsAdd(args[2:], stdout, stderr)
 	case "remove":

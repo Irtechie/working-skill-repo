@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Irtechie/working-skill-repo/config/kbrouter-route-import.schema.json",
+  "title": "kbrouter route import",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "routes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/route"
+      }
+    }
+  },
+  "$defs": {
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alias",
+        "model_id",
+        "endpoint",
+        "boundary",
+        "hosting",
+        "retention",
+        "training_use",
+        "residency",
+        "trust_provenance",
+        "capability"
+      ],
+      "properties": {
+        "alias": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "endpoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "auth_env": {
+          "type": "string",
+          "pattern": "^$|^[A-Z_][A-Z0-9_]{0,127}$"
+        },
+        "boundary": {
+          "enum": [
+            "private",
+            "hosted"
+          ]
+        },
+        "hosting": {
+          "enum": [
+            "self-hosted",
+            "provider-hosted",
+            "unknown"
+          ]
+        },
+        "retention": {
+          "enum": [
+            "none",
+            "session",
+            "limited",
+            "unknown"
+          ]
+        },
+        "training_use": {
+          "enum": [
+            "no",
+            "yes",
+            "unknown"
+          ]
+        },
+        "residency": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trust_provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "class",
+            "task_family",
+            "tools",
+            "context_size",
+            "risk"
+          ],
+          "properties": {
+            "class": {
+              "enum": [
+                "small",
+                "medium",
+                "large"
+              ]
+            },
+            "task_family": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tools": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "context_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "risk": {
+              "const": "normal"
+            }
+          }
+        }
+      }
+    }
+  }
+}

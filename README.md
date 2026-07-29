@@ -206,26 +206,30 @@ KB separates three decisions that agents often blur together:
 
 ### Difficulty-Driven Routing (DDR)
 
-DDR is shorthand for that decision pattern, not a separate command or artifact
-created by `kb-plan`. Planning records required capability and proof; execution
-records `current` or `delegated` ownership and chooses from live evidence.
+DDR is the decision pattern; `kbrouter ddr attempt` reserves and runs the one
+bounded local attempt for an already configured and approved user-local route.
+On a returned result, the parent runs deterministic proof and records the
+verdict with `kbrouter ddr resolve`. Planning records required capability and
+proof; execution records `current` or `delegated` ownership and chooses from
+live evidence.
 
 Immediately before execution, `kb-work` makes that choice visible:
 
 ```text
-DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | return: <none|parent-on-first-local-failure|required-alias-block> | tier: <small|medium|large> | proof: <short-proof-target>
 ```
 
 The route line is the HITL (human-in-the-loop) first screen: owner, tier,
-fallback, and proof target without the underlying policy dump. Its purpose is to
+failure return, and proof target without the underlying policy dump. Its purpose is to
 reduce human decisions, not reduce agent instructions. It never approves the
 dispatch by itself; the named proof remains authoritative and must catch a bad
 route or bad result.
 
 Concrete route names come only from the active host or `kbrouter`, never model
-memory. A named fallback is conditional on a fresh same-tier-or-higher
-eligibility check and an explicit reselection; otherwise the line says
-`explicit same-tier/higher reselection`.
+memory. A preferred local route gets one eligible attempt. Probe, availability,
+timeout, 5xx, dispatch, or deterministic-proof failure returns immediately to
+the active parent; the parent continues with its own current/host-native
+selection logic. No second local route is selected.
 
 Two lightweight signals show whether this actually lowers human load:
 
@@ -250,29 +254,31 @@ routes through user-local `kb-models` state, then save a project preference such
 as `automatic`, `self-hosted-first`, or `native-first`. Credentials and private
 endpoints never enter plans or shared skills.
 
-Local route setup is intentionally small. Add one user-local route, approve it
-for the current project if it is private, then let work-time routing decide
-whether it is eligible. See [LOCAL_MODELS.example.md](LOCAL_MODELS.example.md)
-for the full user-local state and host-surface contract.
+Local route setup is explicit. Copy the placeholder, fill an ignored local
+file, import it into canonical user-local state, approve it separately when
+private, then let work-time routing decide whether it is eligible. See
+[LOCAL_MODELS.example.md](LOCAL_MODELS.example.md) for the full contract.
 
 ```powershell
-kbrouter models add --scope user --alias local.coder --model <model-id> --endpoint http://127.0.0.1:4000/v1 --hosting self-hosted --retention none --training-use no --trust-provenance "user-local LiteLLM"
-kbrouter models approve --alias local.coder --project-root <project-root>
+Copy-Item config\kbrouter-routes.example.json kbrouter-routes.local.json
+kbrouter models import --file kbrouter-routes.local.json
+kbrouter models approve --alias <filled-alias> --project-root <project-root>
 kbrouter models doctor --project-root <project-root>
 kbrouter models priority --project-root <project-root> --mode self-hosted-first
 ```
 
-For authenticated endpoints, store the token in an environment variable and add
-only the variable name with `--auth-env LOCAL_LITELLM_API_KEY`. Use `--probe` on
-`doctor` only for an explicit live endpoint/model check.
+For authenticated endpoints, store the token in an environment variable and put
+only that variable's name in `auth_env`. Use `--probe` on `doctor` only for an
+explicit live endpoint/model check.
 
 Run-only controls remain explicit:
 
 - `use <model>` prefers an eligible route for this run;
 - `require <model>` hard-pins it or fails;
 - `ignore model routing` explicitly chooses current execution;
-- delegated fallback may choose another qualified same-tier or higher worker,
-  but never silently switches to the current orchestrator.
+- an eligible local route gets one attempt; failure returns to the active parent;
+- the parent uses its active model or host-native selection logic without a
+  runtime approval checkpoint or provider roulette.
 
 ### Memory And Handoff Routing
 

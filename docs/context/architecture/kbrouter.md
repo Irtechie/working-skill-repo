@@ -2,10 +2,10 @@
 
 ## Purpose
 
-`cmd\kbrouter` discovers callable routes and applies delegation-first DDR:
-select exactly one qualified worker by required tier and risk, or validate a
-semi-gated current-owner exception. It stores optional user/project route
-preferences and enforces attended approval for sensitive route use.
+`cmd\kbrouter` discovers callable routes and applies delegation-first DDR.
+Configured local routes are imported into canonical user-local state, approved
+separately, and receive at most one eligible bounded attempt before control
+returns to the active parent.
 
 ## Read First
 
@@ -24,6 +24,7 @@ preferences and enforces attended approval for sensitive route use.
 | `models discover` | Probe and save a run-scoped redacted catalog |
 | `models select` | Validate current ownership or pick one delegated route for a required tier / task family / risk |
 | `models priority` | Save or clear project source preference (`automatic`, `self-hosted-first`, `native-first`) |
+| `models import` | Strictly import an operator-filled route file into canonical `~/.kb/models.json` without changing trust |
 | `models add` | Add an optional route definition at user or project scope |
 | `models remove` | Remove a route alias |
 | `models prefer` | Mark a route preferred |
@@ -32,6 +33,8 @@ preferences and enforces attended approval for sensitive route use.
 | `models ignore-routing` | Disable optional routing for a scope |
 | `models doctor` | Inspect routing state and configuration health |
 | `models calibrate` | Calibrate a route alias |
+| `ddr attempt` | Reserve and run one bounded trusted local attempt, returning a result once or a parent-return / required-pin-block receipt |
+| `ddr resolve` | Finalize an awaiting local result from the parent's deterministic proof receipt |
 
 ## Source-of-Truth Rules
 
@@ -58,6 +61,16 @@ preferences and enforces attended approval for sensitive route use.
   explicit adapter proves a route callable.
 - Delegated selection returns one qualified same-tier-or-higher route. It does
   not automatically route downward or fall back to current.
+- `self-hosted-first` applies only after capability, approval, tools, context,
+  and normal-risk checks. Broad risk stays with automatic parent/host selection.
+- Local DDR records one receipt per canonical project/run/slice under `~/.kb`.
+  The reservation is durable before network I/O, so crash recovery cannot
+  redispatch an uncertain attempt. Replays never contact the endpoint again.
+  Because successful response content is not persisted, replay before proof returns
+  `result-not-retained` to the parent instead of claiming an unavailable result.
+- Exit `10` means structured `parent-return`; the parent continues with its
+  active model or host-native selector. `require <alias>` instead blocks that
+  slice. No fallback model/provider name is embedded in policy.
 - User-local and project-local route state is runtime configuration, not a repo
   source-of-truth replacement for manifests or proof.
 
@@ -71,7 +84,7 @@ Related evidence and docs:
 
 ```powershell
 go run ./cmd/kbrouter --help
-go test ./cmd/kbrouter -run Catalog|Doctor|Policy
+go test ./cmd/kbrouter -run 'Import|DDRAttempt|Catalog|Doctor|Policy'
 go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
 ```
 
@@ -81,9 +94,14 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
   refused.
 - Optional self-hosted/private routes are kept in user/project runtime state,
   not committed into KB manifests.
+- Import reads one bounded regular non-symlink JSON file, rejects unknown fields
+  and secret values, and atomically writes only canonical route state. It never
+  creates, renews, or changes `trust.json`.
 - Discovery can probe trusted OpenAI-compatible endpoints, but only when the
   explicit probe path is chosen.
-- Route receipts record what ran; proof still belongs to downstream checks.
+- DDR attempt receipts record latency. The response body is returned once to the
+  parent but omitted from the persisted receipt. `ddr resolve` records the
+  parent's later deterministic proof verdict.
 - Windows junctions and canonical paths resolve through the same filesystem
   object identity; missing roots fail closed.
 - AMR remains an experimental benchmark and is not part of normal selection.

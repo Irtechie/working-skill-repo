@@ -141,7 +141,8 @@ KB state system unless the repo already opted into `done.md`.
     never pauses for a routing-priority question. Offer and persist
     `automatic`, `self-hosted-first`, or `native-first` only during explicit
     `kb-map setup` or `kb-models` requests. Do not collect connection details
-    here.
+    here. Apply `self-hosted-first` only to normal-risk work; broad/high-risk
+    work stays with automatic parent/host selection.
 11. **Read active landmines** — if `docs/context/landmines.md` exists, read only `Active Landmines` and carry any relevant failure modes into slice execution and verification. If a slice touches an `owner_surface`, treat that landmine as a hard guardrail until the slice proves the `verification` condition or explicitly leaves it active.
 12. **Sync with board** — read `todo.md` and confirm its status table matches the manifest. If they diverge, do not blindly copy either direction. Recheck the named proof/blocker sensor, inspect ownership/lease state, and reconcile both from current evidence. The board is the coordination surface, not permission to preserve a stale blocker.
 13. **Acquire local slice ownership before board projection or mutation:** for every mutating slice, acquire a slice lease before setting `todo.md` or the manifest to `in_progress`:
@@ -271,8 +272,17 @@ owner:
    auto-build, or search sibling repos/drives. Then run:
    - `kbrouter models discover --run-root <run-root> --current-model <id> --json`
    - `kbrouter models select --run-root <run-root> --run-id <run-id> --tier <required-tier> --tier-reason <reason> --execution-owner delegated --owner-reason <reason> --task-family <family> --tool <tool> --context-size <n> --risk <risk> [--override use|require --alias <alias>] --json`
-   - `kbrouter dispatch` with the one selected alias and slice-unique packet,
-     output, receipt, and handoff names.
+   - For a dispatch-proven CLI route, `kbrouter dispatch` with the one selected
+     alias and slice-unique packet, output, receipt, and handoff names.
+   - For a selected self-hosted `openai-compatible` route with declared
+     capability, write the bounded request envelope from
+     `config/kbrouter-ddr-request.example.json`, then run `kbrouter ddr attempt`
+     with the exact selector bindings and explicit
+     `--sensitive-data=true|false`. On `awaiting-proof`, consume the response,
+     run the named deterministic proof, and call `kbrouter ddr resolve` with
+     the proof receipt. Exit `10` continues in the active parent; exit `3`
+     blocks a required alias. Never select a second local route or wait for
+     attended setup at runtime.
 
 If the selected branch is missing, incompatible, or unavailable, record the
 exact reason. Do not silently change owners. The orchestrator may make a new
@@ -283,7 +293,7 @@ After the ownership decision and, when delegated, route selection, emit exactly
 one compact user-visible line before mutation or worker dispatch:
 
 ```text
-DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | fallback: <none|explicit same-tier/higher reselection|evidence-backed-route (conditional; explicit reselect)> | tier: <small|medium|large> | proof: <short-proof-target>
+DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | return: <none|parent-on-first-local-failure|required-alias-block> | tier: <small|medium|large> | proof: <short-proof-target>
 ```
 
 The orchestrator is the sole emitter; a delegated worker receives the emitted
@@ -291,11 +301,11 @@ line as context and must not repeat it. Use `subagent` as the user-facing label
 for internal `delegated` ownership. For `current`, use an evidence-backed route
 name when exposed; otherwise use `current orchestrator`. Name a concrete model
 or alias only when the active host or `kbrouter` proves it callable and
-selected. A named fallback must be proven same-tier-or-higher eligible in the
-fresh catalog and use `evidence-backed-route (conditional; explicit reselect)`;
-it is never an automatic dispatch or owner change. If that evidence is
-unavailable, say `explicit same-tier/higher reselection`. The announcement
-reports dispatch intent; the slice proof remains authoritative.
+selected. A preferred local route gets one eligible attempt. Probe,
+availability, timeout, 5xx, dispatch, or proof failure returns immediately to
+the active parent, which continues with its current model or host-native
+selection. Do not select a second local route. `require <alias>` instead blocks
+the slice. The announcement reports dispatch intent; proof remains authoritative.
 
 - Reuse a native host schema or run-scoped CLI catalog only while its
   host/configuration fingerprint is unchanged; refresh it when that fingerprint
@@ -337,7 +347,8 @@ reports dispatch intent; the slice proof remains authoritative.
   lets the current master choose by evidence, `self-hosted-first` prefers
   eligible user-local extra routes, and `native-first` prefers eligible
   host-native routes. Preference never overrides trust, authority, tools,
-  context, risk, or proof and never hard-pins a route.
+  context, risk, or proof and never hard-pins a route. `self-hosted-first`
+  applies only to normal risk; broad/high-risk work may stay hosted/current.
 - A higher or planner-grade model may execute lower-tier work when it is
   independently eligible or explicitly requested by the user.
 - Security, auth, data-boundary, or process-boundary work must not be silently
@@ -524,17 +535,17 @@ required tier + bounded packet + active callable surface
    `tier_reason`.
 6. After the ownership decision and, when delegated, route selection, emit the
    compact DDR route announcement before mutation or dispatch. Use only
-   host/router evidence for route names and mark any named fallback as
-   conditional on an explicit reselection.
-7. Do not assume Sol, Terra, `gpt-5.4-mini`, or any other alias is callable
-   because the orchestrator has heard of it. Host-native and CLI catalogs are
-   distinct unless an adapter explicitly proves otherwise.
+   host/router evidence for route names and state whether first local failure
+   returns to the parent or a required alias blocks.
+7. Do not assume any alias is callable from memory. Host-native and CLI catalogs
+   are distinct unless an adapter explicitly proves otherwise.
 8. Run the slice's narrowest deterministic proof. The route receipt proves
    dispatch provenance only; it does not accept the work.
-9. On failure, use ordinary bounded repair under the same owner. If the required
-   authority changes, stop and make the change visible by re-planning or
-   recording a new explicit ownership decision. Never silently switch from a
-   worker to current or from current to a worker.
+9. On hosted/current failure, use ordinary bounded repair under the same owner.
+   On local DDR failure, consume the structured receipt and continue in the
+   active parent without a second local attempt or runtime approval wait. If the
+   required authority changes, stop and make the change visible by re-planning
+   or recording a new explicit ownership decision.
 
 AMR remains an unpromoted experimental benchmark. Normal `kb-work` never passes
 `attempt_tier`, never requires a lower-tier trial, and never claims AMR savings.
