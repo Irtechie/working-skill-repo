@@ -103,6 +103,33 @@ go run ./cmd/kbcheck local-release
 git diff --check
 ```
 
+## Cargo Build Storage
+
+KB workflows reuse one stable per-project Cargo target across checks, repair,
+troubleshooting, workers, sessions, and worktrees. Resolve it with
+`go run ./cmd/kbcheck cargo-storage --action resolve --run-id <run-id> --json`.
+Before Cargo execution, require `validate-ready`.
+A new phase- or run-specific target causes a full dependency rebuild and is not
+an isolation mechanism.
+
+- The native resolver treats an external absolute `CARGO_TARGET_DIR` as a cache
+  root and appends a collision-resistant repository key. Relative or
+  worktree-local values map to the same project-keyed cache.
+- The receipt lives under the Git common directory, has a collision-resistant
+  run filename, serializes mutations, and includes the applied environment plus
+  Cargo config fingerprint.
+- When a consuming repo lacks `cmd/kbcheck`, the portable fallback applies the
+  same repository-key formula to an existing external absolute cache root,
+  forbids temporary targets, and performs no deletion.
+- Never create `target-check`, `target-repair`, `target-repro`,
+  `release-api-probe-target`, or equivalent agent-run targets.
+- Allow a run-owned temporary target only through native `register-temp`, then
+  remove it through native `finalize` after its final consumer.
+- Finalization reports stable bytes retained and temporary bytes removed. It
+  never removes the shared target as routine cleanup.
+- Record no-Cargo runs with native `not-applicable --reason`; `validate` accepts
+  only complete cleanup or a reason-bearing no-Cargo receipt.
+
 ## Marketplace
 
 `<agent-marketplace>` is a private approved catalog, not a global install.

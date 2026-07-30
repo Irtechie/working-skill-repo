@@ -120,6 +120,66 @@ func TestCatalogAddUsesStrictUserSchemaAndRejectsUnsafeProjectPolicy(t *testing.
 	}
 }
 
+func TestUserCatalogEnabledFalsePreservesConfigAndDisablesRoutes(t *testing.T) {
+	disabled := false
+	userCatalog := modelrouting.Catalog{
+		SchemaVersion: modelrouting.CatalogSchemaVersion,
+		Enabled:       &disabled,
+		Routes: []modelrouting.Route{
+			{Alias: "local.coder"},
+		},
+	}
+	if userCatalogEnabled(userCatalog) {
+		t.Fatal("enabled=false was treated as enabled")
+	}
+	if active := activeUserCatalog(userCatalog); len(active.Routes) != 0 {
+		t.Fatalf("disabled user routes remained active: %#v", active.Routes)
+	}
+	if len(userCatalog.Routes) != 1 {
+		t.Fatal("disabling routes mutated the stored configuration")
+	}
+
+	runCatalog := modelrouting.Catalog{
+		SchemaVersion: modelrouting.CatalogSchemaVersion,
+		Routes: []modelrouting.Route{
+			{Alias: "local.coder", ManagementOrigin: modelrouting.OriginExtra},
+			{Alias: "codex.subagent", ManagementOrigin: modelrouting.OriginNative},
+		},
+	}
+	filtered := applyUserCatalogToggle(runCatalog, userCatalog)
+	if len(filtered.Routes) != 1 || filtered.Routes[0].Alias != "codex.subagent" {
+		t.Fatalf("toggle did not preserve non-local route: %#v", filtered.Routes)
+	}
+
+	userCatalog.Enabled = nil
+	if !userCatalogEnabled(userCatalog) || len(activeUserCatalog(userCatalog).Routes) != 1 {
+		t.Fatal("missing enabled flag must remain backward-compatible and enabled")
+	}
+}
+
+func TestModelsLocalRoutingTogglesWithoutDeletingRoutes(t *testing.T) {
+	userRoot := t.TempDir()
+	addTrustedRouteForTest(t, userRoot, "local.coder", "coder", "http://127.0.0.1:4000/v1")
+
+	code, stdout, stderr := runForTest("models", "local-routing", "--user-root", userRoot, "--enabled", "false", "--json")
+	if code != 0 {
+		t.Fatalf("disable local routing code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	catalog := loadUserCatalogForTest(t, userRoot)
+	if catalog.Enabled == nil || *catalog.Enabled || len(catalog.Routes) != 1 {
+		t.Fatalf("disable did not preserve route configuration: %#v", catalog)
+	}
+
+	code, stdout, stderr = runForTest("models", "local-routing", "--user-root", userRoot, "--enabled", "true", "--json")
+	if code != 0 {
+		t.Fatalf("enable local routing code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	catalog = loadUserCatalogForTest(t, userRoot)
+	if catalog.Enabled == nil || !*catalog.Enabled || len(catalog.Routes) != 1 {
+		t.Fatalf("enable did not preserve route configuration: %#v", catalog)
+	}
+}
+
 func TestProjectPriorityIsUserLocalCanonicalAndQuickAddIsConservative(t *testing.T) {
 	root := t.TempDir()
 	userRoot := filepath.Join(root, "user")

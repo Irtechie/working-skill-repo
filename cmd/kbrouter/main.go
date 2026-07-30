@@ -25,6 +25,7 @@ Usage:
   kbrouter models discover --run-root <path> [--user-root <path>] [--current-model <id>] [--probe-openai-compatible] [--json]
   kbrouter models select --run-root <path> --run-id <id> --tier <small|medium|large> [--attempt-tier <small|medium>] --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] [--json]
   kbrouter models priority --project-root <path> (--mode automatic|self-hosted-first|native-first | --clear | --reset) [--json]
+  kbrouter models local-routing --enabled true|false [--json]
   kbrouter models import --file <path> [--project-root <path>] [--json]
   kbrouter models add --scope user|project [options]
   kbrouter models remove --scope user|project --alias <alias>
@@ -183,6 +184,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runModelsSelect(args[2:], stdout, stderr)
 	case "priority":
 		return runModelsPriority(args[2:], stdout, stderr)
+	case "local-routing":
+		return runModelsLocalRouting(args[2:], stdout, stderr)
 	case "import":
 		return runModelsImport(args[2:], stdout, stderr)
 	case "add":
@@ -211,6 +214,41 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unsupported models subcommand %q\n", args[1])
 		return 2
 	}
+}
+
+func runModelsLocalRouting(args []string, stdout, stderr io.Writer) int {
+	fs := flagSet("models local-routing")
+	opts := commonOptions{}
+	opts.bind(fs)
+	var enabled string
+	fs.StringVar(&enabled, "enabled", "", "true to use configured user-local routes; false to preserve but bypass them")
+	if err := fs.Parse(args); err != nil {
+		return flagError(stderr, err)
+	}
+	if customUserRootRejected(fs) {
+		fmt.Fprintln(stderr, "user-local routing configuration uses the fixed user-local root; custom --user-root is test-only")
+		return 2
+	}
+	var value bool
+	switch strings.ToLower(strings.TrimSpace(enabled)) {
+	case "true":
+		value = true
+	case "false":
+		value = false
+	default:
+		fmt.Fprintln(stderr, "local-routing requires --enabled true|false")
+		return 2
+	}
+	if err := mutateUserCatalog(opts.userRoot, func(catalog *modelrouting.Catalog) {
+		catalog.Enabled = &value
+	}); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	return printResult(stdout, stderr, map[string]any{
+		"enabled": value,
+		"path":    filepath.Join(opts.userRoot, userCatalogFile),
+	}, opts.json, nil)
 }
 
 func runModelsPriority(args []string, stdout, stderr io.Writer) int {

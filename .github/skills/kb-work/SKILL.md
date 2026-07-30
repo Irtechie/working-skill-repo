@@ -16,11 +16,13 @@ enforce the requested verification mode, and pause on HITL tasks.
 2. Require the shared `kb-start` work claim for this manifest and session before
    plan-run preparation, leases, status projection, delegation, or tests.
 3. Validate the dependency DAG and statuses.
-4. Verify the manifest `gate_ledger` allows `kb-work`; repair or block if `plan-to-work` is not passed.
-5. Confirm execution once unless the user already asked to run/execute/work the manifest.
-6. Execute the safe ready set without asking between slices.
-7. Update the manifest and shared queue heartbeat after each slice.
-8. After all runnable slices are terminal, write the `work-to-complete` gate and immediately invoke `kb-finalize <manifest-path>` unless the user explicitly said to stop before finalization.
+4. Verify `pre_slice_review` proves one requirements-wide specialist pass or
+   records a specific `not_required_reason`.
+5. Verify the manifest `gate_ledger` allows `kb-work`; repair or block if `plan-to-work` is not passed.
+6. Confirm execution once unless the user already asked to run/execute/work the manifest.
+7. Execute the safe ready set without asking between slices.
+8. Update the manifest and shared queue heartbeat after each slice.
+9. After all runnable slices are terminal, write the `work-to-complete` gate and immediately invoke `kb-finalize <manifest-path>` unless the user explicitly said to stop before finalization.
 
 ## Input
 
@@ -84,11 +86,20 @@ KB state system unless the repo already opted into `done.md`.
 1. **Read the manifest** - parse the YAML frontmatter to get the ordered slice list.
 2. **Validate DAG** - confirm no cycles in blockers, all referenced slice IDs exist, and all slice files exist.
 3. **Validate gate ledger** - read `gate_ledger`. The `plan-to-work` gate must be `passed` and its `allowed_next_action` must name this manifest. Run `kb-gate/scripts/check_gate_ledger.py <manifest-path> --gate plan-to-work --allowed-next "kb-work <manifest-path>"` before execution. If the gate is absent, pending, blocked, stale, or the checker fails, stop and route to `kb-plan`/`kb-gate` to repair it before execution. Do not execute from a manifest that lacks a passing gate.
-4. **Validate objective contract** - when the manifest opts into `objective_contract: true`, it must have a top-level `done_check`, and every runnable slice must have `proof_check` or a valid `no_check_reason`. Do not require a durable `model_route` or `attempt_tier`: new plans record minimum execution capability and risk, while the orchestrator chooses the execution owner immediately before dispatch from live evidence. Legacy `model_route` values may remain readable as hints only. When `cmd/kbcheck` exists, run `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>` before execution. Otherwise verify those fields and terminal slice gates directly, record `manifest-validator: unavailable`, and block on any missing/false `proof_check`, absent `done_check`, or unproved terminal status. The portable skills do not require the Go maintainer harness. If validation fails, route back to `kb-plan`/`kb-gate`; do not continue from a manifest that can self-report completion without objective proof.
-5. **Validate slice contracts** - each slice plan must have `expected_files`, `verification`, `blockers`, `status`, and acceptance criteria. New slice plans should also have `test_level`, `functional_risk`, `model_tier`, and `proof_check` or `no_check_reason`. New plans do not contain model names, route aliases, source preferences, adapters, endpoints, or transports. Treat legacy `tiny` or `model_route` fields as compatibility hints only; do not require them on new plans and do not freeze a provider/model in durable plan state. If core fields are missing, stop and route to `kb-plan`; do not infer a manifest from a phase list. If only `test_level` or `functional_risk` is missing on an older plan, invoke `kb-functional-test` to classify them before execution.
-6. **Load the context packet** - for a non-trivial slice, read its packet before broad repo search or delegation. When `cmd/kbcheck` exists, validate JSON packets with `go run ./cmd/kbcheck context-packet --packet <packet.json>`. Otherwise verify the required fields directly and record `packet-validator: unavailable`; the portable skills do not require the Go maintainer harness. If required source, constraint, proof, search-policy, or escalation data is missing, route back to `kb-plan` instead of making a cheap worker rediscover the repo. Legacy tiny/mechanical slices may use the plan itself when it records why no packet is needed.
-7. **Check status** - skip any slices already marked `done`. Resume from the first safe ready set.
-8. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted. For a mutating manifest with `plan_run_worktree_default: true`, prepare or resume its manifest-owned workspace before any slice mutation:
+4. **Validate plan-wide specialist review** - new manifests must set
+   `pre_slice_review_contract: true` and include `pre_slice_review` with
+   `status: passed` plus a requirements source, completed personas, and finding
+   counts, or `status: not-required` with a specific `not_required_reason`.
+   `manifest-contract` enforces the receipt shape when available. If a triggered
+   review is absent, incomplete, or was split into per-slice reviewer runs,
+   return to `kb-plan` for one new requirements-wide review before mutation.
+   Legacy manifests may proceed only when the coordinator records why the
+   source did not trigger review.
+5. **Validate objective contract** - when the manifest opts into `objective_contract: true`, it must have a top-level `done_check`, and every runnable slice must have `proof_check` or a valid `no_check_reason`. Do not require a durable `model_route` or `attempt_tier`: new plans record minimum execution capability and risk, while the orchestrator chooses the execution owner immediately before dispatch from live evidence. Legacy `model_route` values may remain readable as hints only. When `cmd/kbcheck` exists, run `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>` before execution. Otherwise verify those fields and terminal slice gates directly, record `manifest-validator: unavailable`, and block on any missing/false `proof_check`, absent `done_check`, or unproved terminal status. The portable skills do not require the Go maintainer harness. If validation fails, route back to `kb-plan`/`kb-gate`; do not continue from a manifest that can self-report completion without objective proof.
+6. **Validate slice contracts** - each slice plan must have `expected_files`, `verification`, `blockers`, `status`, and acceptance criteria. New slice plans should also have `test_level`, `functional_risk`, `model_tier`, and `proof_check` or `no_check_reason`. New plans do not contain model names, route aliases, source preferences, adapters, endpoints, or transports. Treat legacy `tiny` or `model_route` fields as compatibility hints only; do not require them on new plans and do not freeze a provider/model in durable plan state. If core fields are missing, stop and route to `kb-plan`; do not infer a manifest from a phase list. If only `test_level` or `functional_risk` is missing on an older plan, invoke `kb-functional-test` to classify them before execution.
+7. **Load the context packet** - for a non-trivial slice, read its packet before broad repo search or delegation. When `cmd/kbcheck` exists, validate JSON packets with `go run ./cmd/kbcheck context-packet --packet <packet.json>`. Otherwise verify the required fields directly and record `packet-validator: unavailable`; the portable skills do not require the Go maintainer harness. If required source, constraint, proof, search-policy, or escalation data is missing, route back to `kb-plan` instead of making a cheap worker rediscover the repo. Legacy tiny/mechanical slices may use the plan itself when it records why no packet is needed.
+8. **Check status** - skip any slices already marked `done`. Resume from the first safe ready set.
+9. **Check worktree** - note dirty or untracked files before executing so unrelated user changes are not staged or reverted. For a mutating manifest with `plan_run_worktree_default: true`, prepare or resume its manifest-owned workspace before any slice mutation:
 
    ```powershell
    go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <opaque-plan-token> --base-sha <reviewed-base-sha> --commit-authorized --commit-authorized-by <actor> --commit-approval-ref <durable-reference> --json
@@ -164,7 +175,19 @@ KB state system unless the repo already opted into `done.md`.
     graph-dependent claims but permits explicit file-native source inspection.
     Packet and routing receipts are orientation evidence; they cannot mark a
     slice done or replace the slice's functional proof.
-16. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
+16. **Resolve the build-storage contract:** before a ready slice can run Cargo,
+    use `kb-check` to create either a native `cargo-storage --action resolve`
+    receipt accepted by `cargo-storage --action validate-ready`, or the
+    fail-closed portable fallback when the consuming repo lacks `cmd/kbcheck`.
+    Apply the returned exact `CARGO_TARGET_DIR` across every slice, worker,
+    repair, proof batch, session, and worktree. Pass the native receipt path or
+    portable fallback record in the execution prompt; do not duplicate the
+    native schema in a context packet. A temporary target must be created first
+    in native mode by
+    `cargo-storage --action register-temp` with an approved parent and technical
+    reason. Never invent a phase-, probe-, worker-, slice-, or run-named target
+    for isolation. For non-Rust work, record `build-storage: not-applicable`.
+17. **Confirm once only when needed:** If the user did not explicitly ask to run/execute/work the manifest, ask: "Ready to execute N remaining slices in order. Proceed?" If the user already asked to execute, continue without this prompt.
 
 After initial execution starts, do not ask before moving from one safe ready set
 to the next.
@@ -326,6 +349,21 @@ the slice. The announcement reports dispatch intent; proof remains authoritative
 - Before dispatch, the current orchestrator bounds the slice, sets the minimum
   tier, and records exactly one owner. Default to `delegated` and select one
   qualified subagent. Retain `current` only through the exception gate below.
+- Document-review personas are not slice implementation owners. Their job is
+  requirements-wide or plan-wide analysis before work. Carry their resolved
+  constraints into the slice context packet, then select a qualified
+  implementation owner. Do not rerun plan-wide specialist personas per slice.
+- If execution discovers a material new product, flow, scope, architecture, or
+  trust-boundary decision that the reviewed source did not cover, stop only the
+  affected path. Return a replan envelope containing the requirements source,
+  source SHA-256, manifest path and run ID, affected slices with their
+  invalidated status transitions, new evidence/decision, required source edit,
+  resume checkpoint, and a `progress_key`. The coordinator must update the requirements source,
+  invalidate its old review receipt, run one new requirements-wide review,
+  regenerate only affected slices, and then resume. If the same `progress_key`
+  returns without a source-hash or slice-contract change, use the `kb-start`
+  run-state guard and stop the no-progress loop. Do not launch an ad hoc
+  reviewer swarm inside the slice.
 - The current-owner exception gate accepts only `reasoning-required`,
   `context-required`, `tool-required`, `authority-required`, `trust-required`,
   `user-required`, or `no-qualified-route`, optionally followed by a short
@@ -567,7 +605,7 @@ When `test_level` is `functional-browser`, these steps are mandatory:
 2. Use Playwright to navigate to the actual feature route/screen in the rendered UI. Use CDP or the repo/platform authenticated browser transport only when Playwright cannot access an authenticated/corporate route.
 3. Exercise the happy path with real clicks, keyboard input, form input, navigation, or other visible controls.
 4. Capture screenshots of key pass/fail states and assert observable rendered outcomes after the action.
-5. Clean up artifacts created during testing: test data, screenshots/traces when no longer needed, temp files, and browser state per repo QA cleanup rules.
+5. Clean up artifacts created during testing: test data, screenshots/traces when no longer needed, temp files, and browser state per repo QA cleanup rules. Do not remove the stable shared Cargo target; only an explicitly recorded run-owned temporary target is eligible for finalization cleanup.
 
 Backend/API/unit checks may supplement this proof, but they cannot replace it. This gate cannot be skipped, overridden, or deferred.
 
@@ -662,6 +700,11 @@ Use `references/execution-prompt.md` as the per-slice execution prompt/checklist
 When the manifest uses its plan-run worktree, also load
 `references/worktree-isolation.md` and follow its same-worktree commit
 acceptance checklist.
+
+Every delegated worker receives the native execution-ready receipt path or
+portable fallback record and exact applied environment. A worker must return a
+conflict instead of replacing the stable Cargo target with a new target
+directory.
 
 ### Step 3.1: Protected Oracle Gate
 

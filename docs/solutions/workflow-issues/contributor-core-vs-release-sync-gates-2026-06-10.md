@@ -1,7 +1,7 @@
 ---
 title: Keep Contributor Core Gates Separate From Release Sync Gates
 date: 2026-06-10
-last_updated: 2026-07-09
+last_updated: 2026-07-29
 category: docs/solutions/workflow-issues
 module: skill-repo-quality-gates
 problem_type: workflow_issue
@@ -58,6 +58,13 @@ healthy?" without requiring the maintainer's local deployment state. Release
 automation still needs the stricter answer: "do deployed skill roots match the
 source of truth?"
 
+The Cargo build-storage contract follows the same boundary. Native
+`cargo-storage` behavior and skill clauses are proven by `core`; whether the
+reviewed skill generation reached Codex, Copilot, and shared-agent global roots
+is enforced by `local-release`. Propagation should stage and verify a complete
+runtime root before activation so a process never observes partially copied
+dependent skills.
+
 Conflating those checks makes failure output ambiguous and encourages agents to
 either ignore real drift or treat missing local install state as a code defect.
 
@@ -98,3 +105,4 @@ full = all runtime skills + every reviewer/specialist agent
 - `bin/kb-install.mjs`
 - `cmd/kbcheck/checks.go`
 - `docs/solutions/workflow-issues/optional-provider-hygiene-2026-07-09.md`
+- `docs/solutions/workflow-issues/preventing-cargo-target-proliferation-in-kb-workflows-2026-07-29.md`

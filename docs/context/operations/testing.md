@@ -16,6 +16,16 @@ go run ./cmd/kbcheck core
 
 Use this set for ordinary repo-local validation.
 
+Focused Cargo storage proof:
+
+```powershell
+go test ./cmd/kbcheck -run 'CargoStorage|CargoBuildStorage' -count=1
+```
+
+This covers public CLI parsing and exit codes, project/worktree resolution,
+concurrent receipt updates, guarded temporary cleanup, receipt validation, and
+the cross-skill contract.
+
 ## Canonical Release / Sync Commands
 
 ```powershell
@@ -97,6 +107,8 @@ go run ./cmd/kbcheck context-packet --packet cmd\kbcheck\testdata\context-packet
 go run ./cmd/kbcheck execution-telemetry --telemetry cmd\kbcheck\testdata\execution-telemetry-valid.json
 go run ./cmd/kbcheck plan-worktree-selftest
 go test ./cmd/kbcheck -run TerminalCleanup -count=1
+go test ./cmd/kbcheck -run 'CargoStorage|CargoBuildStorage' -count=1
+go test ./cmd/kbcheck -run 'PreSliceReview|PlanWideSpecialistReviewContract' -count=1
 ```
 
 `plan-worktree-selftest` is the canonical manifest-worktree lifecycle proof. It
@@ -111,6 +123,10 @@ artifact directory; successful CLI runs remove their disposable state.
 The package tests additionally enforce exact commit-diff/claim agreement,
 current integration-head slice acquisition, immutable proof archives, one
 in-flight slice per manifest worktree, and terminal completion/release CAS.
+
+`CargoStorage|CargoBuildStorage` proves deterministic shared Cargo target
+resolution across linked worktrees plus marker- and containment-guarded
+temporary target cleanup.
 
 `TerminalCleanup` tests use disposable repositories and worktrees only. They
 prove active-claim, current-session, primary/default, dirty/ignored, locked,

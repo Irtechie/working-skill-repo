@@ -146,6 +146,7 @@ type RouteRejection struct {
 
 type Catalog struct {
 	SchemaVersion int                  `json:"schema_version"`
+	Enabled       *bool                `json:"enabled,omitempty"`
 	Fingerprint   string               `json:"fingerprint,omitempty"`
 	Cohort        SupportCohort        `json:"support_cohort,omitempty"`
 	Surfaces      []SurfaceFingerprint `json:"surfaces,omitempty"`

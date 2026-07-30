@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,6 +91,296 @@ gate_ledger:
 	if !result.OK {
 		t.Fatalf("expected valid manifest, got %#v", result)
 	}
+}
+
+func TestPreSliceReviewContractAcceptsRequirementsWideReceipt(t *testing.T) {
+	path := writePreSliceReviewManifest(t, validPreSliceReviewReceipt())
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected valid pre-slice review receipt, got %#v", result)
+	}
+}
+
+func TestPreSliceReviewContractAcceptsNotRequiredReceipt(t *testing.T) {
+	path := writePreSliceReviewManifest(t, `
+pre_slice_review:
+  status: not-required
+  source: direct-chat
+  mode: requirements-wide
+  not_required_reason: "one mechanical edit with no product, flow, architecture, scope, or trust decision"
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected valid not-required receipt, got %#v", result)
+	}
+}
+
+func TestPreSliceReviewContractRejectsInvalidReceipts(t *testing.T) {
+	valid := validPreSliceReviewReceipt()
+	tests := map[string][2]string{
+		"missing-source":            {"source: docs/brainstorms/feature.md", "source: docs/brainstorms/missing.md"},
+		"direct-chat-passed-source": {"source: docs/brainstorms/feature.md", "source: direct-chat"},
+		"stale-source-hash":         {"source_sha256: {{SOURCE_SHA256}}", "source_sha256: " + strings.Repeat("0", 64)},
+		"missing-review-artifact":   {"review_artifact: {{REVIEW_ARTIFACT}}", "review_artifact: docs/results/document-reviews/missing.json"},
+		"stale-artifact-hash":       {"review_artifact_sha256: {{REVIEW_ARTIFACT_SHA256}}", "review_artifact_sha256: " + strings.Repeat("0", 64)},
+		"wrong-mode":                {"mode: requirements-wide", "mode: per-slice"},
+		"invalid-status":            {"status: passed", "status: complete"},
+		"invalid-review-id":         {"review_id: feature-requirements-review", "review_id: BAD"},
+		"invalid-reviewed-at":       {`reviewed_at: "2026-07-29T20:00:00Z"`, `reviewed_at: yesterday`},
+		"scalar-persona-evidence":   {`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'`, `persona_evidence_json: 'coherence-reviewer'`},
+		"unknown-persona":           {"coherence-reviewer", "implementation-owner"},
+		"missing-selection-reason":  {"consistency-risk: source has cross-section terminology drift", ""},
+		"failed-persona":            {`failed_personas_json: '[]'`, `failed_personas_json: '[\"security-lens-reviewer\"]'`},
+		"negative-count":            {"findings_resolved: 2", "findings_resolved: -1"},
+		"noninteger-count":          {"residual_findings: 1", "residual_findings: many"},
+		"quoted-count":              {"findings_resolved: 2", `findings_resolved: "2"`},
+		"placeholder-reason":        {"consistency-risk: source has cross-section terminology drift", "reviewer applies here"},
+		"mismatched-reason-basis":   {"consistency-risk: source has cross-section terminology drift", "security-risk: source changes authentication boundaries"},
+		"incomplete-selected-roster": {
+			`selected_personas_json: '["coherence-reviewer","feasibility-reviewer"]'`,
+			`selected_personas_json: '["coherence-reviewer"]'`,
+		},
+		"incomplete-completed-roster": {
+			`completed_personas_json: '["coherence-reviewer","feasibility-reviewer"]'`,
+			`completed_personas_json: '["coherence-reviewer"]'`,
+		},
+		"unresolved-p0":             {"unresolved_p0: 0", "unresolved_p0: 1"},
+		"missing-required-reviewer": {"feasibility-reviewer", "product-lens-reviewer"},
+	}
+	for name, replacement := range tests {
+		t.Run(name, func(t *testing.T) {
+			receipt := strings.Replace(valid, replacement[0], replacement[1], 1)
+			path := writePreSliceReviewManifest(t, receipt)
+			result, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatalf("validateManifestContract returned error: %v", err)
+			}
+			if result.OK || !hasManifestIssue(result.Issues, "invalid-pre-slice-review") {
+				t.Fatalf("expected invalid pre-slice review issue, got %#v", result)
+			}
+		})
+	}
+}
+
+func TestPreSliceReviewContractRejectsDuplicateReceiptFields(t *testing.T) {
+	receipt := strings.Replace(
+		validPreSliceReviewReceipt(),
+		"  status: passed",
+		"  status: not-required\n  status: passed",
+		1,
+	)
+	path := writePreSliceReviewManifest(t, receipt)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-pre-slice-review") {
+		t.Fatalf("expected duplicate receipt field issue, got %#v", result)
+	}
+}
+
+func TestPreSliceReviewContractRejectsDuplicateSectionOrOptIn(t *testing.T) {
+	for name, mutate := range map[string]func(string) string{
+		"section": func(receipt string) string {
+			return receipt + "\npre_slice_review:\n  status: not-required\n  mode: requirements-wide\n  not_required_reason: duplicate\n"
+		},
+		"opt-in": func(receipt string) string {
+			return strings.Replace(receipt, "pre_slice_review:", "pre_slice_review_contract: false\npre_slice_review:", 1)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := writePreSliceReviewManifest(t, mutate(validPreSliceReviewReceipt()))
+			result, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatalf("validateManifestContract returned error: %v", err)
+			}
+			if result.OK {
+				t.Fatalf("expected duplicate %s to fail, got %#v", name, result)
+			}
+		})
+	}
+}
+
+func TestPreSliceReviewContractAcceptsInlineComments(t *testing.T) {
+	receipt := strings.Replace(validPreSliceReviewReceipt(), "  status: passed", "  status: passed # reviewed", 1)
+	receipt = strings.Replace(receipt, "  mode: requirements-wide", "  mode: requirements-wide # whole document", 1)
+	path := writePreSliceReviewManifest(t, receipt)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected inline YAML comments to pass, got %#v", result)
+	}
+}
+
+func TestPreSliceReviewContractRejectsSourceSymlinkOutsideRepository(t *testing.T) {
+	path := writePreSliceReviewManifest(t, validPreSliceReviewReceipt())
+	root := filepath.Dir(filepath.Dir(filepath.Dir(path)))
+	sourcePath := filepath.Join(root, "docs", "brainstorms", "feature.md")
+	outside := filepath.Join(t.TempDir(), "feature.md")
+	writeFile(t, outside, "# Feature requirements\n")
+	if err := os.Remove(sourcePath); err != nil {
+		t.Fatalf("remove source before symlink: %v", err)
+	}
+	if err := os.Symlink(outside, sourcePath); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-pre-slice-review") {
+		t.Fatalf("expected escaping source symlink issue, got %#v", result)
+	}
+}
+
+func TestManifestSchemaTwoRequiresPreSliceReviewContract(t *testing.T) {
+	path := writeManifest(t, `
+---
+manifest_schema: 2
+slices:
+  - id: slice-001
+    status: pending
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "missing-pre-slice-review-contract") {
+		t.Fatalf("expected schema contract issue, got %#v", result)
+	}
+}
+
+func TestManifestContractRejectsQuotedOrDuplicateSchema(t *testing.T) {
+	for name, schema := range map[string]string{
+		"quoted":    `manifest_schema: "2"`,
+		"duplicate": "manifest_schema: 1\nmanifest_schema: 2",
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := writeManifest(t, `
+---
+`+schema+`
+pre_slice_review_contract: true
+slices: []
+gate_ledger: []
+---
+`)
+			result, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatalf("validateManifestContract returned error: %v", err)
+			}
+			if result.OK || !hasManifestIssue(result.Issues, "invalid-manifest-schema") {
+				t.Fatalf("expected invalid schema issue, got %#v", result)
+			}
+		})
+	}
+}
+
+func TestLegacyManifestWithoutSchemaDoesNotRequirePreSliceReview(t *testing.T) {
+	path := writeManifest(t, `
+---
+slices:
+  - id: slice-001
+    status: pending
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected legacy manifest compatibility, got %#v", result)
+	}
+}
+
+func validPreSliceReviewReceipt() string {
+	return `
+pre_slice_review:
+  status: passed
+  source: docs/brainstorms/feature.md
+  source_sha256: {{SOURCE_SHA256}}
+  mode: requirements-wide
+  review_id: feature-requirements-review
+  reviewed_at: "2026-07-29T20:00:00Z"
+  review_artifact: {{REVIEW_ARTIFACT}}
+  review_artifact_sha256: {{REVIEW_ARTIFACT_SHA256}}
+  persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'
+  selected_personas_json: '["coherence-reviewer","feasibility-reviewer"]'
+  completed_personas_json: '["coherence-reviewer","feasibility-reviewer"]'
+  failed_personas_json: '[]'
+  findings_resolved: 2
+  unresolved_p0: 0
+  unresolved_p1: 0
+  residual_findings: 1
+  not_required_reason: ""
+`
+}
+
+func writePreSliceReviewManifest(t *testing.T, receipt string) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatalf("create fake git root: %v", err)
+	}
+	source := []byte("# Feature requirements\n")
+	sourceRelative := "docs/brainstorms/feature.md"
+	sourceHash := fmt.Sprintf("%x", sha256.Sum256(source))
+	writeFile(t, filepath.Join(dir, filepath.FromSlash(sourceRelative)), string(source))
+	personas := map[string]string{
+		"coherence-reviewer":   "consistency-risk: source has cross-section terminology drift",
+		"feasibility-reviewer": "delivery-risk: source has implementation dependency uncertainty",
+	}
+	artifact := preSliceReviewArtifact{
+		ReviewID:          "feature-requirements-review",
+		Source:            sourceRelative,
+		SourceSHA256:      sourceHash,
+		ReviewedAt:        "2026-07-29T20:00:00Z",
+		DocumentType:      "requirements",
+		Mode:              "requirements-wide",
+		SelectedPersonas:  []string{"coherence-reviewer", "feasibility-reviewer"},
+		CompletedPersonas: []string{"coherence-reviewer", "feasibility-reviewer"},
+		PersonaEvidence:   personas,
+		FailedPersonas:    []string{},
+		FindingsResolved:  2,
+		UnresolvedP0:      0,
+		UnresolvedP1:      0,
+		ResidualFindings:  1,
+		ResidualItems: []preSliceResidualFinding{{
+			Severity: "P2", Title: "Retain rollout observation", Constraint: "Carry the observation into the implementation context packet.",
+		}},
+	}
+	artifactContent, err := json.MarshalIndent(artifact, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal review artifact: %v", err)
+	}
+	artifactRelative := "docs/results/document-reviews/feature-requirements-review.json"
+	writeFile(t, filepath.Join(dir, filepath.FromSlash(artifactRelative)), string(artifactContent))
+	receipt = strings.ReplaceAll(receipt, "{{SOURCE_SHA256}}", sourceHash)
+	receipt = strings.ReplaceAll(receipt, "{{REVIEW_ARTIFACT}}", artifactRelative)
+	receipt = strings.ReplaceAll(receipt, "{{REVIEW_ARTIFACT_SHA256}}", fmt.Sprintf("%x", sha256.Sum256(artifactContent)))
+	path := filepath.Join(dir, "docs", "plans", "manifest.md")
+	writeFile(t, path, strings.TrimLeft(`
+---
+manifest_schema: 2
+pre_slice_review_contract: true
+`+receipt+`
+slices:
+  - id: slice-001
+    status: pending
+gate_ledger: []
+---
+`, "\n"))
+	return path
 }
 
 func TestGateLedgerCommandValidatesAllowedNext(t *testing.T) {

@@ -44,6 +44,7 @@ go run ./cmd/kbcheck core --list
 go run ./cmd/kbcheck core
 go run ./cmd/kbcheck plan-worktree-selftest
 go test ./cmd/kbcheck -run TerminalCleanup -count=1
+go test ./cmd/kbcheck -run 'CargoStorage|CargoBuildStorage' -count=1
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbrouter --help
 go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
@@ -128,6 +129,9 @@ docs are:
   is gone and all saved branch, receipt, claim, and delivery identities match.
 - [verified] `cmd/amrbench run` remains non-dry blocked until a trusted
   human-approval verifier exists.
+- [verified] Cargo checks share the absolute target returned by `kbcheck
+  cargo-storage resolve`; guarded finalization removes only marker-owned
+  temporary targets and preserves the shared cache.
 - [verified] `.github/workflows\` is currently empty; proof is local CLI-driven
   plus repo docs, not checked-in GitHub Actions.
 - [inferred] Some long hot-path skills still depend on lazy reference discipline

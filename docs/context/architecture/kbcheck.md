@@ -38,7 +38,13 @@ Then branch by task:
 | Model routing | `model-routing-release`, `provider-hygiene` | Checking route evidence boundaries and optional-provider hygiene |
 | Skill quality / eval | `skill-lint`, `route-eval`, `skill-eval*`, `eval-run-*`, `surface-report`, `minimality` | Scoring skill docs, route fixtures, captured results, and surface size |
 | Sync / marketplace | `skill-sync-report`, `doctor`, `review-reference-guard`, `marketplace-firebreak`, `marketplace-promote` | Inspecting or repairing install drift and enforcing reusable-skill policy |
-| Concurrency / isolation | `scope-lease`, `slice-lease`, `worktree`, `terminal-cleanup` | Local lease, isolated worktree coordination, and delivery-gated terminal retirement |
+| Concurrency / isolation | `scope-lease`, `slice-lease`, `worktree`, `terminal-cleanup`, `cargo-storage` | Local leases, worktree coordination, terminal retirement, and shared Cargo build storage |
+
+`manifest-contract` also validates opt-in `pre_slice_review_contract` receipts:
+schema-v2 triggered plans must bind the review to the current requirements
+SHA-256, use allowlisted persona-to-reason evidence, and have no failed personas
+or unresolved P0/P1 findings. Proportional plans may instead record a specific
+`not_required_reason`; manifests without a schema remain legacy-compatible.
 
 ## Canonical Commands
 
@@ -84,5 +90,12 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
   file lock as the PowerShell queue helper; private model-routing locks retain
   strict private ACL hardening. Squash/rebase merge proof, host UI records, and
   remote feature refs remain host/provider-owned.
+- `cargo-storage` resolves one absolute Cargo target from canonical repository
+  identity across linked worktrees and unrelated repositories. Versioned,
+  collision-resistant receipts live under the Git common directory; updates
+  are serialized. `validate-ready` guards execution, `not-applicable` records
+  no-Cargo runs, and final validation proves cleanup invariants. Temporary
+  targets require an existing real approved root, ownership marker, and
+  exact-path finalization.
 - `eval-run-codex` and `eval-run-ghcp` dry-run surfaces are safe defaults; live
   runs are explicit and require host auth.

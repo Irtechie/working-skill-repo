@@ -17,6 +17,8 @@ If `mode:headless` is present, set **headless mode** for the rest of the workflo
 **Headless mode** changes the interaction model, not the classification boundaries. Document-review still applies the same judgment about what has one clear correct fix vs. what needs user judgment. The only difference is how non-auto findings are delivered:
 - `auto` fixes are applied silently (same as interactive)
 - `present` findings are returned as structured text for the caller to handle -- no AskUserQuestion prompts, no interactive approval
+- a reusable receipt is written under `docs/results/document-reviews/` after auto-fixes,
+  bound to the final document SHA-256
 - Phase 5 returns immediately with "Review complete" (no refine/complete question)
 
 The caller receives findings with their original classifications intact and decides what to do with them.
@@ -43,9 +45,34 @@ After reading, classify the document:
 - **requirements** -- from `docs/brainstorms/`, focuses on what to build and why
 - **plan** -- from `docs/plans/`, focuses on how to build it with implementation details
 
+### Lifecycle Placement
+
+A requirements-wide review belongs before `kb-plan` decomposes the source into
+slices. Review every applicable persona against the same full requirements
+document once, synthesize the findings, and let the caller resolve them before
+slice IDs, dependencies, and implementation owners exist.
+
+A plan review evaluates the generated manifest/DAG as one document after
+decomposition. It may catch plan coherence problems, but it does not replace
+the pre-slice requirements review. Never dispatch one document-review persona
+per slice. Reviewers are analysis-only; they return findings to the caller and
+are never mutating implementation owners.
+
 ### Select Conditional Personas
 
-Analyze the document content to determine which conditional personas to activate. Check for these signals:
+Analyze the document content to determine which conditional personas to
+activate. A matching word is not enough: dispatch a persona only when its
+specialty could materially change or validate this document. Keep the roster
+proportional to the decision surface. Ignore negated, historical, glossary-only,
+and explicitly out-of-scope mentions unless they expose a live contradiction.
+
+Record each selection reason as `<basis>: <specific source evidence>` using the
+persona's fixed basis: coherence=`consistency-risk`, feasibility=`delivery-risk`,
+product=`product-risk`, design=`interaction-risk`, flow=`flow-risk`,
+security=`security-risk`, scope=`scope-risk`, and
+adversarial=`adversarial-risk`. The evidence after the prefix must be specific,
+not a generic "reviewer applies" assertion. This lets deterministic validation
+catch persona/reason mismatches without selecting personas by keyword.
 
 **product-lens** -- activate when the document makes challengeable claims about what to build and why, or when the proposed work carries strategic weight beyond the immediate problem. The system's users may be end users, developers, operators, maintainers, or any other audience -- the criteria are domain-agnostic. Check for either leg:
 
@@ -61,26 +88,32 @@ Analyze the document content to determine which conditional personas to activate
 - Work that opens or closes future directions (path dependencies, architectural commitments)
 - Opportunity cost implications -- building this means not building something else
 
-**design-lens** -- activate when the document contains:
+**design-lens** -- activate when the document makes a live decision about:
 - UI/UX references, frontend components, or visual design language
 - User flows, wireframes, screen/page/view mentions
 - Interaction descriptions (forms, buttons, navigation, modals)
 - References to responsive behavior or accessibility
 
-**security-lens** -- activate when the document contains:
+**flow-lens** -- activate when the document makes a live decision about:
+- Multi-step user, operator, API, job, or agent workflows
+- State transitions, retries, cancellation, recovery, or partial completion
+- Branching paths, role-specific paths, or lifecycle sequencing
+- Requirements whose happy path is clear but edge-flow coverage is not
+
+**security-lens** -- activate when the document makes a live decision about:
 - Auth/authorization mentions, login flows, session management
 - API endpoints exposed to external clients
 - Data handling, PII, payments, tokens, credentials, encryption
 - Third-party integrations with trust boundary implications
 
-**scope-guardian** -- activate when the document contains:
+**scope-guardian** -- activate when the document makes a live decision about:
 - Multiple priority tiers (P0/P1/P2, must-have/should-have/nice-to-have)
 - Large requirement count (>8 distinct requirements or implementation units)
 - Stretch goals, nice-to-haves, or "future work" sections
 - Scope boundary language that seems misaligned with stated goals
 - Goals that don't clearly connect to requirements
 
-**adversarial** -- activate when the document contains:
+**adversarial** -- activate when the document makes a live decision about:
 - More than 5 distinct requirements or implementation units
 - Explicit architectural or scope decisions with stated rationale
 - High-stakes domains (auth, payments, data migrations, external integrations)
@@ -96,6 +129,7 @@ Never call the Agent tool with `agent_type: document-review`. Use runtime-valid 
 - `feasibility-reviewer`
 - `product-lens-reviewer`
 - `design-lens-reviewer`
+- `spec-flow-analyzer`
 - `security-lens-reviewer`
 - `scope-guardian-reviewer`
 - `adversarial-document-reviewer`
@@ -120,9 +154,14 @@ Always include:
 - `coherence-reviewer`
 - `feasibility-reviewer`
 
+These are always-on only after the caller has decided that a document review is
+warranted. They do not make every requirements or planning request trigger
+`document-review`.
+
 Add activated conditional personas:
 - `product-lens-reviewer`
 - `design-lens-reviewer`
+- `spec-flow-analyzer`
 - `security-lens-reviewer`
 - `scope-guardian-reviewer`
 - `adversarial-document-reviewer`
@@ -141,9 +180,9 @@ Dispatch all agents in **parallel** using the platform's task/agent tool (e.g., 
 
 Pass each agent the **full document** -- do not split into sections.
 
-**Error handling:** If an agent fails or times out, proceed with findings from agents that completed. Note the failed agent in the Coverage section. Do not block the entire review on a single agent failure.
+**Error handling:** If an agent fails or times out, proceed with findings from agents that completed and note the failed agent in Coverage. A general document review may still finish, but a caller must not mark a pre-slice review `passed` while any selected persona failed.
 
-**Dispatch limit:** Even at maximum (7 agents), use parallel dispatch. These are document reviewers with bounded scope reading a single document -- parallel is safe and fast.
+**Dispatch limit:** Even at maximum (8 agents), use parallel dispatch. These are document reviewers with bounded scope reading a single document -- parallel is safe and fast.
 
 ## Phase 3: Synthesize Findings
 
@@ -246,6 +285,28 @@ Deferred questions:
 
 Omit any section with zero items. Then proceed directly to Phase 5 (which returns immediately in headless mode).
 
+After applying auto-fixes, write
+`docs/results/document-reviews/<document-slug>-<source-sha12>.json` with:
+
+- `review_id`, `source`, `source_sha256`, and `reviewed_at`;
+- `document_type` and `mode: requirements-wide|plan-wide`;
+- `selected_personas` and `completed_personas`; selected must equal completed
+  plus failed, and completed must match the persona-evidence keys;
+- `persona_evidence`, a JSON object mapping every completed persona ID to the
+  decision-oriented reason it was selected;
+- `failed_personas`;
+- `findings_resolved`, `unresolved_p0`, `unresolved_p1`, and
+  `residual_findings`;
+- `residual_items`, one structured `{severity,title,constraint}` item per
+  residual P2/P3 finding. Resolved P0/P1 changes belong in the reviewed source;
+  residual constraints stay available to planning and workers through this
+  artifact.
+
+Return the artifact path in the headless output. Compute the hash after all
+auto-fixes so any later requirements edit invalidates reuse. The artifact is
+the durable machine-readable receipt; do not replace it with a narrative review
+report.
+
 **Interactive mode:**
 
 Present `present` findings using the review output template included below. Within each severity level, separate findings by type:
@@ -293,7 +354,9 @@ Return "Review complete" as the terminal signal for callers.
 - Do not rewrite the entire document
 - Do not add new sections or requirements the user didn't discuss
 - Do not over-engineer or add complexity
-- Do not create separate review files or add metadata sections
+- Do not create separate narrative review files or metadata sections. The
+  headless JSON receipt under `docs/results/document-reviews/` is the only
+  exception.
 - Do not modify caller skills (kb-brainstorm, kb-plan, or external plugin skills that invoke document-review)
 
 ## Iteration Guidance

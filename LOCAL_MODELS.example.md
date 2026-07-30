@@ -14,6 +14,17 @@ The configured state belongs to the operating-system user:
 Use `kbrouter models` to manage these files. Do not hand-edit them. Runtime reads
 canonical `~/.kb` state, never the repository import file.
 
+Temporarily bypass every configured user-local route without deleting endpoints,
+aliases, or approvals:
+
+```powershell
+kbrouter models local-routing --enabled false
+kbrouter models local-routing --enabled true
+```
+
+The command atomically changes top-level `enabled` in `~/.kb/models.json`.
+Missing `enabled` remains backward-compatible and means `true`.
+
 ## What To Collect
 
 Configure one route at a time. Ask the user only for missing values:

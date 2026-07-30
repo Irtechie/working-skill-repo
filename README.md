@@ -37,7 +37,7 @@ The core loop is six skills:
 | `kb-start` | Pick the smallest correct lane for the request |
 | `kb-map` | Build or read repo-local memory so fresh sessions recover quickly |
 | `kb-fix` | Handle narrow bugs and small contained edits |
-| `kb-plan` | Turn clear work into vertical slices with verification |
+| `kb-plan` | Review the full requirements once, then create vertical slices with verification |
 | `kb-work` | Execute ready slices with narrow proof and batch shared checks |
 | `kb-complete` | Take a feature, plan, or manifest to its configured local, PR, or direct endpoint |
 
@@ -265,6 +265,8 @@ kbrouter models import --file kbrouter-routes.local.json
 kbrouter models approve --alias <filled-alias> --project-root <project-root>
 kbrouter models doctor --project-root <project-root>
 kbrouter models priority --project-root <project-root> --mode self-hosted-first
+kbrouter models local-routing --enabled false  # preserve but bypass local routes
+kbrouter models local-routing --enabled true   # resume local routes
 ```
 
 For authenticated endpoints, store the token in an environment variable and put
@@ -414,6 +416,10 @@ Installed/runtime surface:
 - `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md`
   - Copilot guidance
 - `cmd/kbcheck` - optional Go quality/release gate entrypoint
+
+Cargo workflows use `cmd/kbcheck cargo-storage` when that optional entrypoint is
+present. Consuming repos without it use the skill's fail-closed fallback: one
+absolute project-keyed target, no temporary targets, and no automated deletion.
 
 Development scaffolding that is usually not copied into consuming projects:
 
@@ -759,7 +765,7 @@ reliability, frontend races, schema drift, deployment, prior comments,
 language-specific reviewers, and adversarial review.
 
 Document-review uses its own lens agents: coherence, feasibility, product,
-design, security, scope, and adversarial document review.
+design, flow, security, scope, and adversarial document review.
 
 Deep dive: [KB workflow architecture](docs/context/architecture/kb-workflow.md)
 and [kb-review persona catalog](.github/skills/kb-review/references/persona-catalog.md).

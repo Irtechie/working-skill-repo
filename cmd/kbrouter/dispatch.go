@@ -558,11 +558,34 @@ func loadDispatchCatalog(prepared preparedRunRoot, opts dispatchOptions, hostSta
 	if err != nil {
 		return modelrouting.ValidatedCatalog{}, modelrouting.PolicyContext{}, fmt.Errorf("load run catalog: %w", err)
 	}
+	userCatalog, err := loadUserCatalog(opts.userRoot)
+	if err != nil {
+		return modelrouting.ValidatedCatalog{}, modelrouting.PolicyContext{}, fmt.Errorf("load user catalog toggle: %w", err)
+	}
+	catalog = applyUserCatalogToggle(catalog, userCatalog)
 	validated, _, err := modelrouting.ValidateCatalogForSelection(catalog, policy, nil, time.Now(), modelrouting.CatalogSourceRun)
 	if err != nil {
 		return modelrouting.ValidatedCatalog{}, modelrouting.PolicyContext{}, fmt.Errorf("validate run catalog: %w", err)
 	}
 	return validated, policy, nil
+}
+
+func applyUserCatalogToggle(runCatalog, userCatalog modelrouting.Catalog) modelrouting.Catalog {
+	if userCatalogEnabled(userCatalog) {
+		return runCatalog
+	}
+	disabledAliases := make(map[string]bool, len(userCatalog.Routes))
+	for _, route := range userCatalog.Routes {
+		disabledAliases[route.Alias] = true
+	}
+	routes := runCatalog.Routes[:0]
+	for _, route := range runCatalog.Routes {
+		if !disabledAliases[route.Alias] || route.ManagementOrigin != modelrouting.OriginExtra {
+			routes = append(routes, route)
+		}
+	}
+	runCatalog.Routes = routes
+	return runCatalog
 }
 
 func decodeDispatchPacket(data []byte, runID, sliceID string) (dispatchPacket, error) {

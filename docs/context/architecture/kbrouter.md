@@ -24,6 +24,7 @@ returns to the active parent.
 | `models discover` | Probe and save a run-scoped redacted catalog |
 | `models select` | Validate current ownership or pick one delegated route for a required tier / task family / risk |
 | `models priority` | Save or clear project source preference (`automatic`, `self-hosted-first`, `native-first`) |
+| `models local-routing` | Preserve configured user-local routes while enabling or bypassing all of them |
 | `models import` | Strictly import an operator-filled route file into canonical `~/.kb/models.json` without changing trust |
 | `models add` | Add an optional route definition at user or project scope |
 | `models remove` | Remove a route alias |
@@ -73,6 +74,14 @@ returns to the active parent.
   slice. No fallback model/provider name is embedded in policy.
 - User-local and project-local route state is runtime configuration, not a repo
   source-of-truth replacement for manifests or proof.
+- `~/.kb/models.json` may set top-level `"enabled": false` to preserve configured
+  extra routes while excluding them from discovery, selection, stale run
+  catalogs, probes, dispatch, and DDR attempts. Missing `enabled` remains
+  backward-compatible and means `true`; set it back to `true` to resume local
+  routing.
+
+Use `kbrouter models local-routing --enabled false` for the safe atomic write;
+switch it back with `--enabled true`.
 
 Related evidence and docs:
 

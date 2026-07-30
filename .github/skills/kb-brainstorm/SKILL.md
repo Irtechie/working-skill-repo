@@ -421,11 +421,23 @@ If the document contains outstanding questions:
 
 ### Phase 9: Document Review
 
-When a requirements document was created or updated, run the `document-review` skill on it before presenting handoff options. Pass the document path as the argument.
+When a requirements document was created or updated, apply the plan-wide
+materiality rule from `kb-plan`: run reviewers only when their findings could
+materially change product intent, flow, scope, feasibility, architecture, or a
+trust boundary. Do not run `document-review` for a small, mechanically
+constrained, low-risk requirements source.
+
+When review is warranted, run
+`document-review mode:headless <requirements-path>` once on the full document.
+Keep the returned `docs/results/document-reviews/` artifact so `kb-plan` can reuse it
+when its source SHA-256 still matches. When review is not warranted, record the
+specific not-required reason in the handoff summary; do not dispatch placeholder
+personas.
 
 If document-review returns findings that were auto-applied, note them briefly when presenting handoff options. If residual P0-P4 findings were surfaced, classify them through `kb-gate` before proceeding.
 
-When document-review returns "Review complete", proceed to Phase 10.
+When document-review returns "Review complete", or proportional classification
+records review as not required, proceed to Phase 10.
 
 Run `kb-gate` before Phase 10 when document-review or your own checks surfaced P0/P1/P2/P3/P4 issues. Severity is not human-in-loop:
 
@@ -439,9 +451,10 @@ Run `kb-gate` before Phase 10 when document-review or your own checks surfaced P
 
 #### 10.1 Phase Boundary
 
-`kb-brainstorm` is complete when the requirements artifact is reviewed,
-gate-clean, and ready to become slices. The next phase is `kb-plan`, but do not
-assume every host will auto-chain skills.
+`kb-brainstorm` is complete when the requirements artifact is reviewed when
+warranted (or has a specific not-required reason), gate-clean, and ready to
+become slices. The next phase is `kb-plan`, but do not assume every host will
+auto-chain skills.
 
 Do not jump from brainstorm directly to `kb-work` or `kb-complete`.
 
@@ -569,5 +582,7 @@ the question gate before requesting input.
 - **Default next step:** ask whether to continue with `/kb-plan <requirements-doc>` once the brainstorm is gate-clean, unless execution intent or an orchestrator already authorized continuing.
 - **Stop instead:** only for unresolved blockers, required human decisions, required research, or explicit user instruction.
 - **Optional follow-up:** `kb-research` for another targeted research pass that should become reusable local memory.
-- **Document review:** Always run `document-review` before handoff (Phase 9).
+- **Document review:** Run `document-review` once before handoff only when the
+  requirements-wide materiality rule triggers it; otherwise record why it was
+  not required.
 - **Peer skill:** `/kb-research` — reusable research notes when the research itself should survive beyond this brainstorm.

@@ -248,7 +248,7 @@ func executeDDRAttempt(opts ddrAttemptOptions) (ddrAttemptReport, int, error) {
 	if err != nil {
 		return ddrAttemptReport{}, 1, err
 	}
-	route, found := findUserRoute(catalog.Routes, opts.alias)
+	route, found := findUserRoute(activeUserCatalog(catalog).Routes, opts.alias)
 	policy, err := policyContextForProject(opts.userRoot, opts.projectRoot)
 	if err != nil {
 		return ddrAttemptReport{}, 1, err
@@ -663,7 +663,7 @@ func ddrRouteStillApproved(userRoot, projectRoot string, expected modelrouting.R
 	if err != nil {
 		return false
 	}
-	route, found := findUserRoute(catalog.Routes, expected.Alias)
+	route, found := findUserRoute(activeUserCatalog(catalog).Routes, expected.Alias)
 	if !found {
 		return false
 	}
