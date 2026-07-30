@@ -127,6 +127,35 @@ pre_slice_review:
 A later whole-plan document review may check the generated DAG for coherence,
 but it is not a substitute for requirements review before slicing.
 
+### Qualification Evidence Plans (Opt-In)
+
+Ordinary KB plans do not need semantic-plan grading. Opt in only when a plan
+will be admitted as evidence for a model-tier qualification decision:
+
+```yaml
+qualification_plan_contract: true
+qualification_plan:
+  record_path: docs/plans/<name>-qualification-plan.json
+  record_sha256: <sha256 of the strict JSON record>
+```
+
+The sidecar record binds the exact plan and the applicable requirements-wide
+review artifact by repo-relative path and SHA-256. It enumerates each
+nontrivial invariant with a stable ID and requirement. Every invariant must
+choose exactly one mechanically checkable path:
+
+- repository-specific guidance: a contained, non-symlinked source path, current
+  source hash, stable anchor, mechanism or hazard that names that source,
+  concrete executor action, and proof target; or
+- an uncertainty-driven raise from the target tier to a higher supported tier
+  with a specific reason.
+
+Do not treat acceptance-criterion restatements, generic warnings, worker
+selection, or a stronger model name as mechanism guidance. `document-review`
+owns plan-sufficiency judgment, `kb-plan` emits the record, and
+`kbcheck manifest-contract` validates paths, hashes, structure, and review
+bindings. Do not create a DDR-specific planner.
+
 ### Vertical Slices Only
 
 Each slice must deliver a narrow but complete path through every relevant layer: schema, service, API, UI, tests, docs, or ops as applicable. A completed slice is demoable or verifiable on its own.
@@ -470,6 +499,8 @@ pre_slice_review:
   unresolved_p1: 0
   residual_findings: <count>
   not_required_reason: <required only when status is not-required>
+# Include qualification_plan_contract and qualification_plan only when this
+# plan itself will be admitted as model-tier qualification evidence.
 done_check:
   kind: command_exit
   command: "<single command, gate, or artifact check that proves the whole KB objective is done>"

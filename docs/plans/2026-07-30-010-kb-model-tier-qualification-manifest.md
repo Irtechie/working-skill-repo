@@ -13,12 +13,12 @@ context_packet_contract: true
 pre_slice_review:
   status: passed
   source: docs/brainstorms/2026-07-30-model-tier-qualification-requirements.md
-  source_sha256: e145f8f291e90e19b283af1ca150723ceb45560a202d06da82fc2b136cd007a0
+  source_sha256: e376c5719a8fb9f5c3c8a849b5290d65873f9687efcb265b41842f2c43a567c3
   mode: requirements-wide
   review_id: model-tier-qualification-requirements-20260730
   reviewed_at: "2026-07-30T17:58:46-04:00"
   review_artifact: docs/results/document-reviews/model-tier-qualification-requirements-e145f8f291e9.json
-  review_artifact_sha256: 39a020e0c0cf9c56736d475eb66b4f1dc7738ff4e86c96442f426d5f1d444d32
+  review_artifact_sha256: 53ff97a8babf31df244061dd16753e898c71188e5110201c0e02bb8d4b17e1ae
   persona_evidence_json: '{"coherence-reviewer":"consistency-risk: admission, exclusion, proof, and qualification terms must produce one deterministic state machine","feasibility-reviewer":"delivery-risk: strict cross-repository receipts and plan-sufficiency records must be mechanically representable","product-lens-reviewer":"product-risk: a reusable classifier must not turn a bounded cohort into a broad routing claim","spec-flow-analyzer":"flow-risk: preregistration, admission gates, exclusions, proof, and final decisions form a multi-state evidence lifecycle","security-lens-reviewer":"security-risk: live route evidence crosses trust boundaries while secrets, protected oracles, and host state must remain excluded","scope-guardian-reviewer":"scope-risk: planning, scoring, fixtures, documentation, and TokenZoom integration need explicit independent milestones","adversarial-document-reviewer":"adversarial-risk: selective cohorts, replay, correlated fixtures, forged receipts, and provider drift could falsely qualify a route"}'
   selected_personas_json: '["coherence-reviewer","feasibility-reviewer","product-lens-reviewer","spec-flow-analyzer","security-lens-reviewer","scope-guardian-reviewer","adversarial-document-reviewer"]'
   completed_personas_json: '["coherence-reviewer","feasibility-reviewer","product-lens-reviewer","spec-flow-analyzer","security-lens-reviewer","scope-guardian-reviewer","adversarial-document-reviewer"]'
@@ -89,6 +89,23 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-30T18:00:00-04:00"
     allowed_next_action: "kb-work docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md"
+  - gate_id: slice-slice-001-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "The opt-in qualification-plan record rejects weak, stale, escaped, duplicate, and unknown evidence."
+      - "Ordinary and legacy manifests remain outside the stricter contract."
+      - "The protected qualification-plan tests retain their recorded SHA-256."
+      - "kb-plan and architecture documentation preserve document-review, planner, and validator ownership."
+    proof:
+      - cmd/kbcheck/manifest_contract_test.go
+      - cmd/kbcheck/manifest_contract.go
+      - .github/skills/kb-plan/SKILL.md
+      - docs/context/architecture/kb-workflow.md
+    blockers: []
+    passed_at: "2026-07-30T22:14:00Z"
+    allowed_next_action: "kb-work docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md"
 slices:
   - id: slice-001
     title: "Emit and validate qualification-plan receipts"
@@ -110,14 +127,14 @@ slices:
       command: "go test ./cmd/kbcheck -run 'QualificationPlan|Manifest.*Qualification' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
     next_agent_action: "Write protected qualification-plan contract tests, then add the opt-in kb-plan record and kbcheck validation."
     human_action: ""
     can_continue_other_slices: true
-    notes: ""
+    notes: "scope-forecast: loaded 4 expected files + 1 convention-matched test; scope-discovery: docs/results/document-reviews/model-tier-qualification-requirements-e145f8f291e9.json - Git LF normalization required rebinding the reviewed source hash without changing requirements content; scope-check: forecast=4 changed=7 discovered=1 lifecycle=2 unexplained=0; execution-owner: current; owner-reason: context-required - reviewed policy, lease authority, and lifecycle commits share one coordinated context; test-level: integration; functional-risk: broad; proof: go test ./cmd/kbcheck -run 'QualificationPlan|Manifest.*Qualification' -count=1; proof-batch: qualification-plan/closed; protected-oracle: cmd/kbcheck/manifest_contract_test.go sha256=6593060b583ce252f5021d83422209120bf30b88d92ab7b4cf6c33468c2bc63e preserved; memory-impact: durable; areas=planning-policy,manifest-validation; docs=docs/context/architecture/kb-workflow.md; refresh=done"
   - id: slice-002
     title: "Classify model tier evidence deterministically"
     path: docs/plans/2026-07-30-012-eval-model-tier-classifier-plan.md
@@ -163,7 +180,7 @@ eval fixtures, documentation, and required skill-copy propagation must agree.
 
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|---|---|---|---|---|
-| 1 | Emit and validate qualification-plan receipts | - | tdd / integration | no | pending |
+| 1 | Emit and validate qualification-plan receipts | - | tdd / integration | no | done |
 | 2 | Classify model tier evidence deterministically | slice-001 | tdd / functional-cli | no | pending |
 
 ## External Integration

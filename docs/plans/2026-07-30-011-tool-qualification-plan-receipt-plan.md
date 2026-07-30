@@ -35,9 +35,9 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/manifest_contract_test.go
     role: "qualification-plan and legacy-manifest contract oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "6593060b583ce252f5021d83422209120bf30b88d92ab7b4cf6c33468c2bc63e"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
@@ -83,4 +83,3 @@ record; ordinary plans remain backward-compatible.
 
 No live model call, model classification, route selection, permanent model
 assignment, or general semantic grading of every KB plan.
-

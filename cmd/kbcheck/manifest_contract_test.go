@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -301,6 +302,166 @@ gate_ledger: []
 	if !result.OK {
 		t.Fatalf("expected legacy manifest compatibility, got %#v", result)
 	}
+}
+
+func TestQualificationPlanContractAcceptsSpecificGuidance(t *testing.T) {
+	path := writeQualificationPlanManifest(t, nil)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected valid qualification plan, got %#v", result)
+	}
+}
+
+func TestQualificationPlanContractAcceptsExplicitTierRaise(t *testing.T) {
+	path := writeQualificationPlanManifest(t, func(record map[string]any) {
+		invariant := record["invariants"].([]any)[0].(map[string]any)
+		delete(invariant, "guidance")
+		invariant["tier_raise"] = map[string]any{
+			"from":   "medium",
+			"to":     "large",
+			"reason": "Uncertainty remains around manifest YAML alias behavior, so stronger reasoning is required before execution.",
+		}
+	})
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected explicit tier raise to pass, got %#v", result)
+	}
+}
+
+func TestQualificationPlanContractRejectsWeakOrStaleRecords(t *testing.T) {
+	tests := map[string]func(map[string]any){
+		"restated-requirement": func(record map[string]any) {
+			invariant := record["invariants"].([]any)[0].(map[string]any)
+			invariant["guidance"].(map[string]any)["mechanism_or_hazard"] = invariant["requirement"]
+		},
+		"generic-hazard": func(record map[string]any) {
+			record["invariants"].([]any)[0].(map[string]any)["guidance"].(map[string]any)["mechanism_or_hazard"] = "Be careful with this requirement."
+		},
+		"empty-executor-action": func(record map[string]any) {
+			record["invariants"].([]any)[0].(map[string]any)["guidance"].(map[string]any)["executor_action"] = ""
+		},
+		"missing-proof-target": func(record map[string]any) {
+			delete(record["invariants"].([]any)[0].(map[string]any)["guidance"].(map[string]any), "proof_target")
+		},
+		"stale-plan-hash": func(record map[string]any) {
+			record["plan"].(map[string]any)["sha256"] = strings.Repeat("0", 64)
+		},
+		"duplicate-invariant": func(record map[string]any) {
+			invariants := record["invariants"].([]any)
+			record["invariants"] = append(invariants, invariants[0])
+		},
+		"unknown-field": func(record map[string]any) {
+			record["unexpected"] = true
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			path := writeQualificationPlanManifest(t, mutate)
+			result, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatalf("validateManifestContract returned error: %v", err)
+			}
+			if result.OK || !hasManifestIssue(result.Issues, "invalid-qualification-plan") {
+				t.Fatalf("expected invalid qualification plan issue, got %#v", result)
+			}
+		})
+	}
+}
+
+func TestQualificationPlanContractRejectsStaleReviewBinding(t *testing.T) {
+	path := writeQualificationPlanManifest(t, func(record map[string]any) {
+		record["review"].(map[string]any)["sha256"] = strings.Repeat("0", 64)
+	})
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-qualification-plan") {
+		t.Fatalf("expected stale review binding issue, got %#v", result)
+	}
+}
+
+func TestQualificationPlanContractRejectsEscapedOrStaleRecord(t *testing.T) {
+	for name, mutate := range map[string]func(string) string{
+		"escaped-path": func(manifest string) string {
+			return strings.Replace(manifest, "record_path: docs/plans/qualification-plan-record.json", "record_path: ../../qualification-plan-record.json", 1)
+		},
+		"stale-record-hash": func(manifest string) string {
+			return regexp.MustCompile(`record_sha256: [0-9a-f]{64}`).ReplaceAllString(manifest, "record_sha256: "+strings.Repeat("0", 64))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := writeQualificationPlanManifest(t, nil)
+			writeFile(t, path, mutate(string(mustReadFile(t, path))))
+			result, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatalf("validateManifestContract returned error: %v", err)
+			}
+			if result.OK || !hasManifestIssue(result.Issues, "invalid-qualification-plan") {
+				t.Fatalf("expected invalid qualification record issue, got %#v", result)
+			}
+		})
+	}
+}
+
+func writeQualificationPlanManifest(t *testing.T, mutate func(map[string]any)) string {
+	t.Helper()
+	path := writePreSliceReviewManifest(t, validPreSliceReviewReceipt())
+	root := filepath.Dir(filepath.Dir(filepath.Dir(path)))
+	planRelative := "docs/plans/qualification-evidence-plan.md"
+	planContent := []byte("# Qualification evidence plan\n\nUse the manifest parser and focused contract tests.\n")
+	writeFile(t, filepath.Join(root, filepath.FromSlash(planRelative)), string(planContent))
+	reviewRelative := "docs/results/document-reviews/feature-requirements-review.json"
+	reviewContent := mustReadFile(t, filepath.Join(root, filepath.FromSlash(reviewRelative)))
+	sourceRelative := "cmd/kbcheck/manifest_contract.go"
+	sourceContent := []byte("func validateManifestContract(path string) {}\n")
+	writeFile(t, filepath.Join(root, filepath.FromSlash(sourceRelative)), string(sourceContent))
+	record := map[string]any{
+		"schema_version": 1,
+		"plan": map[string]any{
+			"path":   planRelative,
+			"sha256": fmt.Sprintf("%x", sha256.Sum256(planContent)),
+		},
+		"review": map[string]any{
+			"path":   reviewRelative,
+			"sha256": fmt.Sprintf("%x", sha256.Sum256(reviewContent)),
+		},
+		"target_tier": "medium",
+		"invariants": []any{map[string]any{
+			"id":          "strict-manifest-input",
+			"requirement": "Qualification evidence must reject malformed or stale plan records.",
+			"source": map[string]any{
+				"path":   sourceRelative,
+				"sha256": fmt.Sprintf("%x", sha256.Sum256(sourceContent)),
+				"anchor": "validateManifestContract",
+			},
+			"guidance": map[string]any{
+				"mechanism_or_hazard": "manifest_contract.go parses opt-in records before terminal-gate validation, so stale evidence cannot be accepted later.",
+				"executor_action":     "Add strict decoding and contained-path hash checks in validateManifestContract.",
+				"proof_target":        "go test ./cmd/kbcheck -run QualificationPlan -count=1",
+			},
+		}},
+	}
+	if mutate != nil {
+		mutate(record)
+	}
+	recordContent, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal qualification plan: %v", err)
+	}
+	recordRelative := "docs/plans/qualification-plan-record.json"
+	writeFile(t, filepath.Join(root, filepath.FromSlash(recordRelative)), string(recordContent))
+	manifest := string(mustReadFile(t, path))
+	contract := fmt.Sprintf("qualification_plan_contract: true\nqualification_plan:\n  record_path: %s\n  record_sha256: %x\n", recordRelative, sha256.Sum256(recordContent))
+	manifest = strings.Replace(manifest, "slices:\n", contract+"slices:\n", 1)
+	writeFile(t, path, manifest)
+	return path
 }
 
 func validPreSliceReviewReceipt() string {

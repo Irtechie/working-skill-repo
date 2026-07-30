@@ -74,6 +74,45 @@ type preSliceResidualFinding struct {
 	Constraint string `json:"constraint"`
 }
 
+type qualificationPlanRecord struct {
+	SchemaVersion int                          `json:"schema_version"`
+	Plan          qualificationPlanFileBinding `json:"plan"`
+	Review        qualificationPlanFileBinding `json:"review"`
+	TargetTier    string                       `json:"target_tier"`
+	Invariants    []qualificationPlanInvariant `json:"invariants"`
+}
+
+type qualificationPlanFileBinding struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+}
+
+type qualificationPlanInvariant struct {
+	ID          string                      `json:"id"`
+	Requirement string                      `json:"requirement"`
+	Source      qualificationPlanSource     `json:"source"`
+	Guidance    *qualificationPlanGuidance  `json:"guidance,omitempty"`
+	TierRaise   *qualificationPlanTierRaise `json:"tier_raise,omitempty"`
+}
+
+type qualificationPlanSource struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+	Anchor string `json:"anchor"`
+}
+
+type qualificationPlanGuidance struct {
+	MechanismOrHazard string `json:"mechanism_or_hazard"`
+	ExecutorAction    string `json:"executor_action"`
+	ProofTarget       string `json:"proof_target"`
+}
+
+type qualificationPlanTierRaise struct {
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Reason string `json:"reason"`
+}
+
 func runManifestContractCommand(root string, opts options, stdout, stderr io.Writer) int {
 	path := resolveInputPath(root, opts.manifest)
 	result, err := validateManifestContract(path)
@@ -246,6 +285,10 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	if !preSliceReviewContractValid {
 		issues = append(issues, manifestContractIssue{Code: "invalid-contract-boolean", Message: "pre_slice_review_contract must be true or false"})
 	}
+	qualificationPlanContract, qualificationPlanContractValid := manifestBoolContractValue(path, "qualification_plan_contract")
+	if !qualificationPlanContractValid {
+		issues = append(issues, manifestContractIssue{Code: "invalid-contract-boolean", Message: "qualification_plan_contract must be true or false"})
+	}
 	manifestSchema, manifestSchemaQuoted, manifestSchemaDuplicate := manifestTopLevelScalarDetails(path, "manifest_schema")
 	if manifestSchema != "" {
 		version, err := strconv.Atoi(manifestSchema)
@@ -270,6 +313,9 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 	}
 	if preSliceReviewContract {
 		issues = append(issues, validatePreSliceReviewContract(path)...)
+	}
+	if qualificationPlanContract {
+		issues = append(issues, validateQualificationPlanContract(path)...)
 	}
 	for _, slice := range slices {
 		if slice.TestLevel != "" && !validManifestTestLevel(slice.TestLevel) {
@@ -640,6 +686,230 @@ func validateWorkspaceIsolationContract(path string) []manifestContractIssue {
 		})
 	}
 	return issues
+}
+
+func validateQualificationPlanContract(path string) []manifestContractIssue {
+	add := func(issues []manifestContractIssue, message string) []manifestContractIssue {
+		return append(issues, manifestContractIssue{Code: "invalid-qualification-plan", Message: message})
+	}
+	nodes, err := manifestNestedScalarNodes(path, "qualification_plan")
+	if err != nil {
+		return []manifestContractIssue{{Code: "invalid-qualification-plan", Message: err.Error()}}
+	}
+	values := scalarNodeValues(nodes)
+	issues := []manifestContractIssue{}
+	for key := range values {
+		if key != "record_path" && key != "record_sha256" {
+			issues = add(issues, fmt.Sprintf("qualification_plan contains unknown field %s", key))
+		}
+	}
+	recordPath := strings.TrimSpace(values["record_path"])
+	recordHash := strings.ToLower(strings.TrimSpace(values["record_sha256"]))
+	if recordPath == "" || filepath.IsAbs(recordPath) {
+		return add(issues, "qualification_plan requires a repo-relative record_path")
+	}
+	content, err := readQualificationPlanFile(manifestRepoRoot(path), recordPath)
+	if err != nil {
+		return add(issues, fmt.Sprintf("qualification plan record is unreadable: %v", err))
+	}
+	if len(content) > 1<<20 {
+		return add(issues, "qualification plan record exceeds 1 MiB")
+	}
+	gotHash := fmt.Sprintf("%x", sha256.Sum256(content))
+	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(recordHash) || recordHash != gotHash {
+		issues = add(issues, "qualification_plan record_sha256 must match the current record")
+	}
+	var record qualificationPlanRecord
+	decoder := json.NewDecoder(strings.NewReader(string(content)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&record); err != nil {
+		return add(issues, fmt.Sprintf("invalid qualification plan JSON: %v", err))
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return add(issues, "invalid qualification plan JSON: trailing content")
+	}
+	if record.SchemaVersion != 1 {
+		issues = add(issues, "qualification plan schema_version must be 1")
+	}
+	if !validModelTier(record.TargetTier) || record.TargetTier == "tiny" {
+		issues = add(issues, "qualification plan target_tier must be small, medium, or large")
+	}
+	root := manifestRepoRoot(path)
+	issues = append(issues, validateQualificationFileBinding(root, "plan", record.Plan)...)
+	issues = append(issues, validateQualificationFileBinding(root, "review", record.Review)...)
+	issues = append(issues, validateQualificationReviewBinding(path, record.Review)...)
+	if len(record.Invariants) == 0 {
+		issues = add(issues, "qualification plan requires at least one invariant")
+	}
+	seen := map[string]bool{}
+	for index, invariant := range record.Invariants {
+		label := fmt.Sprintf("invariant %d", index+1)
+		if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{2,127}$`).MatchString(invariant.ID) {
+			issues = add(issues, label+" requires a stable kebab-case id")
+		} else if seen[invariant.ID] {
+			issues = add(issues, fmt.Sprintf("duplicate invariant id %s", invariant.ID))
+		}
+		seen[invariant.ID] = true
+		if strings.TrimSpace(invariant.Requirement) == "" {
+			issues = add(issues, label+" requires a requirement")
+		}
+		if (invariant.Guidance == nil) == (invariant.TierRaise == nil) {
+			issues = add(issues, label+" requires exactly one of guidance or tier_raise")
+			continue
+		}
+		if invariant.Guidance != nil {
+			issues = append(issues, validateQualificationGuidance(root, label, invariant)...)
+		}
+		if invariant.TierRaise != nil {
+			issues = append(issues, validateQualificationTierRaise(label, record.TargetTier, invariant)...)
+		}
+	}
+	return issues
+}
+
+func validateQualificationFileBinding(root, label string, binding qualificationPlanFileBinding) []manifestContractIssue {
+	issues := []manifestContractIssue{}
+	add := func(message string) {
+		issues = append(issues, manifestContractIssue{Code: "invalid-qualification-plan", Message: message})
+	}
+	content, err := readQualificationPlanFile(root, binding.Path)
+	if err != nil {
+		add(fmt.Sprintf("qualification plan %s binding is unreadable: %v", label, err))
+		return issues
+	}
+	want := strings.ToLower(strings.TrimSpace(binding.SHA256))
+	got := fmt.Sprintf("%x", sha256.Sum256(content))
+	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(want) || want != got {
+		add(fmt.Sprintf("qualification plan %s sha256 must match the current file", label))
+	}
+	return issues
+}
+
+func validateQualificationReviewBinding(path string, binding qualificationPlanFileBinding) []manifestContractIssue {
+	nodes, err := manifestNestedScalarNodes(path, "pre_slice_review")
+	if err != nil {
+		return []manifestContractIssue{{Code: "invalid-qualification-plan", Message: "qualification plans require a passed pre_slice_review receipt"}}
+	}
+	values := scalarNodeValues(nodes)
+	if values["status"] != "passed" ||
+		filepath.ToSlash(strings.TrimSpace(binding.Path)) != filepath.ToSlash(strings.TrimSpace(values["review_artifact"])) ||
+		strings.ToLower(strings.TrimSpace(binding.SHA256)) != strings.ToLower(strings.TrimSpace(values["review_artifact_sha256"])) {
+		return []manifestContractIssue{{Code: "invalid-qualification-plan", Message: "qualification plan review binding must exactly match the passed pre_slice_review artifact"}}
+	}
+	return nil
+}
+
+func validateQualificationGuidance(root, label string, invariant qualificationPlanInvariant) []manifestContractIssue {
+	issues := []manifestContractIssue{}
+	add := func(message string) {
+		issues = append(issues, manifestContractIssue{Code: "invalid-qualification-plan", Message: message})
+	}
+	sourceContent, err := readQualificationPlanFile(root, invariant.Source.Path)
+	if err != nil {
+		add(label + " source is unreadable: " + err.Error())
+		return issues
+	}
+	wantSourceHash := strings.ToLower(strings.TrimSpace(invariant.Source.SHA256))
+	gotSourceHash := fmt.Sprintf("%x", sha256.Sum256(sourceContent))
+	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(wantSourceHash) || wantSourceHash != gotSourceHash {
+		add(label + " source sha256 must match the current repository file")
+	}
+	anchor := strings.TrimSpace(invariant.Source.Anchor)
+	if anchor == "" {
+		add(label + " source requires a stable anchor")
+	}
+	guidance := invariant.Guidance
+	mechanism := strings.TrimSpace(guidance.MechanismOrHazard)
+	normalizedRequirement := normalizeQualificationText(invariant.Requirement)
+	normalizedMechanism := normalizeQualificationText(mechanism)
+	if len(mechanism) < 40 || normalizedMechanism == normalizedRequirement || strings.Contains(normalizedRequirement, normalizedMechanism) {
+		add(label + " mechanism_or_hazard must add repository-specific guidance rather than restate the requirement")
+	}
+	sourceToken := normalizeQualificationText(filepath.Base(invariant.Source.Path))
+	anchorToken := normalizeQualificationText(anchor)
+	if !strings.Contains(normalizedMechanism, sourceToken) && !strings.Contains(normalizedMechanism, anchorToken) {
+		add(label + " mechanism_or_hazard must name the source file or anchor")
+	}
+	if genericQualificationGuidance(mechanism) {
+		add(label + " mechanism_or_hazard is generic")
+	}
+	if len(strings.TrimSpace(guidance.ExecutorAction)) < 20 {
+		add(label + " guidance requires a concrete executor_action")
+	}
+	if len(strings.TrimSpace(guidance.ProofTarget)) < 10 {
+		add(label + " guidance requires a concrete proof_target")
+	}
+	return issues
+}
+
+func validateQualificationTierRaise(label, targetTier string, invariant qualificationPlanInvariant) []manifestContractIssue {
+	raise := invariant.TierRaise
+	issues := []manifestContractIssue{}
+	add := func(message string) {
+		issues = append(issues, manifestContractIssue{Code: "invalid-qualification-plan", Message: message})
+	}
+	if raise.From != targetTier || qualificationTierRank(raise.To) <= qualificationTierRank(raise.From) {
+		add(label + " tier_raise must move from target_tier to a higher supported tier")
+	}
+	reason := strings.TrimSpace(raise.Reason)
+	normalizedReason := normalizeQualificationText(reason)
+	if len(reason) < 40 || normalizedReason == normalizeQualificationText(invariant.Requirement) {
+		add(label + " tier_raise requires a specific uncertainty reason")
+	}
+	lower := strings.ToLower(reason)
+	if !strings.Contains(lower, "uncertain") && !strings.Contains(lower, "unknown") &&
+		!strings.Contains(lower, "ambiguous") && !strings.Contains(lower, "unresolved") &&
+		!strings.Contains(lower, "risk") {
+		add(label + " tier_raise reason must identify the uncertainty or risk")
+	}
+	return issues
+}
+
+func readQualificationPlanFile(root, relative string) ([]byte, error) {
+	if strings.TrimSpace(relative) == "" || filepath.IsAbs(relative) {
+		return nil, fmt.Errorf("path must be repo-relative")
+	}
+	clean := filepath.Clean(filepath.Join(root, filepath.FromSlash(relative)))
+	rel, err := filepath.Rel(root, clean)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("path escapes the repository")
+	}
+	info, err := os.Lstat(clean)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("path must not be a symlink")
+	}
+	return readContainedRepoFile(root, clean)
+}
+
+func qualificationTierRank(tier string) int {
+	switch tier {
+	case "small":
+		return 1
+	case "medium":
+		return 2
+	case "large":
+		return 3
+	default:
+		return 0
+	}
+}
+
+func normalizeQualificationText(value string) string {
+	return regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(strings.ToLower(value), "")
+}
+
+func genericQualificationGuidance(value string) bool {
+	normalized := normalizeQualificationText(value)
+	for _, generic := range []string{"becareful", "followrequirements", "usetheplan", "handleedgecases", "testthoroughly"} {
+		if strings.Contains(normalized, generic) {
+			return true
+		}
+	}
+	return false
 }
 
 func validatePreSliceReviewContract(path string) []manifestContractIssue {
