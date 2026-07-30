@@ -159,7 +159,7 @@ The workflow overview and two supporting diagrams describe one routing system:
 `kb-start` chooses the work lane, DDR chooses the execution owner and capability
 tier, and `kb-map` plus handoffs carry the route across sessions.
 
-### KB Workflow Overview
+### KB Workflow Overview (Loop + Graph)
 
 ![KB workflow overview](docs/assets/kb-workflow-overview.png)
 
