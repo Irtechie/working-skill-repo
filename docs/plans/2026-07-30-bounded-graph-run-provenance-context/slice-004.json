@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "bounded-graph-run-provenance-slice-004",
+  "task_id": "bounded-graph-run-provenance",
+  "objective": "Expose deterministic compact graph-run failure and why-not-done projections",
+  "memory_files": ["todo.md", "docs/context/goals/bounded-graph-run-provenance.md", "docs/context/research/2026-07-29-graph-engineering-definition-and-provenance.md"],
+  "source_files": ["docs/plans/2026-07-30-004-tool-graph-run-diagnostics-plan.md", "cmd/kbcheck/main.go", "cmd/kbcheck/swarm.go", "cmd/kbcheck/manifest_contract.go", "cmd/kbcheck/graph_route.go"],
+  "prefetch": ["Inspect CLI parse and output conventions", "Inspect ready-set cycle and blocker traversal", "Inspect manifest completion issues", "Inspect compact graph-route summaries"],
+  "constraints": ["Use validated evidence only", "Report first causal failure not downstream symptom", "Evaluate the explicit completion predicate", "Corruption is explicit", "Text stays compact and JSON stable"],
+  "out_of_scope": ["Raw log display", "Transcript summarization", "LLM diagnosis", "New topology source"],
+  "acceptance_criteria": ["--failed identifies deterministic causal roots and impact", "--why-not-done reports terminal proof fan-in and edge gaps", "Complete run reports done", "Invalid selectors fail nonzero"],
+  "proof_targets": ["go test ./cmd/kbcheck -run 'GraphRunInspect' -count=1"],
+  "model_tier": "large",
+  "model_tier_reason": "Diagnosis spans graph causality and the completion trust boundary",
+  "allowed_tools": ["rg", "view", "apply_patch", "go test", "go run", "git status"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Causal roots are nondeterministic", "Raw transcripts are proposed", "Completion disagrees with manifest-contract", "Corrupt evidence is ignored"]
+}

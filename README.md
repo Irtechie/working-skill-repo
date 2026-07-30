@@ -14,6 +14,24 @@ an install, sync, release, or delivery dependency.
 Most users only need the runtime skills. You do not need Go, the eval harness,
 or the marketplace machinery to use the workflow in your own repo.
 
+## Graph-Compatible Workflow Milestones
+
+| Graph criterion | What went in | Date / commit |
+|---|---|---|
+| **Bounded nodes** | Independently executable vertical slices with acceptance criteria and expected files | **May 23, 2026** — `bb890f8` |
+| **Explicit edges** | `blockers` relationships between slices, plus missing-edge and cycle validation | **May 23, 2026** — `bb890f8` |
+| **Graph traversal** | `kb-work` selected runnable slices in dependency/topological order | **May 23, 2026** — `bb890f8` |
+| **Fan-out** | All safe, independent ready nodes could dispatch concurrently | **June 1, 2026** — `0be21ab` |
+| **Barriers/fan-in** | Dependent nodes waited for all blockers; serial, HITL, and shared-resource nodes formed barriers | **June 1, 2026** — `0be21ab` |
+| **Independent consolidation graph** | Parallel persona reviews merged and deduplicated into one result | Origin **May 23, 2026**; dedicated `kb-review` **May 28, 2026** — `e40166c` |
+| **Code-enforced scheduler** | Ready-set and cycle rules moved from skill prose into deterministic Go checks | **June 2, 2026** — `2fb60fd` |
+| **Outer loop over graphs** | Durable `kb-goal` repeatedly routed work units through planning and graph execution until terminal | **June 8, 2026** — `cbcda0f` |
+
+The workflow combines a durable outer loop with dependency-ordered work graphs.
+See the
+[research note](docs/context/research/2026-07-29-graph-engineering-definition-and-provenance.md)
+for terminology and prior art.
+
 ## Start Here
 
 Clone this repo, install the skills, then ask `kb-start` to route your first
@@ -141,7 +159,7 @@ The workflow overview and two supporting diagrams describe one routing system:
 `kb-start` chooses the work lane, DDR chooses the execution owner and capability
 tier, and `kb-map` plus handoffs carry the route across sessions.
 
-### KB Workflow Overview
+### KB Workflow Overview (Loop + Graph)
 
 ![KB workflow overview](docs/assets/kb-workflow-overview.png)
 
@@ -480,10 +498,10 @@ packet, but the packet is a forecast with citations and freshness metadata, not
 a proof result. Optional providers can improve recall; they must fail closed to
 file-native lookup when unavailable or stale.
 
-Phoenix is credited prior art for specific proof and recovery mechanics. KB's
-routing and vertical slicing were developed independently. The current bundle
-does not require a Phoenix runtime, while focused MCP interoperability remains a
-valid future option when it improves installation or cross-host use.
+Phoenix is credited prior art for specific proof and recovery mechanics. The
+current bundle does not require a Phoenix runtime, while focused MCP
+interoperability remains a valid future option when it improves installation or
+cross-host use.
 
 Maintainers can audit repo-local provider config with `go run ./cmd/kbcheck
 provider-hygiene`, or include standard user config with `go run ./cmd/kbcheck
@@ -1099,13 +1117,8 @@ It also borrows useful ideas from:
   self-healing proof spine around objective sensing, trace verification, and
   failure-first acceptance. Credit for the self-healing concepts adopted in KB
   belongs to ATV-Phoenix.
-- [Matt Pocock's skills](https://github.com/mattpocock/skills), especially: the
-  `grilling` / `grill-me` pattern (relentless one-question-at-a-time interview
-  with agent-surfaced recommendations, gated so questions earn their place) now
-  merged into `kb-brainstorm` Phase 6; `wayfinder` (fog-of-war map for work too
-  large and too vague for a single session, resolving one investigation ticket at
-  a time until the route is clear) which maps to `kb-epic`; and the general
-  philosophy of small, composable, hackable skills over process-owning frameworks
+- [Matt Pocock's skills](https://github.com/mattpocock/skills), specifically
+  vertical-slice decomposition used by `kb-plan`
 - [G-Stack](https://github.com/garrytan/gstack), especially persistent workflow
   memory, QA ownership, and operating-system-style orchestration
 - [Shyam Sridhar's kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot),

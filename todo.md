@@ -72,6 +72,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
+| Bounded graph-run provenance | 🔧 in_progress | P0 | Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md`; next: `kb-work` |
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
 | Harness-engineering validation recovery | ⬜ pending | P1 | `docs/plans/2026-07-20-000-kb-harness-validation-recovery-manifest.md`; fixes the `kbcheck`/`go test` hang, bounded proof diagnostics, LF-stable `lopopolo/harness-engineering` runner, and combined release/review proof. Reproduced 2026-07-26 in `TestPlanWorktreeSelftestExercisesDisposableLifecycle` during text-only `local-release`. |
