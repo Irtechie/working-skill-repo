@@ -265,6 +265,8 @@ kbrouter models import --file kbrouter-routes.local.json
 kbrouter models approve --alias <filled-alias> --project-root <project-root>
 kbrouter models doctor --project-root <project-root>
 kbrouter models priority --project-root <project-root> --mode self-hosted-first
+kbrouter models local-routing --enabled false  # preserve but bypass local routes
+kbrouter models local-routing --enabled true   # resume local routes
 ```
 
 For authenticated endpoints, store the token in an environment variable and put

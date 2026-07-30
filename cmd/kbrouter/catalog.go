@@ -208,6 +208,19 @@ func loadUserCatalog(root string) (modelrouting.Catalog, error) {
 	return catalog, nil
 }
 
+func userCatalogEnabled(catalog modelrouting.Catalog) bool {
+	return catalog.Enabled == nil || *catalog.Enabled
+}
+
+func activeUserCatalog(catalog modelrouting.Catalog) modelrouting.Catalog {
+	if userCatalogEnabled(catalog) {
+		return catalog
+	}
+	catalog.Routes = nil
+	catalog.Surfaces = nil
+	return catalog
+}
+
 func saveUserCatalog(root string, catalog modelrouting.Catalog) error {
 	if catalog.SchemaVersion == 0 {
 		catalog.SchemaVersion = modelrouting.CatalogSchemaVersion
@@ -449,14 +462,15 @@ func discoverCatalog(opts discoverOptions) (discoveryReport, error) {
 	if userCatalogErr != nil {
 		userCatalog = modelrouting.Catalog{SchemaVersion: modelrouting.CatalogSchemaVersion}
 	}
+	activeCatalog := activeUserCatalog(userCatalog)
 	projectPolicy, projectPolicyErr := policyContextForProject(opts.userRoot, opts.projectRoot)
 	report := discoveryReport{
 		Catalog: modelrouting.Catalog{
 			SchemaVersion: modelrouting.CatalogSchemaVersion,
 			Cohort:        modelrouting.CohortInitialPilot,
-			Surfaces:      localSurfaceFingerprints(userCatalog, projectPolicy),
+			Surfaces:      localSurfaceFingerprints(activeCatalog, projectPolicy),
 			Current:       currentModel(opts.currentModel),
-			Routes:        redactedUserRoutes(userCatalog.Routes),
+			Routes:        redactedUserRoutes(activeCatalog.Routes),
 		},
 	}
 	if projectPolicyErr != nil {
@@ -464,6 +478,8 @@ func discoverCatalog(opts discoverOptions) (discoveryReport, error) {
 	}
 	if userCatalogErr != nil {
 		report.Adapters = append(report.Adapters, adapterReport{Name: "user-catalog", Status: "unavailable", Message: userCatalogErr.Error()})
+	} else if !userCatalogEnabled(userCatalog) {
+		report.Adapters = append(report.Adapters, adapterReport{Name: "user-catalog", Status: "disabled", Message: "user-local routes disabled by models.json"})
 	}
 	adapters := []discoveryAdapter{
 		{name: "current", run: func(ctx context.Context) adapterDiscovery { return discoverCurrent(ctx, opts.currentModel) }},
@@ -471,9 +487,9 @@ func discoverCatalog(opts discoverOptions) (discoveryReport, error) {
 			return discoverCodex(ctx, opts.projectRoot, opts.runRoot, opts.codexModelsFixture)
 		}},
 	}
-	if opts.probeOpenAICompatible && projectPolicyErr == nil {
+	if opts.probeOpenAICompatible && projectPolicyErr == nil && userCatalogEnabled(userCatalog) {
 		adapters = append(adapters, discoveryAdapter{name: "openai-compatible", run: func(ctx context.Context) adapterDiscovery {
-			return discoverOpenAICompatible(ctx, userCatalog, projectPolicy)
+			return discoverOpenAICompatible(ctx, activeCatalog, projectPolicy)
 		}})
 	}
 	if opts.includeSlowFixture {
@@ -1264,7 +1280,8 @@ func doctorReport(userRoot, projectRoot string, probe bool) (doctorOutput, error
 		probeContext, cancelProbeSession = context.WithTimeout(context.Background(), 5*time.Second)
 	}
 	defer cancelProbeSession()
-	for _, route := range catalog.Routes {
+	activeCatalog := activeUserCatalog(catalog)
+	for _, route := range activeCatalog.Routes {
 		if hasReadiness(route.Readiness, modelrouting.ReadinessSelectable) {
 			selectable++
 		}
@@ -1318,6 +1335,8 @@ func doctorReport(userRoot, projectRoot string, probe bool) (doctorOutput, error
 	configStatus := "available"
 	if len(catalog.Routes) == 0 {
 		configStatus = "unavailable"
+	} else if !userCatalogEnabled(catalog) {
+		configStatus = "disabled"
 	}
 	authStatus := "available"
 	authMessage := ""
@@ -1348,7 +1367,7 @@ func doctorReport(userRoot, projectRoot string, probe bool) (doctorOutput, error
 		Configured:        doctorDimension{Status: configStatus, Count: len(catalog.Routes)},
 		ProjectSelectable: doctorDimension{Status: statusForCount(projectSelectable), Count: projectSelectable},
 		Selectable:        doctorDimension{Status: statusForCount(selectable), Count: selectable},
-		Auth:              doctorDimension{Status: authStatus, Count: len(catalog.Routes) - missingAuth, Message: authMessage},
+		Auth:              doctorDimension{Status: authStatus, Count: len(activeCatalog.Routes) - missingAuth, Message: authMessage},
 		Reachability:      reachability,
 		ModelPresence:     presence,
 		Dispatch:          doctorDimension{Status: "unavailable", Message: "dispatch is not implemented in this slice"},

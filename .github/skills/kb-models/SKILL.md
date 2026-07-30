@@ -114,6 +114,12 @@ project files.
 - Revoke approval with `kbrouter models revoke --alias <alias>` or record a project-bound denial with `kbrouter models deny --alias <alias>`.
 - Save personal project source priority outside the repo: `kbrouter models priority --project-root <path> --mode automatic|self-hosted-first|native-first`.
 - Persistently disable routing only when the user explicitly asks to save that preference: `kbrouter models ignore-routing --scope user|project`.
+- Temporarily bypass all configured user-local routes without deleting them by
+  running `kbrouter models local-routing --enabled false`, which sets top-level
+  `"enabled": false` in `~/.kb/models.json`. The router still
+  shows the preserved configuration but excludes those routes from discovery,
+  probes, selection, dispatch, and DDR. Run the command with `--enabled true` to
+  resume them.
 - Clear the matching saved scope with `kbrouter models clear --scope user|project`; `reset` is an alias.
 - `kbrouter models doctor` is static and non-networked. Add `--probe` only for an attended, bounded endpoint/model-presence check.
 - Prepare calibration with `kbrouter models calibrate --alias <alias>`; it is attended and does not dispatch inference.
