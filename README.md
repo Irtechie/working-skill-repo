@@ -499,9 +499,10 @@ a proof result. Optional providers can improve recall; they must fail closed to
 file-native lookup when unavailable or stale.
 
 Phoenix is credited prior art for specific proof and recovery mechanics. KB's
-routing and vertical slicing were developed independently. The current bundle
-does not require a Phoenix runtime, while focused MCP interoperability remains a
-valid future option when it improves installation or cross-host use.
+routing was developed independently; its vertical-slice planning draws on Matt
+Pocock's skills. The current bundle does not require a Phoenix runtime, while
+focused MCP interoperability remains a valid future option when it improves
+installation or cross-host use.
 
 Maintainers can audit repo-local provider config with `go run ./cmd/kbcheck
 provider-hygiene`, or include standard user config with `go run ./cmd/kbcheck
@@ -1117,13 +1118,9 @@ It also borrows useful ideas from:
   self-healing proof spine around objective sensing, trace verification, and
   failure-first acceptance. Credit for the self-healing concepts adopted in KB
   belongs to ATV-Phoenix.
-- [Matt Pocock's skills](https://github.com/mattpocock/skills), especially: the
-  `grilling` / `grill-me` pattern (relentless one-question-at-a-time interview
-  with agent-surfaced recommendations, gated so questions earn their place) now
-  merged into `kb-brainstorm` Phase 6; `wayfinder` (fog-of-war map for work too
-  large and too vague for a single session, resolving one investigation ticket at
-  a time until the route is clear) which maps to `kb-epic`; and the general
-  philosophy of small, composable, hackable skills over process-owning frameworks
+- [Matt Pocock's skills](https://github.com/mattpocock/skills), specifically
+  vertical-slice decomposition used by `kb-plan`; KB's question-gating behavior
+  and `kb-epic` workflow were developed in this repo
 - [G-Stack](https://github.com/garrytan/gstack), especially persistent workflow
   memory, QA ownership, and operating-system-style orchestration
 - [Shyam Sridhar's kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot),
