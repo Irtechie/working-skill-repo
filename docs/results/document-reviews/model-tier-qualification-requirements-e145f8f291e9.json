@@ -1,0 +1,41 @@
+{
+  "review_id": "model-tier-qualification-requirements-20260730",
+  "source": "docs/brainstorms/2026-07-30-model-tier-qualification-requirements.md",
+  "source_sha256": "e145f8f291e90e19b283af1ca150723ceb45560a202d06da82fc2b136cd007a0",
+  "reviewed_at": "2026-07-30T17:58:46-04:00",
+  "document_type": "requirements",
+  "mode": "requirements-wide",
+  "selected_personas": [
+    "coherence-reviewer",
+    "feasibility-reviewer",
+    "product-lens-reviewer",
+    "spec-flow-analyzer",
+    "security-lens-reviewer",
+    "scope-guardian-reviewer",
+    "adversarial-document-reviewer"
+  ],
+  "completed_personas": [
+    "coherence-reviewer",
+    "feasibility-reviewer",
+    "product-lens-reviewer",
+    "spec-flow-analyzer",
+    "security-lens-reviewer",
+    "scope-guardian-reviewer",
+    "adversarial-document-reviewer"
+  ],
+  "persona_evidence": {
+    "coherence-reviewer": "consistency-risk: admission, exclusion, proof, and qualification terms must produce one deterministic state machine",
+    "feasibility-reviewer": "delivery-risk: strict cross-repository receipts and plan-sufficiency records must be mechanically representable",
+    "product-lens-reviewer": "product-risk: a reusable classifier must not turn a bounded cohort into a broad routing claim",
+    "spec-flow-analyzer": "flow-risk: preregistration, admission gates, exclusions, proof, and final decisions form a multi-state evidence lifecycle",
+    "security-lens-reviewer": "security-risk: live route evidence crosses trust boundaries while secrets, protected oracles, and host state must remain excluded",
+    "scope-guardian-reviewer": "scope-risk: planning, scoring, fixtures, documentation, and TokenZoom integration need explicit independent milestones",
+    "adversarial-document-reviewer": "adversarial-risk: selective cohorts, replay, correlated fixtures, forged receipts, and provider drift could falsely qualify a route"
+  },
+  "failed_personas": [],
+  "findings_resolved": 28,
+  "unresolved_p0": 0,
+  "unresolved_p1": 0,
+  "residual_findings": 0,
+  "residual_items": []
+}
