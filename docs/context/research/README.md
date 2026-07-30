@@ -11,3 +11,4 @@
 | `2026-07-09-project-model-routing-surfaces.md` | 2026-07-09 | Discovering host-native models per work session and adding global user-local Codex, GHCP, TinyBoss, LiteLLM, or custom routes without a setup questionnaire |
 | `2026-07-26-low-cognitive-burden-agent-communication.md` | 2026-07-26 | Writing plain-language status and questions that distinguish required human action, optional preference, and no-response-needed information |
 | `2026-07-26-pr-review-workbench-visual-patterns.md` | 2026-07-26 | Designing an actual workflow-like PR review artifact with topology, guided review, source-backed application-impact ordering, and evidence inspection |
+| `2026-07-29-graph-engineering-definition-and-provenance.md` | 2026-07-29 | Defining graph engineering for KB, separating control graphs from org metaphors, and deciding how node provenance supports diagnosis and completion |
