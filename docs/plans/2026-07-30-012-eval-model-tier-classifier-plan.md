@@ -47,13 +47,13 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/model_tier_eval_test.go
     role: "model-tier evidence and decision oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "299aec652974eadf1ae41d8f0f61b8566dfa9f4f1c7ae8e93ad91efa95f732d7"
     update_policy: "requires explicit plan update"
   - path: evals/model-tier-qualification/fixtures.json
     role: "fixed deterministic classifier corpus"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "5050e570c7a07439f28aee5758b411351796738b37b1f1ea634915d3d9bd4237"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
@@ -107,4 +107,3 @@ the admission state machine and frozen Medium policy, and returns
 
 No live calls, route discovery, credential access, private-key storage, model
 roster, automatic production promotion, or inference benchmark runner.
-

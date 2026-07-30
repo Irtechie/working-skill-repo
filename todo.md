@@ -73,7 +73,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
 | Bounded graph-run provenance | 🔧 in_progress | P0 | Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md`; next: `kb-work` |
-| DDR planning validation and model tier classifier | 🔧 in_progress | P0 | Epic: `docs/context/epics/ddr-planning-validation.md`; manifest: `docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md`; TokenZoom DS4 evidence runs separately |
+| DDR planning validation and model tier classifier | 🔒 blocked | P0 | Portable classifier and both slices are complete; final `local-release` is blocked by the existing Windows nested `cmd/kbrouter` `.cmd` execution failure. Recheck after harness-validation recovery. Epic: `docs/context/epics/ddr-planning-validation.md`; manifest: `docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md`; TokenZoom DS4 evidence runs separately |
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | 🔧 in_progress | P0 | `docs/plans/2026-07-09-020-kb-plan-to-pr-finish-manifest.md` |
 | Harness-engineering validation recovery | ⬜ pending | P1 | `docs/plans/2026-07-20-000-kb-harness-validation-recovery-manifest.md`; fixes the `kbcheck`/`go test` hang, bounded proof diagnostics, LF-stable `lopopolo/harness-engineering` runner, and combined release/review proof. Reproduced 2026-07-26 in `TestPlanWorktreeSelftestExercisesDisposableLifecycle` during text-only `local-release`. |
@@ -127,6 +127,11 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 - Invisible workflow UX execution is blocked on overlapping writes in the
   session-routing and GHCP AIC workstreams. Recheck the actual diff after those
   settle, then ask before starting `kb-work`.
+- Model-tier qualification finalization is blocked on proof infrastructure:
+  `go run ./cmd/kbcheck local-release` fails when nested `cmd/kbrouter` tests
+  launch generated `.cmd` fixtures with Windows `Access is denied`; the same
+  named tests pass directly. Resume after harness-validation recovery, rerun
+  `local-release`, then advance `work-to-complete`.
 
 ## Work Log
 

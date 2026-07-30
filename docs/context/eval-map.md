@@ -35,6 +35,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 | Optional providers remain optional | repo/user provider config | `go run ./cmd/kbcheck provider-hygiene`; `go run ./cmd/kbcheck provider-hygiene --include-user` | Host-specific registries may need future adapters | P1 |
 | Graph routing stays promotion-safe | `config/graph-route.schema.json`; `evals/graph-routing/**` | `go run ./cmd/kbcheck graph-route --packet <packet.json>`; `graph-routing-lifecycle-selftest`; `graph-routing-eval --require-ready` | Fixture proof only; live providers remain optional | P0 |
 | Model-routing release claims stay inside evidence | `evals/model-routing/*.json`; release artifact JSON | `go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json` | Deterministic/no-paid evidence only; not promoted | P0 |
+| Model routes earn Medium only from complete trusted evidence | `evals/model-tier-qualification/fixtures.json`; strict producer evidence JSON | `go test ./cmd/kbcheck -run 'ModelTierEval' -count=1`; `go run ./cmd/kbcheck model-tier-eval --evidence <evidence.json> --json` | Experimental until one real non-inconclusive cohort and a second consumer prove generality | P0 |
 | GHCP AMR benchmark stays safe before spend | `cmd/amrbench`; `evals/amr-model-benchmark/**` | `go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json`; `go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>` | Attended runs remain approval-gated and currently disabled | P0 |
 
 ## Existing Harnesses
@@ -90,6 +91,8 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 - `go run ./cmd/kbcheck graph-routing-eval --require-ready`
 - `go test ./cmd/kbrouter -run Catalog|Doctor|Policy`
 - `go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json`
+- `go test ./cmd/kbcheck -run 'ModelTierEval' -count=1`
+- `go run ./cmd/kbcheck model-tier-eval --evidence <evidence.json> --json`
 - `go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json`
 - `go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>`
 
@@ -106,6 +109,7 @@ go run ./cmd/kbcheck route-eval
 go run ./cmd/kbcheck skill-eval
 go run ./cmd/kbcheck graph-routing-eval --require-ready
 go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
+go test ./cmd/kbcheck -run 'ModelTierEval' -count=1
 go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
 git diff --check
 ```
@@ -140,6 +144,7 @@ Creating placeholder browser/API smoke tests would not prove anything real here.
 | graph-route packet validation | deterministic schema/contract check |
 | graph-routing lifecycle and readiness | deterministic |
 | model-routing release evidence validation | deterministic |
+| experimental model-tier qualification | deterministic, offline, strict evidence classification |
 | AMR no-paid conformance | deterministic |
 | Codex/GHCP live adapters | mixed: model action plus deterministic scoring |
 

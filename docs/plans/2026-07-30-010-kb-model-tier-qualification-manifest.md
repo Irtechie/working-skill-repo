@@ -106,6 +106,49 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-30T22:14:00Z"
     allowed_next_action: "kb-work docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md"
+  - gate_id: slice-slice-002-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "The public offline CLI classifies qualified, not-qualified, and inconclusive evidence deterministically."
+      - "Fatal input errors, every exclusion, model failures, trust, replay, freshness, family independence, and Medium thresholds have fixed fixtures."
+      - "The scorer remains experimental, scoped, credential-free, and unable to promote routing."
+      - "The protected scorer tests and fixture corpus retain their recorded SHA-256 values."
+    proof:
+      - cmd/kbcheck/model_tier_eval.go
+      - cmd/kbcheck/model_tier_eval_test.go
+      - evals/model-tier-qualification/fixtures.json
+      - evals/model-tier-qualification/README.md
+      - docs/context/eval-map.md
+    blockers: []
+    passed_at: "2026-07-30T22:40:00Z"
+    allowed_next_action: "kb-finalize docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md after work-to-complete passes"
+  - gate_id: work-to-complete
+    owner_skill: kb-work
+    gate_scope: release
+    status: blocked
+    required_evidence:
+      - "Both slice-to-done gates pass."
+      - "The exact-tree local-release gate passes."
+      - "Required global skill copies match the working bundle."
+    proof:
+      - cmd/kbcheck/model_tier_eval_test.go
+      - evals/model-tier-qualification/fixtures.json
+      - todo.md
+    blockers:
+      - "local-release fails only in nested cmd/kbrouter .cmd execution with Windows Access is denied; the same named tests pass when invoked directly"
+    attempted:
+      - "Ran local-release before and after skill sync."
+      - "Retried the exact router tests directly; they passed."
+      - "Retried local-release with serialized Go packages and an isolated TEMP directory; nested execution still failed."
+    responsibility: external
+    affected_scope: "final release acceptance and kb-finalize only; both implementation slices and focused proofs remain complete"
+    resume_condition: "Harness validation recovery makes nested kbcheck router tests execute reliably on Windows, then local-release passes on this exact tree."
+    recheck: "go run ./cmd/kbcheck local-release"
+    checked_at: "2026-07-30T22:40:00Z"
+    propagation: current-gate-only
+    allowed_next_action: "go run ./cmd/kbcheck local-release"
 slices:
   - id: slice-001
     title: "Emit and validate qualification-plan receipts"
@@ -155,14 +198,14 @@ slices:
       command: "go test ./cmd/kbcheck -run 'ModelTierEval' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
     next_agent_action: "Freeze RED fixtures for every decision and exclusion path, then implement the offline experimental scorer and docs."
     human_action: ""
     can_continue_other_slices: true
-    notes: ""
+    notes: "scope-forecast: loaded 8 expected files + 1 convention-matched test; scope-check: forecast=8 changed=11 discovered=0 lifecycle=3 unexplained=0; execution-owner: current; owner-reason: context-required - hostile evidence policy, accepted slice lineage, and final lifecycle commit share one coordinated context; test-level: functional-cli; functional-risk: broad; proof: go test ./cmd/kbcheck -run 'ModelTierEval' -count=1; proof-batch: model-tier-classifier/closed; protected-oracles: cmd/kbcheck/model_tier_eval_test.go sha256=299aec652974eadf1ae41d8f0f61b8566dfa9f4f1c7ae8e93ad91efa95f732d7 and evals/model-tier-qualification/fixtures.json sha256=5050e570c7a07439f28aee5758b411351796738b37b1f1ea634915d3d9bd4237 preserved; memory-impact: durable; areas=model-tier-eval,testing; docs=README.md,evals/model-tier-qualification/README.md,docs/context/eval-map.md,docs/context/operations/testing.md; refresh=done"
 ---
 
 # Model Tier Qualification
@@ -181,7 +224,7 @@ eval fixtures, documentation, and required skill-copy propagation must agree.
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|---|---|---|---|---|
 | 1 | Emit and validate qualification-plan receipts | - | tdd / integration | no | done |
-| 2 | Classify model tier evidence deterministically | slice-001 | tdd / functional-cli | no | pending |
+| 2 | Classify model tier evidence deterministically | slice-001 | tdd / functional-cli | no | done |
 
 ## External Integration
 

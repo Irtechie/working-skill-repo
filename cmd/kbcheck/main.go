@@ -46,6 +46,7 @@ Usage:
   kbcheck graph-routing-eval [--root <path>] [--require-ready] [--json]
   kbcheck execution-telemetry --telemetry <path> [--receipt <path> --evidence-envelope <path>] [--root <path>] [--json]
   kbcheck execution-telemetry-selftest
+  kbcheck model-tier-eval --evidence <path> [--root <path>] [--json]
   kbcheck model-routing-release --cohort <name> --evidence <path> [--root <path>]
   kbcheck provider-hygiene [--root <path>] [--include-user] [--json]
   kbcheck provider-hygiene-selftest
@@ -293,6 +294,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runExecutionTelemetryCommand(root, opts, stdout, stderr)
 	case "execution-telemetry-selftest":
 		return runExecutionTelemetrySelftest(stdout, stderr)
+	case "model-tier-eval":
+		return runModelTierEvalCommand(root, opts, stdout, stderr)
 	case "model-routing-release":
 		return runModelRoutingReleaseCommand(root, opts, stdout, stderr)
 	case "provider-hygiene":
@@ -401,8 +404,8 @@ func parse(args []string) (options, error) {
 		"sense": true, "trace-verify": true, "accept": true, "proof-receipt-validate": true, "proof-plan": true, "proof-run": true, "proof-governor-selftest": true, "learning-adoption": true,
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
-		"model-routing-release": true,
-		"slice-lease":           true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "cargo-storage": true,
+		"model-tier-eval": true, "model-routing-release": true,
+		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -483,7 +486,7 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.proofRequest, "request", "", "comma-separated proof check IDs")
 	fs.StringVar(&opts.evidenceEnvelopePath, "evidence-envelope", "", "routing evidence envelope JSON path")
 	fs.StringVar(&opts.cohort, "cohort", "", "model-routing release cohort")
-	fs.StringVar(&opts.evidencePath, "evidence", "", "model-routing release evidence path")
+	fs.StringVar(&opts.evidencePath, "evidence", "", "model evidence path")
 	fs.BoolVar(&opts.allowQuarantine, "allow-quarantine", false, "accept status=quarantined as advanceable")
 	registerSliceLeaseFlags(fs, &opts)
 	home, _ := os.UserHomeDir()
@@ -722,11 +725,17 @@ func parse(args []string) (options, error) {
 	if (opts.command == "proof-plan" || opts.command == "proof-run") && (opts.receiptDir == "" || opts.proofRegistryPath == "" || opts.proofRequest == "") {
 		return options{}, fmt.Errorf("%s requires --registry, --receipt-dir, and --request", opts.command)
 	}
-	if opts.command != "model-routing-release" && (opts.cohort != "" || opts.evidencePath != "") {
-		return options{}, fmt.Errorf("--cohort and --evidence are only supported for model-routing-release")
+	if opts.command != "model-routing-release" && opts.cohort != "" {
+		return options{}, fmt.Errorf("--cohort is only supported for model-routing-release")
+	}
+	if opts.command != "model-routing-release" && opts.command != "model-tier-eval" && opts.evidencePath != "" {
+		return options{}, fmt.Errorf("--evidence is only supported for model-routing-release and model-tier-eval")
 	}
 	if opts.command == "model-routing-release" && (opts.cohort == "" || opts.evidencePath == "") {
 		return options{}, fmt.Errorf("model-routing-release requires --cohort and --evidence")
+	}
+	if opts.command == "model-tier-eval" && opts.evidencePath == "" {
+		return options{}, fmt.Errorf("model-tier-eval requires --evidence")
 	}
 	if opts.command != "provider-hygiene" && opts.includeUser {
 		return options{}, fmt.Errorf("--include-user is only supported for provider-hygiene")
