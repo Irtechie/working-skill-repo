@@ -498,11 +498,10 @@ packet, but the packet is a forecast with citations and freshness metadata, not
 a proof result. Optional providers can improve recall; they must fail closed to
 file-native lookup when unavailable or stale.
 
-Phoenix is credited prior art for specific proof and recovery mechanics. KB's
-routing was developed independently; its vertical-slice planning draws on Matt
-Pocock's skills. The current bundle does not require a Phoenix runtime, while
-focused MCP interoperability remains a valid future option when it improves
-installation or cross-host use.
+Phoenix is credited prior art for specific proof and recovery mechanics. The
+current bundle does not require a Phoenix runtime, while focused MCP
+interoperability remains a valid future option when it improves installation or
+cross-host use.
 
 Maintainers can audit repo-local provider config with `go run ./cmd/kbcheck
 provider-hygiene`, or include standard user config with `go run ./cmd/kbcheck
@@ -1119,8 +1118,7 @@ It also borrows useful ideas from:
   failure-first acceptance. Credit for the self-healing concepts adopted in KB
   belongs to ATV-Phoenix.
 - [Matt Pocock's skills](https://github.com/mattpocock/skills), specifically
-  vertical-slice decomposition used by `kb-plan`; KB's question-gating behavior
-  and `kb-epic` workflow were developed in this repo
+  vertical-slice decomposition used by `kb-plan`
 - [G-Stack](https://github.com/garrytan/gstack), especially persistent workflow
   memory, QA ownership, and operating-system-style orchestration
 - [Shyam Sridhar's kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot),
