@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "packet_id": "bounded-graph-run-provenance-slice-005",
+  "task_id": "bounded-graph-run-provenance",
+  "objective": "Prove causal diagnosis, bounded retry without accepted-node replay, and honest completion through deterministic fault injection",
+  "memory_files": ["todo.md", "docs/context/PROJECT.md", "docs/context/operations/testing.md", "docs/context/goals/bounded-graph-run-provenance.md"],
+  "source_files": ["docs/plans/2026-07-30-005-eval-graph-run-fault-injection-plan.md", "evals/proof-governor/fixtures.json", "cmd/kbcheck/proof_governor_selftest.go", "cmd/kbcheck/checks.go", "README.md"],
+  "prefetch": ["Inspect mechanically consumed eval fixture conventions", "Inspect retry reuse and failed replay tests", "Inspect canonical check registration", "Inspect user-facing CLI documentation style"],
+  "constraints": ["Every expected fixture field is mechanically consumed", "No live model calls", "Accepted independent nodes are not replayed", "Known harness failure stays separately scoped", "Documentation matches actual CLI"],
+  "out_of_scope": ["Live route benchmark", "External telemetry backend", "Exhaustive tracing", "Unrelated harness repair"],
+  "acceptance_criteria": ["Fixtures cover retention failure causality retry fan-in corruption and completion", "Selftest fails on expectation mismatch", "Repair retries only causal path", "Core and local-release are attempted on exact tree", "Docs are current"],
+  "proof_targets": ["go run ./cmd/kbcheck graph-run-selftest", "go run ./cmd/kbcheck core", "go run ./cmd/kbcheck local-release", "git diff --check"],
+  "model_tier": "large",
+  "model_tier_reason": "Final evidence must distinguish real causal proof from fixture theater and unrelated release failures",
+  "allowed_tools": ["rg", "view", "apply_patch", "go test", "go run", "git diff", "git status"],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": ["Fixture fields are not consumed", "Accepted nodes replay", "Release fails outside named blocker", "Live model execution becomes necessary"]
+}
