@@ -269,6 +269,37 @@ kbrouter models local-routing --enabled false  # preserve but bypass local route
 kbrouter models local-routing --enabled true   # resume local routes
 ```
 
+### Enable Local Models And Size Their Work
+
+Local routes remain configured when disabled. Turn them on globally, inspect
+their health, and optionally prefer self-hosted routes for one project:
+
+```powershell
+kbrouter models local-routing --enabled true
+kbrouter models doctor --project-root <project-root>
+kbrouter models priority --project-root <project-root> --mode self-hosted-first
+```
+
+Turn them off without deleting aliases, endpoints, approvals, or project
+preferences:
+
+```powershell
+kbrouter models local-routing --enabled false
+```
+
+Size each slice by the **minimum capability needed to complete and prove it**,
+not by file count, estimated duration, or which model you hope will run it:
+
+| Tier | Use when | Typical local-model fit |
+|---|---|---|
+| `small` | Bounded mechanical work, one clear subsystem, narrow context, deterministic proof | Fast coding model for focused edits, fixtures, or straightforward tests |
+| `medium` | Several interacting files, non-trivial debugging, API/state reasoning, or broader test interpretation | General coding model with reliable repository reasoning and tool use |
+| `large` | Cross-subsystem design, ambiguous failures, security/data risk, migration strategy, or long-context synthesis | Strongest available model; keep on the parent/host when no local route is proven capable |
+
+The tier is a floor: `kbrouter` may choose a same-tier-or-higher eligible route,
+never a weaker route merely because it is local. Deterministic proof—not the
+tier or model name—decides whether the result is accepted.
+
 For authenticated endpoints, store the token in an environment variable and put
 only that variable's name in `auth_env`. Use `--probe` on `doctor` only for an
 explicit live endpoint/model check.
