@@ -38,7 +38,7 @@ function requireSafeLocalRoute(value, label, requiredPrefix) {
   }
 
   let decoded = route;
-  for (let pass = 0; pass < 4; pass += 1) {
+  for (;;) {
     let next;
     try {
       next = decodeURIComponent(decoded);

@@ -89,7 +89,13 @@ test("rejects malformed nested contribution and route fields", () => {
     },
     {
       label: "legacy encoded protocol-relative route",
-      mutate: (value) => { value.routes[0].legacyRoute = "/%252f%252fevil.example/path"; }
+      mutate: (value) => {
+        let encoded = "//evil.example/path";
+        for (let pass = 0; pass < 8; pass += 1) {
+          encoded = encodeURIComponent(encoded);
+        }
+        value.routes[0].legacyRoute = `/${encoded}`;
+      }
     },
     {
       label: "canonical encoded traversal",
