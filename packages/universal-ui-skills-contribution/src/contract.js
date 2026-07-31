@@ -31,6 +31,42 @@ function requireInteger(value, label) {
   return value;
 }
 
+function requireSafeLocalRoute(value, label, requiredPrefix) {
+  const route = requireString(value, label);
+  if (!route.startsWith(requiredPrefix) || route.startsWith("//") || route.includes("\\")) {
+    throw new TypeError(`${label} must be an absolute same-origin path.`);
+  }
+
+  let decoded = route;
+  for (let pass = 0; pass < 4; pass += 1) {
+    let next;
+    try {
+      next = decodeURIComponent(decoded);
+    } catch {
+      throw new TypeError(`${label} contains malformed percent encoding.`);
+    }
+    if (next === decoded) {
+      break;
+    }
+    decoded = next;
+  }
+  const decodedPath = decoded.split(/[?#]/, 1)[0];
+  if (
+    decoded.startsWith("//") ||
+    decoded.includes("\\") ||
+    decodedPath.split("/").includes("..")
+  ) {
+    throw new TypeError(`${label} must be traversal-free.`);
+  }
+
+  const sentinel = new URL("https://local-route.invalid/");
+  const resolved = new URL(route, sentinel);
+  if (resolved.origin !== sentinel.origin || !resolved.pathname.startsWith(requiredPrefix)) {
+    throw new TypeError(`${label} must remain on the expected local path.`);
+  }
+  return route;
+}
+
 export function validateContribution(definition) {
   const value = requireRecord(definition, "Contribution definition");
   if (value.schemaVersion !== CONTRIBUTION_SCHEMA_VERSION) {
@@ -86,11 +122,9 @@ export function validateContribution(definition) {
   for (const routeValue of value.routes) {
     const route = requireRecord(routeValue, "Route");
     const id = requireString(route.id, "Route id");
-    const routePath = requireString(route.path, "Route path");
+    const routePath = requireSafeLocalRoute(route.path, "Route path", "/apps/");
     if (
-      !routePath.startsWith("/apps/") ||
       routePath.includes("//") ||
-      routePath.includes("..") ||
       /[\s?#]/.test(routePath)
     ) {
       throw new TypeError("Route path is unsafe.");
@@ -100,10 +134,7 @@ export function validateContribution(definition) {
     }
     ids.add(id);
     paths.add(routePath);
-    const legacyRoute = requireString(route.legacyRoute, "Legacy route");
-    if (!legacyRoute.startsWith("/") || legacyRoute.includes("..")) {
-      throw new TypeError("Legacy route must be absolute and traversal-free.");
-    }
+    requireSafeLocalRoute(route.legacyRoute, "Legacy route", "/");
     requireString(route.displayName, "Display name");
     requireString(route.purpose, "Purpose");
     requireString(route.directorySummary, "Directory summary");

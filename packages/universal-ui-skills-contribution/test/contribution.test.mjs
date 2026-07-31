@@ -38,7 +38,7 @@ test("exports the canonical single-route UniversalUI contribution", () => {
 test("rejects unsafe routes and contribution-owned React", () => {
   const unsafeRoute = structuredClone(contributionDefinition);
   unsafeRoute.routes[0].path = "/apps/../private";
-  assert.throws(() => validateContribution(unsafeRoute), /unsafe/i);
+  assert.throws(() => validateContribution(unsafeRoute), TypeError);
 
   const contributionOwnedReact = structuredClone(contributionDefinition);
   contributionOwnedReact.contribution.sharedDependencies.react.owner = "contribution";
@@ -74,6 +74,26 @@ test("rejects malformed nested contribution and route fields", () => {
     {
       label: "legacy route traversal",
       mutate: (value) => { value.routes[0].legacyRoute = "/../private"; }
+    },
+    {
+      label: "legacy protocol-relative route",
+      mutate: (value) => { value.routes[0].legacyRoute = "//evil.example/path"; }
+    },
+    {
+      label: "legacy backslash route",
+      mutate: (value) => { value.routes[0].legacyRoute = "/\\evil.example/path"; }
+    },
+    {
+      label: "legacy encoded traversal",
+      mutate: (value) => { value.routes[0].legacyRoute = "/%2e%2e/private"; }
+    },
+    {
+      label: "legacy encoded protocol-relative route",
+      mutate: (value) => { value.routes[0].legacyRoute = "/%252f%252fevil.example/path"; }
+    },
+    {
+      label: "canonical encoded traversal",
+      mutate: (value) => { value.routes[0].path = "/apps/%2e%2e/private"; }
     },
     {
       label: "route visibility",
