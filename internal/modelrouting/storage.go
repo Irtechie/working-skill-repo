@@ -277,7 +277,7 @@ func saveAtomicJSON(root, rel string, value any, maxBytes int64, private bool) e
 	if err != nil || !parentBefore.IsDir() {
 		return ErrUnsafePath
 	}
-	temp, err := os.CreateTemp(parent, ".catalog-*.tmp")
+	temp, err := createStorageTempFile(parent, private)
 	if err != nil {
 		return err
 	}
