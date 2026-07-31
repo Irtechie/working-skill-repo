@@ -19,18 +19,9 @@ export const skillCatalog = Object.freeze([
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/ce-compound-refresh/SKILL.md"
   },
   {
-    "id": "ce-review",
-    "name": "ce-review",
-    "description": "Structured code review using tiered persona agents, confidence-gated findings, and a merge/dedup pipeline. Use when reviewing code changes before creating a PR.",
-    "argumentHint": "[blank to review current branch, or provide PR link]",
-    "category": "Review and compound",
-    "sourcePath": ".github/skills/ce-review/SKILL.md",
-    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/ce-review/SKILL.md"
-  },
-  {
     "id": "document-review",
     "name": "document-review",
-    "description": "Review requirements or plan documents using parallel persona agents that surface role-specific issues. Use when a requirements document or plan document exists and the user wants to improve it.",
+    "description": "Optionally review one requirements or plan document with one best-fit specialist when the main-agent self-check leaves material uncertainty.",
     "argumentHint": "[mode:headless] [path/to/document.md]",
     "category": "Review and compound",
     "sourcePath": ".github/skills/document-review/SKILL.md",
@@ -57,8 +48,8 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-brainstorm",
     "name": "kb-brainstorm",
-    "description": "Proportional brainstorming for vertical-slice work. Orients from repo memory before asking product questions, runs external research only when it is likely to change framing, and produces requirements for `/kb-plan`. Use when the user says 'kb brainstorm', 'brainstorm', 'brainstorm with research', or 'brainstorm before kb-plan'.",
-    "argumentHint": "[feature idea or problem to explore]",
+    "description": "Proportional requirements discovery that orients from repo memory, researches only material uncertainty, and produces a planning-ready requirements source.",
+    "argumentHint": "[feature idea or problem]",
     "category": "Requirements and planning",
     "sourcePath": ".github/skills/kb-brainstorm/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-brainstorm/SKILL.md"
@@ -129,20 +120,11 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-finalize",
     "name": "kb-finalize",
-    "description": "Internal post-work quality and learning phase. Runs kb-review -> resolution gate -> follow-up resolution -> proof/demo evidence -> compound -> learn -> evolve -> memory refresh/compact -> cleanup after kb-work finishes all slices. Normally invoked by kb-work or kb-complete; not the primary user-facing completion command.",
-    "argumentHint": "[path to KB manifest, or blank to find latest]",
+    "description": "Internal post-work quality phase. Runs aggregate proof, one proportional semantic review, final exact-tree proof, signal-driven learning/memory work, and cleanup.",
+    "argumentHint": "[path to completed KB manifest]",
     "category": "Completion and delivery",
     "sourcePath": ".github/skills/kb-finalize/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-finalize/SKILL.md"
-  },
-  {
-    "id": "kb-finish",
-    "name": "kb-finish",
-    "description": "Deprecated compatibility alias for kb-complete. Use when an older prompt or workflow says 'kb finish'; delegate the same input to kb-complete and report the kb-complete result.",
-    "argumentHint": "[feature description, plan path, manifest path, or blank]",
-    "category": "Completion and delivery",
-    "sourcePath": ".github/skills/kb-finish/SKILL.md",
-    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-finish/SKILL.md"
   },
   {
     "id": "kb-first-principles",
@@ -246,8 +228,8 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-plan",
     "name": "kb-plan",
-    "description": "Break a brainstorm or feature into vertical-slice task plans with dependency DAG, verification strategy, and HITL flags. Default planning workflow for end-to-end vertical slices instead of horizontal phases. Use when the user says 'kb plan', 'plan', 'create a plan', 'plan this', 'slice this', 'break into vertical slices', or wants independently-grabbable tasks.",
-    "argumentHint": "[brainstorm path, feature description, or PRD]",
+    "description": "Turn approved requirements into independently verifiable vertical slices, a dependency DAG, and a gated KB manifest.",
+    "argumentHint": "[requirements path, feature description, or handoff]",
     "category": "Requirements and planning",
     "sourcePath": ".github/skills/kb-plan/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-plan/SKILL.md"
@@ -291,8 +273,8 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-review",
     "name": "kb-review",
-    "description": "Structured KB review using tiered persona agents, confidence-gated findings, thermonuclear structural-quality review, and a merge/dedup pipeline. Use when reviewing KB workflow code changes before completion, before creating a PR, or when kb-complete needs its review gate.",
-    "argumentHint": "[diff, branch, manifest, or mode]",
+    "description": "Run one evidence-bound semantic code review profile after integrated proof. Use at KB completion, before a PR, or for an explicit standalone review.",
+    "argumentHint": "[mode:report-only|mode:autofix|mode:headless] [base:<ref>] [plan:<path>]",
     "category": "Completion and delivery",
     "sourcePath": ".github/skills/kb-review/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-review/SKILL.md"
@@ -318,7 +300,7 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-task",
     "name": "kb-task",
-    "description": "First-principles autonomous KB task runner. Use when the user says /kb-task, asks the app/agent to do a task from first principles, wants the agent to figure out the route and continue until done, or wants one bounded app/workflow change handled end-to-end without choosing between kb-fix, kb-brainstorm, kb-plan, kb-work, klfg, or kb-complete.",
+    "description": "First-principles autonomous KB task runner. Use when the user says /kb-task, asks the app/agent to do a task from first principles, wants the agent to figure out the route and continue until done, or wants one bounded app/workflow change handled end-to-end without choosing between kb-fix, kb-brainstorm, kb-plan, kb-work, or kb-complete.",
     "argumentHint": "[bounded task or outcome to complete]",
     "category": "Routing and memory",
     "sourcePath": ".github/skills/kb-task/SKILL.md",
@@ -336,20 +318,11 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-work",
     "name": "kb-work",
-    "description": "Bounded swarm executor for kb-plan output. Runs all ready vertical slices from the dependency DAG, parallelizing only independent/isolated work, with TDD enforcement, scope gates, and HITL pauses. Use when the user says 'kb work', 'work the plan', 'execute the plan', 'run the KB pipeline', 'execute all slices', or wants guided execution of a planned feature.",
-    "argumentHint": "[path to KB manifest, or blank to find latest]",
+    "description": "Execute ready vertical slices from a validated KB manifest with bounded ownership, deterministic proof, scope control, and automatic finalization.",
+    "argumentHint": "[manifest path]",
     "category": "Execution and repair",
     "sourcePath": ".github/skills/kb-work/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-work/SKILL.md"
-  },
-  {
-    "id": "klfg",
-    "name": "klfg",
-    "description": "Deprecated compatibility alias for kb-complete. Existing 'klfg' and full-pipeline requests delegate to the single state-aware kb-complete command.",
-    "argumentHint": "[feature description, plan path, manifest path, or blank]",
-    "category": "Completion and delivery",
-    "sourcePath": ".github/skills/klfg/SKILL.md",
-    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/klfg/SKILL.md"
   },
   {
     "id": "learn",

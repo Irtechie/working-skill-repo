@@ -12,6 +12,7 @@ import {
   validateContribution,
   validateReleaseLock
 } from "../src/index.js";
+import { runNpm } from "../scripts/npm-cli.mjs";
 
 test("exports the canonical single-route UniversalUI contribution", () => {
   assert.equal(validateContribution(contributionDefinition), contributionDefinition);
@@ -44,6 +45,57 @@ test("rejects unsafe routes and contribution-owned React", () => {
   assert.throws(() => validateContribution(contributionOwnedReact), /host-owned/i);
 });
 
+test("rejects malformed nested contribution and route fields", () => {
+  const cases = [
+    {
+      label: "browser API dependency",
+      mutate: (value) => value.contribution.browserApiDependencies.push(null)
+    },
+    {
+      label: "browser API dependency version",
+      mutate: (value) => value.contribution.browserApiDependencies.push({ id: "clipboard" })
+    },
+    {
+      label: "contribution health kind",
+      mutate: (value) => { value.contribution.health.kind = "dynamic"; }
+    },
+    {
+      label: "contribution health status",
+      mutate: (value) => { value.contribution.health.status = "passing"; }
+    },
+    {
+      label: "route order",
+      mutate: (value) => { value.routes[0].order = "90"; }
+    },
+    {
+      label: "route visibility",
+      mutate: (value) => { value.routes[0].visibility.audience = "private"; }
+    },
+    {
+      label: "route health",
+      mutate: (value) => { value.routes[0].health.projection = "passing"; }
+    },
+    {
+      label: "route canvas mode",
+      mutate: (value) => { value.routes[0].canvasMode = "fullscreen"; }
+    },
+    {
+      label: "route lifecycle",
+      mutate: (value) => { value.routes[0].lifecycle.disposeOnExit = "yes"; }
+    }
+  ];
+
+  for (const { label, mutate } of cases) {
+    const malformed = structuredClone(contributionDefinition);
+    mutate(malformed);
+    assert.throws(
+      () => validateContribution(malformed),
+      TypeError,
+      `${label} should be rejected`
+    );
+  }
+});
+
 test("release metadata binds the contribution to one SHA-256 artifact", () => {
   const digest = "a".repeat(64);
   const releaseLock = {
@@ -60,7 +112,7 @@ test("release metadata binds the contribution to one SHA-256 artifact", () => {
   assert.throws(() => validateReleaseLock(releaseLock, "b".repeat(64)), /digest/i);
 });
 
-test("committed release lock matches the packed artifact SHA-256", async () => {
+test("committed release lock matches the packed artifact and its manifest", async (t) => {
   const releaseRoot = path.resolve("release");
   const releaseLock = JSON.parse(
     await fs.readFile(path.join(releaseRoot, "universal-ui.release-lock.json"), "utf8")
@@ -70,7 +122,39 @@ test("committed release lock matches the packed artifact SHA-256", async () => {
     .update(await fs.readFile(path.join(releaseRoot, artifact.filename)))
     .digest("hex");
   assert.equal(digest, artifact.sha256);
+  assert.deepEqual(releaseLock.contributions[0].contribution, contributionDefinition);
   assert.equal(validateReleaseLock(releaseLock, digest), releaseLock);
+
+  const installRoot = await fs.mkdtemp(path.join(os.tmpdir(), "uui-release-install-"));
+  t.after(() => fs.rm(installRoot, { recursive: true, force: true }));
+  await fs.writeFile(
+    path.join(installRoot, "package.json"),
+    JSON.stringify({ name: "uui-release-verifier", private: true })
+  );
+  runNpm(
+    [
+      "install",
+      path.resolve(releaseRoot, artifact.filename),
+      "--ignore-scripts",
+      "--legacy-peer-deps",
+      "--no-audit",
+      "--no-fund"
+    ],
+    installRoot
+  );
+  const packedManifest = await import(
+    pathToFileURL(
+      path.join(
+        installRoot,
+        "node_modules",
+        "@irtechie",
+        "universal-ui-skills-contribution",
+        "src",
+        "manifest.js"
+      )
+    ).href
+  );
+  assert.deepEqual(packedManifest.contributionDefinition, contributionDefinition);
 });
 
 test("lazy route default accepts ShellContextV1 without owning React or the shell", async (t) => {

@@ -421,8 +421,8 @@ func registerCargoTemporaryTarget(opts cargoStorageOptions, receiptPath string, 
 	if filepath.Dir(target) != tempRoot || !cargoPathWithin(target, tempRoot) {
 		return cargoStorageResult{Action: "register-temp", Issue: "temporary target must be a direct child of the approved temporary root", Receipt: &receipt}, nil
 	}
-	if cargoTemporaryTargetNameForbidden(target) {
-		return cargoStorageResult{Action: "register-temp", Issue: "phase-, worker-, slice-, and run-specific Cargo targets are prohibited", Receipt: &receipt}, nil
+	if !cargoTemporaryTargetNameAllowed(target) {
+		return cargoStorageResult{Action: "register-temp", Issue: "temporary target basename must be kb-cargo-temp- followed by 24 lowercase hex characters", Receipt: &receipt}, nil
 	}
 	if _, err := os.Lstat(target); err == nil {
 		return cargoStorageResult{Action: "register-temp", Issue: "temporary target must not already exist", Receipt: &receipt}, nil
@@ -601,40 +601,18 @@ func cargoStorageReceiptIdentityMatches(root, receiptPath, receiptIdentity strin
 		receiptIdentity == "state-root:"+filepath.ToSlash(legacyStateRoot), nil
 }
 
-func cargoTemporaryTargetNameForbidden(path string) bool {
-	name := strings.ToLower(filepath.Base(filepath.Clean(path)))
-	tokens := strings.FieldsFunc(name, func(r rune) bool {
-		return r == '-' || r == '_' || r == '.'
-	})
-	hasPhase := false
-	for _, token := range tokens {
-		switch token {
-		case "audit", "bench", "benchmark", "build", "check", "clippy",
-			"compile", "complete", "coverage", "debug", "diagnostic", "e2e",
-			"finalize", "fix", "integration", "lint", "package", "probe",
-			"release", "repair", "repro", "reproduction", "retry", "smoke",
-			"test", "troubleshoot", "unit", "verification", "verify", "work",
-			"worker", "slice", "run":
-			hasPhase = true
-		default:
-			for _, prefix := range []string{"worker", "slice", "run"} {
-				suffix := strings.TrimPrefix(token, prefix)
-				if suffix != token && suffix != "" && allDecimalDigits(suffix) {
-					hasPhase = true
-				}
-			}
-		}
+func cargoTemporaryTargetNameAllowed(path string) bool {
+	const prefix = "kb-cargo-temp-"
+	name := filepath.Base(filepath.Clean(path))
+	if !strings.HasPrefix(name, prefix) || len(name) != len(prefix)+24 {
+		return false
 	}
-	return hasPhase
-}
-
-func allDecimalDigits(value string) bool {
-	for _, r := range value {
-		if r < '0' || r > '9' {
+	for _, r := range name[len(prefix):] {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
 			return false
 		}
 	}
-	return value != ""
+	return true
 }
 
 func loadCargoStorageReceipt(path string) (cargoStorageReceipt, error) {

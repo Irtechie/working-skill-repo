@@ -17,6 +17,20 @@ function requireString(value, label) {
   return value;
 }
 
+function requireLiteral(value, allowed, label) {
+  if (!allowed.includes(value)) {
+    throw new TypeError(`${label} must be one of: ${allowed.join(", ")}.`);
+  }
+  return value;
+}
+
+function requireInteger(value, label) {
+  if (!Number.isSafeInteger(value)) {
+    throw new TypeError(`${label} must be an integer.`);
+  }
+  return value;
+}
+
 export function validateContribution(definition) {
   const value = requireRecord(definition, "Contribution definition");
   if (value.schemaVersion !== CONTRIBUTION_SCHEMA_VERSION) {
@@ -45,6 +59,24 @@ export function validateContribution(definition) {
   if (!Array.isArray(contribution.browserApiDependencies)) {
     throw new TypeError("Browser API dependencies must be an array.");
   }
+  const browserDependencyIds = new Set();
+  for (const dependencyValue of contribution.browserApiDependencies) {
+    const dependency = requireRecord(dependencyValue, "Browser API dependency");
+    const id = requireString(dependency.id, "Browser API dependency id");
+    requireString(dependency.version, "Browser API dependency version");
+    if (browserDependencyIds.has(id)) {
+      throw new TypeError("Duplicate browser API dependency id.");
+    }
+    browserDependencyIds.add(id);
+  }
+
+  const contributionHealth = requireRecord(contribution.health, "Contribution health");
+  requireLiteral(contributionHealth.kind, ["static"], "Contribution health kind");
+  requireLiteral(
+    contributionHealth.status,
+    ["healthy", "unknown", "unhealthy"],
+    "Contribution health status"
+  );
 
   if (!Array.isArray(value.routes) || value.routes.length === 0) {
     throw new TypeError("At least one route is required.");
@@ -73,6 +105,23 @@ export function validateContribution(definition) {
     requireString(route.purpose, "Purpose");
     requireString(route.directorySummary, "Directory summary");
     requireString(route.domainGroup, "Domain group");
+    requireInteger(route.order, "Route order");
+    const visibility = requireRecord(route.visibility, "Route visibility");
+    requireLiteral(visibility.audience, ["all"], "Route visibility audience");
+    const health = requireRecord(route.health, "Route health");
+    requireLiteral(
+      health.projection,
+      ["healthy", "unknown", "unhealthy"],
+      "Route health projection"
+    );
+    requireLiteral(route.canvasMode, ["standard", "immersive"], "Route canvas mode");
+    if (route.lifecycle !== undefined) {
+      const lifecycle = requireRecord(route.lifecycle, "Route lifecycle");
+      requireLiteral(lifecycle.kind, ["route"], "Route lifecycle kind");
+      if (typeof lifecycle.disposeOnExit !== "boolean") {
+        throw new TypeError("Route lifecycle disposeOnExit must be a boolean.");
+      }
+    }
   }
 
   return definition;
@@ -92,9 +141,16 @@ export function validateReleaseLock(releaseLock, artifactDigest) {
   const entry = requireRecord(value.contributions[0], "Release entry");
   validateContribution(entry.contribution);
   const artifact = requireRecord(entry.artifact, "Release artifact");
-  requireString(artifact.filename, "Artifact filename");
-  if (artifact.sha256 !== artifactDigest) {
+  const artifactFilename = requireString(artifact.filename, "Artifact filename");
+  if (artifactFilename !== pathBasename(artifactFilename) || !artifactFilename.endsWith(".tgz")) {
+    throw new TypeError("Artifact filename must be a local .tgz basename.");
+  }
+  if (!/^[a-f0-9]{64}$/i.test(artifact.sha256) || artifact.sha256 !== artifactDigest) {
     throw new TypeError("Artifact digest does not match.");
   }
   return releaseLock;
+}
+
+function pathBasename(value) {
+  return value.split(/[\\/]/).at(-1);
 }

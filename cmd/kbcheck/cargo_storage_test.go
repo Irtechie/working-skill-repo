@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const validCargoTemporaryTarget = "kb-cargo-temp-0123456789abcdef01234567"
+
 func TestCargoStorageResolveIsStableAcrossWorktrees(t *testing.T) {
 	root := initWorktreeRepo(t)
 	worktree, _, _ := createTerminalCleanupWorktree(t, root, "cargo-storage")
@@ -237,7 +239,7 @@ func TestCargoStorageFinalizesOnlyOwnedContainedTemporaryTarget(t *testing.T) {
 	if err != nil || !ready.OK {
 		t.Fatalf("newly resolved receipt was not execution-ready: result=%#v err=%v", ready, err)
 	}
-	target := filepath.Join(tempRoot, "isolated-target")
+	target := filepath.Join(tempRoot, validCargoTemporaryTarget)
 	registered, err := executeCargoStorage(cargoStorageOptions{
 		Action: "register-temp", RunID: "run-clean", RepoRoot: root,
 		Target: target, TempRoot: tempRoot, Reason: "incompatible compiler flags", Now: time.Now().UTC(),
@@ -289,7 +291,7 @@ func TestCargoStorageBlocksForgedOwnershipMarker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(tempRoot, "isolated-target")
+	target := filepath.Join(tempRoot, validCargoTemporaryTarget)
 	registered, err := executeCargoStorage(cargoStorageOptions{
 		Action: "register-temp", RunID: "run-forged", RepoRoot: root,
 		Target: target, TempRoot: tempRoot, Reason: "test", Now: time.Now().UTC(),
@@ -385,6 +387,9 @@ func TestCargoStorageRejectsPhaseAndRunSpecificTemporaryTargets(t *testing.T) {
 		"worker-2-target",
 		"slice-target",
 		"run-target",
+		"target-tests",
+		"targetchecks",
+		"runlatest",
 	} {
 		t.Run(name, func(t *testing.T) {
 			target := filepath.Join(tempRoot, name)
@@ -464,7 +469,10 @@ func TestCargoStorageConcurrentRegistrationsAreMerged(t *testing.T) {
 	var wg sync.WaitGroup
 	results := make(chan cargoStorageResult, 2)
 	errs := make(chan error, 2)
-	for _, name := range []string{"target-a", "target-b"} {
+	for _, name := range []string{
+		"kb-cargo-temp-0123456789abcdef01234567",
+		"kb-cargo-temp-fedcba9876543210fedcba98",
+	} {
 		name := name
 		wg.Add(1)
 		go func() {
@@ -627,7 +635,7 @@ func TestCargoStorageReconcilesDeletionIntentAfterTargetDisappears(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(tempRoot, "isolated-target")
+	target := filepath.Join(tempRoot, validCargoTemporaryTarget)
 	registered, err := executeCargoStorage(cargoStorageOptions{
 		Action: "register-temp", RunID: runID, RepoRoot: root,
 		Target: target, TempRoot: tempRoot, Reason: "test", Now: time.Now().UTC(),
