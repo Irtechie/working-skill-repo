@@ -72,6 +72,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
+| Optional kbrouter route approval | 🔧 in_progress | P0 | `docs/plans/2026-07-31-010-kb-optional-route-approval-manifest.md`; make no-prompt bounded routing the default, preserve attended approval as an explicit opt-in mode, install it, and activate the user's choice without weakening route denials or non-approval safety controls. |
 | Deepseek4 DDR evaluation rerun | 🔒 blocked | P0 | Session `df9c6b72-4785-40db-a649-81f41febf905`; repaired kbrouter's Windows `D:PAI` private-storage validation without weakening file ACLs. Remaining gate is operator-owned canonical route state: local routing is disabled and no Deepseek4 route is configured. Resume only after that exact alias is explicitly approved; do not substitute or import routes. |
 | Bounded graph-run provenance | 🔧 in_progress | P0 | Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md`; next: `kb-work` |
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
