@@ -161,6 +161,8 @@ func windowsStorageDescriptorMatches(actual, sid string, directory bool) bool {
 		return false
 	}
 	aceText := remaining[daclIndex+len("D:P"):]
+	// AI is DACL metadata; inherited ACEs still fail the exact checks below.
+	aceText = strings.TrimPrefix(aceText, "AI")
 	expectedFlags := ""
 	if directory {
 		expectedFlags = "OICI"

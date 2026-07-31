@@ -113,4 +113,8 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
   parent's later deterministic proof verdict.
 - Windows junctions and canonical paths resolve through the same filesystem
   object identity; missing roots fail closed.
+- Windows private storage accepts the protected DACL `AI` control flag emitted
+  by standard ACL tooling only when owner and full-control ACEs still match the
+  current user plus SYSTEM exactly; inherited ACEs and extra principals remain
+  rejected.
 - AMR remains an experimental benchmark and is not part of normal selection.
