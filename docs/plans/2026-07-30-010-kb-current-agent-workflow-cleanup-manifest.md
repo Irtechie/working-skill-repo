@@ -4,7 +4,7 @@ manifest_schema: 2
 kb_id: kb-2026-07-30-current-agent-workflow-cleanup
 brainstorm_path: docs/brainstorms/2026-07-30-current-agent-skill-guidance-requirements.md
 created: 2026-07-30
-status: active
+status: completed
 workflow_shape: pipeline-change
 objective_contract: true
 blocker_lifecycle_contract: true
@@ -51,6 +51,54 @@ workspace_isolation_contract:
   internal_integration_target: plan-run-branch
   default_branch_delivery_owner: kb-complete
   allowed_modes: [shared-serial]
+scope-verified-files:
+  - .github/skills/ce-compound-refresh/references/reporting-and-commit.md
+  - .github/skills/ce-review
+  - .github/skills/document-review
+  - .github/skills/kb-brainstorm
+  - .github/skills/kb-complete/SKILL.md
+  - .github/skills/kb-finalize/SKILL.md
+  - .github/skills/kb-finish
+  - .github/skills/kb-gate/references/gate-ledger.md
+  - .github/skills/kb-goal/SKILL.md
+  - .github/skills/kb-map
+  - .github/skills/kb-map-bootstrap
+  - .github/skills/kb-plan
+  - .github/skills/kb-review
+  - .github/skills/kb-start/SKILL.md
+  - .github/skills/kb-task/SKILL.md
+  - .github/skills/kb-work
+  - .github/skills/klfg
+  - AGENTS.md
+  - README.md
+  - cmd/kbcheck
+  - cmd/kbrouter/dispatch.go
+  - config/removed-skills.json
+  - config/skill-guidance-audit.json
+  - config/skill-guidance.json
+  - config/skill-quality.json
+  - docs/brainstorms/2026-07-30-current-agent-skill-guidance-requirements.md
+  - docs/brainstorms/2026-07-30-proportional-agent-review-requirements.md
+  - docs/context/architecture
+  - docs/context/epics/current-agent-workflow-cleanup.md
+  - docs/context/goals/proportional-review-workflow.md
+  - docs/context/research/2026-07-30-current-agent-skill-guidance.md
+  - docs/context/research/2026-07-30-proportional-agent-code-review.md
+  - docs/plans/2026-07-30-010-kb-current-agent-workflow-cleanup-manifest.md
+  - docs/plans/2026-07-30-011-tool-skill-guidance-guard-plan.md
+  - docs/plans/2026-07-30-012-skill-proportional-review-lifecycle-plan.md
+  - docs/plans/2026-07-30-013-skill-dead-surface-cleanup-plan.md
+  - docs/plans/2026-07-30-014-skill-progressive-disclosure-plan.md
+  - docs/plans/2026-07-30-015-release-skill-propagation-plan.md
+  - docs/results/document-reviews
+  - docs/results/proof/current-agent-workflow-cleanup-slice-001.txt
+  - docs/results/proof/current-agent-workflow-cleanup-slice-002.txt
+  - docs/results/proof/current-agent-workflow-cleanup-slice-003.txt
+  - docs/results/proof/current-agent-workflow-cleanup-slice-004.txt
+  - docs/results/proof/current-agent-workflow-cleanup-slice-005.txt
+  - evals/cross-model-benchmarks/route-selection.json
+  - evals/route-complexity
+  - todo.md
 gate_ledger:
   - gate_id: brainstorm-to-plan
     owner_skill: kb-epic
@@ -156,6 +204,46 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-31T05:30:00Z"
     allowed_next_action: "slice-005"
+  - gate_id: slice-slice-005-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Every required global target was reviewed before overwrite."
+      - "All required skill hashes match the repository source."
+      - "Retired skill folders are absent from all required targets."
+      - "The local release gate passes."
+    proof:
+      - docs/results/proof/current-agent-workflow-cleanup-slice-005.txt
+      - README.md
+      - config/removed-skills.json
+      - cmd/kbcheck/model_routing_release.go
+    blockers: []
+    passed_at: "2026-07-31T06:15:00Z"
+    allowed_next_action: "work-to-complete"
+  - gate_id: work-to-complete
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Every non-skipped slice has a passing slice-to-done gate."
+      - "The final verification command and result are recorded."
+      - "No unresolved P0/P1 exists."
+      - "Board and manifest are synchronized."
+      - "scope-verified-files is populated."
+    proof:
+      - docs/plans/2026-07-30-010-kb-current-agent-workflow-cleanup-manifest.md
+      - docs/results/proof/current-agent-workflow-cleanup-slice-001.txt
+      - docs/results/proof/current-agent-workflow-cleanup-slice-002.txt
+      - docs/results/proof/current-agent-workflow-cleanup-slice-003.txt
+      - docs/results/proof/current-agent-workflow-cleanup-slice-004.txt
+      - docs/results/proof/current-agent-workflow-cleanup-slice-005.txt
+    proof_commands:
+      - "go run ./cmd/kbcheck core"
+      - "go run ./cmd/kbcheck local-release"
+    blockers: []
+    passed_at: "2026-07-31T06:15:00Z"
+    allowed_next_action: "kb-finalize docs/plans/2026-07-30-010-kb-current-agent-workflow-cleanup-manifest.md"
 slices:
   - id: slice-001
     title: "Enforce current skill-guidance structure"
@@ -284,14 +372,14 @@ slices:
       command: "go run ./cmd/kbcheck local-release"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
     next_agent_action: "Run core, compare required targets, propagate exact skill folders and deletions, then run local-release."
     human_action: ""
     can_continue_other_slices: true
-    notes: ""
+    notes: "scope-discovery: cmd/kbcheck/model_routing_release.go - release proof must not nest kbrouter process-containment tests inside another Windows job; scope-check: forecast=5 changed=4 discovered=1 unexplained=0; test-level: full; proof: skill-sync-report comparisons=129 issues=0, removed global folders absent, go run ./cmd/kbcheck local-release exit=0; memory-impact: operational; refresh=done"
 ---
 
 # KB: Current Agent Workflow Cleanup
@@ -318,4 +406,4 @@ installer/sync surfaces, and release proof change together.
 | 2 | Make review and finalization proportional | slice-001 | tdd | no | done |
 | 3 | Remove dead completion aliases and stale surfaces | slice-002 | integration | no | done |
 | 4 | Refactor oversized hot-path skills | slice-003 | integration | no | done |
-| 5 | Propagate and prove the cleaned bundle | slice-004 | verification-only | no | pending |
+| 5 | Propagate and prove the cleaned bundle | slice-004 | verification-only | no | done |

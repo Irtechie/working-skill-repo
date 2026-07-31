@@ -445,11 +445,11 @@ func runModelRoutingProductionProof(ctx context.Context, root string, command []
 	if len(command) < 2 || command[0] != "go" || command[1] != "test" {
 		return modelRoutingProofResult{ExitCode: 1, Err: fmt.Errorf("refused non-fixed proof command")}
 	}
-	cmd := exec.Command(command[0], command[1:]...)
+	// The selected kbrouter tests exercise their own Windows job-object
+	// containment. Nesting them inside the generic check job prevents cmd.exe
+	// fixtures from starting, so bound this fixed proof with its context instead.
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	cmd.Dir = root
-	if err := configureCheckProcessTree(cmd); err != nil {
-		return modelRoutingProofResult{ExitCode: 1, Err: fmt.Errorf("configure proof containment: %w", err)}
-	}
 	overflow := make(chan struct{}, 1)
 	stdout := newCappedCheckBuffer(overflow)
 	stderr := newCappedCheckBuffer(overflow)
@@ -458,14 +458,9 @@ func runModelRoutingProductionProof(ctx context.Context, root string, command []
 	if err := cmd.Start(); err != nil {
 		return modelRoutingProofResult{ExitCode: 1, Err: err}
 	}
-	tree, err := attachCheckProcessTree(cmd)
-	if err != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
-		return modelRoutingProofResult{ExitCode: 1, Err: fmt.Errorf("attach proof containment: %w", err)}
-	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
+	var err error
 	exitReason := ""
 	select {
 	case err = <-done:
@@ -475,16 +470,12 @@ func runModelRoutingProductionProof(ctx context.Context, root string, command []
 		exitReason = "overflow"
 	}
 	if exitReason != "" {
-		_ = tree.Kill()
+		_ = cmd.Process.Kill()
 		select {
 		case err = <-done:
 		case <-time.After(processCheckTerminationWait):
-			_ = tree.Close()
-			return modelRoutingProofResult{ExitCode: 1, Output: combineProofOutput(stdout.String(), stderr.String()), Err: fmt.Errorf("proof process tree did not exit within %s", processCheckTerminationWait), Truncated: exitReason == "overflow"}
+			return modelRoutingProofResult{ExitCode: 1, Output: combineProofOutput(stdout.String(), stderr.String()), Err: fmt.Errorf("proof process did not exit within %s", processCheckTerminationWait), Truncated: exitReason == "overflow"}
 		}
-	}
-	if closeErr := tree.Close(); closeErr != nil && err == nil {
-		err = fmt.Errorf("close proof containment: %w", closeErr)
 	}
 	output := combineProofOutput(stdout.String(), stderr.String())
 	if exitReason == "timeout" {

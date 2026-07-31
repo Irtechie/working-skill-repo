@@ -35,7 +35,7 @@ expected_files:
     op: edit
     scope: "Record compact completion summary"
 protected_oracles: []
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
@@ -66,3 +66,14 @@ Close the goal only after source and every required global target agree.
 ## Scope Boundary
 
 Do not inspect or modify ATV repositories.
+
+## Completion Evidence
+
+- Reviewed all 14 source/global drift sets; the three required global targets
+  had identical older copies and no target-only files.
+- Synchronized 43 required skills to Codex, Copilot, and shared-agent globals.
+- Removed `ce-review`, `kb-finish`, and `klfg` from all three targets by exact
+  resolved path.
+- `skill-sync-report`: 129 comparisons, 0 required issues.
+- `local-release`: passed all required checks.
+- Proof: `docs/results/proof/current-agent-workflow-cleanup-slice-005.txt`.
