@@ -464,8 +464,10 @@ live cost, latency, token, or savings claim.
   cost time up front. They earn their place only when they prevent the agent
   from guessing, drifting, or calling unverified work done.
 - **Complete to the configured endpoint.** `kb-complete` resumes from source,
-  plan, active work, or reviewed manifest. `kb-work` auto-invokes only internal
-  `kb-finalize`, so ordinary work never publishes by accident.
+  plan, active work, or reviewed manifest. Successful `kb-work` continues
+  through internal `kb-finalize` and returns to `kb-complete`; delivery still
+  requires configured policy or explicit run-scoped authorization, so automatic
+  phase continuation does not grant accidental publishing authority.
 
 KB means **Kanban-Based**. The workflow still uses boards, manifests, vertical
 slices, and done archives, but user-facing commands use the shorter `kb-`
@@ -703,6 +705,13 @@ Execution lanes:
 - `kb-ship`, `kb-land`, `kb-epic`, `kb-task`, `kb-goal`,
   `kb-first-principles`
 - `safe-shell-quoting` - file-backed execution and validated cleanup for quote-heavy shell commands
+
+Successful planned work does not stop at phase handoffs:
+`kb-work -> kb-finalize -> kb-complete`. Configured PR delivery then invokes
+`kb-ship`, and authorized merge delivery continues to `kb-land` after required
+checks and reviews. `kb-work` never pushes or merges the resolved default
+branch, `kb-ship` never merges, and only `kb-land` integrates remote default
+before optional source-to-installed skill sync.
 
 `kb-ship` uses a low-burden PR first screen: what changed and why, genuine
 reviewer-owned decisions, work the agent already handled, verification, and

@@ -5,13 +5,13 @@
   "actual": {
     "route": "kb-complete",
     "user_questions": 0,
-    "artifacts": ["reviewed manifest", "commit", "pushed branch", "PR URL"],
-    "proof": ["complete-to-ship gate", "release checks pass", "remote branch up to date"]
+    "artifacts": ["reviewed manifest", "commit", "pushed branch", "PR URL", "remote default containment", "installed skill sync"],
+    "proof": ["complete-to-ship gate", "required checks and reviews pass", "remote default contains delivered commit", "installed hashes match landed source"]
   },
   "trace": {
     "files_read": ["todo.md", "docs/context/PROJECT.md", "docs/plans/example-manifest.md"],
     "commands": ["git diff --check"],
-    "tools": ["kb-map", "kb-work", "kb-finalize", "kb-complete", "kb-ship"]
+    "tools": ["kb-map", "kb-work", "kb-finalize", "kb-complete", "kb-ship", "kb-land"]
   },
   "claim_checks": [
     {

@@ -2,13 +2,13 @@
   "id": "finish-plan-flow",
   "platforms": ["codex", "ghcp"],
   "prompt": "Take this existing implementation plan all the way to done-done and checked in with a pushed PR.",
-  "repo_state": "A valid plan or manifest exists; implementation, completion review, commit, push, and PR may still be required.",
+  "repo_state": "A valid plan or manifest exists; implementation, finalization, configured PR delivery, authorized merge after checks, and post-merge installed-skill sync may still be required.",
   "expected": {
     "route": "kb-complete",
     "complexity_tier": "large",
     "max_user_questions": 1,
-    "artifacts": ["reviewed manifest", "commit", "pushed branch", "PR URL"],
-    "proof": ["complete-to-ship gate", "release checks pass", "remote branch up to date"]
+    "artifacts": ["reviewed manifest", "commit", "pushed branch", "PR URL", "remote default containment", "installed skill sync"],
+    "proof": ["complete-to-ship gate", "required checks and reviews pass", "remote default contains delivered commit", "installed hashes match landed source"]
   },
   "complexity_signals": {
     "subsystem_count": 3,
