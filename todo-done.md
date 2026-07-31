@@ -2,6 +2,18 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-07-31
+
+- Current agent workflow cleanup - replaced routine reviewer swarms with one
+  lifecycle-level broad or replacement specialist profile, made document review
+  and learning signal-driven, removed `ce-review`, `kb-finish`, and `klfg`,
+  compacted hot-path skills through progressive disclosure, aligned model
+  difficulty on `small`/`medium`/`large`, and kept web UI proof agent-owned with
+  headless interaction, DOM assertions, screenshots, and console/network
+  evidence. All 43 skills match across Codex, Copilot, and shared-agent globals.
+  Proof: `core` 39/39, `local-release`, and one Thermonuclear profile with its
+  P2/P3 resolved and no new P0-P2 on confirmation.
+
 ## 2026-07-29
 
 - Stable Cargo build storage across KB workflows - replaced phase/run-specific

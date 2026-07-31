@@ -1,0 +1,12 @@
+instincts:
+  - id: keep-web-proof-agent-owned
+    scope: workflow/verification
+    trigger: "when a deterministic web UI criterion cannot yet be verified by browser automation"
+    behavior: "keep the work in progress, repair the browser fixture, selector, auth transport, or assertion, then capture headless interaction, DOM assertion, screenshot, and console/network evidence; require a human only for inaccessible credentials, MFA, private sessions, or subjective judgment"
+    confidence: 0.5
+    domain: testing
+    observations: 1
+    first_seen: 2026-07-31
+    last_seen: 2026-07-31
+    evidence:
+      - "commit 3f8156e: removed kb-qa's manual-verification fallback after the user reported incomplete work despite available Playwright proof"

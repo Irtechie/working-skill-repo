@@ -1,8 +1,8 @@
 # Proportional Review Workflow
 
-Status: active
+Status: completed
 Created: 2026-07-30
-Last updated: 2026-07-30
+Last updated: 2026-07-31
 
 ## Objective
 
@@ -35,20 +35,21 @@ conditional memory, and removal of dead compatibility skills.
 - Why sufficient: It composes repo checks, diff hygiene, static review reports,
   and blocking drift checks against every required global skill target.
 
-## Current State
+## Final State
 
-- Current artifact: `docs/context/epics/current-agent-workflow-cleanup.md`
-- Next allowed action: plan every epic workstream
-- Last proof: call-graph inspection and external research captured in
-  `docs/context/research/2026-07-30-proportional-agent-code-review.md`
+- Manifest: `docs/plans/2026-07-30-010-kb-current-agent-workflow-cleanup-manifest.md`
+- Five slices completed and synchronized to all required global targets.
+- Final review: one Thermonuclear replacement profile; P2/P3 resolved; bounded
+  confirmation found no new P0-P2.
+- Terminal proof: `go run ./cmd/kbcheck local-release`.
 
 ## Work Units
 
 | Unit | Route | Artifact | Status | Proof |
 |---|---|---|---|---|
-| Requirements and plan | `kb-plan` | proportional review brainstorm | active | manifest contract |
-| Workflow implementation | `kb-work` | pending manifest | pending | slice proof |
-| Finalization and propagation | `kb-complete` | pending manifest | pending | local-release |
+| Requirements and plan | `kb-plan` | proportional review brainstorm | done | manifest contract |
+| Workflow implementation | `kb-work` | five-slice manifest | done | slice proof |
+| Finalization and propagation | `kb-complete` | reviewed manifest | done | local-release |
 
 ## Blockers
 

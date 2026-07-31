@@ -4,7 +4,7 @@ manifest_schema: 2
 kb_id: kb-2026-07-30-current-agent-workflow-cleanup
 brainstorm_path: docs/brainstorms/2026-07-30-current-agent-skill-guidance-requirements.md
 created: 2026-07-30
-status: completed
+status: reviewed
 workflow_shape: pipeline-change
 objective_contract: true
 blocker_lifecycle_contract: true
@@ -59,11 +59,13 @@ scope-verified-files:
   - .github/skills/kb-complete/SKILL.md
   - .github/skills/kb-finalize/SKILL.md
   - .github/skills/kb-finish
+  - .github/skills/kb-functional-test/SKILL.md
   - .github/skills/kb-gate/references/gate-ledger.md
   - .github/skills/kb-goal/SKILL.md
   - .github/skills/kb-map
   - .github/skills/kb-map-bootstrap
   - .github/skills/kb-plan
+  - .github/skills/kb-qa/SKILL.md
   - .github/skills/kb-review
   - .github/skills/kb-start/SKILL.md
   - .github/skills/kb-task/SKILL.md
@@ -244,6 +246,28 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-31T06:15:00Z"
     allowed_next_action: "kb-finalize docs/plans/2026-07-30-010-kb-current-agent-workflow-cleanup-manifest.md"
+  - gate_id: complete-to-ship
+    owner_skill: kb-finalize
+    gate_scope: release
+    status: passed
+    required_evidence:
+      - "Final exact-tree deterministic and release proof passed."
+      - "One proportional semantic profile reviewed the integrated change."
+      - "The review P2/P3 were resolved and the bounded confirmation found no new P0-P2."
+      - "Signal-driven learning captured the verified browser-proof landmine."
+      - "Board, goal, manifest, and global skill targets are synchronized."
+    proof:
+      - docs/results/proof/current-agent-workflow-cleanup-final-review.txt
+      - docs/results/proof/current-agent-workflow-cleanup-slice-005.txt
+      - docs/context/kb/instincts/scoped/workflow/verification.yaml
+      - docs/context/goals/proportional-review-workflow.md
+      - todo-done.md
+    proof_commands:
+      - "go run ./cmd/kbcheck local-release"
+      - "go test ./cmd/kbcheck -run 'GoTestsIsolate|WebUIProof|ModelRoutingRelease|SkillRepoContract' -count=1"
+    blockers: []
+    passed_at: "2026-07-31T07:10:00Z"
+    allowed_next_action: "local completion"
 slices:
   - id: slice-001
     title: "Enforce current skill-guidance structure"
