@@ -100,7 +100,10 @@ export function validateContribution(definition) {
     }
     ids.add(id);
     paths.add(routePath);
-    requireString(route.legacyRoute, "Legacy route");
+    const legacyRoute = requireString(route.legacyRoute, "Legacy route");
+    if (!legacyRoute.startsWith("/") || legacyRoute.includes("..")) {
+      throw new TypeError("Legacy route must be absolute and traversal-free.");
+    }
     requireString(route.displayName, "Display name");
     requireString(route.purpose, "Purpose");
     requireString(route.directorySummary, "Directory summary");

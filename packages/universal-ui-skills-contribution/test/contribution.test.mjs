@@ -68,6 +68,14 @@ test("rejects malformed nested contribution and route fields", () => {
       mutate: (value) => { value.routes[0].order = "90"; }
     },
     {
+      label: "legacy route",
+      mutate: (value) => { value.routes[0].legacyRoute = "javascript:alert(1)"; }
+    },
+    {
+      label: "legacy route traversal",
+      mutate: (value) => { value.routes[0].legacyRoute = "/../private"; }
+    },
+    {
       label: "route visibility",
       mutate: (value) => { value.routes[0].visibility.audience = "private"; }
     },
@@ -155,6 +163,24 @@ test("committed release lock matches the packed artifact and its manifest", asyn
     ).href
   );
   assert.deepEqual(packedManifest.contributionDefinition, contributionDefinition);
+
+  const installedPackageRoot = path.join(
+    installRoot,
+    "node_modules",
+    "@irtechie",
+    "universal-ui-skills-contribution"
+  );
+  for (const relativePath of [
+    "LICENSE",
+    "package.json",
+    ...(await fs.readdir("src")).map((name) => path.join("src", name))
+  ]) {
+    const [source, packed] = await Promise.all([
+      fs.readFile(relativePath),
+      fs.readFile(path.join(installedPackageRoot, relativePath))
+    ]);
+    assert.deepEqual(packed, source, `${relativePath} differs from the committed tarball`);
+  }
 });
 
 test("lazy route default accepts ShellContextV1 without owning React or the shell", async (t) => {
