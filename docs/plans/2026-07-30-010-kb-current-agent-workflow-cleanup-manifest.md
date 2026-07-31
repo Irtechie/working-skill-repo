@@ -12,12 +12,12 @@ pre_slice_review_contract: true
 pre_slice_review:
   status: passed
   source: docs/brainstorms/2026-07-30-current-agent-skill-guidance-requirements.md
-  source_sha256: 2f4e5c2c7e6916458af395227ce88e031ee0d0aeffd6e8136ecaa31c997e18e2
+  source_sha256: 6f7b4b1d26beaa3e45416c1cf2956c6aa287825bafa945db11541fde2e99f146
   mode: requirements-wide
   review_id: current-agent-skill-guidance-requirements-2f4e5c2c7e69
   reviewed_at: "2026-07-31T03:08:00Z"
   review_artifact: docs/results/document-reviews/current-agent-skill-guidance-requirements-2f4e5c2c7e69.json
-  review_artifact_sha256: b1df42c1877cf5c4e09f80c0e248a194c81badccc8e1a1fff23301e17698cf32
+  review_artifact_sha256: 5fc910588767ea187c814dd05a0ea0410c85ba05e4220555dbbecaed5dd66c62
   persona_evidence_json: '{"adversarial-document-reviewer":"adversarial-risk: destructive cleanup, static-certification limits, progressive-disclosure regressions, and stale global copies could invalidate the initiative","coherence-reviewer":"consistency-risk: removal evidence, line limits, static proof boundaries, sync proof, and success criteria must agree","feasibility-reviewer":"delivery-risk: all observed skills, named deletions, hot-path extraction, and global absence proof need executable contracts"}'
   selected_personas_json: '["adversarial-document-reviewer","coherence-reviewer","feasibility-reviewer"]'
   completed_personas_json: '["adversarial-document-reviewer","coherence-reviewer","feasibility-reviewer"]'
@@ -90,7 +90,7 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-31T03:12:00Z"
     allowed_next_action: "kb-work docs/plans/2026-07-30-010-kb-current-agent-workflow-cleanup-manifest.md"
-  - gate_id: slice-001-to-done
+  - gate_id: slice-slice-001-to-done
     owner_skill: kb-work
     gate_scope: implementation
     status: passed
@@ -103,7 +103,7 @@ gate_ledger:
       - cmd/kbcheck/skill_guidance_test.go
       - config/skill-guidance.json
       - config/skill-guidance-audit.json
-      - "go test ./cmd/kbcheck -run 'SkillGuidance|Minimality|ReviewReference' -count=1"
+      - docs/results/proof/current-agent-workflow-cleanup-slice-001.txt
     blockers: []
     passed_at: "2026-07-31T03:22:00Z"
     allowed_next_action: "slice-002"
