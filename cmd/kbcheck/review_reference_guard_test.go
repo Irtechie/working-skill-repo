@@ -16,6 +16,7 @@ func TestReviewReferenceGuardPassesForMatchingSharedPair(t *testing.T) {
       {"id":"fork","left":"fork-left.md","right":"fork-right.md","owner":"review","reason":"different lane"}
     ]
   }
+
 }`)
 	writeFile(t, filepath.Join(root, "left.md"), "same\n")
 	writeFile(t, filepath.Join(root, "right.md"), "same\n")
@@ -28,6 +29,28 @@ func TestReviewReferenceGuardPassesForMatchingSharedPair(t *testing.T) {
 	}
 	if !result.OK {
 		t.Fatalf("expected guard to pass, got issues %#v", result.Issues)
+	}
+}
+
+func TestReviewReferenceGuardAllowsSingleOwnerWithoutSharedPairs(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
+  "review_reference_guard": {
+    "reference_roots": [
+      {"id":"kb","path":"kb/references"}
+    ],
+    "shared_pairs": [],
+    "intentional_forks": []
+  }
+}`)
+	writeFile(t, filepath.Join(root, "kb", "references", "process.md"), "single owner\n")
+
+	result, err := computeReviewReferenceGuard(root, "config/skill-quality.json")
+	if err != nil {
+		t.Fatalf("computeReviewReferenceGuard returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected a single-owner catalog to pass, got %#v", result.Issues)
 	}
 }
 

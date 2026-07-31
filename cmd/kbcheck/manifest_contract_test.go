@@ -133,7 +133,7 @@ func TestPreSliceReviewContractRejectsInvalidReceipts(t *testing.T) {
 		"invalid-status":            {"status: passed", "status: complete"},
 		"invalid-review-id":         {"review_id: feature-requirements-review", "review_id: BAD"},
 		"invalid-reviewed-at":       {`reviewed_at: "2026-07-29T20:00:00Z"`, `reviewed_at: yesterday`},
-		"scalar-persona-evidence":   {`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'`, `persona_evidence_json: 'coherence-reviewer'`},
+		"scalar-persona-evidence":   {`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift"}'`, `persona_evidence_json: 'coherence-reviewer'`},
 		"unknown-persona":           {"coherence-reviewer", "implementation-owner"},
 		"missing-selection-reason":  {"consistency-risk: source has cross-section terminology drift", ""},
 		"failed-persona":            {`failed_personas_json: '[]'`, `failed_personas_json: '[\"security-lens-reviewer\"]'`},
@@ -142,16 +142,15 @@ func TestPreSliceReviewContractRejectsInvalidReceipts(t *testing.T) {
 		"quoted-count":              {"findings_resolved: 2", `findings_resolved: "2"`},
 		"placeholder-reason":        {"consistency-risk: source has cross-section terminology drift", "reviewer applies here"},
 		"mismatched-reason-basis":   {"consistency-risk: source has cross-section terminology drift", "security-risk: source changes authentication boundaries"},
-		"incomplete-selected-roster": {
-			`selected_personas_json: '["coherence-reviewer","feasibility-reviewer"]'`,
-			`selected_personas_json: '["coherence-reviewer"]'`,
+		"multiple-reviewers": {
+			`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift"}'`,
+			`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'`,
 		},
 		"incomplete-completed-roster": {
-			`completed_personas_json: '["coherence-reviewer","feasibility-reviewer"]'`,
 			`completed_personas_json: '["coherence-reviewer"]'`,
+			`completed_personas_json: '[]'`,
 		},
-		"unresolved-p0":             {"unresolved_p0: 0", "unresolved_p0: 1"},
-		"missing-required-reviewer": {"feasibility-reviewer", "product-lens-reviewer"},
+		"unresolved-p0": {"unresolved_p0: 0", "unresolved_p0: 1"},
 	}
 	for name, replacement := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -314,9 +313,9 @@ pre_slice_review:
   reviewed_at: "2026-07-29T20:00:00Z"
   review_artifact: {{REVIEW_ARTIFACT}}
   review_artifact_sha256: {{REVIEW_ARTIFACT_SHA256}}
-  persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'
-  selected_personas_json: '["coherence-reviewer","feasibility-reviewer"]'
-  completed_personas_json: '["coherence-reviewer","feasibility-reviewer"]'
+  persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift"}'
+  selected_personas_json: '["coherence-reviewer"]'
+  completed_personas_json: '["coherence-reviewer"]'
   failed_personas_json: '[]'
   findings_resolved: 2
   unresolved_p0: 0
@@ -337,8 +336,7 @@ func writePreSliceReviewManifest(t *testing.T, receipt string) string {
 	sourceHash := fmt.Sprintf("%x", sha256.Sum256(source))
 	writeFile(t, filepath.Join(dir, filepath.FromSlash(sourceRelative)), string(source))
 	personas := map[string]string{
-		"coherence-reviewer":   "consistency-risk: source has cross-section terminology drift",
-		"feasibility-reviewer": "delivery-risk: source has implementation dependency uncertainty",
+		"coherence-reviewer": "consistency-risk: source has cross-section terminology drift",
 	}
 	artifact := preSliceReviewArtifact{
 		ReviewID:          "feature-requirements-review",
@@ -347,8 +345,8 @@ func writePreSliceReviewManifest(t *testing.T, receipt string) string {
 		ReviewedAt:        "2026-07-29T20:00:00Z",
 		DocumentType:      "requirements",
 		Mode:              "requirements-wide",
-		SelectedPersonas:  []string{"coherence-reviewer", "feasibility-reviewer"},
-		CompletedPersonas: []string{"coherence-reviewer", "feasibility-reviewer"},
+		SelectedPersonas:  []string{"coherence-reviewer"},
+		CompletedPersonas: []string{"coherence-reviewer"},
 		PersonaEvidence:   personas,
 		FailedPersonas:    []string{},
 		FindingsResolved:  2,
@@ -371,7 +369,7 @@ func writePreSliceReviewManifest(t *testing.T, receipt string) string {
 	path := filepath.Join(dir, "docs", "plans", "manifest.md")
 	writeFile(t, path, strings.TrimLeft(`
 ---
-manifest_schema: 2
+manifest_schema: 3
 pre_slice_review_contract: true
 `+receipt+`
 slices:

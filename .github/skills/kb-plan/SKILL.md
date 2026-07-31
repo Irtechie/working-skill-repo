@@ -13,8 +13,8 @@ Break work into independently executable **vertical slices** (tracer bullets). E
 ## Quick Start
 
 1. Read the brainstorm, PRD, or feature description.
-2. Before drafting any slices, run the applicable specialist personas once
-   against the full requirements source and resolve their findings.
+2. Before drafting slices, perform the main-agent requirements check. Invoke
+   one optional best-fit document reviewer only for unresolved material risk.
 3. Draft thin end-to-end slices with dependencies and verification modes.
 4. Review the breakdown yourself against the reviewed source material; ask the user only for blocking decisions.
 5. Write one KB manifest plus one plan file per slice.
@@ -65,41 +65,31 @@ requirements source; do not invent slices before that review.
 
 ## Core Rules
 
-### Plan-Wide Specialist Review Before Slicing
+### Requirements Assurance Before Slicing
 
-Specialist document reviewers have plan-wide jobs. Before drafting any slices,
-first decide whether specialist review is likely to change the requirements,
-scope, risk controls, or decomposition. Do not invoke `document-review` for a
-small, mechanically constrained, low-risk source merely because planning is
-running. Invoke it when one or more of these signals create a material question:
+The planner owns the first pass. Before drafting slices, check the full source
+for:
 
-- more than five requirements or implementation units;
-- material product, design, user-flow, scope, or architecture decisions;
-- auth, security, privacy, payments, data migration, external API, or other
-  trust-boundary risk;
-- a new abstraction, framework, or path-dependent technical direction.
+- explicit goals, non-goals, and observable acceptance criteria;
+- contradictions or unresolved `ask-now` and `research-first` items;
+- dependencies supported by repository evidence or labeled assumptions;
+- missing failure, recovery, trust, migration, or integration behavior;
+- verification capable of detecting the stated failure modes.
 
-When triggered, invoke `document-review mode:headless <requirements-path>` on
-the full requirements source once. Let `document-review` select only the
-personas whose role can materially change this source; do not run the full
-roster by default or activate a persona from a keyword alone. Resolve
-auto-fixes and all P0/P1 findings before decomposition. Route remaining
-judgment through `kb-gate`; do not defer a plan-wide persona to one reviewer run
-per slice.
+Fix clear document defects directly. Use `kb-gate` only for decisions the user
+must make.
 
-If the first pass reports P0/P1 findings, fix or resolve them and run one
-bounded confirmation pass. Only the final artifact with zero unresolved P0/P1
-and no failed selected personas may authorize slicing.
+Invoke `document-review mode:headless <requirements-path>` only when this
+self-check leaves one material uncertainty that a specialist could change.
+`document-review` selects exactly one best-fit reviewer for the whole source.
+Never run multiple document personas, never review per slice, and never use
+requirement count alone as a trigger.
 
-Reuse a headless review artifact produced by `kb-brainstorm` when its
-`source_sha256` still matches the current requirements file and it has no failed
-personas or unresolved P0/P1 findings. Otherwise rerun `document-review` once.
-Research that changes requirements invalidates the old artifact.
-
-If a direct chat request triggers specialist review but has no durable
-requirements document, invoke `kb-brainstorm` to create one first. Simple,
-bounded requests may skip the specialist pass, but the manifest must record a
-specific `not_required_reason`.
+Resolve P0/P1 findings before decomposition. A source edit invalidates the old
+receipt. One bounded confirmation with the same reviewer is allowed after
+review-driven fixes. Reuse a matching artifact from `kb-brainstorm`; otherwise
+run the optional review once. When no review is needed, record the specific
+`not_required_reason`.
 
 Record the result in the manifest:
 
@@ -114,8 +104,8 @@ pre_slice_review:
   review_artifact: <repo-relative docs/results/document-reviews/*.json path>
   review_artifact_sha256: <sha256 of the review artifact>
   persona_evidence_json: '<JSON object mapping each completed persona to its fixed-basis: specific-evidence reason>'
-  selected_personas_json: '<JSON array of every dispatched persona>'
-  completed_personas_json: '<JSON array of every successful persona>'
+  selected_personas_json: '<JSON array containing the one dispatched persona>'
+  completed_personas_json: '<same one persona when successful>'
   failed_personas_json: '[]'
   findings_resolved: <count>
   unresolved_p0: 0
@@ -124,8 +114,8 @@ pre_slice_review:
   not_required_reason: <required only when status is not-required>
 ```
 
-A later whole-plan document review may check the generated DAG for coherence,
-but it is not a substitute for requirements review before slicing.
+A later whole-plan document review may check the generated DAG, but it is a
+separate boundary and still permits at most one best-fit reviewer.
 
 ### Vertical Slices Only
 
@@ -443,7 +433,7 @@ Create a manifest and individual slice plans.
 ```yaml
 ---
 type: kb-manifest
-manifest_schema: 2
+manifest_schema: 3
 kb_id: kb-YYYY-MM-DD-<name>
 brainstorm_path: docs/brainstorms/<source-file>.md
 created: YYYY-MM-DD
@@ -462,8 +452,8 @@ pre_slice_review:
   review_artifact: <repo-relative docs/results/document-reviews/*.json path>
   review_artifact_sha256: <required when passed>
   persona_evidence_json: '<JSON object mapping completed personas to fixed-basis: specific-evidence reasons>'
-  selected_personas_json: '<JSON array of every dispatched persona>'
-  completed_personas_json: '<JSON array of every successful persona>'
+  selected_personas_json: '<JSON array containing the one dispatched persona>'
+  completed_personas_json: '<same one persona when successful>'
   failed_personas_json: '[]'
   findings_resolved: <count>
   unresolved_p0: 0

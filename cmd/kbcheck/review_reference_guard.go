@@ -79,14 +79,6 @@ func computeReviewReferenceGuard(root, configPath string) (reviewReferenceGuardR
 	result.SharedPairCount = len(config.ReviewReferenceGuard.SharedPairs)
 	result.IntentionalForks = len(config.ReviewReferenceGuard.IntentionalForks)
 	classifiedPairs := map[string]bool{}
-	if result.SharedPairCount == 0 {
-		result.Issues = append(result.Issues, reviewReferenceIssue{
-			Kind:    "missing-shared-pairs",
-			ID:      "review-reference-guard",
-			Path:    configPath,
-			Message: "Config must declare at least one shared review-reference pair.",
-		})
-	}
 	for _, pair := range config.ReviewReferenceGuard.SharedPairs {
 		classifiedPairs[reviewReferencePairKey(pair.Left, pair.Right)] = true
 		validateReviewReferenceMetadata(pair, "shared-pair", &result.Issues)

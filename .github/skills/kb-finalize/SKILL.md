@@ -1,494 +1,176 @@
 ---
 name: kb-finalize
-description: "Internal post-work quality and learning phase. Runs kb-review -> resolution gate -> follow-up resolution -> proof/demo evidence -> compound -> learn -> evolve -> memory refresh/compact -> cleanup after kb-work finishes all slices. Normally invoked by kb-work or kb-complete; not the primary user-facing completion command."
-argument-hint: "[path to KB manifest, or blank to find latest]"
+description: "Internal post-work quality phase. Runs aggregate proof, one proportional semantic review, final exact-tree proof, signal-driven learning/memory work, and cleanup."
+argument-hint: "[path to completed KB manifest]"
 ---
 
-# KB Finalize - Post-Work Quality & Learning Pipeline
+# KB Finalize - One Integrated Quality Boundary
 
-After `kb-work` finishes executing all slices, this skill runs the quality review, follow-up resolution, proof/demo evidence, knowledge capture, memory-health, and cleanup steps. Separated from kb-work so the user can choose when to run it — `klfg` prompts automatically, standalone users invoke it manually.
+Run once after all slices are integrated. This phase proves the complete tree,
+selects zero or one semantic reviewer, resolves findings, reruns invalidated
+proof, and performs learning or memory work only when evidence warrants it.
 
-## Terminal Completion Contract
+## Terminal Contract
 
-When invoked by `kb-work`, this skill is the terminal half of the execution
-loop. Continue until Step 5 reports Done, or until a real blocker is recorded
-with exact resume criteria.
+Continue until the manifest has a passing `complete-to-ship` gate or a real
+blocker with an exact resume condition. Passing slice tests or finishing review
+alone is not terminal.
 
-Do not stop at weaker milestones:
+## Preflight
 
-- deterministic checks passed before review;
-- reviewers returned findings;
-- P0/P1 findings were fixed but proof has not rerun;
-- proof passed but memory, learn/evolve cadence, or cleanup is unfinished;
-- a summary was written without the final `KB <name> complete` report.
+1. Confirm the current session owns the shared work claim.
+2. Require manifest `status: completed`, all slices done/skipped, and a passing
+   `work-to-complete` gate that allows this exact finalization command.
+3. Run `manifest-contract` when the repo provides it.
+4. Collect authoritative requirements, requirements hash, accepted slice
+   commits, scope-verified paths, proof receipts, and memory-impact notes.
+5. Resolve the immutable baseline and integrated tree.
+6. Reuse valid slice receipts and run one aggregate proof for the integrated
+   tree. Use `kb-check proof-plan` to avoid replaying unchanged checks.
+7. Require matching functional proof for UI, API, CLI, persistence, auth,
+   streaming, or integration behavior.
 
-If a repo has a project-specific `done.md` contract such as "can't stop til its
-done", interpret "done" as this skill's Step 5 terminal report. KB state still
-lives in `todo.md`, `todo-done.md`, manifests, and handoffs unless the repo
-already opted into a `done.md` workflow.
+Do not enter semantic review with failing or missing integrated proof.
 
-## Input
+## Step 1: Review Classification
 
-<input> #$ARGUMENTS </input>
+Invoke `kb-review` once unless the entire diff qualifies for its conservative
+skip classification:
 
-**If input is empty:** Scan `docs/plans/` for the most recent `*-kb-*-manifest.md` file with `status: completed`. If none is found but an active KB manifest exists with pending or in-progress slices, stop and invoke `kb-work <manifest-path>` first. If no manifest exists, do not run completion from a raw diff; route back to `kb-plan`/`kb-work` so completion has slice scope and verification evidence.
+- docs-only with no executable contract change;
+- generated-only from a proven generator; or
+- mechanically constrained changes fully covered by deterministic proof.
 
-**If input is a path:** Read the manifest at that path.
+Runtime, behavior, contract, configuration, trust-boundary, persistence, API,
+CLI, or UI changes require review. Unknown classification requires review.
 
-## Pre-Flight
+Pass:
 
-1. **Require the shared work claim** — verify the current project session owns
-   the manifest's live `kb-start` queue entry and heartbeat it before review or
-   proof. Do not let a successor finalizer duplicate an active owner's work.
-2. **Read the manifest** — confirm `status: completed` (all slices done/skipped). If slices are still `pending` or `in_progress`, stop: "This manifest has unfinished slices. Run `kb-work` first."
-3. **Validate gate ledger** — the manifest must contain `gate_ledger` with `work-to-complete` set to `passed`, and every completed slice must have a passing `slice-<id>-to-done` gate. New manifests use `allowed_next_action: kb-finalize <manifest-path>`; accept legacy `kb-complete <manifest-path>` while old plans remain active. Run the checker against the recorded allowed action. If missing, blocked, or the checker fails, stop and invoke `kb-work <manifest-path>` or `kb-gate` to repair the ledger. Do not run finalization from a manifest that merely says `status: completed`.
-4. **Validate objective contract** — if the manifest has `objective_contract: true`, run `go run ./cmd/kbcheck manifest-contract --manifest <manifest-path>`. Confirm the top-level `done_check` is present and each completed slice has `proof_check` evidence or an accepted `no_check_reason` recorded in slice notes/gates. If missing, stop and return to `kb-work` for proof repair.
-5. **Collect scope context** — scan each slice's `notes` field for `scope-check:` and `scope-discovery:` entries. Build the combined list of actually changed, scope-verified files across all slices. This becomes the review scope.
-6. **Collect memory impact** — scan slice notes for `memory-impact:` and `kb-map-refresh:` entries.
-7. **Review routing evidence honestly** — collect any routing receipts or host evidence linked from the run state, but treat them as telemetry rather than proof of correctness. Missing, unknown, or mismatched provenance does not invalidate already-proven work.
-8. **Identify the branch baseline** — run `git merge-base HEAD main` to establish the diff range.
-9. **Run one final snapshot milestone** — invoke `kb-regression-snapshot verify -MilestoneId <manifest-id>`. Accept `REUSE` for the exact passing fingerprint; otherwise run once and STOP on failure.
+- authoritative intent and requirements hash;
+- base and integrated tree;
+- aggregate proof receipt and hash;
+- exact scope-verified paths;
+- manifest path.
 
-If the manifest has no scope-check notes (older format), fall back to `git diff --name-only $(git merge-base HEAD main)..HEAD` for the file list.
+`kb-review` chooses one broad or replacement specialist profile. Never invoke
+another reviewer at this boundary. Record the review/skip receipt fingerprint,
+profile, mode, counts, and residual risk in the manifest.
 
-Before reporting any blocked or human-required item, rerun its named recheck
-sensor or the cheapest owning probe. Keep agent-owned repair failures active
-while meaningful safe progress remains. A release, deployment, signing, or
-optional-capability failure affects that delivery/capability only; it does not
-erase already-proven implementation completion.
+## Step 2: Findings and Fixes
 
-## Step 1: Code Review
-
-Before review, run `kb-check proof-plan` on the manifest scope. Reuse fresh
-slice and proof-batch receipts and run only checks needed to make review safe.
-Do not run the final exact-tree aggregate solely to enter review; schedule it
-after review fixes in Step 2.6. Route failures to `kb-repair`/`kb-fix`; LLM
-review does not replace executable verification.
-
-Do not choose, rerun, or require a different model solely to improve routing telemetry. `kb-finalize` reviews receipts and notes useful observations for future selection, but proof and review gates remain model-independent.
-
-If the manifest contains slices with `test_level` of `integration`,
-`functional-api`, `functional-cli`, `functional-browser`, or `full`, require a
-matching proof-batch `kb-functional-test` receipt before `kb-review`. Reuse it
-when fresh; run it only when absent or invalidated. Also require it when the diff
-shows user-visible, API/CLI, persistence, auth, streaming, or integration
-changes without an adequate recorded test level.
-
-If the final diff includes `.tsx`, `.jsx`, `.vue`, or `.svelte` files, or any changed behavior primarily reached through the rendered UI, require `functional-browser` evidence before completion. Backend/API/unit-only proof is insufficient for those changes.
-
-**Invoke the `kb-review` skill** — structured code review on the feature diff.
-
-`kb-review` is a skill/orchestrator, not an Agent tool type. Do not call the Agent tool with `agent_type: kb-review`. Load/run the `kb-review` skill, and let that skill spawn valid reviewer agent types such as `code-review`, `correctness-reviewer`, `security-reviewer`, or `adversarial-reviewer`.
-
-This is mandatory. Do not skip, defer, or make it optional. Record the review
-mode from `kb-review`: `review-mode: multi-agent` when reviewer agents actually
-ran, or `review-mode: local-fallback` when the runtime could not or did not
-authorize reviewer subagents. Do not claim multi-agent review happened when
-fallback was used.
-
-- **Pass scope from prior gates:** use the collected scope-verified actual file list from Pre-Flight. Pass this as the scoped file list so kb-review skips its own scope discovery (Stage 1). The scope gates already explained planned and discovered files — no need to re-derive from git diff unless the manifest lacks this data.
-- Pass context: the full `git diff` of the feature branch against baseline, scoped to the verified file list
-- Capture the output: each finding has a severity (P0/P1/P2/P3) and confidence score
-- Capture review mode and any fallback residual risk.
-- Store findings for the resolution gate (Step 2)
-- **Note:** if scope-verified files are unavailable (older manifest, standalone run), let kb-review do its own scope discovery.
-
-## Step 2: Resolution Gate
-
-Review findings from `kb-review` determine whether completion is allowed:
-
-| Severity | Action |
-|----------|--------|
-| P0 (critical) | STOP. Fix before proceeding. Re-run affected tests after fix. |
-| P1 (important) | STOP. Fix before proceeding. |
-| P2 (suggestion) | Log in manifest `notes`. Do not block. |
-| P3 (nit) | Log in manifest `notes`. Do not block. |
-
-This gate is mandatory. The agent MUST NOT proceed to Step 3 while unresolved P0/P1 findings exist.
-
-For any P2/P3 findings, invoke `kb-gate` with the rectify prompt. Do not silently leave fixable P2/P3 issues when the user would prefer a clean finish.
-
-After resolving all P0/P1s, update the manifest notes with a summary:
-`review: P0=0 P1=2(resolved) P2=3(logged) P3=1(logged)`
-
-**Feed learnings to the observation log:**
-
-For each resolved P0/P1 finding, append one line to `.kb/observations.jsonl`:
-
-```json
-{"ts":"<ISO-8601>","hook":"kb-review","tool":"kb-finalize","args":{"finding_type":"<category>","severity":"P0|P1","resolution":"<what was fixed>"},"cwd":"<repo-root>","result":"resolved"}
-```
-
-This connects the review → learn pipeline. Only P0/P1 findings are worth learning from — P2/P3 are style preferences, not systemic patterns.
-
-Create `.kb/observations.jsonl` if it doesn't exist. Append, never overwrite.
-
-## Step 2.5: Follow-Up Resolution Gate
-
-Mirror the useful part of the original LFG finish pattern: do not leave known, fixable follow-up work unresolved just because the main implementation passed.
-
-1. Collect unresolved review findings, TODO files, checklist items, and manifest
-   notes produced by `kb-review`, `kb-gate`, `kb-work`, `kb-qa`, or
-   `kb-functional-test`.
-2. Resolve all safe/actionable P0/P1 findings before continuing.
-3. For P2/P3 and todo-style follow-ups, run the smallest suitable resolver:
-   `kb-gate` rectify prompt, `todo-triage`, `todo-create`, or a repo-local
-   todo/PR-comment resolver if one is installed.
-4. Do not parallelize follow-ups that touch the same files or depend on the same
-   decision. Parallel resolution is allowed only when file scopes are disjoint.
-5. Record: `follow-up-resolution: resolved N, logged M, blocked K`.
-
-Current blocked/human-required items stay visible in `todo.md` or the manifest
-with evidence paths, affected scope, responsibility, resume condition, and
-recheck result. They must not disappear into chat history or broaden beyond
-their dependent scope.
-
-## Step 2.6: Proof and Demo Evidence Gate
-
-Run a final evidence pass after review fixes, because review changes can alter
-behavior.
-
-1. Use `kb-check proof-plan`; rerun only narrow deterministic commands whose
-   inputs changed during review fixes. Reuse every unaffected receipt.
-2. If user-visible, API/CLI, browser, persistence, auth, streaming, or
-   integration behavior changed during review, invalidate and rerun only its
-   affected `kb-functional-test`. Otherwise reuse the proof-batch receipt.
-   For browser/UI work, verify through the rendered UI with Playwright where
-   viable, or the repo/platform authenticated browser transport when Playwright
-   cannot access the route.
-3. If the change is visual, workflow-heavy, reviewer-facing, or the user/PR
-   expects a demo, capture demo evidence. Use a repo-local `feature-video` or
-   equivalent demo skill if installed; otherwise capture screenshots, logs, or a
-   concise manual demo checklist and add an alert with the missing tool.
-4. Run one final exact-tree aggregate after the last code-affecting review fix.
-   If an identical final receipt already exists, record `REUSE` instead.
-5. Store proof in the manifest notes: commands run or reused, input/tree
-   fingerprints, routes/screens/workflows
-   checked, artifacts created, and any skipped proof with reason.
-
-Every slice must have machine-verifiable proof recorded in the manifest before completion can continue.
-
-Acceptable proof formats:
-
-- test file path + exit code + timestamp;
-- Playwright/Cypress/CDP trace path or browser assertion artifact;
-- API response log path with status/schema assertion result;
-- CLI output log path with command and exit code;
-- `go run ./cmd/kbcheck accept --check <check.json> --trace .kb/trace.jsonl` result for repaired failures with a RED-before-GREEN trace;
-- regression snapshot result from `.kb/snapshots/<slice-id>.json` with all previous snapshots passing.
-
-Not acceptable:
-
-- "I checked and it works";
-- "Page loaded successfully";
-- "Tests pass" without the actual command or test file, exit code, and timestamp;
-- latest passing check with no recorded prior RED when the work claims to fix a known failure;
-- screenshots or prose-only notes without an executable assertion/result;
-- any model-only visual inspection.
-
-If any slice has only prose proof, this gate fails. Return to `kb-work`,
-`kb-check`, `kb-qa`, `kb-functional-test`, or `kb-regression-snapshot` to produce
-executable evidence before proceeding.
-
-For objective-contract manifests, summarize the top-level `done_check` and each slice's `proof_check` result in the manifest notes. If the final objective check cannot run yet, record the blocker and do not declare `KB <name> complete`.
-
-If routing evidence is partial, record the strongest honest attribution such as `exact`, `explained-external`, `unknown`, or `unavailable`, then continue with ordinary proof. Never rerun already-correct work only to upgrade provenance.
-
-## Step 3: Compound & Learn
-
-After the resolution gate passes, document what this feature taught the system:
-
-0. **Classify steering feedback** before `/learn` runs.
-   - Sources: resolved P0/P1 review findings, manifest notes named
-     `steering-feedback:`, `/iterate` or PR feedback summaries, goal-ledger
-     feedback, and maintainer comments copied into the completion artifact.
-   - Classify each item as exactly one primary route:
-     `current-only`, `steering-memory`, `observation`, `landmine-candidate`, or
-     `instinct-evidence`.
-   - `current-only`: record in manifest notes only; do not update durable memory.
-   - `steering-memory`: update the steering memory path named by the goal or
-     manifest, usually the goal ledger's `Live Steering` section or
-     `docs/context/operations/steering/<slug>.md`. Keep entries concise:
-     durable scope constraints, known false positives, reviewer preferences, or
-     selection guidance. Do not append raw transcripts or one-off PR details.
-   - `observation`: append one JSONL entry to `.kb/observations.jsonl`.
-     Do not duplicate the resolved P0/P1 entries already written by Step 2;
-     reference those existing entries when they are the evidence source.
-   - `landmine-candidate`: apply `/learn` landmine criteria; record only with
-     owner surface, concrete evidence, fix condition, and verification.
-   - `instinct-evidence`: leave the evidence visible to `/learn`; do not
-     promote it directly to a skill.
-   - If no steering memory path is named, do not create one automatically. Add a
-     manifest note: `steering-feedback: no durable steering memory path`.
-   - Record the result in manifest notes:
-     `steering-feedback: current=<N> memory=<N> observations=<N> landmine-candidates=<N> instinct-evidence=<N>`.
-1. **Invoke `ce-compound`** with context: a one-sentence summary of what was built and any surprising patterns discovered during implementation.
-2. ce-compound writes to `docs/solutions/` with YAML frontmatter — let it run without modification.
-3. If the implementation was pure boilerplate (no novel patterns, no gotchas, no decisions worth preserving), skip with a manifest note: `compound: skipped — standard implementation, no novel patterns`
-4. Per-slice micro-learnings from slice notes feed into the compound context. Reference them when invoking ce-compound.
-5. **Invoke `/learn`** — Extract instincts from this session's work.
-   - Run after compound completes (observations from Step 2 are now available)
-   - `/learn` reads: observations.jsonl, recent git history, docs/solutions/,
-     existing instincts, and any steering-memory updates classified above
-   - Record result in manifest notes: `learn: N new instincts, M updated` or `learn: no new patterns`
-   - This is automatic — do not ask the user whether to run it
-   - If the work exposed a repo-specific landmine, record it only with owner
-     surface, concrete evidence, severity, fix condition, and verification.
-     Reject generic "remember to test/read code" lessons.
-   - If the work fixed an active landmine, move it to resolved/archive only
-     after the verification command passes.
-6. **Check evolution cadence:**
-   - Read `docs/context/kb/kb-completions.txt` (create with `0` if missing)
-   - Increment by 1
-   - Write the new value back
-   - If the new value is divisible by 5:
-     - Invoke `/evolve` to check for promotable instincts
-     - Log result in manifest notes: `evolve: promoted N instincts` or `evolve: no candidates ready`
-   - If not divisible by 5: skip silently
-   - Commit the counter file with the manifest update
-
-## Step 3.5: Project Memory Refresh Gate
-
-Before cleanup or final "complete", make sure a fresh session can resume without a lesson from the user.
-
-Run `kb-map refresh` when any of these are true:
-
-- The manifest contains `memory-impact: durable`.
-- `kb-work` left any `refresh=pending` note.
-- Review fixes changed behavior, architecture, run/test commands, integrations, or known sharp edges.
-- `docs/context/PROJECT.md` points to stale subsystem docs after the feature diff.
-
-Skip with a manifest note only when changes are clearly cosmetic, copy-only, formatting-only, lint-only, or isolated tests with no durable behavior change:
-
-```text
-kb-map-refresh: skipped - cosmetic/no durable architecture change
-```
-
-When refresh runs, update affected docs only:
-
-- `docs/context/PROJECT.md` for route-map, command, or subsystem index changes.
-- `docs/context/architecture/*` for durable subsystem behavior.
-- `docs/context/operations/*` for run/test/deploy/QA changes.
-- `docs/context/landmines.md` for active/resolved landmine changes.
-- `docs/context/research/*` for reusable research outcomes.
-- `docs/context/decisions/*` for accepted/rejected approaches.
-- `todo.md` and handoff files for current operational state.
-
-Then add:
-
-```text
-kb-map-refresh: done - <docs updated>
-```
-
-## Step 3.75: Memory Maintenance Signals
-
-Update `docs/context/memory-maintenance.md` before cleanup. This file is a targeted signal index for future deep memory review. It must contain pointers, not just counters.
-
-Create the file if it does not exist:
-
-```markdown
-# Memory Maintenance
-
-Last deep review: never
-
-## Counters Since Last Review
-
-- Completed KB cycles: 0
-- Durable memory refreshes: 0
-- Closed handoffs: 0
-- Contradiction signals: 0
-- Overlap signals: 0
-- Stale-doc signals: 0
-- Bloat signals: 0
-- Repeated-rediscovery signals: 0
-
-## Signals Since Last Review
-```
-
-For every `kb-finalize` run:
-
-1. Increment `Completed KB cycles` by 1.
-2. Increment `Durable memory refreshes` if Step 3.5 ran `kb-map refresh`.
-3. Increment `Closed handoffs` by the number of handoffs moved to `docs/handoffs/done/` during this completion.
-4. Append exact signals found during review, compound, learn, evolve, memory refresh, and cleanup.
-
-Signal types:
-
-| Type | Record When |
+| Severity | Completion rule |
 |---|---|
-| `contradiction` | two memory docs, handoffs, plans, requirements, or architecture notes disagree |
-| `overlap` | two docs cover the same topic and may need consolidation/cross-linking |
-| `stale-doc` | a memory doc references old paths, old behavior, old commands, or removed systems |
-| `bloat` | a memory doc, handoff folder, research index, or `todo-done.md` is growing past useful startup size |
-| `repeated-rediscovery` | this work re-learned something already discovered in another brainstorm, plan, research note, or solution |
+| P0/P1 | Resolve before completion |
+| P2/P3 | Fix when cheap and clearly correct; otherwise record with owner |
 
-Signal entry format:
+Apply only deterministic safe fixes automatically. Route behavior, contract,
+permission, migration, or product decisions through `kb-gate`.
 
-```markdown
-### YYYY-MM-DD - <type> - <short topic>
-- Source: `<repo-relative path or manifest note>`
-- Found during: `kb-finalize` / `<step or skill>`
-- Signal: <one or two sentences with the actual issue>
-- Suggested pass: <refresh, compact, consolidate, replace, cross-link, or promote>
-```
+A code-affecting fix invalidates:
 
-Generic examples:
+- the aggregate proof receipt;
+- affected functional proof;
+- the semantic review receipt.
 
-```markdown
-### 2026-05-24 - contradiction - workflow source of truth
-- Source: `docs/context/architecture/workflows.md`
-- Found during: `kb-map refresh`
-- Signal: requirements and architecture describe different canonical workflow definitions.
-- Suggested pass: reconcile architecture and decision docs.
+After the last fix, rerun only affected deterministic/functional checks, then
+run one bounded confirmation review with the same profile. This confirmation
+is the same review boundary, not permission to add another profile.
 
-### 2026-05-24 - overlap - release deployment research
-- Source: `docs/context/research/release-packaging.md`
-- Found during: `kb-finalize`
-- Signal: overlaps older deployment research on the same update-delivery path.
-- Suggested pass: consolidate or cross-link research notes.
-```
+Record `follow-up-resolution: resolved N, logged M, blocked K`.
 
-Do not invent signals to satisfy a quota. If no signal exists, only increment counters and add a manifest note: `memory-maintenance: no new signals`.
+## Step 3: Final Exact-Tree Proof
 
-If any signal counter crosses a conservative threshold, add a recommendation to the final report, but do not run the deep pass automatically:
+Run or reuse one aggregate receipt bound to the final tree after all fixes.
+Every slice must retain machine-verifiable proof. Screenshots and prose may
+support proof but cannot replace executable assertions.
 
-- Completed KB cycles >= 5
-- Durable memory refreshes >= 10
-- Closed handoffs >= 10
-- Any contradiction signals >= 2
-- Any combined signals >= 8
+Record:
 
-Recommendation format:
+- commands or receipts reused/run;
+- tree and relevant-input fingerprints;
+- functional routes/workflows exercised;
+- artifact paths;
+- top-level `done_check` and each slice `proof_check`.
 
-```text
-Memory review recommended: <reason>. Run `kb-memory-review` against docs/context/memory-maintenance.md before the next large feature.
-```
+If exact-tree proof fails, return to bounded repair. Do not declare completion.
 
-## Step 3.7: Compact and Alert Gate
+## Step 4: Signal-Driven Knowledge Work
 
-Run `kb-compact` when review, learning, memory refresh, or maintenance signals show that durable memory is getting too large for fresh-session startup.
+Do not run compound, learn, evolve, memory refresh, memory review, or compact
+merely because finalization occurred.
 
-Use targeted compaction only:
+| Signal | Action |
+|---|---|
+| Novel solved problem, non-obvious decision, or reusable failure mode | Invoke `ce-compound` |
+| Repeated correction, resolved P0/P1 pattern, or evidenced landmine | Invoke `learn` |
+| Mature instincts meet the configured cadence/threshold | Invoke `evolve` |
+| Durable behavior, architecture, commands, integration, or sharp edge changed | Invoke `kb-map refresh` |
+| Recorded contradiction, overlap, stale-doc, rediscovery, or bloat threshold | Update maintenance signals; invoke `kb-memory-review` only when due |
+| A specific startup document is too large | Invoke `kb-compact` for that path |
 
-- Compact a specific bloated architecture doc, handoff, research note, `todo-done.md`, or memory-maintenance section.
-- Preserve exact paths, commands, current truth, known sharp edges, and unresolved decisions.
-- Do not compact away active work, blockers, HITL items, open handoffs, or evidence needed for review.
-- Record the result in manifest notes: `compact: <path> compacted` or `compact: skipped - no startup bloat`.
+Otherwise record a specific skip reason. Never create lessons from routine
+success, style preferences, or generic advice. Keep workflow/domain lessons at
+the narrowest owning scope.
 
-Alert the user in the final report when any condition needs deliberate follow-up:
+## Step 5: Cleanup and Gate
 
-- `kb-memory-review` threshold crossed.
-- P2/P3 findings remain logged after the rectify gate.
-- A memory contradiction, stale-doc signal, or repeated-rediscovery signal was recorded.
-- Compacting was skipped because the doc was too risky to summarize safely.
-- A required tool, reviewer, compound, learn, evolve, refresh, or compact step failed.
+1. Keep manifests and slice plans.
+2. Remove only exact, run-owned ephemeral artifacts.
+3. Preserve stable build caches and use repository cleanup receipts where
+   required.
+4. Move the completed feature summary from `todo.md` to `todo-done.md`; retain
+   active, blocked, human-required, parked, and handoff-pointer work.
+5. Write `complete-to-ship` with:
+   - final exact-tree proof and functional proof;
+   - review or valid skip receipt;
+   - P0/P1 resolution;
+   - follow-up summary;
+   - signal-driven knowledge/memory outcomes or skip reasons;
+   - cleanup result and alerts.
+6. Run the gate-ledger checker. Set manifest `status: reviewed` only when the
+   gate passes or explicitly quarantines unrelated work.
 
-Alerts are concise status lines, not extra ceremony. They should tell the user exactly what needs attention and which file contains the evidence.
+## Failure Policy
 
-## Step 4: Cleanup
+- Before reporting any blocked or human-required item, rerun its named sensor or
+  the cheapest owning probe.
+- Proof or unresolved P0/P1 is an implementation blocker.
+- Reviewer unavailability permits one honest local fallback, not a swarm.
+- Optional knowledge or compaction failure is non-blocking but recorded.
+- Delivery, signing, deployment, or optional-platform failure does not erase
+  proven implementation completion.
+- Report proven code as `Implementation: complete` and the affected downstream
+  state as `Delivery: blocked` when only delivery failed.
+- Never ask to skip a mandatory proof or review requirement.
 
-Prune ephemeral artifacts. Heavy KB usage generates file sprawl — clean it up per-feature, not manually.
+## Build Storage Cleanup
 
-1. **QA screenshots** — delete `.kb/qa-screenshots/` contents for this feature's slices. Screenshots should already be referenced in commits or PR bodies. Safe to remove.
+When Cargo ran, execute `cargo-storage --action finalize` with the run receipt.
+Record `retained_bytes` and `removed_bytes`. In portable fallback mode,
+temporary targets and deletion were prohibited; retain the stable target and
+record `removed_bytes: 0`. Record `not-applicable` only when Cargo did not run.
 
-2. **Observations log** — trim `.kb/observations.jsonl` entries older than 90 days. Matches the recency decay half-life in `/learn`. Use any available local scripting runtime; if no suitable runtime is available or the file does not exist, skip with a note.
+## Done
 
-3. **Plan files** — leave manifests and slice plans in `docs/plans/`. Lightweight reference material, useful for tracing decisions.
-
-4. **Cargo build storage** — when Cargo ran in native mode, execute:
-
-   ```powershell
-   go run ./cmd/kbcheck cargo-storage --action finalize --run-id <run-id> --root <project-root> --json
-   ```
-
-   The native guard reads the versioned Git-common-directory receipt, preserves
-   the stable target, validates each temporary target's canonical containment
-   and random ownership marker immediately before exact-path deletion, and
-   writes the build-storage cleanup receipt with `retained_bytes`,
-   `removed_bytes`, and unresolved paths. Never infer cleanup targets from
-   names, glob for `target*`, or delete a parent temp root. Record
-   `not-applicable` only when no Cargo command ran; a missing or unsafe receipt
-   is `blocked`. In portable-fallback mode, temporary targets and deletion were
-   prohibited; record the exact retained target and measured
-   `retained_bytes`, `removed_bytes: 0`, and `status: done-portable-fallback`.
-
-5. **Log cleanup** in the manifest notes:
-
-   ```text
-   cleanup: screenshots pruned, observations trimmed to 90d
-   ```
-
-6. **Todo hygiene** — verify `todo.md` contains only active rows, `🔒 blocked` rows, `🛑 human-required` rows, the `🧊 Parked / Cold Storage` section, or handoff-pointer work. If the completed feature or routine slice completion logs remain there, move a compact summary to `todo-done.md` and remove those entries from `todo.md`. `todo.md` must keep its `## Rules` section at the top; do not depend on `todo_rules.md`, `todo-rules.md`, or any separate rules file.
-
-## Step 5: Done
-
-Before updating the manifest to `status: reviewed`, write `complete-to-ship` in the manifest `gate_ledger`.
-
-Required proof:
-
-- `kb-check` final command/result;
-- objective `done_check` result, or explicit scoped human exception;
-- per-slice `proof_check` result or accepted `no_check_reason`;
-- `kb-functional-test` or explicit skip reason for every functional/API/CLI/UI slice;
-- `kb-review` mode and finding counts;
-- P0/P1 resolved or human/quarantine blocker recorded;
-- follow-up-resolution summary;
-- proof/demo evidence paths or skip reason;
-- compound/learn/evolve result or non-blocking failure note;
-- project-memory refresh/skip proof;
-- memory-maintenance update;
-- cleanup result;
-- build-storage cleanup receipt, including `retained_bytes` and
-  `removed_bytes`, or a valid `not-applicable` result;
-- alerts list.
-
-If required implementation proof is missing, set `complete-to-ship` to
-`blocked` and do not report `KB <name> finalized`. If implementation proof is
-complete but a delivery-only gate fails, report `Implementation: complete` and
-`Delivery: blocked` with the exact affected gate instead of describing the
-whole objective as blocked.
-
-Update the manifest `status: reviewed` only after `complete-to-ship` is `passed` or explicitly `quarantined` for out-of-scope issues, and after `kb-gate/scripts/check_gate_ledger.py <manifest-path> --gate complete-to-ship --allow-quarantine` passes. Then report:
+Report:
 
 ```text
 KB <name> finalized.
-- Review: P0=N P1=N(resolved) P2=N P3=N
-- Follow-up resolution: <resolved N | logged M | blocked K>
-- Proof/demo evidence: <commands/artifacts | skipped with reason>
-- Compound: <written | skipped>
-- Learn: <N new, M updated | no new patterns>
-- Evolve: <promoted N | skipped | no candidates>
-- Project memory: <refreshed | skipped with reason>
-- Memory maintenance: <N signals recorded | no new signals | review recommended>
-- Compact: <ran on paths | skipped with reason>
-- Alerts: <none | concise follow-up lines with evidence paths>
+- Proof: <exact-tree receipt>
+- Review: <profile or conservative skip>; P0=N P1=N P2=N P3=N
+- Follow-up: resolved N, logged M, blocked K
+- Knowledge/memory: <actions or skip reasons>
 - Cleanup: done
 
-Ready for configured delivery. Return control to `kb-complete <manifest>`.
+Ready for configured delivery. Return to kb-complete <manifest>.
 ```
-
-## Failure Handling
-
-| Situation | Action |
-|-----------|--------|
-| kb-review fails to run | Log error, ask user whether to retry or skip review |
-| P0/P1 fix breaks tests | Re-run tests, treat as new failure, fix before proceeding |
-| proof/demo evidence cannot run | Log the missing tool/server/credential and alert user with the closest deterministic proof completed |
-| compound/learn/evolve fails | Log error, continue — these are non-blocking |
-| kb-compact fails | Log error and alert user with the bloated file path; do not block completion |
-| Manifest not found | Ask user for path |
-| Manifest has unfinished slices | Stop, tell user to run kb-work first |
 
 ## Integration
 
-- **Input from:** `kb-work` or `kb-complete` (completed manifest)
-- **Review engine:** `kb-review` with scope passthrough
-- **Follow-up resolution:** `kb-gate`, `todo-triage`, `todo-create`, or repo-local resolvers
-- **Proof/demo evidence:** `kb-check`, `kb-functional-test`, browser/CLI/API probes, optional repo-local demo skills
-- **Documentation:** `ce-compound` → `docs/solutions/`
-- **Project memory:** `kb-map refresh` → `docs/context/*`, `todo.md`, handoffs
-- **Memory maintenance:** `docs/context/memory-maintenance.md` signal index
-- **Compaction:** `kb-compact` for targeted memory bloat
-- **Learning:** `/learn` → `docs/context/kb/instincts/project.yaml`
-- **Evolution:** `/evolve` → `.github/skills/learned-*/`
-- **Delivery handoff:** `kb-complete` selects local, PR, or direct policy
+- Input: `kb-work` or `kb-complete`
+- Proof: `kb-check`, `kb-functional-test`, regression snapshots
+- Semantic review: `kb-review`
+- Decisions: `kb-gate`
+- Conditional knowledge: `ce-compound`, `learn`, `evolve`
+- Conditional memory: `kb-map`, `kb-memory-review`, `kb-compact`
+- Delivery owner: `kb-complete`

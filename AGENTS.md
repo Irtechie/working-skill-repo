@@ -48,7 +48,9 @@ go run ./cmd/kbcheck local-release
 
 `core` is contributor-safe on a fresh clone and validates repo-local deterministic checks. `local-release` composes `core`, `git diff --check`, static reports, and blocking read-only sync drift reports using `config/skill-quality.json`. Required targets are Codex global, Copilot global, and shared agents global.
 
-Do not remove `kb-review`, `ce-review`, `ce-compound`, or `ce-compound-refresh` from this bundle unless the skills that invoke them are rewritten first. KB completion uses `kb-review`; `ce-review` remains the generalized CE review skill.
+Do not remove `kb-review`, `ce-compound`, or `ce-compound-refresh` from this
+bundle unless the skills that invoke them are rewritten first. `kb-review` is
+the single code-review owner for KB completion and standalone bundle review.
 
 Optimize for comprehension and decision effort, not the fewest words. Every
 token must pay rent:

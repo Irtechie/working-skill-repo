@@ -107,6 +107,22 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-31T03:22:00Z"
     allowed_next_action: "slice-002"
+  - gate_id: slice-slice-002-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Planning defaults to self-check and zero reviewers."
+      - "Optional document review and integrated code review dispatch at most one profile."
+      - "Review receipts and final proof invalidate on code-affecting fixes."
+    proof:
+      - docs/results/proof/current-agent-workflow-cleanup-slice-002.txt
+      - .github/skills/kb-review/SKILL.md
+      - .github/skills/document-review/SKILL.md
+      - .github/skills/kb-finalize/SKILL.md
+    blockers: []
+    passed_at: "2026-07-31T04:05:00Z"
+    allowed_next_action: "slice-003"
 slices:
   - id: slice-001
     title: "Enforce current skill-guidance structure"
@@ -154,14 +170,14 @@ slices:
       command: "go test ./cmd/kbcheck -run 'Review|DocumentReview|Finalize' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
     next_agent_action: "Protect boundary and reviewer-count behavior, then simplify orchestration and remove ce-review."
     human_action: ""
     can_continue_other_slices: true
-    notes: ""
+    notes: "scope-discovery: cmd/kbcheck/manifest_contract.go and tests - schema 3 enforces one reviewer while schema 2 receipts remain readable; scope-discovery: cmd/kbcheck/review_reference_guard.go and tests - duplicate CE owner removed; scope-discovery: AGENTS.md and config/skill-guidance-audit.json - protection and audit updated after ce-review removal; scope-check: forecast=8 changed=23 discovered=15 unexplained=0; test-level: integration; proof: go test ./cmd/kbcheck -run 'Review|DocumentReview|Finalize' -count=1 exit=0; memory-impact: durable; areas=review-lifecycle,finalization; refresh=pending"
   - id: slice-003
     title: "Remove dead completion aliases and stale surfaces"
     path: docs/plans/2026-07-30-013-skill-dead-surface-cleanup-plan.md
@@ -266,7 +282,7 @@ installer/sync surfaces, and release proof change together.
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|---|---|---|---|---|
 | 1 | Enforce current skill-guidance structure | - | tdd | no | done |
-| 2 | Make review and finalization proportional | slice-001 | tdd | no | pending |
+| 2 | Make review and finalization proportional | slice-001 | tdd | no | done |
 | 3 | Remove dead completion aliases and stale surfaces | slice-002 | integration | no | pending |
 | 4 | Refactor oversized hot-path skills | slice-003 | integration | no | pending |
 | 5 | Propagate and prove the cleaned bundle | slice-004 | verification-only | no | pending |

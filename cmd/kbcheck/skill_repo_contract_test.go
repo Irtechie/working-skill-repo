@@ -181,7 +181,8 @@ func TestPlanWideSpecialistReviewContract(t *testing.T) {
 	required := map[string][]string{
 		".github/skills/kb-plan/SKILL.md": {
 			"document-review mode:headless",
-			"Do not invoke `document-review` for a small, mechanically constrained, low-risk source",
+			"perform the main-agent requirements check",
+			"selects exactly one best-fit reviewer",
 			"pre_slice_review_contract: true",
 			"pre_slice_review",
 			"source_sha256",
@@ -190,14 +191,16 @@ func TestPlanWideSpecialistReviewContract(t *testing.T) {
 			"not_required_reason",
 		},
 		".github/skills/document-review/SKILL.md": {
-			"requirements-wide review belongs before `kb-plan` decomposes the source into slices",
-			"never dispatch one document-review persona per slice",
+			"optional uncertainty reducer",
+			"Never run always-on reviewers and never stack personas",
+			"Never review one slice at a time",
 			"`spec-flow-analyzer`",
-			"reviewers are analysis-only",
+			"The reviewer is read-only",
 			"docs/results/document-reviews/",
 		},
 		".github/skills/kb-brainstorm/SKILL.md": {
-			"run reviewers only when their findings could materially change",
+			"First perform the requirements self-check",
+			"selects exactly one best-fit reviewer",
 			"document-review mode:headless",
 			"source SHA-256 still matches",
 			"do not dispatch placeholder personas",

@@ -719,8 +719,13 @@ func validatePassedPreSliceReview(path string, values map[string]string) []manif
 		issues = add(issues, "passed pre_slice_review reviewed_at must be RFC3339")
 	}
 	personas := map[string]string{}
-	if err := json.Unmarshal([]byte(values["persona_evidence_json"]), &personas); err != nil || len(personas) == 0 {
+	schemaText, _, _ := manifestTopLevelScalarDetails(path, "manifest_schema")
+	schemaVersion, _ := strconv.Atoi(schemaText)
+	personaErr := json.Unmarshal([]byte(values["persona_evidence_json"]), &personas)
+	if personaErr != nil || len(personas) == 0 {
 		issues = add(issues, "passed pre_slice_review persona_evidence_json must be a nonempty JSON object")
+	} else if schemaVersion >= 3 && len(personas) != 1 {
+		issues = add(issues, "manifest_schema 3 requires exactly one pre-slice reviewer")
 	} else {
 		allowed := map[string]bool{
 			"coherence-reviewer": true, "feasibility-reviewer": true,
@@ -734,11 +739,6 @@ func validatePassedPreSliceReview(path string, values map[string]string) []manif
 			}
 			if !validPersonaSelectionReason(persona, reason) {
 				issues = add(issues, fmt.Sprintf("pre_slice_review persona %s requires a specific selection reason", persona))
-			}
-		}
-		for _, required := range []string{"coherence-reviewer", "feasibility-reviewer"} {
-			if _, ok := personas[required]; !ok {
-				issues = add(issues, fmt.Sprintf("passed pre_slice_review requires completed %s", required))
 			}
 		}
 	}

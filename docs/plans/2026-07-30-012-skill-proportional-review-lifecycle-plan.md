@@ -46,9 +46,9 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/skill_guidance_test.go
     role: "review lifecycle and dispatch-count oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "db8b6ac30c163d724a0bed25919bcc807dddcdf5e66279b5d5b72ec9cc5e2a33"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""

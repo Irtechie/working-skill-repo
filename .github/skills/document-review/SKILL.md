@@ -1,380 +1,116 @@
 ---
 name: document-review
-description: Review requirements or plan documents using parallel persona agents that surface role-specific issues. Use when a requirements document or plan document exists and the user wants to improve it.
+description: "Optionally review one requirements or plan document with one best-fit specialist when the main-agent self-check leaves material uncertainty."
 argument-hint: "[mode:headless] [path/to/document.md]"
 ---
 
-# Document Review
+# Document Review - One Best-Fit Specialist
 
-Review requirements or plan documents through multi-persona analysis. Dispatches specialized reviewer agents in parallel, auto-fixes quality issues, and presents strategic questions for user decision.
+This is an optional uncertainty reducer, not a mandatory planning phase.
+`kb-brainstorm` or `kb-plan` first performs its own requirements check. Invoke
+this skill only when one unresolved concern could materially change intent,
+scope, feasibility, flow, trust, or decomposition.
 
-## Phase 0: Detect Mode
+## Input and Mode
 
-Check the skill arguments for `mode:headless`. Arguments may contain a document path, `mode:headless`, or both. Tokens starting with `mode:` are flags, not file paths -- strip them from the arguments and use the remaining token (if any) as the document path for Phase 1.
+Parse `mode:headless` as a flag and the remaining token as the document path.
+Headless mode requires a path, never asks questions, and returns structured
+findings plus a reusable receipt.
 
-If `mode:headless` is present, set **headless mode** for the rest of the workflow.
+Classify the document as:
 
-**Headless mode** changes the interaction model, not the classification boundaries. Document-review still applies the same judgment about what has one clear correct fix vs. what needs user judgment. The only difference is how non-auto findings are delivered:
-- `auto` fixes are applied silently (same as interactive)
-- `present` findings are returned as structured text for the caller to handle -- no AskUserQuestion prompts, no interactive approval
-- a reusable receipt is written under `docs/results/document-reviews/` after auto-fixes,
-  bound to the final document SHA-256
-- Phase 5 returns immediately with "Review complete" (no refine/complete question)
+- `requirements` for product intent, behavior, constraints, and success;
+- `plan` for decomposition, dependencies, ownership, and verification.
 
-The caller receives findings with their original classifications intact and decides what to do with them.
+## Main-Agent Self-Check
 
-Callers invoke headless mode by including `mode:headless` in the skill arguments, e.g.:
-```
-document-review mode:headless docs/plans/my-plan.md
-```
+Before dispatch, verify:
 
+1. The goal and non-goals are explicit.
+2. Requirements do not contradict each other.
+3. Acceptance criteria are observable and testable.
+4. Dependencies and constraints are supported by repo evidence or labeled
+   assumptions.
+5. Risks with multiple reasonable answers are visible rather than silently
+   chosen.
 
-If `mode:headless` is not present, the skill runs in its default interactive mode with no behavior change.
+If this resolves the uncertainty, do not dispatch. Return
+`review-status: not-required` with the specific reason.
 
-## Phase 1: Get and Analyze Document
+## Selection
 
-**If a document path is provided:** Read it, then proceed.
+Select exactly one reviewer whose lens best matches the dominant unresolved
+uncertainty. Never run always-on reviewers and never stack personas.
 
-**If no document is specified (interactive mode):** Ask which document to review, or find the most recent in `docs/brainstorms/` or `docs/plans/` using a file-search/glob tool (the glob tool).
+| Dominant uncertainty | Reviewer |
+|---|---|
+| Internal contradiction or terminology drift | `coherence-reviewer` |
+| Implementability, dependency, rollout, or architecture feasibility | `feasibility-reviewer` |
+| Product premise, priority, value, or opportunity cost | `product-lens-reviewer` |
+| Information architecture, interaction, accessibility, or visual behavior | `design-lens-reviewer` |
+| Multi-step, branching, retry, cancellation, or recovery flow | `spec-flow-analyzer` |
+| Auth, privacy, data exposure, credentials, or trust boundary | `security-lens-reviewer` |
+| Scope growth, weak goal alignment, or unjustified complexity | `scope-guardian-reviewer` |
+| Broad assumptions or a plan that needs adversarial stress | `adversarial-document-reviewer` |
 
-**If no document is specified (headless mode):** Output "Review failed: headless mode requires a document path. Re-invoke with: document-review mode:headless <path>" without dispatching agents.
+When two concerns exist, choose the one most likely to change the document and
+put the secondary concern into the same prompt. One reviewer remains
+accountable for the whole document.
 
-### Classify Document Type
+## Universal Reviewer Contract
 
-After reading, classify the document:
-- **requirements** -- from `docs/brainstorms/`, focuses on what to build and why
-- **plan** -- from `docs/plans/`, focuses on how to build it with implementation details
+The selected reviewer reads the full document and must check:
 
-### Lifecycle Placement
+- consistency and authoritative intent;
+- feasibility against known constraints;
+- requirement and flow completeness;
+- testability of acceptance criteria;
+- its specialist risk.
 
-A requirements-wide review belongs before `kb-plan` decomposes the source into
-slices. Review every applicable persona against the same full requirements
-document once, synthesize the findings, and let the caller resolve them before
-slice IDs, dependencies, and implementation owners exist.
+Use `references/subagent-template.md` and
+`references/findings-schema.json`. The reviewer is read-only and returns one
+structured result.
 
-A plan review evaluates the generated manifest/DAG as one document after
-decomposition. It may catch plan coherence problems, but it does not replace
-the pre-slice requirements review. Never dispatch one document-review persona
-per slice. Reviewers are analysis-only; they return findings to the caller and
-are never mutating implementation owners.
+## Findings
 
-### Select Conditional Personas
+Drop malformed or unevidenced findings. Suppress confidence below 0.50.
+Deduplication is local because only one reviewer runs.
 
-Analyze the document content to determine which conditional personas to
-activate. A matching word is not enough: dispatch a persona only when its
-specialty could materially change or validate this document. Keep the roster
-proportional to the decision surface. Ignore negated, historical, glossary-only,
-and explicitly out-of-scope mentions unless they expose a live contradiction.
+| Autofix class | Action |
+|---|---|
+| `auto` | Apply one mechanically correct reconciliation in one edit pass |
+| `present` | Return the tradeoff or unresolved judgment to the caller |
 
-Record each selection reason as `<basis>: <specific source evidence>` using the
-persona's fixed basis: coherence=`consistency-risk`, feasibility=`delivery-risk`,
-product=`product-risk`, design=`interaction-risk`, flow=`flow-risk`,
-security=`security-risk`, scope=`scope-risk`, and
-adversarial=`adversarial-risk`. The evidence after the prefix must be specific,
-not a generic "reviewer applies" assertion. This lets deterministic validation
-catch persona/reason mismatches without selecting personas by keyword.
+P0/P1 must be resolved before slicing. P2/P3 are constraints or improvements,
+not automatic blockers. Headless mode never asks questions.
 
-**product-lens** -- activate when the document makes challengeable claims about what to build and why, or when the proposed work carries strategic weight beyond the immediate problem. The system's users may be end users, developers, operators, maintainers, or any other audience -- the criteria are domain-agnostic. Check for either leg:
+## Receipt
 
-*Leg 1 — Premise claims:* The document stakes a position on what to build or why that a knowledgeable stakeholder could reasonably challenge -- not merely describing a task or restating known requirements:
-- Problem framing where the stated need is non-obvious or debatable, not self-evident from existing context
-- Solution selection where alternatives plausibly exist (implicit or explicit)
-- Prioritization decisions that explicitly rank what gets built vs deferred
-- Goal statements that predict specific user outcomes, not just restate constraints or describe deliverables
+After auto-fixes, bind the receipt to the final document SHA-256 and write:
 
-*Leg 2 — Strategic weight:* The proposed work could affect system trajectory, user perception, or competitive positioning, even if the premise is sound:
-- Changes that shape how the system is perceived or what it becomes known for
-- Complexity or simplicity bets that affect adoption, onboarding, or cognitive load
-- Work that opens or closes future directions (path dependencies, architectural commitments)
-- Opportunity cost implications -- building this means not building something else
+`docs/results/document-reviews/<document-slug>-<source-sha12>.json`
 
-**design-lens** -- activate when the document makes a live decision about:
-- UI/UX references, frontend components, or visual design language
-- User flows, wireframes, screen/page/view mentions
-- Interaction descriptions (forms, buttons, navigation, modals)
-- References to responsive behavior or accessibility
+Include:
 
-**flow-lens** -- activate when the document makes a live decision about:
-- Multi-step user, operator, API, job, or agent workflows
-- State transitions, retries, cancellation, recovery, or partial completion
-- Branching paths, role-specific paths, or lifecycle sequencing
-- Requirements whose happy path is clear but edge-flow coverage is not
+- `review_id`, source path/hash, timestamp, document type, and mode;
+- one selected/completed persona, or none for `not-required`;
+- the specific selection or not-required reason;
+- finding counts, unresolved P0/P1, residual findings, and constraints;
+- failed persona information when dispatch failed.
 
-**security-lens** -- activate when the document makes a live decision about:
-- Auth/authorization mentions, login flows, session management
-- API endpoints exposed to external clients
-- Data handling, PII, payments, tokens, credentials, encryption
-- Third-party integrations with trust boundary implications
+The receipt authorizes planning only when the selected reviewer completed and
+unresolved P0/P1 counts are zero.
 
-**scope-guardian** -- activate when the document makes a live decision about:
-- Multiple priority tiers (P0/P1/P2, must-have/should-have/nice-to-have)
-- Large requirement count (>8 distinct requirements or implementation units)
-- Stretch goals, nice-to-haves, or "future work" sections
-- Scope boundary language that seems misaligned with stated goals
-- Goals that don't clearly connect to requirements
+## Boundaries
 
-**adversarial** -- activate when the document makes a live decision about:
-- More than 5 distinct requirements or implementation units
-- Explicit architectural or scope decisions with stated rationale
-- High-stakes domains (auth, payments, data migrations, external integrations)
-- Proposals of new abstractions, frameworks, or significant architectural patterns
-
-## Phase 2: Announce and Dispatch Personas
-
-`document-review` is this skill/orchestrator, not an Agent tool `agent_type`.
-
-Never call the Agent tool with `agent_type: document-review`. Use runtime-valid document reviewer agent types:
-
-- `coherence-reviewer`
-- `feasibility-reviewer`
-- `product-lens-reviewer`
-- `design-lens-reviewer`
-- `spec-flow-analyzer`
-- `security-lens-reviewer`
-- `scope-guardian-reviewer`
-- `adversarial-document-reviewer`
-
-If a desired persona does not exist as a runtime agent type, use `general-purpose` with the persona instructions in the task prompt rather than inventing an agent type. A broader valid reviewer is better than a failed dispatch.
-
-### Announce the Review Team
-
-Tell the user which personas will review and why. For conditional personas, include the justification:
-
-```
-Reviewing with:
-- coherence-reviewer (always-on)
-- feasibility-reviewer (always-on)
-- scope-guardian-reviewer -- plan has 12 requirements across 3 priority levels
-- security-lens-reviewer -- plan adds API endpoints with auth flow
-```
-
-### Build Agent List
-
-Always include:
-- `coherence-reviewer`
-- `feasibility-reviewer`
-
-These are always-on only after the caller has decided that a document review is
-warranted. They do not make every requirements or planning request trigger
-`document-review`.
-
-Add activated conditional personas:
-- `product-lens-reviewer`
-- `design-lens-reviewer`
-- `spec-flow-analyzer`
-- `security-lens-reviewer`
-- `scope-guardian-reviewer`
-- `adversarial-document-reviewer`
-
-### Dispatch
-
-Dispatch all agents in **parallel** using the platform's task/agent tool (e.g., Agent tool in Copilot CLI, spawn in Codex). Each agent receives the prompt built from the subagent template included below with these variables filled:
-
-| Variable | Value |
-|----------|-------|
-| `{persona_file}` | Full content of the agent's markdown file |
-| `{schema}` | Content of the findings schema included below |
-| `{document_type}` | "requirements" or "plan" from Phase 1 classification |
-| `{document_path}` | Path to the document |
-| `{document_content}` | Full text of the document |
-
-Pass each agent the **full document** -- do not split into sections.
-
-**Error handling:** If an agent fails or times out, proceed with findings from agents that completed and note the failed agent in Coverage. A general document review may still finish, but a caller must not mark a pre-slice review `passed` while any selected persona failed.
-
-**Dispatch limit:** Even at maximum (8 agents), use parallel dispatch. These are document reviewers with bounded scope reading a single document -- parallel is safe and fast.
-
-## Phase 3: Synthesize Findings
-
-Process findings from all agents through this pipeline. **Order matters** -- each step depends on the previous.
-
-### 3.1 Validate
-
-Check each agent's returned JSON against the findings schema included below:
-- Drop findings missing any required field defined in the schema
-- Drop findings with invalid enum values
-- Note the agent name for any malformed output in the Coverage section
-
-### 3.2 Confidence Gate
-
-Suppress findings below 0.50 confidence. Store them as residual concerns for potential promotion in step 3.4.
-
-### 3.3 Deduplicate
-
-Fingerprint each finding using `normalize(section) + normalize(title)`. Normalization: lowercase, strip punctuation, collapse whitespace.
-
-When fingerprints match across personas:
-- If the findings recommend **opposing actions** (e.g., one says cut, the other says keep), do not merge -- preserve both for contradiction resolution in 3.5
-- Otherwise merge: keep the highest severity, keep the highest confidence, union all evidence arrays, note all agreeing reviewers (e.g., "coherence, feasibility")
-- **Coverage attribution:** Attribute the merged finding to the persona with the highest confidence. Decrement the losing persona's Findings count *and* the corresponding route bucket (Auto or Present) so `Findings = Auto + Present` stays exact.
-
-### 3.4 Promote Residual Concerns
-
-Scan the residual concerns (findings suppressed in 3.2) for:
-- **Cross-persona corroboration**: A residual concern from Persona A overlaps with an above-threshold finding from Persona B. Promote at P2 with confidence 0.55-0.65. Inherit `finding_type` from the corroborating above-threshold finding.
-- **Concrete blocking risks**: A residual concern describes a specific, concrete risk that would block implementation. Promote at P2 with confidence 0.55. Set `finding_type: omission` (blocking risks surfaced as residual concerns are inherently about something the document failed to address).
-
-### 3.5 Resolve Contradictions
-
-When personas disagree on the same section:
-- Create a **combined finding** presenting both perspectives
-- Set `autofix_class: present`
-- Set `finding_type: error` (contradictions are by definition about conflicting things the document says, not things it omits)
-- Frame as a tradeoff, not a verdict
-
-Specific conflict patterns:
-- Coherence says "keep for consistency" + scope-guardian says "cut for simplicity" -> combined finding, let user decide
-- Feasibility says "this is impossible" + product-lens says "this is essential" -> P1 finding framed as a tradeoff
-- Multiple personas flag the same issue -> merge into single finding, note consensus, increase confidence
-
-### 3.6 Route by Autofix Class
-
-**Severity and autofix_class are independent.** A P1 finding can be `auto` if the correct fix is obvious. The test is not "how important?" but "is there one clear correct fix, or does this require judgment?"
-
-| Autofix Class | Route |
-|---------------|-------|
-| `auto` | Apply automatically -- one clear correct fix. Includes both internal reconciliation (one part authoritative over another) and additions mechanically implied by the document's own content. |
-| `present` | Present individually for user judgment |
-
-Demote any `auto` finding that lacks a `suggested_fix` to `present`.
-
-**Auto-eligible patterns:** summary/detail mismatch (body is authoritative over overview), wrong counts, missing list entries derivable from elsewhere in the document, stale internal cross-references, terminology drift, prose/diagram contradictions where prose is more detailed, missing steps mechanically implied by other content, unstated thresholds implied by surrounding context, completeness gaps where the correct addition is obvious. If the fix requires judgment about *what* to do (not just *what to write*), it belongs in `present`.
-
-### 3.7 Sort
-
-Sort findings for presentation: P0 -> P1 -> P2 -> P3, then by finding type (errors before omissions), then by confidence (descending), then by document order (section position).
-
-## Phase 4: Apply and Present
-
-### Apply Auto-fixes
-
-Apply all `auto` findings to the document in a **single pass**:
-- Edit the document inline using the platform's edit tool
-- Track what was changed for the "Auto-fixes Applied" section
-- Do not ask for approval -- these have one clear correct fix
-
-List every auto-fix in the output summary so the user can see what changed. Use enough detail to convey the substance of each fix (section, what was changed, reviewer attribution). This is especially important for fixes that add content or touch document meaning -- the user should not have to diff the document to understand what the review did.
-
-### Present Remaining Findings
-
-**Headless mode:** Do not use interactive question tools. Output all non-auto findings as a structured text summary the caller can parse and act on:
-
-```
-Document review complete (headless mode).
-
-Applied N auto-fixes:
-- <section>: <what was changed> (<reviewer>)
-- <section>: <what was changed> (<reviewer>)
-
-Findings (requires judgment):
-
-[P0] Section: <section> — <title> (<reviewer>, confidence <N>)
-  Why: <why_it_matters>
-  Suggested fix: <suggested_fix or "none">
-
-[P1] Section: <section> — <title> (<reviewer>, confidence <N>)
-  Why: <why_it_matters>
-  Suggested fix: <suggested_fix or "none">
-
-Residual concerns:
-- <concern> (<source>)
-
-Deferred questions:
-- <question> (<source>)
-```
-
-Omit any section with zero items. Then proceed directly to Phase 5 (which returns immediately in headless mode).
-
-After applying auto-fixes, write
-`docs/results/document-reviews/<document-slug>-<source-sha12>.json` with:
-
-- `review_id`, `source`, `source_sha256`, and `reviewed_at`;
-- `document_type` and `mode: requirements-wide|plan-wide`;
-- `selected_personas` and `completed_personas`; selected must equal completed
-  plus failed, and completed must match the persona-evidence keys;
-- `persona_evidence`, a JSON object mapping every completed persona ID to the
-  decision-oriented reason it was selected;
-- `failed_personas`;
-- `findings_resolved`, `unresolved_p0`, `unresolved_p1`, and
-  `residual_findings`;
-- `residual_items`, one structured `{severity,title,constraint}` item per
-  residual P2/P3 finding. Resolved P0/P1 changes belong in the reviewed source;
-  residual constraints stay available to planning and workers through this
-  artifact.
-
-Return the artifact path in the headless output. Compute the hash after all
-auto-fixes so any later requirements edit invalidates reuse. The artifact is
-the durable machine-readable receipt; do not replace it with a narrative review
-report.
-
-**Interactive mode:**
-
-Present `present` findings using the review output template included below. Within each severity level, separate findings by type:
-- **Errors** (design tensions, contradictions, incorrect statements) first -- these need resolution
-- **Omissions** (missing steps, absent details, forgotten entries) second -- these need additions
-
-Brief summary at the top: "Applied N auto-fixes. K findings to consider (X errors, Y omissions)."
-
-Include the Coverage table, auto-fixes applied, residual concerns, and deferred questions.
-
-### Protected Artifacts
-
-During synthesis, discard any finding that recommends deleting or removing files in:
-- `docs/brainstorms/`
-- `docs/plans/`
-- `docs/solutions/`
-
-These are pipeline artifacts and must not be flagged for removal.
-
-## Phase 5: Next Action
-
-**Headless mode:** Return "Review complete" immediately. Do not ask questions. The caller receives the text summary from Phase 4 and handles any remaining findings.
-
-**Interactive mode:**
-
-**Ask using the platform's interactive question tool** -- do not print the question as plain text output:
-- Copilot CLI: `AskUserQuestion`
-- Codex: `request_user_input`
-- Gemini: `ask_user`
-- Fallback (no question tool available): present numbered options and stop; wait for the user's next message
-
-Offer these two options. Use the document type from Phase 1 to set the "Review complete" description:
-
-1. **Refine again** -- Address the findings above, then re-review
-2. **Review complete** -- description based on document type:
-   - requirements document: "Create technical plan with kb-plan"
-   - plan document: "Implement with kb-work"
-
-After 2 refinement passes, recommend completion -- diminishing returns are likely. But if the user wants to continue, allow it.
-
-Return "Review complete" as the terminal signal for callers.
-
-## What NOT to Do
-
-- Do not rewrite the entire document
-- Do not add new sections or requirements the user didn't discuss
-- Do not over-engineer or add complexity
-- Do not create separate narrative review files or metadata sections. The
-  headless JSON receipt under `docs/results/document-reviews/` is the only
-  exception.
-- Do not modify caller skills (kb-brainstorm, kb-plan, or external plugin skills that invoke document-review)
-
-## Iteration Guidance
-
-On subsequent passes, re-dispatch personas and re-synthesize. The auto-fix mechanism and confidence gating prevent the same findings from recurring once fixed. If findings are repetitive across passes, recommend completion.
-
----
-
-## Included References
-
-### Subagent Template
-
-@./references/subagent-template.md
-
-### Findings Schema
-
-@./references/findings-schema.json
-
-### Review Output Template
-
-@./references/review-output-template.md
+- Maximum one reviewer call for the requirements boundary.
+- Never review one slice at a time.
+- A later plan review is a separate boundary and still limited to one reviewer.
+- Requirements edits invalidate the receipt.
+- Do not rewrite the whole document, invent scope, or implement code.
+
+## Lazy References
+
+- `references/subagent-template.md` - single-reviewer prompt.
+- `references/findings-schema.json` - finding contract.
+- `references/review-output-template.md` - interactive presentation.

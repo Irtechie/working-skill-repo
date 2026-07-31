@@ -421,14 +421,18 @@ If the document contains outstanding questions:
 
 ### Phase 9: Document Review
 
-When a requirements document was created or updated, apply the plan-wide
-materiality rule from `kb-plan`: run reviewers only when their findings could
-materially change product intent, flow, scope, feasibility, architecture, or a
-trust boundary. Do not run `document-review` for a small, mechanically
-constrained, low-risk requirements source.
+First perform the requirements self-check from `kb-plan`: goals and non-goals,
+internal consistency, observable acceptance criteria, supported dependencies,
+failure/recovery coverage, trust boundaries, and verification quality. Fix
+clear defects directly.
 
-When review is warranted, run
+Invoke review only when that pass leaves one material uncertainty that could
+change product intent, flow, scope, feasibility, architecture, trust, or
+decomposition. Requirement count alone is not a trigger. When review is
+warranted, run
 `document-review mode:headless <requirements-path>` once on the full document.
+It selects exactly one best-fit reviewer; never stack personas and never review
+per slice.
 Keep the returned `docs/results/document-reviews/` artifact so `kb-plan` can reuse it
 when its source SHA-256 still matches. When review is not warranted, record the
 specific not-required reason in the handoff summary; do not dispatch placeholder

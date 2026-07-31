@@ -66,6 +66,7 @@ func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 		"skill-eval-manifest-selftest",
 		"skill-eval-observed-trace-dry-run",
 		"skill-eval-quality",
+		"skill-guidance",
 		"skill-lint",
 		"skill-marketplace-firebreak",
 		"skill-marketplace-firebreak-selftest",
