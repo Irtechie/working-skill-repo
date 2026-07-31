@@ -86,6 +86,34 @@ func TestWebUIProofRemainsAgentOwned(t *testing.T) {
 	}
 }
 
+func TestPlanRunWorktreeAndBranchShareFunnyTaskName(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]string{
+		".github/skills/kb-work/SKILL.md": {
+			"Use the same codename for the worktree directory and plan-run branch",
+			"must relate recognizably to the task",
+		},
+		".github/skills/kb-work/references/worktree-isolation.md": {
+			"Branch and worktree basename must share that exact codename",
+			"`codex/the-reviewers-have-unionized`",
+		},
+	}
+	for relative, phrases := range required {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, phrase := range phrases {
+			if !strings.Contains(string(content), phrase) {
+				t.Errorf("%s missing worktree naming contract %q", relative, phrase)
+			}
+		}
+	}
+}
+
 func TestDeliveryOwnerSkillContracts(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {

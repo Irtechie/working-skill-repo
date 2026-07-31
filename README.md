@@ -79,8 +79,10 @@ Planning classifies each slice's minimum execution capability as `small`,
 rubric. Work-time DDR resolves one actually callable same-tier-or-higher route
 without writing provider or model names into durable plans.
 
-Manifest worktrees use short, task-relevant, irreverent-but-work-safe names such
-as `the-reviewers-have-unionized`, not opaque random adjective-noun pairs.
+Manifest worktrees and their plan-run branches share one short, task-relevant,
+irreverent-but-work-safe codename, such as worktree
+`the-reviewers-have-unionized` with branch
+`codex/the-reviewers-have-unionized`, not opaque random adjective-noun pairs.
 
 ### One owner, one useful proof wave
 

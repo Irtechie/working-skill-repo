@@ -15,12 +15,24 @@ antihero's name or fandom references. Prefer names such as
 `improved-funicular`. Keep the manifest ID in receipts; the human-facing name
 should optimize recognition rather than duplicate it.
 
+Branch and worktree basename must share that exact codename. A namespace prefix
+is allowed for the branch, but the funny task name must remain intact:
+
+| Task | Worktree basename | Branch |
+|---|---|---|
+| Reduce reviewer overuse | `the-reviewers-have-unionized` | `codex/the-reviewers-have-unionized` |
+| Simplify an overgrown prompt | `this-prompt-needs-an-adult` | `codex/this-prompt-needs-an-adult` |
+| Remove needless abstractions | `somehow-another-abstraction` | `codex/somehow-another-abstraction` |
+
+Do not use a funny name merely because it is funny. It must relate recognizably
+to the work so branch lists and worktree paths remain useful routing evidence.
+
 ## Prepare the Plan Run
 
 Before mutation, prepare or resume the manifest-owned workspace:
 
 ```powershell
-go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <plan-token> --base-sha <reviewed-base-sha> --json
+go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <plan-token> --base-sha <reviewed-base-sha> --worktree <parent>\<repo>-<codename> --branch codex/<codename> --json
 ```
 
 The receipt records the immutable base, explicit non-default integration ref

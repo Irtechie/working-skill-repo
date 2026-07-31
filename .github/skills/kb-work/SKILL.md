@@ -32,7 +32,8 @@ are plausible.
 6. Note dirty source work. Prepare/resume the manifest-owned plan-run worktree;
    never copy, stash, reset, or overwrite unrelated work. Give a new worktree a
    short, task-specific codename with irreverent, self-aware humor that remains
-   safe to show at work; reject fandom themes and generic random names.
+   safe to show at work; reject fandom themes and generic random names. Use the same codename for the worktree directory and plan-run branch, and require that
+   it must relate recognizably to the task.
 7. Acquire the plan-run lease, then a slice lease before board projection or
    mutation. Expand claims before touching discovered paths.
 8. Read relevant active landmines and proof receipts.
