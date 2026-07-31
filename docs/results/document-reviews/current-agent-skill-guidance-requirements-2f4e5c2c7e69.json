@@ -1,0 +1,35 @@
+{
+  "review_id": "current-agent-skill-guidance-requirements-2f4e5c2c7e69",
+  "source": "docs/brainstorms/2026-07-30-current-agent-skill-guidance-requirements.md",
+  "source_sha256": "2f4e5c2c7e6916458af395227ce88e031ee0d0aeffd6e8136ecaa31c997e18e2",
+  "reviewed_at": "2026-07-31T03:08:00Z",
+  "document_type": "requirements",
+  "mode": "requirements-wide",
+  "selected_personas": [
+    "adversarial-document-reviewer",
+    "coherence-reviewer",
+    "feasibility-reviewer"
+  ],
+  "completed_personas": [
+    "adversarial-document-reviewer",
+    "coherence-reviewer",
+    "feasibility-reviewer"
+  ],
+  "persona_evidence": {
+    "adversarial-document-reviewer": "adversarial-risk: destructive cleanup, static-certification limits, progressive-disclosure regressions, and stale global copies could invalidate the initiative",
+    "coherence-reviewer": "consistency-risk: removal evidence, line limits, static proof boundaries, sync proof, and success criteria must agree",
+    "feasibility-reviewer": "delivery-risk: all observed skills, named deletions, hot-path extraction, and global absence proof need executable contracts"
+  },
+  "failed_personas": [],
+  "findings_resolved": 15,
+  "unresolved_p0": 0,
+  "unresolved_p1": 0,
+  "residual_findings": 1,
+  "residual_items": [
+    {
+      "severity": "P3",
+      "title": "Inventory counts can become stale during cleanup",
+      "constraint": "Generate final skill and agent counts from observed files before updating architecture documentation."
+    }
+  ]
+}

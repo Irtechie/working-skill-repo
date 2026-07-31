@@ -12,3 +12,5 @@
 | `2026-07-26-low-cognitive-burden-agent-communication.md` | 2026-07-26 | Writing plain-language status and questions that distinguish required human action, optional preference, and no-response-needed information |
 | `2026-07-26-pr-review-workbench-visual-patterns.md` | 2026-07-26 | Designing an actual workflow-like PR review artifact with topology, guided review, source-backed application-impact ordering, and evidence inspection |
 | `2026-07-29-graph-engineering-definition-and-provenance.md` | 2026-07-29 | Defining graph engineering for KB, separating control graphs from org metaphors, and deciding how node provenance supports diagnosis and completion |
+| `2026-07-30-proportional-agent-code-review.md` | 2026-07-30 | Replacing fixed reviewer swarms with one generalist review and risk-triggered specialist escalation |
+| `2026-07-30-current-agent-skill-guidance.md` | 2026-07-30 | Auditing skills against current Anthropic/OpenAI guidance for agent count, context, proof, loops, delegation, and memory |
