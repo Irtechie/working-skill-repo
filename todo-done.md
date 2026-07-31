@@ -4,6 +4,11 @@
 
 ## 2026-07-31
 
+- `kbrouter` protected-DACL catalog repair - accepted Windows' harmless `AI`
+  DACL control metadata while retaining exact current-user/SYSTEM ownership and
+  ACE checks; proved that the 103-byte disabled schema-v1 catalog with
+  `routes:null` is valid and requires no migration.
+
 - Automatic work-to-land delivery chain - changed successful planned execution
   to continue `kb-work -> kb-finalize -> kb-complete`, then through configured
   `kb-ship` and authorized `kb-land`; preserved local-only defaults and sole

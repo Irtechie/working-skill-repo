@@ -55,10 +55,11 @@ func TestWindowsStorageOwnerMayBeSecuredIsNarrow(t *testing.T) {
 	}
 }
 
-func TestWindowsStorageDescriptorMatchAcceptsEquivalentAceOrderOnly(t *testing.T) {
+func TestWindowsStorageDescriptorMatchAcceptsSafeProtectedMetadataAndAceOrder(t *testing.T) {
 	const sid = "S-1-5-21-100-200-300-1001"
 	for _, descriptor := range []string{
 		"O:" + sid + "D:P(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
 		"O:" + sid + "D:P(A;;FA;;;" + sid + ")(A;;FA;;;SY)",
 		"O:" + sid + "G:SYD:P(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
 	} {
@@ -71,6 +72,7 @@ func TestWindowsStorageDescriptorMatchAcceptsEquivalentAceOrderOnly(t *testing.T
 	}
 	for _, descriptor := range []string{
 		"O:" + sid + "D:P(A;;FA;;;WD)(A;;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;ID;FA;;;SY)(A;;FA;;;" + sid + ")",
 		"O:S-1-5-21-100-200-300-1002D:P(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
 		"O:" + sid + "D:P(A;;FA;;;SY)",
 	} {
