@@ -33,9 +33,9 @@ Converge the three named working-skill-repo donor sessions without losing unique
 
 ## Current State
 
-- Current artifact: repaired integration of retained donors `655154e3` and `2172ad69`
-- Next allowed action: `kb-review mode:headless`, then required global propagation and `kb-complete`
-- Last proof: root/package tests, full Go suite, focused Cargo tests, headless UI smoke, and pre-sync `local-release`; release is blocked only by the expected reviewed `kb-check` global delta
+- Current artifact: reviewed convergence branch with retained donors `655154e3` and `2172ad69`
+- Next allowed action: `kb-complete` PR delivery and authorized merge
+- Last proof: root/package tests, full Go suite, focused Cargo tests, headless UI smoke, clean API-contract confirmation review, 129/129 required global matches, and passing `local-release`
 
 ## Work Units
 
@@ -43,7 +43,8 @@ Converge the three named working-skill-repo donor sessions without losing unique
 |---|---|---|---|---|
 | Donor inventory and classification | `kb-plan` | three donor commits and PR history | complete | Git ancestry, diff, PR history, and donor reviews |
 | Accepted patch integration | `kb-work` | convergence branch | complete | focused tests, full Go suite, and headless UI smoke |
-| Final review, propagation, and delivery | `kb-complete` | convergence manifest and PR | pending | `local-release`, review, merge, ancestor proof |
+| Final review and propagation | `kb-complete` | convergence branch | complete | clean API-contract review, 129/129 sync, `local-release` |
+| PR delivery and integration | `kb-complete` | convergence PR | active | merge and remote-default ancestor proof |
 
 ## Blockers
 
