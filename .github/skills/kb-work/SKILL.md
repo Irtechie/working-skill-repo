@@ -198,10 +198,21 @@ When all slices are done/skipped:
 5. Archive completed board work.
 6. Complete the plan-worktree receipt and release the plan-run lease.
 7. Invoke `kb-finalize <manifest>` automatically.
+8. Successful `kb-finalize` continues automatically to `kb-complete`; `kb-work`
+   must not stop after slice completion or finalization.
 
 `kb-work` never merges or pushes a resolved default branch. Missing delivery
 policy is local-only. PR/manual delivery belongs to `kb-ship`; only authorized
 `kb-land` integrates a remote default branch.
+
+```yaml
+delivery_authority:
+  push_topic: false
+  open_pr: false
+  merge_remote_default: false
+  push_remote_default: false
+  integrate_remote_default: false
+```
 
 ## Lazy References
 

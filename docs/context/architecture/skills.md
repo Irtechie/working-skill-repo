@@ -21,6 +21,12 @@ Supporting reviewer/specialist agents live under `.github\agents\*.agent.md`.
 | Compound / document review | `document-review`, `ce-compound`, `ce-compound-refresh`, `repo-critic` |
 | Todo / utility | `todo-create`, `todo-triage`, `safe-shell-quoting` |
 
+Successful planned work continues through this group automatically:
+`kb-work -> kb-finalize -> kb-complete`. `kb-complete` then applies the
+configured endpoint, invoking `kb-ship` for PR delivery and authorized
+`kb-land` for remote-default integration. The chain does not move merge
+authority into `kb-work` or `kb-ship`.
+
 ## Full Skill Inventory
 
 Each row maps to `.github\skills\<skill>\SKILL.md`.

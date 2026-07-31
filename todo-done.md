@@ -4,6 +4,15 @@
 
 ## 2026-07-31
 
+- Automatic work-to-land delivery chain - changed successful planned execution
+  to continue `kb-work -> kb-finalize -> kb-complete`, then through configured
+  `kb-ship` and authorized `kb-land`; preserved local-only defaults and sole
+  `kb-land` remote-default authority with a fail-closed machine-readable
+  authority ledger. The integrated core gate passes 39/39 and one broad review
+  resolved one P1 plus three P2 oracle/contract findings. Installed-copy drift
+  is intentionally quarantined until the reviewed commit is proven on
+  `origin/main`, then the documented source-to-installed sync must close it.
+
 - Current agent workflow cleanup - replaced routine reviewer swarms with one
   lifecycle-level broad or replacement specialist profile, made document review
   and learning signal-driven, removed `ce-review`, `kb-finish`, and `klfg`,

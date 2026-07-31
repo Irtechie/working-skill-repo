@@ -26,8 +26,8 @@ can enforce narrow gates and resume safely.
 
 - Explicit `kb-complete` invocation authorizes safe local planning, execution,
   review, repair, proof, learning, and cleanup.
-- Publishing authority comes from project delivery policy or an explicit
-  run-scoped user instruction. Absence of policy defaults to `local`.
+- Publishing authority comes from configured delivery policy or explicit
+  run-scoped user authorization. Absence of policy defaults to `local`.
 - Never infer direct-default permission from repository ownership or write
   access. Permissions answer where a push can go; policy answers whether a PR is
   required.
@@ -57,6 +57,12 @@ can enforce narrow gates and resume safely.
 
 Re-read the manifest after every delegated phase. Durable state, not chat memory,
 chooses the next action.
+
+Successful delegated phases return to this state-driven loop automatically.
+`kb-work` does not end after slices or finalization, `kb-finalize` does not end
+after review, and `kb-ship` does not end an authorized merge run at PR creation.
+Each phase records its evidence, then returns control here for the next gated
+transition.
 
 Heartbeat the shared work claim after every delegated phase. Publish `done`,
 `blocked`, or `superseded` before terminal output.
@@ -117,9 +123,13 @@ topic branch, and create/update a PR.
 - With write access, use a same-repository topic branch.
 - Without write access, use an authorized fork and upstream PR.
 - Write access never bypasses the PR policy.
-- With `merge: manual`, stop at the correctly based open PR.
+- With `merge: manual`, stop at the correctly based open PR unless explicit
+  run-scoped user authorization permits merge for this run.
 - With `merge: auto-after-checks`, invoke `kb-land <manifest>` only after ship
   proof and required checks/approvals pass.
+- When same-run authorization permits merge, consume the exact `kb-ship`
+  branch/commit/PR evidence and invoke `kb-land <manifest>` after the same
+  required checks and approvals pass.
 
 ### Direct
 
@@ -134,6 +144,11 @@ Absent policy is always local-only. PR/manual is the recommended team policy,
 but write access never enables it automatically and it never authorizes merge.
 Only `kb-land`, under explicit direct or authorized auto-merge policy, owns
 remote-default integration.
+
+The automatic chain selects phase owners; it never transfers their authority.
+`kb-complete` invokes `kb-ship` for PR delivery and then invokes `kb-land` only
+when configured delivery policy or explicit run-scoped user authorization
+permits integration.
 
 ## Terminal Worktree Retirement
 
