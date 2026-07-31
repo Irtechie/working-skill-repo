@@ -25,6 +25,16 @@
 
 ## 2026-07-29
 
+- UniversalUI Skills contribution package - established
+  `Irtechie/working-skill-repo` as the canonical owner of the Skills catalog
+  and added `@irtechie/universal-ui-skills-contribution` with stable
+  `/apps/skills` and `/?tab=skills` metadata, a host-owned React lazy route,
+  frontmatter-only catalog projection, local `0.1.0` contract/type mirror,
+  offline immutable contract verification, package tests, browser smoke
+  fixture, npm tarball, and digest-bound release lock. The package owns no
+  shell, router, global frame, registry contract dependency, executable
+  Markdown, or machine-private source path.
+
 - Stable Cargo build storage across KB workflows - replaced phase/run-specific
   targets with a project-keyed native resolver and fail-closed portable
   fallback; added serialized receipts, guarded temporary targets, crash-safe

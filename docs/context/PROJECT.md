@@ -19,6 +19,9 @@ Bootstrap confidence: mixed
   model-routing, and AMR benchmark CLIs.
 - `bin\kb-install.mjs`, `package.json`, and `scripts\install-kb.ps1` provide
   installer and sync surfaces.
+- `packages\universal-ui-skills-contribution\` provides the canonical,
+  host-neutral UniversalUI projection of `.github\skills\` with its own packed
+  artifact and digest-bound release lock.
 - `evals\` contains deterministic fixture corpora for route selection, skill
   scoring, graph routing, model routing, dishonest completion, and AMR
   conformance.
@@ -57,6 +60,8 @@ anchors:
 
 ```powershell
 npm run test
+npm run test:universal-ui-skills
+npm run pack:universal-ui-skills
 go build ./...
 go vet ./...
 go run ./cmd/kbcheck plan-worktree-selftest
@@ -85,6 +90,7 @@ docs are:
 | Graph routing packet/eval surface | `docs/context/architecture/graph-routing.md` | `config/graph-route.schema.json` | You need graph packets, graphify rules, lifecycle/eval fixtures, or traversal recipes | [verified] |
 | Eval harness inventory | `docs/context/eval-map.md` | `docs/context/operations/testing.md` | You need existing proof surfaces and exact harness commands | [verified] |
 | Installer and sync flow | `docs/context/operations/skill-bundle-maintenance.md` | `bin/kb-install.mjs` | You need install targets, router install behavior, or sync/drift rules | [verified] |
+| UniversalUI Skills contribution | `README.md` | `packages/universal-ui-skills-contribution/src/index.js` | You need the canonical Skills catalog UI route, package artifact, contract mirror, or release lock | [verified] |
 | Workflow operating model | `docs/context/architecture/kb-workflow.md` | `AGENTS.md` | You need the fresh-session loop, phase ownership, or artifact lifecycle | [verified] |
 | Learning model | `docs/context/architecture/kb-learning-model.md` | `docs/context/kb/instincts/` | You need instinct scope, promotion, or `.kb` vs tracked state rules | [verified] |
 | AMR benchmark / GHCP AIC harness | `docs/context/architecture/ghcp-aic-benchmark.md` | `cmd/amrbench/main.go` | You need no-paid conformance, paired grading, or approval boundary details | [verified] |

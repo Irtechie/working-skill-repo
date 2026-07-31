@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,6 +12,8 @@ import (
 	"testing"
 	"time"
 )
+
+const validCargoTemporaryTarget = "kb-cargo-temp-0123456789abcdef01234567"
 
 func TestCargoStorageResolveIsStableAcrossWorktrees(t *testing.T) {
 	root := initWorktreeRepo(t)
@@ -51,6 +55,37 @@ func TestCargoStorageKeysExternalAbsoluteCacheRootByRepository(t *testing.T) {
 	if filepath.Dir(result.Receipt.StableTarget) != cacheRoot ||
 		result.Receipt.StableSource != "environment-cache-root" {
 		t.Fatalf("absolute cache root was not project-keyed: %#v", result.Receipt)
+	}
+}
+
+func TestCargoStorageNativeKeyMatchesPortableFallbackAndIsAppliedOnce(t *testing.T) {
+	root := initWorktreeRepo(t)
+	commonDir, err := gitCommonDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalCommonDir, err := canonicalPath(commonDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(canonicalCommonDir))
+	expectedKey := hex.EncodeToString(sum[:12])
+	keyedTarget := filepath.Join(t.TempDir(), "shared-target", expectedKey)
+	t.Setenv("CARGO_TARGET_DIR", keyedTarget)
+
+	result, err := executeCargoStorage(cargoStorageOptions{
+		Action: "resolve", RunID: "run-already-keyed", RepoRoot: root, Now: time.Now().UTC(),
+	})
+	if err != nil || !result.OK || result.Receipt == nil {
+		t.Fatalf("resolve failed: result=%#v err=%v", result, err)
+	}
+	if result.Receipt.RepoIdentity != canonicalCommonDir {
+		t.Fatalf("native identity does not match portable fallback identity: got=%s want=%s",
+			result.Receipt.RepoIdentity, canonicalCommonDir)
+	}
+	if result.Receipt.StableTarget != keyedTarget ||
+		result.Receipt.StableSource != "environment-project-target" {
+		t.Fatalf("already-keyed target was keyed again: %#v", result.Receipt)
 	}
 }
 
@@ -114,6 +149,58 @@ func TestCargoStorageResolveResumesAuthoritativeReceipt(t *testing.T) {
 	}
 }
 
+func TestCargoStorageMigratesLegacyReceiptIdentities(t *testing.T) {
+	root := initWorktreeRepo(t)
+	for name, legacyIdentity := range map[string]func(string) string{
+		"git-common": func(receiptPath string) string {
+			return repoIdentity(root, filepath.Dir(receiptPath))
+		},
+		"state-root": func(receiptPath string) string {
+			return "state-root:" + filepath.ToSlash(filepath.Dir(receiptPath))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			runID := "run-legacy-" + name
+			resolved, err := executeCargoStorage(cargoStorageOptions{
+				Action: "resolve", RunID: runID, RepoRoot: root,
+				CacheRoot: filepath.Join(t.TempDir(), "cache"), Now: time.Now().UTC(),
+			})
+			if err != nil || !resolved.OK {
+				t.Fatalf("initial resolve failed: result=%#v err=%v", resolved, err)
+			}
+			receiptPath, err := cargoStorageReceiptPath(root, runID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			receipt, err := loadCargoStorageReceipt(receiptPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stableTarget := receipt.StableTarget
+			receipt.RepoIdentity = legacyIdentity(receiptPath)
+			if err := writeCargoStorageReceipt(receiptPath, receipt); err != nil {
+				t.Fatal(err)
+			}
+
+			migrated, err := executeCargoStorage(cargoStorageOptions{
+				Action: "resolve", RunID: runID, RepoRoot: root,
+				CacheRoot: filepath.Join(t.TempDir(), "other-cache"), Now: time.Now().UTC(),
+			})
+			if err != nil || !migrated.OK {
+				t.Fatalf("legacy resolve failed: result=%#v err=%v", migrated, err)
+			}
+			canonicalIdentity, err := cargoStorageRepositoryIdentity(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if migrated.Receipt.RepoIdentity != canonicalIdentity ||
+				migrated.Receipt.StableTarget != stableTarget {
+				t.Fatalf("legacy receipt was not safely migrated: %#v", migrated.Receipt)
+			}
+		})
+	}
+}
+
 func TestCargoStorageRemapsAbsoluteTargetInsideAnyLinkedWorktree(t *testing.T) {
 	root := initWorktreeRepo(t)
 	worktree, _, _ := createTerminalCleanupWorktree(t, root, "cargo-local-target")
@@ -152,7 +239,7 @@ func TestCargoStorageFinalizesOnlyOwnedContainedTemporaryTarget(t *testing.T) {
 	if err != nil || !ready.OK {
 		t.Fatalf("newly resolved receipt was not execution-ready: result=%#v err=%v", ready, err)
 	}
-	target := filepath.Join(tempRoot, "isolated-target")
+	target := filepath.Join(tempRoot, validCargoTemporaryTarget)
 	registered, err := executeCargoStorage(cargoStorageOptions{
 		Action: "register-temp", RunID: "run-clean", RepoRoot: root,
 		Target: target, TempRoot: tempRoot, Reason: "incompatible compiler flags", Now: time.Now().UTC(),
@@ -171,6 +258,9 @@ func TestCargoStorageFinalizesOnlyOwnedContainedTemporaryTarget(t *testing.T) {
 	if pathExists(target) || finalized.Receipt.Cleanup.RemovedBytes < 64 ||
 		finalized.Receipt.Cleanup.Status != "done" {
 		t.Fatalf("owned target was not safely removed: %#v", finalized.Receipt.Cleanup)
+	}
+	if !pathExists(finalized.Receipt.StableTarget) {
+		t.Fatalf("finalization removed stable target: %s", finalized.Receipt.StableTarget)
 	}
 	validated, err := executeCargoStorage(cargoStorageOptions{
 		Action: "validate", RunID: "run-clean", RepoRoot: root, Now: time.Now().UTC(),
@@ -201,7 +291,7 @@ func TestCargoStorageBlocksForgedOwnershipMarker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(tempRoot, "isolated-target")
+	target := filepath.Join(tempRoot, validCargoTemporaryTarget)
 	registered, err := executeCargoStorage(cargoStorageOptions{
 		Action: "register-temp", RunID: "run-forged", RepoRoot: root,
 		Target: target, TempRoot: tempRoot, Reason: "test", Now: time.Now().UTC(),
@@ -257,6 +347,63 @@ func TestCargoStorageRejectsTemporaryTargetOutsideApprovedRoot(t *testing.T) {
 	}
 	if pathExists(target) {
 		t.Fatalf("outside target was created: %s", target)
+	}
+}
+
+func TestCargoStorageRejectsPhaseAndRunSpecificTemporaryTargets(t *testing.T) {
+	root := initWorktreeRepo(t)
+	tempRoot := filepath.Join(t.TempDir(), "run-temp")
+	if err := os.MkdirAll(tempRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := executeCargoStorage(cargoStorageOptions{
+		Action: "resolve", RunID: "run-forbidden-targets", RepoRoot: root,
+		CacheRoot: filepath.Join(t.TempDir(), "cache"), Now: time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{
+		"check",
+		"cargo-check",
+		"worker-2",
+		"slice-001",
+		"run-123",
+		"target-build",
+		"target-lint",
+		"target-clippy",
+		"target-package",
+		"release-target",
+		"target-audit",
+		"target-check",
+		"target-repair",
+		"target-repro",
+		"release-api-probe-target",
+		"target-worker",
+		"target-worker-7",
+		"target-slice-001",
+		"target-run-123",
+		"worker-2-target",
+		"slice-target",
+		"run-target",
+		"target-tests",
+		"targetchecks",
+		"runlatest",
+	} {
+		t.Run(name, func(t *testing.T) {
+			target := filepath.Join(tempRoot, name)
+			result, registerErr := executeCargoStorage(cargoStorageOptions{
+				Action: "register-temp", RunID: "run-forbidden-targets", RepoRoot: root,
+				Target: target, TempRoot: tempRoot, Reason: "test", Now: time.Now().UTC(),
+			})
+			if registerErr != nil || result.OK {
+				t.Fatalf("forbidden temporary target was accepted: result=%#v err=%v", result, registerErr)
+			}
+			if pathExists(target) {
+				t.Fatalf("forbidden temporary target was created: %s", target)
+			}
+		})
 	}
 }
 
@@ -322,7 +469,10 @@ func TestCargoStorageConcurrentRegistrationsAreMerged(t *testing.T) {
 	var wg sync.WaitGroup
 	results := make(chan cargoStorageResult, 2)
 	errs := make(chan error, 2)
-	for _, name := range []string{"target-a", "target-b"} {
+	for _, name := range []string{
+		"kb-cargo-temp-0123456789abcdef01234567",
+		"kb-cargo-temp-fedcba9876543210fedcba98",
+	} {
 		name := name
 		wg.Add(1)
 		go func() {
@@ -485,7 +635,7 @@ func TestCargoStorageReconcilesDeletionIntentAfterTargetDisappears(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(tempRoot, "isolated-target")
+	target := filepath.Join(tempRoot, validCargoTemporaryTarget)
 	registered, err := executeCargoStorage(cargoStorageOptions{
 		Action: "register-temp", RunID: runID, RepoRoot: root,
 		Target: target, TempRoot: tempRoot, Reason: "test", Now: time.Now().UTC(),

@@ -1,0 +1,53 @@
+{
+  "name": "@irtechie/universal-ui-skills-contribution",
+  "version": "0.1.0",
+  "description": "Canonical working-skill-repo catalog contribution for UniversalUI.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./catalog": {
+      "types": "./src/catalog.d.ts",
+      "default": "./src/catalog.generated.js"
+    },
+    "./contract": {
+      "types": "./src/contract.d.ts",
+      "default": "./src/contract.js"
+    },
+    "./manifest": {
+      "types": "./src/manifest.d.ts",
+      "default": "./src/manifest.js"
+    },
+    "./styles.css": "./src/skills-route.css"
+  },
+  "files": [
+    "src/",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./src/skills-route.css"
+  ],
+  "scripts": {
+    "catalog:build": "node ./scripts/build-catalog.mjs",
+    "catalog:check": "node ./scripts/build-catalog.mjs --check",
+    "contract:verify": "node ./scripts/verify-contract-tarball.mjs",
+    "pack:release": "node ./scripts/pack-release.mjs",
+    "test": "node --test ./test/*.test.mjs"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Irtechie/working-skill-repo.git",
+    "directory": "packages/universal-ui-skills-contribution"
+  },
+  "license": "MIT"
+}

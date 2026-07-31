@@ -59,7 +59,8 @@ ownership marker:
 
 ```powershell
 go run ./cmd/kbcheck cargo-storage --action register-temp --run-id <run-id> `
-  --target <absolute-target> --temp-root <approved-root> --reason "<reason>" `
+  --target <approved-root>\kb-cargo-temp-<24-lowercase-hex> `
+  --temp-root <approved-root> --reason "<reason>" `
   --root <project-root> --json
 ```
 
