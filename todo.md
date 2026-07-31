@@ -72,6 +72,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
+| Session portfolio convergence | 🔧 in_progress | P0 | Goal: `docs/context/goals/session-portfolio-convergence.md`; work ID: `session-portfolio-convergence`; next: donor review then `kb-complete` |
 | Bounded graph-run provenance | 🔧 in_progress | P0 | Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md`; next: `kb-work` |
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | ⊘ skipped | P0 | Superseded by `docs/plans/2026-07-31-000-kb-automatic-delivery-chain-manifest.md`; completion now owns configured delivery without a legacy finish alias |
