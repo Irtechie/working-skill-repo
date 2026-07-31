@@ -95,7 +95,7 @@
     ],
     "rubric": {
       "small_max": 4,
-      "standard_max": 13,
+      "medium_max": 13,
       "large_min": 14
     }
   },

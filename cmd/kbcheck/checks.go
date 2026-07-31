@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -46,7 +50,14 @@ func DiscoverChecks(root string) ([]Check, error) {
 		checks = append(checks, Check{Name: "pytest", Args: []string{"python", "-m", "pytest"}, Reason: "Python test config detected", Required: true, Confidence: "deterministic-local"})
 	}
 	if exists(root, "go.mod") {
-		checks = append(checks, Check{Name: "go-test", Args: []string{"go", "test", "-buildvcs=false", "./..."}, Reason: "Go module detected", Required: true, Confidence: "deterministic-local"})
+		checks = append(checks, Check{
+			Name:       "go-test",
+			Args:       []string{"go", "test", "-buildvcs=false", "./..."},
+			Reason:     "Go module detected",
+			Required:   true,
+			Confidence: "deterministic-local",
+			Run:        runGoTestsSequentially,
+		})
 	}
 	checks = append(checks, dotnetChecks(root)...)
 	if exists(root, "Makefile") {
@@ -60,6 +71,55 @@ func DiscoverChecks(root string) ([]Check, error) {
 		checks = append(checks, skillChecks...)
 	}
 	return checks, nil
+}
+
+func runGoTestsSequentially(root string) CheckResult {
+	list := runGoCommand(root, "list", "./...")
+	if list.ExitCode != 0 {
+		return list
+	}
+	packages := strings.Fields(list.Stdout)
+	sort.SliceStable(packages, func(i, j int) bool {
+		iRouter := strings.HasSuffix(packages[i], "/cmd/kbrouter")
+		jRouter := strings.HasSuffix(packages[j], "/cmd/kbrouter")
+		if iRouter != jRouter {
+			return iRouter
+		}
+		return packages[i] < packages[j]
+	})
+	var stdout, stderr strings.Builder
+	for _, pkg := range packages {
+		result := runGoCommand(root, "test", "-buildvcs=false", pkg)
+		stdout.WriteString(result.Stdout)
+		stderr.WriteString(result.Stderr)
+		if result.ExitCode != 0 {
+			return CheckResult{ExitCode: result.ExitCode, Stdout: stdout.String(), Stderr: stderr.String()}
+		}
+	}
+	return CheckResult{Stdout: stdout.String(), Stderr: stderr.String()}
+}
+
+func runGoCommand(root string, args ...string) CheckResult {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultProcessCheckTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = root
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if ctx.Err() == context.DeadlineExceeded {
+		return CheckResult{ExitCode: 1, Stdout: stdout.String(), Stderr: stderr.String() + "go command timed out"}
+	}
+	if err == nil {
+		return CheckResult{Stdout: stdout.String(), Stderr: stderr.String()}
+	}
+	exitCode := 1
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		exitCode = exitErr.ExitCode()
+	}
+	return CheckResult{ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String()}
 }
 
 func packageChecks(root string) ([]Check, error) {

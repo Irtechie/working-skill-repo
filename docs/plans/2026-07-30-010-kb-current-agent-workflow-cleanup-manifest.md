@@ -138,6 +138,24 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-31T04:24:00Z"
     allowed_next_action: "slice-004"
+  - gate_id: slice-slice-004-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Every skill body is below the enforced hard limit and configured hot paths are below their lower limit."
+      - "Moved contracts remain reachable through one-level references and navigation."
+      - "Planner difficulty classification and route evals agree on small, medium, and large."
+      - "The full contributor core gate passes on the exact tree."
+    proof:
+      - docs/results/proof/current-agent-workflow-cleanup-slice-004.txt
+      - .github/skills/kb-brainstorm/SKILL.md
+      - .github/skills/kb-plan/SKILL.md
+      - .github/skills/kb-work/SKILL.md
+      - .github/skills/kb-finalize/SKILL.md
+    blockers: []
+    passed_at: "2026-07-31T05:30:00Z"
+    allowed_next_action: "slice-005"
 slices:
   - id: slice-001
     title: "Enforce current skill-guidance structure"
@@ -239,14 +257,14 @@ slices:
       command: "go run ./cmd/kbcheck core"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
     next_agent_action: "Move deterministic mechanics into one-level references, preserve hot-path decisions, and validate all skill bodies."
     human_action: ""
     can_continue_other_slices: true
-    notes: ""
+    notes: "scope-discovery: README.md - visible lifecycle, tier classifier, and worktree naming contract; scope-discovery: cmd/kbcheck/checks.go and cmd/kbrouter/dispatch.go - Windows nested process proof made reproducible; scope-discovery: config/skill-quality.json and evals route fixtures - legacy standard tier migrated to medium; scope-check: forecast=8 changed=34 discovered=26 unexplained=0; test-level: functional-cli; proof: go run ./cmd/kbcheck core exit=0 checks=39; protected-oracle: cmd/kbcheck/skill_guidance_test.go sha256=db8b6ac30c163d724a0bed25919bcc807dddcdf5e66279b5d5b72ec9cc5e2a33 unchanged; memory-impact: durable; areas=skill-loading,model-tier-routing,worktree-naming,windows-proof; refresh=done"
   - id: slice-005
     title: "Propagate and prove the cleaned bundle"
     path: docs/plans/2026-07-30-015-release-skill-propagation-plan.md
@@ -299,5 +317,5 @@ installer/sync surfaces, and release proof change together.
 | 1 | Enforce current skill-guidance structure | - | tdd | no | done |
 | 2 | Make review and finalization proportional | slice-001 | tdd | no | done |
 | 3 | Remove dead completion aliases and stale surfaces | slice-002 | integration | no | done |
-| 4 | Refactor oversized hot-path skills | slice-003 | integration | no | pending |
+| 4 | Refactor oversized hot-path skills | slice-003 | integration | no | done |
 | 5 | Propagate and prove the cleaned bundle | slice-004 | verification-only | no | pending |

@@ -5,7 +5,7 @@
   "repo_state": "Implementation and kb-complete are done; checked-in PR delivery remains.",
   "expected": {
     "route": "kb-complete",
-    "complexity_tier": "standard",
+    "complexity_tier": "medium",
     "max_user_questions": 1,
     "artifacts": ["audited shipping scope", "commit", "pushed branch", "PR URL"],
     "proof": ["complete-to-ship gate", "release checks pass", "local and upstream SHAs match"]

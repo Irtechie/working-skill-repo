@@ -5,7 +5,7 @@
   "repo_state": "Instruction behavior differs by runtime and must be validated against both supported surfaces.",
   "expected": {
     "route": "kb-plan",
-    "complexity_tier": "standard",
+    "complexity_tier": "medium",
     "max_user_questions": 1,
     "artifacts": ["requirements or assumptions", "KB manifest", "compatibility matrix update"],
     "proof": ["lint/check command", "Codex/GHCP applicability metadata present"]

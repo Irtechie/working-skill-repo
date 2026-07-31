@@ -46,9 +46,9 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/skill_guidance_test.go
     role: "size and reference-reachability oracle"
-    sha256: "filled by kb-work after RED/protection"
+    sha256: "db8b6ac30c163d724a0bed25919bcc807dddcdf5e66279b5d5b72ec9cc5e2a33"
     update_policy: "requires explicit plan update"
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
@@ -81,3 +81,15 @@ right route, stop safely, or load the next contract.
 ## Scope Boundary
 
 Do not redesign unrelated behavior during extraction.
+
+## Completion Evidence
+
+- Hot-path line counts: brainstorm 135, plan 168, work 209, finalize 176.
+- `skill-guidance`, `skill-lint`, route/model-tier fixtures, and all 39 `core`
+  checks pass.
+- Planner model tiers now use one deterministic `small`/`medium`/`large`
+  classifier; legacy `standard` fixtures were migrated to `medium`.
+- Windows `.cmd` worker tests now launch through the command processor, and the
+  contributor gate runs Go packages as isolated bounded commands so nested
+  process-containment tests remain valid.
+- Proof: `docs/results/proof/current-agent-workflow-cleanup-slice-004.txt`.

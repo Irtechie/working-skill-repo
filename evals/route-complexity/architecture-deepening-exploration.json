@@ -5,7 +5,7 @@
   "repo_state": "The user is asking for architecture exploration before implementation, not a specific bug fix or diff review.",
   "expected": {
     "route": "kb-architecture-deepening",
-    "complexity_tier": "standard",
+    "complexity_tier": "medium",
     "max_user_questions": 1,
     "artifacts": ["architecture candidates", "deletion-test notes", "first-slice recommendation"],
     "proof": ["source/docs read", "candidate tradeoff table"]

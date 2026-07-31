@@ -22,7 +22,7 @@ Use graphify or TokenMasterX only when the repo is large or structurally complex
 enough for graph routing to pay for itself. Normal `kb-map` lookup remains
 doc-first and must not invoke graphify.
 
-Load `../kb-map/references/graph-routing.md` only when the repo may cross the
+Load `references/graph-routing.md` only when the repo may cross the
 graph thresholds or the user explicitly asks for graph routing. That reference
 contains the preflight command, graphify/TokenMasterX split, `graph_route` row
 shape, and evidence rules.

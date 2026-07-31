@@ -4,6 +4,17 @@ The manifest group is the only worktree unit. Every slice for that workstream
 runs and commits on its one plan-run branch. Never create a worktree or branch
 per slice.
 
+## Naming
+
+Choose a short, task-specific worktree codename with irreverent, self-aware,
+absurdly specific humor that remains safe on a shared screen, terminal, PR, or
+audit log. Aim for something a wisecracking antihero would name, not the
+antihero's name or fandom references. Prefer names such as
+`the-reviewers-have-unionized`, `this-prompt-needs-an-adult`, or
+`somehow-another-abstraction` over opaque generated pairs such as
+`improved-funicular`. Keep the manifest ID in receipts; the human-facing name
+should optimize recognition rather than duplicate it.
+
 ## Prepare the Plan Run
 
 Before mutation, prepare or resume the manifest-owned workspace:

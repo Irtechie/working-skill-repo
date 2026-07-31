@@ -1,5 +1,12 @@
 # KB Work Slice Execution Prompt
 
+## Contents
+
+- Prompt template
+- Ownership receipt
+- Build storage
+- Scope and proof return
+
 Use this as the per-slice execution checklist.
 
 ```text

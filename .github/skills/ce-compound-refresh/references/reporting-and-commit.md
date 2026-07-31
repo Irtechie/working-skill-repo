@@ -1,3 +1,11 @@
+# Reporting and Commit
+
+## Contents
+
+- Output Format
+- Autofix reporting
+- Commit rules
+
 ## Output Format
 
 **The full report MUST be printed as markdown output.** Do not summarize findings internally and then output a one-liner. The report is the deliverable — print every section in full, formatted as readable markdown with headers, tables, and bullet points.

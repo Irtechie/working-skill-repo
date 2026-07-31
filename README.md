@@ -61,6 +61,27 @@ The core loop is six skills:
 
 Everything else is an internal phase, compatibility alias, or optional depth.
 
+### Current proportional lifecycle
+
+The default path is single-agent-first and plan-wide rather than reviewer-heavy:
+
+1. Requirements receive a main-agent self-check; `document-review` runs only
+   for a material unresolved uncertainty.
+2. Slices run narrow deterministic proof, then one integrated aggregate.
+3. `kb-review` runs one broad profile or one replacement specialist after the
+   integrated tree is ready, never a reviewer swarm per slice.
+4. Final exact-tree proof runs after code-affecting review fixes.
+5. `ce-compound`, `learn`, `evolve`, and memory maintenance run only when their
+   evidence signals are present.
+
+Planning classifies each slice's minimum execution capability as `small`,
+`medium`, or `large`; deterministic route-complexity fixtures protect that
+rubric. Work-time DDR resolves one actually callable same-tier-or-higher route
+without writing provider or model names into durable plans.
+
+Manifest worktrees use short, task-relevant, irreverent-but-work-safe names such
+as `the-reviewers-have-unionized`, not opaque random adjective-noun pairs.
+
 ### One owner, one useful proof wave
 
 Before mutation, `kb-start` writes a repository-wide work claim under the Git

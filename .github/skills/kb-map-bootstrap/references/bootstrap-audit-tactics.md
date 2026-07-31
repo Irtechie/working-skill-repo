@@ -1,5 +1,12 @@
 # Bootstrap Audit Tactics
 
+## Contents
+
+- Dependency And Runtime Chains
+- Coverage discovery
+- Build and release checks
+- Memory output
+
 Use this reference during `kb-map-bootstrap` when a repo has build/install,
 runtime, release, packaging, cross-process, or large coverage-discovery risk.
 
