@@ -88,6 +88,14 @@ test("rejects malformed nested contribution and route fields", () => {
       mutate: (value) => { value.routes[0].legacyRoute = "/%2e%2e/private"; }
     },
     {
+      label: "legacy encoded query delimiter before traversal",
+      mutate: (value) => { value.routes[0].legacyRoute = "/safe%3f/../private"; }
+    },
+    {
+      label: "legacy encoded fragment delimiter before traversal",
+      mutate: (value) => { value.routes[0].legacyRoute = "/safe%23/../private"; }
+    },
+    {
       label: "legacy encoded protocol-relative route",
       mutate: (value) => {
         let encoded = "//evil.example/path";

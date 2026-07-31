@@ -37,23 +37,22 @@ function requireSafeLocalRoute(value, label, requiredPrefix) {
     throw new TypeError(`${label} must be an absolute same-origin path.`);
   }
 
-  let decoded = route;
+  let decodedPath = route.split(/[?#]/, 1)[0];
   for (;;) {
     let next;
     try {
-      next = decodeURIComponent(decoded);
+      next = decodeURIComponent(decodedPath);
     } catch {
       throw new TypeError(`${label} contains malformed percent encoding.`);
     }
-    if (next === decoded) {
+    if (next === decodedPath) {
       break;
     }
-    decoded = next;
+    decodedPath = next;
   }
-  const decodedPath = decoded.split(/[?#]/, 1)[0];
   if (
-    decoded.startsWith("//") ||
-    decoded.includes("\\") ||
+    decodedPath.startsWith("//") ||
+    decodedPath.includes("\\") ||
     decodedPath.split("/").includes("..")
   ) {
     throw new TypeError(`${label} must be traversal-free.`);
