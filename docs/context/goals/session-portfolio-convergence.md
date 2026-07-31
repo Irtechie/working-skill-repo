@@ -1,6 +1,6 @@
 # Session Portfolio Convergence
 
-Status: active
+Status: complete
 Created: 2026-07-30
 Last updated: 2026-07-30
 
@@ -33,9 +33,9 @@ Converge the three named working-skill-repo donor sessions without losing unique
 
 ## Current State
 
-- Current artifact: reviewed convergence branch with retained donors `655154e3` and `2172ad69`
-- Next allowed action: `kb-complete` PR delivery and authorized merge
-- Last proof: root/package tests, full Go suite, focused Cargo tests, headless UI smoke, clean API-contract confirmation review, 129/129 required global matches, and passing `local-release`
+- Current artifact: merged PR #15 at remote default `e19247acf8eb0480249cc77a1e7099bf40ae64d4`
+- Next allowed action: none
+- Last proof: delivered commit `750ee6f6febb30e6c53f10b4c0154f35cecb6f82` is reachable from `origin/main`; root/package tests, full Go suite, focused Cargo tests, headless UI smoke, clean API-contract confirmation review, 129/129 required global matches, and `local-release` passed
 
 ## Work Units
 
@@ -44,7 +44,7 @@ Converge the three named working-skill-repo donor sessions without losing unique
 | Donor inventory and classification | `kb-plan` | three donor commits and PR history | complete | Git ancestry, diff, PR history, and donor reviews |
 | Accepted patch integration | `kb-work` | convergence branch | complete | focused tests, full Go suite, and headless UI smoke |
 | Final review and propagation | `kb-complete` | convergence branch | complete | clean API-contract review, 129/129 sync, `local-release` |
-| PR delivery and integration | `kb-complete` | convergence PR | active | merge and remote-default ancestor proof |
+| PR delivery and integration | `kb-complete` | PR #15 | complete | merge commit `e19247a`; delivered commit reachable from `origin/main` |
 
 ## Blockers
 
@@ -68,3 +68,13 @@ Converge the three named working-skill-repo donor sessions without losing unique
   legacy receipt migration, readiness checks, stable-target preservation, and
   tests remain unique. The bypassable forbidden-name blacklist was replaced by
   the opaque `kb-cargo-temp-<24-lowercase-hex>` allowlist.
+- Delivery: PR #15 merged at `e19247acf8eb0480249cc77a1e7099bf40ae64d4`;
+  reviewed topic commit `750ee6f6febb30e6c53f10b4c0154f35cecb6f82`
+  is contained by `origin/main`.
+- Cleanup classification: all three donor worktrees are clean, have no remote
+  topic refs, and have no live `queued|in_progress` claim. Their worktrees and
+  local branches are safe for the owning sessions/coordinator to retire after
+  those processes exit. The original donor SHAs were superseded or
+  cherry-picked with fixes rather than merged by exact ancestry, so automated
+  exact-SHA branch cleanup may conservatively retain them; this is expected, not
+  unseen work.
