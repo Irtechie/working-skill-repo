@@ -147,8 +147,12 @@ If a test mostly asserts mocks were called, snapshots noise, or duplicates imple
 
 ## Browser / UI Rules
 
-- Headless by default.
-- Visible browser only when debugging visual behavior, SSO/CDP is required, or the user explicitly asks.
+- Do not ask the user whether to run browser proof or whether it should be
+  headless.
+- Run browser proof headless automatically unless the user explicitly requests an attended or visible browser session.
+- An existing authenticated CDP session may be attached when required, but do
+  not ask the user to choose the transport and do not launch a visible login
+  session without an explicit request.
 - The portable proof runner never launches `visible-browser` or `native-gui`
   checks automatically; it denies them before spawning. If the user explicitly
   requests an attended GUI check, the host/user runs that bounded session

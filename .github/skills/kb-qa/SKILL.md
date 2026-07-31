@@ -12,6 +12,10 @@ Prefer deterministic checks over model judgment. Use `kb-check` for lint, typech
 
 Use `kb-functional-test` for user-visible workflows, API/CLI journeys, auth/session/persistence paths, and bugs that escaped unit tests. If the changed behavior is reachable through the UI and a browser transport exists, verification must drive it through the UI. Backend/API/unit checks may supplement but cannot replace that UI proof. Headless browser checks are preferred. The portable proof runner denies visible-browser and native-GUI checks before launch; a genuinely necessary attended GUI session remains an explicit user/host action outside `proof-run`.
 
+Do not ask the user whether to run browser proof or whether it should be
+headless. Run browser proof headless automatically unless the user explicitly requests an attended or visible browser session. Missing automation, ordinary
+debugging, or transport selection stays agent-owned and is not a reason to ask.
+
 ## When to Run
 
 Called from `kb-work` at Step 3.8, after all safety gates pass.
@@ -42,6 +46,9 @@ Pick the transport based on what the slice needs, not a fixed priority list.
      test login when one is available and authorized.
    - Otherwise connect to an existing authenticated browser through CDP at
      `ws://localhost:9222` (or `CDP_ENDPOINT`).
+   - Attaching to an already-authorized CDP session does not require asking the
+     user to choose a browser mode. Do not launch a visible login session unless
+     the user explicitly requests it.
    - If neither route exists because a real login, MFA, credentials, or private
      session is required, record that exact human-only dependency. Do not label
      ordinary browser setup or missing automation as human-required.

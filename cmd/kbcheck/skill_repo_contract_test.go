@@ -60,11 +60,15 @@ func TestWebUIProofRemainsAgentOwned(t *testing.T) {
 	required := map[string][]string{
 		".github/skills/kb-qa/SKILL.md": {
 			"default for local/public UI functional checks",
+			"Do not ask the user whether to run browser proof",
+			"Run browser proof headless automatically unless the user explicitly requests",
 			"record one proof receipt containing the route",
 			"do not report partial completion",
 			"automation gap into manual verification",
 		},
 		".github/skills/kb-functional-test/SKILL.md": {
+			"Do not ask the user whether to run browser proof",
+			"Run browser proof headless automatically unless the user explicitly requests",
 			"A web UI check is not complete until its receipt names the route",
 			"evidence is agent-owned test work",
 		},
