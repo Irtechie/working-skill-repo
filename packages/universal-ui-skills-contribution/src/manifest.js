@@ -1,0 +1,50 @@
+import { CONTRIBUTION_SCHEMA_VERSION } from "./contract.js";
+
+export const contributionDefinition = Object.freeze({
+  schemaVersion: CONTRIBUTION_SCHEMA_VERSION,
+  contribution: {
+    id: "io.irtechie.working-skill-repo.skills",
+    owner: {
+      id: "irtechie",
+      repository: "https://github.com/Irtechie/working-skill-repo"
+    },
+    version: "0.1.0",
+    supportedHostRange: "^0.1.0",
+    sharedDependencies: {
+      react: {
+        version: "^19.0.0",
+        owner: "host"
+      }
+    },
+    browserApiDependencies: [],
+    health: {
+      kind: "static",
+      status: "healthy"
+    }
+  },
+  routes: [
+    {
+      id: "skills",
+      path: "/apps/skills",
+      legacyRoute: "/?tab=skills",
+      displayName: "Skills",
+      purpose: "Explore the canonical working-skill-repo capability catalog.",
+      directorySummary: "Portable KB, review, planning, verification, and delivery skills.",
+      domainGroup: "Operations",
+      order: 90,
+      visibility: {
+        audience: "all"
+      },
+      health: {
+        projection: "healthy"
+      },
+      canvasMode: "standard",
+      lifecycle: {
+        kind: "route",
+        disposeOnExit: true
+      }
+    }
+  ]
+});
+
+export const expectedRouteIds = Object.freeze(["skills"]);

@@ -129,6 +129,13 @@ the narrowest owning scope.
    - cleanup result and alerts.
 6. Run the gate-ledger checker. Set manifest `status: reviewed` only when the
    gate passes or explicitly quarantines unrelated work.
+7. Require an advanceable `passed|quarantined` gate before leaving
+   finalization. Preserve quarantine evidence and forbidden claims.
+8. Invoke `kb-complete <manifest>` automatically.
+
+`kb-finalize` does not commit, push, open a PR, merge, or integrate the resolved
+remote default branch. It returns reviewed durable state to the delivery
+orchestrator; it does not acquire delivery authority.
 
 ## Failure Policy
 
@@ -162,7 +169,7 @@ KB <name> finalized.
 - Knowledge/memory: <actions or skip reasons>
 - Cleanup: done
 
-Ready for configured delivery. Return to kb-complete <manifest>.
+Continuing automatically to kb-complete <manifest>.
 ```
 
 ## Integration

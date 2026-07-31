@@ -70,6 +70,7 @@ For explicit `delivery.mode: direct`:
 ## Post-Integration Sync
 
 Run only when `post_merge_sync: true` and remote-default integration is proven.
+Prove fetched remote-default containment before post-integration sync.
 
 1. Treat merged Git as source of truth.
 2. Never copy unreviewed global/installed drift back into Git automatically.
@@ -92,6 +93,15 @@ Run only when `post_merge_sync: true` and remote-default integration is proven.
 - Delete topic branches/worktrees only through the terminal cleanup guard when
   merged, clean, unclaimed, outside the current executing session, and safe.
 - Do not switch branches in a dirty shared checkout merely for cosmetic cleanup.
+
+```yaml
+delivery_authority:
+  push_topic: false
+  open_pr: false
+  merge_remote_default: true
+  push_remote_default: true
+  integrate_remote_default: true
+```
 
 ## Output
 

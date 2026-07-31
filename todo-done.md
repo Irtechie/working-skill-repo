@@ -4,6 +4,31 @@
 
 ## 2026-07-31
 
+- `kbrouter` protected-DACL catalog repair - accepted Windows' harmless `AI`
+  DACL control metadata while retaining exact current-user/SYSTEM ownership and
+  ACE checks; proved that the 103-byte disabled schema-v1 catalog with
+  `routes:null` is valid and requires no migration.
+
+- Automatic work-to-land delivery chain - changed successful planned execution
+  to continue `kb-work -> kb-finalize -> kb-complete`, then through configured
+  `kb-ship` and authorized `kb-land`; preserved local-only defaults and sole
+  `kb-land` remote-default authority with a fail-closed machine-readable
+  authority ledger. The integrated core gate passes 39/39 and one broad review
+  resolved one P1 plus three P2 oracle/contract findings. Installed-copy drift
+  is intentionally quarantined until the reviewed commit is proven on
+  `origin/main`, then the documented source-to-installed sync must close it.
+
+- Session portfolio convergence - classified donor `25da36bb` as superseded by
+  the broader agent-owned/headless browser-proof work already on default;
+  retained and hardened donor `655154e3` as the UniversalUI Skills contribution
+  package; retained and hardened donor `2172ad69` for Cargo storage identity,
+  receipt migration, readiness, and temporary-target safety. Intentional
+  generated catalog/tarball/lock assets were regenerated and source-bound;
+  generated residue is empty. Proof: full Go and npm suites, focused Cargo
+  tests, rendered headless UI interaction, clean API-contract confirmation,
+  `local-release`, 129/129 global sync, merged PR #15, and remote-default
+  containment at `e19247a`.
+
 - Current agent workflow cleanup - replaced routine reviewer swarms with one
   lifecycle-level broad or replacement specialist profile, made document review
   and learning signal-driven, removed `ce-review`, `kb-finish`, and `klfg`,
@@ -15,6 +40,16 @@
   P2/P3 resolved and no new P0-P2 on confirmation.
 
 ## 2026-07-29
+
+- UniversalUI Skills contribution package - established
+  `Irtechie/working-skill-repo` as the canonical owner of the Skills catalog
+  and added `@irtechie/universal-ui-skills-contribution` with stable
+  `/apps/skills` and `/?tab=skills` metadata, a host-owned React lazy route,
+  frontmatter-only catalog projection, local `0.1.0` contract/type mirror,
+  offline immutable contract verification, package tests, browser smoke
+  fixture, npm tarball, and digest-bound release lock. The package owns no
+  shell, router, global frame, registry contract dependency, executable
+  Markdown, or machine-private source path.
 
 - Stable Cargo build storage across KB workflows - replaced phase/run-specific
   targets with a project-keyed native resolver and fail-closed portable

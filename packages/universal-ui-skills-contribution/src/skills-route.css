@@ -1,0 +1,78 @@
+.uui-skills {
+  color: inherit;
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.uui-skills__hero {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.uui-skills__hero h2,
+.uui-skills__hero p,
+.uui-skills__group h3,
+.uui-skills__card h4,
+.uui-skills__card p {
+  margin: 0;
+}
+
+.uui-skills__eyebrow,
+.uui-skills__result-count {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.uui-skills__context {
+  color: color-mix(in srgb, currentColor 65%, transparent);
+  font-size: 0.85rem;
+}
+
+.uui-skills__search {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 36rem;
+}
+
+.uui-skills__search input {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-radius: 0.75rem;
+  color: inherit;
+  font: inherit;
+  padding: 0.75rem 0.9rem;
+}
+
+.uui-skills__group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.uui-skills__grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.uui-skills__card {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 1rem;
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+}
+
+.uui-skills__card a {
+  color: inherit;
+  font-weight: 650;
+  width: fit-content;
+}
+
+.uui-skills__hint {
+  overflow-wrap: anywhere;
+}

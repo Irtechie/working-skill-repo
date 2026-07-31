@@ -1,49 +1,34 @@
 ---
 kb_id: kb-2026-07-09-plan-to-pr-finish
 slice_id: slice-002
-title: "Add kb-finish plan-to-PR orchestration and routing"
+title: "Superseded by state-aware kb-complete orchestration"
 blockers: [slice-001]
 verification: integration
 test_level: functional-cli
 functional_risk: narrow
 model_tier: medium
 hitl: false
-expected_files:
-  - path: .github/skills/kb-finish/SKILL.md
-    op: create
-    scope: "route plan/manifest state through kb-plan, kb-work, kb-complete, and kb-ship until PR delivery"
-  - path: .github/skills/kb-start/SKILL.md
-    op: edit
-    scope: "route explicit done-done/checked-in requests to kb-finish"
-  - path: config/skill-quality.json
-    op: edit
-    scope: "allow kb-finish route fixtures"
-  - path: evals/route-complexity/finish-plan-flow.json
-    op: create
-    scope: "deterministically require kb-finish for plan-to-PR requests"
-  - path: README.md
-    op: edit
-    scope: "document the one-command plan-to-PR lane"
-  - path: docs/context/architecture/README.md
-    op: edit
-    scope: "index kb-finish as the explicit checked-in orchestration lane"
-status: pending
+expected_files: []
+status: skipped
 owner: agent
 can_continue_other_slices: true
 protected_oracles: []
+superseded_by: docs/plans/2026-07-31-000-kb-automatic-delivery-chain-manifest.md
 ---
 
-# Slice 002 - Plan-to-PR Orchestrator
+# Slice 002 - Superseded Legacy Finish Alias
 
-## Acceptance Criteria
+This slice is superseded by
+`docs/plans/2026-07-31-000-kb-automatic-delivery-chain-manifest.md`.
+`kb-complete` is the single user-facing orchestrator and successful internal
+phases return to it automatically.
 
-- `kb-finish` accepts a plan source or manifest.
-- Unplanned input routes through `kb-plan`; unfinished manifests route through
-  `kb-work`; completed manifests route through `kb-complete`.
-- Shipping runs only after `complete-to-ship` passes.
-- The lane ends only with a pushed branch and PR URL, or an honest blocker.
-- Ordinary internal `kb-complete` calls remain non-shipping.
+The replacement flow is:
 
-## Verification
+```text
+kb-work -> kb-finalize -> kb-complete -> kb-ship -> authorized kb-land
+```
 
-Run route eval, skill lint, core, sync report, and `git diff --check`.
+The replacement preserves the original shipping boundary: `kb-ship` commits,
+pushes, and opens or updates a PR but never merges. Only `kb-land` may integrate
+the resolved remote default branch.

@@ -120,6 +120,76 @@ npm run wiki:build
 This preserves the learning model's narrow-scope and promotion rules instead of
 creating a second manually maintained knowledge store.
 
+## UniversalUI Skills Contribution
+
+This repository owns the canonical Skills catalog under
+`.github/skills/*/SKILL.md`. The installer packages that tree, and the
+UniversalUI contribution at `packages/universal-ui-skills-contribution`
+projects its stable frontmatter identity into one host-owned React route:
+
+| Field | Value |
+| --- | --- |
+| Package | `@irtechie/universal-ui-skills-contribution` |
+| Contribution | `io.irtechie.working-skill-repo.skills` |
+| Stable route | `/apps/skills` |
+| Legacy input | `/?tab=skills` |
+| Contract | `universal_ui.contribution.v1`, host `^0.1.0` |
+
+The projection includes only each skill's repo-relative identity, description,
+argument hint, category, and public source URL. Skill Markdown bodies are not
+shipped in the catalog. React renders every projected value as text; the
+contribution has no raw-HTML renderer, executable Markdown, shell, router,
+global frame, or machine-private source path.
+
+Build the catalog, test the package, and create its release artifact:
+
+```shell
+npm run catalog:build --prefix packages/universal-ui-skills-contribution
+npm run test:universal-ui-skills
+npm run pack:universal-ui-skills
+```
+
+The optional rendered smoke fixture uses React and Vite from a local
+UniversalUI checkout without adding them as contribution-owned dependencies.
+Set `UNIVERSAL_UI_ROOT` to that checkout, start Vite with
+`packages/universal-ui-skills-contribution/test/browser-fixture` as its root,
+then open the printed local URL with `agent-browser`.
+
+The pack command writes the tarball and
+`release/universal-ui.release-lock.json` under the contribution package. The
+release lock binds `contributionDefinition` to the tarball SHA-256.
+
+UniversalUI should install the tarball with scripts disabled, import
+`contributionDefinition` and `routeLoaders`, import the package's
+`styles.css`, and merge them into its existing active-set preflight and
+host-owned router. The lazy `skills` route component accepts
+`{ context: ShellContextV1 }`; it does not mount React or create a shell.
+The current UniversalUI fleet test contribution also registers `skills`, so
+the host must remove that synthetic route before activating this canonical
+owner package or active-set collision preflight will reject the release.
+
+The private `@irtechie/universal-ui-contract` package is not a registry,
+workspace, or source-alias dependency. To optionally prove conformance against
+an immutable local contract tarball:
+
+```powershell
+$env:UNIVERSAL_UI_CONTRACT_TGZ = "<immutable-contract-tarball>"
+$env:UNIVERSAL_UI_CONTRACT_SHA256 = "<expected-sha256>"
+npm run verify:universal-ui-contract
+```
+
+On macOS or Linux:
+
+```shell
+export UNIVERSAL_UI_CONTRACT_TGZ="<immutable-contract-tarball>"
+export UNIVERSAL_UI_CONTRACT_SHA256="<expected-sha256>"
+npm run verify:universal-ui-contract
+```
+
+The verifier runs an offline, `--ignore-scripts` install, checks package name
+and version, then validates the local contribution through the installed
+contract's public export.
+
 Optional `kb-configure` writes portable per-project execution policy. Most users
 never need it. Orchestrator-directed DDR is the default: the current
 orchestrator either retains a slice or delegates it once to one qualified
@@ -464,8 +534,10 @@ live cost, latency, token, or savings claim.
   cost time up front. They earn their place only when they prevent the agent
   from guessing, drifting, or calling unverified work done.
 - **Complete to the configured endpoint.** `kb-complete` resumes from source,
-  plan, active work, or reviewed manifest. `kb-work` auto-invokes only internal
-  `kb-finalize`, so ordinary work never publishes by accident.
+  plan, active work, or reviewed manifest. Successful `kb-work` continues
+  through internal `kb-finalize` and returns to `kb-complete`; delivery still
+  requires configured policy or explicit run-scoped authorization, so automatic
+  phase continuation does not grant accidental publishing authority.
 
 KB means **Kanban-Based**. The workflow still uses boards, manifests, vertical
 slices, and done archives, but user-facing commands use the shorter `kb-`
@@ -703,6 +775,13 @@ Execution lanes:
 - `kb-ship`, `kb-land`, `kb-epic`, `kb-task`, `kb-goal`,
   `kb-first-principles`
 - `safe-shell-quoting` - file-backed execution and validated cleanup for quote-heavy shell commands
+
+Successful planned work does not stop at phase handoffs:
+`kb-work -> kb-finalize -> kb-complete`. Configured PR delivery then invokes
+`kb-ship`, and authorized merge delivery continues to `kb-land` after required
+checks and reviews. `kb-work` never pushes or merges the resolved default
+branch, `kb-ship` never merges, and only `kb-land` integrates remote default
+before optional source-to-installed skill sync.
 
 `kb-ship` uses a low-burden PR first screen: what changed and why, genuine
 reviewer-owned decisions, work the agent already handled, verification, and

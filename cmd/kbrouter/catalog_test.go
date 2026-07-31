@@ -157,6 +157,40 @@ func TestUserCatalogEnabledFalsePreservesConfigAndDisablesRoutes(t *testing.T) {
 	}
 }
 
+func TestModelsShowAcceptsDisabledEmptyCatalogWithNullRoutes(t *testing.T) {
+	userRoot := t.TempDir()
+	disabled := false
+	catalog := modelrouting.Catalog{
+		SchemaVersion: modelrouting.CatalogSchemaVersion,
+		Enabled:       &disabled,
+	}
+	if err := modelrouting.SaveAtomicJSON(userRoot, userCatalogFile, catalog, maxCatalogBytes); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(userRoot, userCatalogFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() != 103 {
+		t.Fatalf("catalog fixture size=%d want 103", info.Size())
+	}
+	loaded, err := loadUserCatalog(userRoot)
+	if err != nil {
+		t.Fatalf("load disabled empty catalog: %v", err)
+	}
+	if loaded.Enabled == nil || *loaded.Enabled || loaded.Routes != nil {
+		t.Fatalf("disabled empty catalog shape changed: %#v", loaded)
+	}
+
+	code, stdout, stderr := runForTest("models", "show", "--user-root", userRoot, "--json")
+	if code != 0 {
+		t.Fatalf("models show code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	if !strings.Contains(stdout, `"enabled":false`) {
+		t.Fatalf("disabled empty catalog was not shown: %s", stdout)
+	}
+}
+
 func TestModelsLocalRoutingTogglesWithoutDeletingRoutes(t *testing.T) {
 	userRoot := t.TempDir()
 	addTrustedRouteForTest(t, userRoot, "local.coder", "coder", "http://127.0.0.1:4000/v1")
