@@ -13,6 +13,17 @@
   is intentionally quarantined until the reviewed commit is proven on
   `origin/main`, then the documented source-to-installed sync must close it.
 
+- Session portfolio convergence - classified donor `25da36bb` as superseded by
+  the broader agent-owned/headless browser-proof work already on default;
+  retained and hardened donor `655154e3` as the UniversalUI Skills contribution
+  package; retained and hardened donor `2172ad69` for Cargo storage identity,
+  receipt migration, readiness, and temporary-target safety. Intentional
+  generated catalog/tarball/lock assets were regenerated and source-bound;
+  generated residue is empty. Proof: full Go and npm suites, focused Cargo
+  tests, rendered headless UI interaction, clean API-contract confirmation,
+  `local-release`, 129/129 global sync, merged PR #15, and remote-default
+  containment at `e19247a`.
+
 - Current agent workflow cleanup - replaced routine reviewer swarms with one
   lifecycle-level broad or replacement specialist profile, made document review
   and learning signal-driven, removed `ce-review`, `kb-finish`, and `klfg`,
