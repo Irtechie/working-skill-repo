@@ -119,6 +119,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 	}
 	nativeChecks := []nativeCheck{
 		{"skill-lint", "skill quality config detected"},
+		{"skill-guidance", "current agent skill guidance contract detected"},
 		{"kb-doctor-selftest", "KB doctor install drift repair selftest detected"},
 		{"route-complexity-eval", "route complexity eval fixtures detected"},
 		{"review-reference-guard", "review skill shared-reference drift guard detected"},
@@ -186,6 +187,14 @@ func skillRepoChecks(root string) ([]Check, error) {
 				Name: "skill-lint", Args: []string{"kbcheck", "skill-lint"},
 				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
 				Run: func(root string) CheckResult { return runNativeCommand(root, []string{"skill-lint"}) },
+			})
+			continue
+		}
+		if pc.Name == "skill-guidance" {
+			checks = append(checks, Check{
+				Name: "skill-guidance", Args: []string{"kbcheck", "skill-guidance"},
+				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
+				Run: func(root string) CheckResult { return runNativeCommand(root, []string{"skill-guidance"}) },
 			})
 			continue
 		}

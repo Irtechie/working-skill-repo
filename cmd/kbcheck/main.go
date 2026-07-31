@@ -61,6 +61,7 @@ Usage:
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
+  kbcheck skill-guidance [--root <path>] [--config <path>]
   kbcheck skill-sync-report [--root <path>] [--config <path>] [--json] [--verbose-optional]
   kbcheck doctor [--root <path>] [--config <path>] [--fix] [--json]
   kbcheck doctor-selftest [--root <path>]
@@ -323,6 +324,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runScopeLeaseSelftest(stdout, stderr)
 	case "skill-lint":
 		return runSkillLintCommand(root, opts, stdout, stderr)
+	case "skill-guidance":
+		return runSkillGuidanceCommand(root, opts, stdout, stderr)
 	case "skill-sync-report":
 		return runSkillSyncReportCommand(root, opts, stdout, stderr)
 	case "doctor":

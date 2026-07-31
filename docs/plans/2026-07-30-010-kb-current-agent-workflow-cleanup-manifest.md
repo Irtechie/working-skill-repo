@@ -90,6 +90,23 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-31T03:12:00Z"
     allowed_next_action: "kb-work docs/plans/2026-07-30-010-kb-current-agent-workflow-cleanup-manifest.md"
+  - gate_id: slice-001-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Skill guidance policy tests pass."
+      - "The guard distinguishes structural enforcement from semantic judgment."
+      - "The observed 46-skill audit has one row per skill."
+    proof:
+      - cmd/kbcheck/skill_guidance.go
+      - cmd/kbcheck/skill_guidance_test.go
+      - config/skill-guidance.json
+      - config/skill-guidance-audit.json
+      - "go test ./cmd/kbcheck -run 'SkillGuidance|Minimality|ReviewReference' -count=1"
+    blockers: []
+    passed_at: "2026-07-31T03:22:00Z"
+    allowed_next_action: "slice-002"
 slices:
   - id: slice-001
     title: "Enforce current skill-guidance structure"
@@ -110,14 +127,14 @@ slices:
       command: "go test ./cmd/kbcheck -run 'SkillGuidance|Minimality|ReviewReference' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
     next_agent_action: "Write failing policy fixtures, then implement the smallest deterministic guidance guard."
     human_action: ""
     can_continue_other_slices: true
-    notes: ""
+    notes: "scope-check: forecast=5 changed=7 discovered=2 unexplained=0; test-level: functional-cli; proof: go test ./cmd/kbcheck -run 'SkillGuidance|Minimality|ReviewReference' -count=1 exit=0; memory-impact: durable; areas=skill-quality; refresh=pending"
   - id: slice-002
     title: "Make review and finalization proportional"
     path: docs/plans/2026-07-30-012-skill-proportional-review-lifecycle-plan.md
@@ -248,7 +265,7 @@ installer/sync surfaces, and release proof change together.
 
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|---|---|---|---|---|
-| 1 | Enforce current skill-guidance structure | - | tdd | no | pending |
+| 1 | Enforce current skill-guidance structure | - | tdd | no | done |
 | 2 | Make review and finalization proportional | slice-001 | tdd | no | pending |
 | 3 | Remove dead completion aliases and stale surfaces | slice-002 | integration | no | pending |
 | 4 | Refactor oversized hot-path skills | slice-003 | integration | no | pending |
