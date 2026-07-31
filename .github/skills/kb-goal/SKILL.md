@@ -37,7 +37,8 @@ goal contract.
 - Route each work unit through `kb-start` unless the ledger already names a
   valid next action such as `kb-work <manifest>`, `kb-finalize <manifest>`, or
   `kb-complete <manifest>`.
-- Preserve the smallest correct lane. Do not force every goal through `klfg`.
+- Preserve the smallest correct lane. Do not force every goal through a full
+  `kb-complete` cycle.
 - When routed work is first about to run, initialize or reuse exactly one
   ephemeral run catalog under `.kb/runs/<goal-slug>/` from live host evidence.
   Do not ask a setup questionnaire for Small/Medium/Large/Planner models.
@@ -249,7 +250,8 @@ Pick the next smallest useful unit, then delegate:
 | Work is implemented and needs internal quality gates | `kb-finalize <manifest>` |
 | Delivery is the remaining unit | `kb-complete <manifest>` |
 
-`klfg` is one strict pipeline run. `kb-goal` may run many pipeline runs.
+`kb-complete` is one state-aware completion run. `kb-goal` may coordinate many
+bounded runs.
 
 ### Goal Brainstorm Rule
 
@@ -314,7 +316,7 @@ Do not stop at weaker milestones:
 - one work unit passed;
 - a manifest says all slices are done but `kb-finalize` has not run;
 - tests passed before review/follow-up proof;
-- `klfg` emitted DONE for one pipeline but the goal has remaining criteria;
+- one `kb-complete` run finished but the goal has remaining criteria;
 - the model believes the objective is probably satisfied.
 
 ## Completion Rules

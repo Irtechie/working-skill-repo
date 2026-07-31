@@ -116,8 +116,8 @@ direct integration and post-integration sync.
 
 For long-lived objectives that may run across days or sessions, use `kb-goal`.
 It keeps the durable objective and terminal proof ledger, then routes each work
-unit through the normal KB lanes. `klfg` is one strict idea-to-done pipeline;
-`kb-goal` can run many pipelines or smaller lanes until the larger goal is
+unit through the normal KB lanes. `kb-complete` is one state-aware completion
+run; `kb-goal` can run many runs or smaller lanes until the larger goal is
 complete or honestly blocked. Under a goal, brainstorming is low-interruption:
 the agent picks the best path from evidence and asks only for true planning
 blockers.
@@ -198,7 +198,7 @@ project. This table is the human reference; the current
 | Fuzzy idea or high-path-dependency product direction | `kb-brainstorm` | Planning questions resolved |
 | Small known bug, typo, or narrow contained edit | `kb-fix` | Targeted proof |
 | Memory, docs, or output are too hard to scan | `kb-compact` | Technical truth preserved with lower reading burden |
-| Legacy `klfg` or `kb-finish` request | `kb-complete` | Compatibility alias; same completion gates |
+| Full idea-to-endpoint completion request | `kb-complete` | Same state-aware completion gates |
 
 Handoffs re-enter through `kb-start` and `kb-map`; durable goals route each work
 unit back through these same lanes.
@@ -576,7 +576,7 @@ for help only for product decisions, credentials, unsafe operations, or genuine
 ambiguity. `kb-check` and `kb-functional-test` push verification into executable
 checks instead of letting the model re-inspect behavior by hand.
 
-`kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-epic`, and `klfg` share a workflow
+`kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-epic`, and `kb-complete` share a workflow
 governor contract: unresolved `ask-now` or `research-first` questions block
 planning, safe assumptions must be recorded with proof, and later phases advance
 through gate-ledger records rather than chat confidence. The maintainer proof is
@@ -634,18 +634,16 @@ This is a command index. For the ordered lane decision, see
 | `kb-architecture-deepening` | Explore where a codebase should get deeper, simpler, or more modular |
 | `kb-plan` | Requirements exist and need vertical slices |
 | `kb-work` | A manifest exists and should be executed |
-| `kb-review` | KB-specific code review with structural quality review |
+| `kb-review` | One integrated broad or replacement specialist code review |
 | `kb-complete` | Feature/plan/manifest should reach its configured endpoint |
 | `kb-finalize` | Internal post-work review, proof, learning, memory, cleanup |
 | `kb-memory-review` | High-cost pass for stale, bloated, or contradictory memory |
 | `kb-ship` | Internal commit, push, and PR delivery phase |
 | `kb-land` | Internal merge/direct integration and post-integration sync phase |
-| `kb-finish` | Deprecated alias to `kb-complete` |
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
 | `kb-compact` | Memory, docs, or output need low-burden organization with the smallest useful prose, table, decision block, or workflow view |
 | `kb-executive-brief` | Generate an executive first screen and an optional evidence-backed Mermaid flow |
 | `pr-review-workbench` | Generate a commit-pinned, offline visual PR review after a PR exists |
-| `klfg` | Deprecated alias to `kb-complete` |
 | `repo-critic` | Claims-vs-code evidence review before a claim ships |
 | `safe-shell-quoting` | Run fragile PowerShell, Bash, or mixed-shell quoting from validated temporary script files |
 
@@ -679,8 +677,8 @@ Execution lanes:
 
 - `kb-fix`, `kb-troubleshoot`, `kb-brainstorm`, `kb-research`
 - `kb-architecture-deepening`, `kb-plan`, `kb-work`, `kb-finalize`, `kb-complete`
-- `kb-ship`, `kb-land`, `kb-finish`, `kb-epic`, `kb-task`, `kb-goal`,
-  `kb-first-principles`, `klfg`
+- `kb-ship`, `kb-land`, `kb-epic`, `kb-task`, `kb-goal`,
+  `kb-first-principles`
 - `safe-shell-quoting` - file-backed execution and validated cleanup for quote-heavy shell commands
 
 `kb-ship` uses a low-burden PR first screen: what changed and why, genuine
@@ -714,16 +712,15 @@ Verification and gates:
 - `kb-qa` - per-slice QA gate
 - `kb-repair` - surgical fix loop with stuck detection
 - `kb-regression-snapshot` - capture/replay deterministic regression snapshots
-- `kb-review` - tiered-persona structural review
+- `kb-review` - one evidence-bound broad or replacement specialist review
 - `kb-eval-map` - map repo-native eval surfaces and proof commands
 - `kb-memory-review` - high-cost project-memory maintenance pass
 
-Direct dependencies include `ce-review`, `ce-compound`,
-`ce-compound-refresh`, `document-review`, `tdd`, `learn`, `evolve`,
-`todo-create`, and `todo-triage`. Do not remove `kb-review`, `ce-review`,
-`ce-compound`, or `ce-compound-refresh` unless the skills that invoke them are
-rewritten first. `kb-finalize` uses `kb-review`; `ce-review` remains the
-generalized CE review skill.
+Direct dependencies include `ce-compound`, `ce-compound-refresh`,
+`document-review`, `tdd`, `learn`, `evolve`, `todo-create`, and `todo-triage`.
+Do not remove `kb-review`, `ce-compound`, or `ce-compound-refresh` unless their
+callers are rewritten first. `kb-review` owns both KB completion and standalone
+bundle code review.
 
 ## Project Memory
 
@@ -798,23 +795,23 @@ Deep dive: [KB learning model](docs/context/architecture/kb-learning-model.md).
 
 ## Review Agents
 
-The reviewer agents are runtime dependencies, not optional docs. Removing them
-causes `document-review`, `kb-review`, `ce-review`, `kb-complete`, and related
-gates to fail or degrade.
+Reviewer agents are optional execution profiles used by `document-review` and
+`kb-review`. Each review boundary selects at most one; local fallback remains
+available when the runtime cannot dispatch that profile.
 
-Always-on KB code review personas:
+The broad code profile covers:
 
-- `correctness-reviewer`
-- `testing-reviewer`
-- `thermo-nuclear-code-quality-reviewer`
-- `project-standards-reviewer`
+- intent/spec alignment;
+- test validity;
+- correctness;
+- code health.
 
-Conditional reviewers include security, performance, API contracts, migrations,
-reliability, frontend races, schema drift, deployment, prior comments,
-language-specific reviewers, and adversarial review.
+Security, migration, performance, reliability, API, CLI, and Thermonuclear
+profiles replace the broad profile when that risk dominates; they do not stack.
 
-Document-review uses its own lens agents: coherence, feasibility, product,
-design, flow, security, scope, and adversarial document review.
+Document-review runs only after the main-agent self-check leaves material
+uncertainty, selecting one coherence, feasibility, product, design, flow,
+security, scope, or adversarial lens.
 
 Deep dive: [KB workflow architecture](docs/context/architecture/kb-workflow.md)
 and [kb-review persona catalog](.github/skills/kb-review/references/persona-catalog.md).
@@ -1061,8 +1058,7 @@ Deep dive:
 These are intentionally left out of the portable runtime bundle:
 
 - upstream `deepen-*` passes; use `kb-research` and proportional research
-- one-shot LFG/SLFG style workflows; use `klfg` only when you want the full
-  pipeline
+- one-shot LFG/SLFG style workflows; use `kb-complete` for the full pipeline
 - upstream `workflows-*` aliases; use KB lanes directly unless a current app
   explicitly needs an ATV alias
 - upstream `land`; internal `kb-ship` and `kb-land` are governed by

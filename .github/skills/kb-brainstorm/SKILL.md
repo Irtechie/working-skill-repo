@@ -487,7 +487,7 @@ when the downstream artifact supports a gate ledger. Required evidence:
 If no blocking questions remain:
 
 - If the user asked to continue straight to implementation, or an orchestrator
-  such as `klfg`, `kb-epic`, or `kb-goal` called this brainstorm with execution
+  such as `kb-complete`, `kb-epic`, or `kb-goal` called this brainstorm with execution
   intent, invoke `kb-plan <requirements-doc>` with that execution intent so
   planning can continue to `kb-work` after writing the manifest.
 - Otherwise ask once: "Brainstorm is gate-clean. Continue with `kb-plan

@@ -229,6 +229,5 @@ commit and any configured post-integration sync has been verified.
 
 ## Compatibility
 
-- `kb-finish` is a deprecated alias that delegates here.
-- `klfg` may delegate here for its full idea-to-endpoint loop.
+- Older prompts that say "kb finish" or "full KB pipeline" route here directly.
 - `kb-finalize`, `kb-ship`, and `kb-land` remain internal phase skills.

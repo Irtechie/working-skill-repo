@@ -896,7 +896,7 @@ func addUnknownSkillReferenceWarnings(root string, config skillQualityConfig, sk
 		}
 	}
 	sort.Strings(files)
-	token := `(?:kb|ce)-[a-z0-9-]+|todo-[a-z0-9-]+|document-review|learn|evolve|tdd|klfg`
+	token := `(?:kb|ce)-[a-z0-9-]+|todo-[a-z0-9-]+|document-review|learn|evolve|tdd`
 	patterns := []*regexp.Regexp{
 		regexp.MustCompile("`/?(" + token + ")`"),
 		regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])/(?:` + token + `)(?:[^A-Za-z0-9_-]|$)`),

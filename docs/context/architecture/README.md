@@ -41,7 +41,7 @@ Use this file as the router, not the deep dive.
 | Verification setup | `kb-eval-map` | Maps repo-native eval surfaces |
 | Verification | `kb-check`, `kb-functional-test`, `kb-qa`, `kb-regression-snapshot` | Chooses and runs proof |
 | Completion | `kb-complete`, `kb-review`, `ce-compound`, `learn`, `evolve` | Review, memory, learning, cleanup |
-| Delivery | `kb-ship`, `kb-land`, `kb-finish`, `klfg` | PR or direct-integration surfaces, depending policy |
+| Delivery | `kb-complete`, `kb-ship`, `kb-land` | State-aware completion plus PR or direct integration, depending policy |
 
 ## Distribution Targets
 

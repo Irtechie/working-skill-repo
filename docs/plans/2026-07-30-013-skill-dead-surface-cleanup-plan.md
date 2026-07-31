@@ -15,7 +15,7 @@ conflict_domains: ["skill:kb-finish", "skill:klfg", "docs:skill-inventory", "con
 shared_resources: ["git:integration-owner", "config:skill-quality"]
 proof_check:
   kind: command_exit
-  command: "go run ./cmd/kbcheck core"
+  command: "go test ./cmd/kbcheck -run 'WorkflowGovernor|SkillLint|Minimality' -count=1"
   expect: 0
 hitl: false
 expected_files:
@@ -47,7 +47,7 @@ expected_files:
     op: edit
     scope: "Regenerate inventory and owner map"
 protected_oracles: []
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""

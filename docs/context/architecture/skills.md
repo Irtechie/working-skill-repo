@@ -2,8 +2,8 @@
 
 ## Purpose
 
-This repo ships 44 `SKILL.md` files under `.github\skills\`. They define the KB
-workflow lanes, CE review/compound helpers, todo helpers, and learning/utilities
+This repo ships 43 `SKILL.md` files under `.github\skills\`. They define the KB
+workflow lanes, compound/document-review helpers, todo helpers, and learning/utilities
 used by Codex, Copilot, and shared agents.
 
 Supporting reviewer/specialist agents live under `.github\agents\*.agent.md`.
@@ -16,10 +16,10 @@ Supporting reviewer/specialist agents live under `.github\agents\*.agent.md`.
 | Requirements / planning | `kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-research`, `kb-first-principles` |
 | Execution / repair | `kb-work`, `kb-fix`, `kb-troubleshoot`, `kb-repair`, `tdd` |
 | Verification / eval | `kb-check`, `kb-functional-test`, `kb-qa`, `kb-regression-snapshot`, `kb-eval-map` |
-| Completion / delivery | `kb-complete`, `kb-finalize`, `kb-review`, `kb-ship`, `kb-land`, `kb-finish`, `klfg` |
+| Completion / delivery | `kb-complete`, `kb-finalize`, `kb-review`, `kb-ship`, `kb-land` |
 | Learning / maintenance | `learn`, `evolve`, `kb-compact`, `kb-configure`, `kb-models`, `kb-handoff`, `kb-architecture-deepening` |
-| CE / document review | `ce-review`, `document-review`, `ce-compound`, `ce-compound-refresh`, `repo-critic` |
-| Todo / utility | `todo-create`, `todo-triage`, `safe-shell-quoting`, `kb-finish`, `klfg` |
+| Compound / document review | `document-review`, `ce-compound`, `ce-compound-refresh`, `repo-critic` |
+| Todo / utility | `todo-create`, `todo-triage`, `safe-shell-quoting` |
 
 ## Full Skill Inventory
 
@@ -29,8 +29,7 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 |---|---|---|
 | `ce-compound-refresh` | Refresh stale `docs/solutions` learnings against current code | Use after refactors, migrations, dependency upgrades, or drift in learned docs |
 | `ce-compound` | Document a recently solved problem into reusable knowledge | Use after a solved bug/pattern worth compounding |
-| `ce-review` | General structured code review | Use before creating a PR |
-| `document-review` | Multi-persona requirements/plan review | Use when a requirements or plan doc needs quality review |
+| `document-review` | Optional one-profile requirements/plan review | Use when the main-agent self-check leaves material uncertainty |
 | `evolve` | Promote mature instincts into skills | Use when repeated instincts are ready to become durable skills |
 | `kb-architecture-deepening` | Explore where architecture needs deeper modularity | Use for architecture questions, not routine cleanup |
 | `kb-brainstorm` | Produce proportional requirements | Use for vague ideas or before planning |
@@ -41,7 +40,6 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-epic` | Coordinate large multi-workstream initiatives | Use for migrations, rewrites, or large related backlogs |
 | `kb-eval-map` | Map repo-native eval surfaces | Use during bootstrap or when eval strategy is unclear |
 | `kb-finalize` | Post-work review/learning/cleanup pipeline | Usually invoked after `kb-work` |
-| `kb-finish` | Compatibility alias to `kb-complete` | Use when older prompts say `kb finish` |
 | `kb-first-principles` | Honest pushback / principled disagreement lane | Use when claims are challenged or truth is uncertain |
 | `kb-fix` | Small bug-fix lane | Use for narrow known bugs or failing tests |
 | `kb-functional-test` | Choose/test functional proof depth | Use when behavior needs e2e/API/browser proof judgment |
@@ -64,7 +62,6 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-task` | First-principles autonomous task runner | Use for a bounded task to complete end-to-end without choosing a lane |
 | `kb-troubleshoot` | Autonomous debugging/self-correction lane | Use when behavior is broken but cause is unclear |
 | `kb-work` | Bounded swarm executor for planned slices | Use to execute a `kb-plan` manifest |
-| `klfg` | Deprecated alias to `kb-complete` | Use only for compatibility with older prompts |
 | `learn` | Extract recent patterns into instincts | Use after completing work or at session end |
 | `repo-critic` | Claims-vs-code evidence critic | Use to audit whether docs/claims match implementation |
 | `safe-shell-quoting` | Move fragile shell quoting into scripts | Use for quote-heavy or nested shell commands |
@@ -81,4 +78,15 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | “How do I bootstrap or refresh repo memory?” | `.github\skills\kb-map-bootstrap\SKILL.md` |
 | “What is the proof lane?” | `.github\skills\kb-check\SKILL.md` + `docs/context/architecture/kbcheck.md` |
 | “What reviews docs?” | `.github\skills\document-review\SKILL.md` |
-| “What reviews code?” | `.github\skills\kb-review\SKILL.md` or `.github\skills\ce-review\SKILL.md` |
+| “What reviews code?” | `.github\skills\kb-review\SKILL.md` |
+
+## Removed Capability Parity
+
+| Removed skill | Replacement owner | Preserved behavior | Proof |
+|---|---|---|---|
+| Generalized duplicate code-review entrypoint | `kb-review` | Standalone and completion review, one broad or replacement specialist profile, report-only/headless/autofix modes | Review contract tests and `kb-review` references |
+| Legacy finish alias | `kb-complete` | State-aware plan-to-endpoint completion and configured delivery | Completion route fixtures |
+| Legacy strict-pipeline alias | `kb-complete` | Brainstorm, plan, work, finalize, and delivery recovery from current state | Workflow governor and completion tests |
+
+The removed names remain only in `config/removed-skills.json` and factual
+historical artifacts. They are not current routes, install targets, or skills.

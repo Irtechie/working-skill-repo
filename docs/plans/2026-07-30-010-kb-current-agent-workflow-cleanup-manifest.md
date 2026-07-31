@@ -123,6 +123,21 @@ gate_ledger:
     blockers: []
     passed_at: "2026-07-31T04:05:00Z"
     allowed_next_action: "slice-003"
+  - gate_id: slice-slice-003-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Removed skills have replacement owners and no unique retained behavior."
+      - "Current routes, configs, tests, README, and architecture docs do not advertise removed names."
+      - "Historical artifacts remain intact."
+    proof:
+      - docs/results/proof/current-agent-workflow-cleanup-slice-003.txt
+      - docs/context/architecture/skills.md
+      - config/removed-skills.json
+    blockers: []
+    passed_at: "2026-07-31T04:24:00Z"
+    allowed_next_action: "slice-004"
 slices:
   - id: slice-001
     title: "Enforce current skill-guidance structure"
@@ -194,17 +209,17 @@ slices:
     shared_resources: ["git:integration-owner", "config:skill-quality"]
     proof_check:
       kind: command_exit
-      command: "go run ./cmd/kbcheck core"
+      command: "go test ./cmd/kbcheck -run 'WorkflowGovernor|SkillLint|Minimality' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
     next_agent_action: "Record parity, delete aliases, and remove every current operational reference while preserving historical artifacts."
     human_action: ""
     can_continue_other_slices: true
-    notes: ""
+    notes: "scope-discovery: cmd/kbcheck/workflow_governor.go and skill_validators.go - alias-specific contracts removed; scope-discovery: docs/context/architecture/README.md and kb-workflow.md - current route map updated; scope-check: forecast=9 changed=16 discovered=7 unexplained=0; test-level: functional-cli; proof: targeted Go tests exit=0, skill-lint errors=0, operational git grep removed names exit=1/no matches; proof amendment: replaced dependency-inverted core check with route-local tests, while core remains the terminal aggregate; memory-impact: durable; areas=routing,skill-inventory; refresh=done"
   - id: slice-004
     title: "Refactor oversized hot-path skills"
     path: docs/plans/2026-07-30-014-skill-progressive-disclosure-plan.md
@@ -283,6 +298,6 @@ installer/sync surfaces, and release proof change together.
 |---|---|---|---|---|---|
 | 1 | Enforce current skill-guidance structure | - | tdd | no | done |
 | 2 | Make review and finalization proportional | slice-001 | tdd | no | done |
-| 3 | Remove dead completion aliases and stale surfaces | slice-002 | integration | no | pending |
+| 3 | Remove dead completion aliases and stale surfaces | slice-002 | integration | no | done |
 | 4 | Refactor oversized hot-path skills | slice-003 | integration | no | pending |
 | 5 | Propagate and prove the cleaned bundle | slice-004 | verification-only | no | pending |

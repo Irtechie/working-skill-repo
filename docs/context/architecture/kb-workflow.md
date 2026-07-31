@@ -39,7 +39,7 @@ Typical routing:
 | valid manifest exists | `kb-work` |
 | all slices are done and need completion gates | `kb-complete` |
 | reviewed work needs commit, push, and PR | `kb-ship` |
-| plan/manifest should reach done-done and a checked-in PR | `kb-finish` |
+| plan/manifest should reach its configured endpoint | `kb-complete` |
 | multi-subsystem initiative or migration | `kb-epic` |
 | external docs or prior art could change the decision | `kb-research` |
 
@@ -211,8 +211,8 @@ goal can reactivate it. A permanent end parks—not completes—the ledger and
 returns the exact `To resume: /kb-goal <objective>` command.
 
 `kb-work` auto-invokes only `kb-finalize`, which cannot publish. Explicit
-`kb-complete` applies project delivery policy after finalization. `kb-finish`
-and `klfg` remain compatibility aliases.
+`kb-complete` applies project delivery policy after finalization and is the
+single user-facing completion command.
 
 For recurring or trend-improvement goals, `kb-goal` may add a live-steering
 block to the goal ledger. That block names the set point, sensor, controller,
@@ -467,8 +467,8 @@ all runnable slices are done or intentionally skipped.
 from a feature description, plan, active manifest, or reviewed manifest; it
 delegates planning, work, and finalization, then applies project delivery
 policy. `kb-ship` owns internal PR delivery and `kb-land` owns explicit
-merge/direct integration plus configured post-integration sync. Legacy `klfg`
-and `kb-finish` delegate to `kb-complete`.
+merge/direct integration plus configured post-integration sync. Full
+idea-to-endpoint requests route directly to `kb-complete`.
 
 The steering step classifies review, iteration, and maintainer feedback as
 current-only, steering memory, observation, landmine candidate, or instinct
