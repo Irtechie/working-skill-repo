@@ -16,6 +16,7 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DiscoverChecks returned error: %v", err)
 	}
+
 	got := checkNames(checks)
 	want := []string{
 		"context-packet-selftest",
@@ -47,6 +48,36 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 	for _, name := range want {
 		if !contains(got, name) {
 			t.Fatalf("checks=%v missing %s", got, name)
+		}
+	}
+}
+
+func TestWebUIProofRemainsAgentOwned(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]string{
+		".github/skills/kb-qa/SKILL.md": {
+			"default for local/public UI functional checks",
+			"record one proof receipt containing the route",
+			"do not report partial completion",
+			"automation gap into manual verification",
+		},
+		".github/skills/kb-functional-test/SKILL.md": {
+			"A web UI check is not complete until its receipt names the route",
+			"evidence is agent-owned test work",
+		},
+	}
+	for relative, phrases := range required {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, phrase := range phrases {
+			if !strings.Contains(string(content), phrase) {
+				t.Errorf("%s missing web UI proof contract %q", relative, phrase)
+			}
 		}
 	}
 }

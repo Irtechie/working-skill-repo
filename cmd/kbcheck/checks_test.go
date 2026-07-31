@@ -26,6 +26,24 @@ func TestDiscoverPackageChecks(t *testing.T) {
 	}
 }
 
+func TestGoTestsIsolateRouterAndPropagateFailure(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.test/fixture\n\ngo 1.23\n")
+	writeFile(t, filepath.Join(root, "pkg", "regular.go"), "package regular\n")
+	writeFile(t, filepath.Join(root, "pkg", "regular_test.go"), "package regular\n\nimport \"testing\"\n\nfunc TestRegular(t *testing.T) {}\n")
+	routerTest := filepath.Join(root, "cmd", "kbrouter", "router_test.go")
+	writeFile(t, routerTest, "package kbrouter\n\nimport \"testing\"\n\nfunc TestRouter(t *testing.T) { t.Fatal(\"router failure\") }\n")
+
+	if result := runGoTestsWithRouterIsolation(root); result.ExitCode == 0 {
+		t.Fatal("router package failure was not propagated")
+	}
+
+	writeFile(t, routerTest, "package kbrouter\n\nimport \"testing\"\n\nfunc TestRouter(t *testing.T) {}\n")
+	if result := runGoTestsWithRouterIsolation(root); result.ExitCode != 0 {
+		t.Fatalf("isolated Go tests failed after repair: exit=%d stdout=%s stderr=%s", result.ExitCode, result.Stdout, result.Stderr)
+	}
+}
+
 func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, ".github", "skills", "kb-check", "SKILL.md"), "---\nname: kb-check\ndescription: test\n---\n")

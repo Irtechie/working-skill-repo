@@ -35,15 +35,24 @@ Pick the transport based on what the slice needs, not a fixed priority list.
 
 ### Decision Logic
 
-1. **Is this an internal/corporate site?** (SSO, Conditional Access, company-owned domains, session cookies from a real login)
+1. **Is this an internal/corporate site?** (SSO, Conditional Access,
+   company-owned domains, session cookies from a real login)
 
-   - **YES** → CDP required. Connect to the user's existing browser session via `ws://localhost:9222` (or `CDP_ENDPOINT` env var). The real browser already has cookies, tokens, and session state from the user's login. No way to fake this.
-   - If CDP is unavailable → **STOP.** Do not attempt Playwright or Agent Browser on internal sites — they cannot pass SSO/Conditional Access. Log in `todo.md`: `qa: skipped - internal site, no CDP session. Start browser with --remote-debugging-port=9222`
+   - First use an existing repo-owned Playwright auth fixture, storage state, or
+     test login when one is available and authorized.
+   - Otherwise connect to an existing authenticated browser through CDP at
+     `ws://localhost:9222` (or `CDP_ENDPOINT`).
+   - If neither route exists because a real login, MFA, credentials, or private
+     session is required, record that exact human-only dependency. Do not label
+     ordinary browser setup or missing automation as human-required.
 
 2. **Is this a regular site or local dev server?** (localhost, public URLs, no corporate auth)
 
-   - Agent Browser if installed (`agent-browser` on PATH) — structured element targeting, fast
-   - Playwright if available — headless, clean viewport control, required default for local/public UI functional checks
+   - Playwright if available — headless, clean viewport control, required
+     default for local/public UI functional checks
+   - Agent Browser if installed (`agent-browser` on PATH) — fallback when it
+     can provide the same navigation, interaction, DOM assertion, screenshot,
+     console, and network evidence
    - CDP as fallback
 
 3. **Does the slice need responsive/viewport testing?** (deep tier, or slice touches layout/grid/responsive components)
@@ -78,6 +87,12 @@ Pick the transport based on what the slice needs, not a fixed priority list.
 
 Create `.kb/qa-screenshots/` if it doesn't exist.
 
+For every web UI pass, record one proof receipt containing the route, browser
+transport, user interaction (or `display-only`), executed DOM assertion,
+command and exit code, screenshot path, and console/network result. If any
+field is missing while an agent-accessible transport exists, keep the slice
+`in_progress`, run the missing proof now, and do not report partial completion.
+
 ## Step 3: Verify Against Slice Requirements
 
 Read the slice plan's acceptance criteria. For each criterion that describes visible behavior, verify it through the rendered UI itself:
@@ -110,7 +125,11 @@ but no assertion exists yet, that is agent-owned test work: write or repair the
 assertion rather than assigning it to the user. Do not substitute model visual
 inspection for deterministic proof.
 
-**Never read source code during QA.** Test as a user — if you can't verify it from the browser, flag it as needing manual verification.
+The QA oracle is the rendered app, not source inspection. If browser automation
+cannot verify a deterministic criterion, keep the work agent-owned: enter the
+repair/debug lane, inspect source and logs there, add or repair the fixture,
+selector, test hook, or assertion, then rerun browser proof. Do not convert an
+automation gap into manual verification.
 
 Calling backend endpoints, dispatching component events directly, invoking button handlers, mocking network requests, inspecting component state, or reading logs does not satisfy visible-behavior criteria. Those are useful supporting evidence only after the rendered UI path has been exercised.
 

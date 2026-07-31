@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -56,7 +55,7 @@ func DiscoverChecks(root string) ([]Check, error) {
 			Reason:     "Go module detected",
 			Required:   true,
 			Confidence: "deterministic-local",
-			Run:        runGoTestsSequentially,
+			Run:        runGoTestsWithRouterIsolation,
 		})
 	}
 	checks = append(checks, dotnetChecks(root)...)
@@ -73,23 +72,35 @@ func DiscoverChecks(root string) ([]Check, error) {
 	return checks, nil
 }
 
-func runGoTestsSequentially(root string) CheckResult {
-	list := runGoCommand(root, "list", "./...")
+func runGoTestsWithRouterIsolation(root string) CheckResult {
+	list := runProcessCheck(root, Check{Args: []string{"go", "list", "./..."}})
 	if list.ExitCode != 0 {
 		return list
 	}
-	packages := strings.Fields(list.Stdout)
-	sort.SliceStable(packages, func(i, j int) bool {
-		iRouter := strings.HasSuffix(packages[i], "/cmd/kbrouter")
-		jRouter := strings.HasSuffix(packages[j], "/cmd/kbrouter")
-		if iRouter != jRouter {
-			return iRouter
+	var regular []string
+	router := ""
+	for _, pkg := range strings.Fields(list.Stdout) {
+		if strings.HasSuffix(pkg, "/cmd/kbrouter") {
+			router = pkg
+		} else {
+			regular = append(regular, pkg)
 		}
-		return packages[i] < packages[j]
-	})
+	}
 	var stdout, stderr strings.Builder
-	for _, pkg := range packages {
-		result := runGoCommand(root, "test", "-buildvcs=false", pkg)
+	if len(regular) > 0 {
+		args := append([]string{"go", "test", "-buildvcs=false"}, regular...)
+		result := runProcessCheck(root, Check{Args: args})
+		stdout.WriteString(result.Stdout)
+		stderr.WriteString(result.Stderr)
+		if result.ExitCode != 0 {
+			return CheckResult{ExitCode: result.ExitCode, Stdout: stdout.String(), Stderr: stderr.String()}
+		}
+	}
+	if router != "" {
+		// kbrouter tests validate their own Windows job-object containment, so
+		// nesting only this package inside the generic check job blocks its
+		// command fixtures from starting.
+		result := runGoCommandWithoutOuterContainment(root, "test", "-buildvcs=false", router)
 		stdout.WriteString(result.Stdout)
 		stderr.WriteString(result.Stderr)
 		if result.ExitCode != 0 {
@@ -99,15 +110,31 @@ func runGoTestsSequentially(root string) CheckResult {
 	return CheckResult{Stdout: stdout.String(), Stderr: stderr.String()}
 }
 
-func runGoCommand(root string, args ...string) CheckResult {
+func runGoCommandWithoutOuterContainment(root string, args ...string) CheckResult {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultProcessCheckTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = root
-	var stdout, stderr bytes.Buffer
+	overflow := make(chan struct{}, 1)
+	stdout := newCappedCheckBuffer(overflow)
+	stderr := newCappedCheckBuffer(overflow)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	err := cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return CheckResult{ExitCode: 1, Stderr: err.Error()}
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	var err error
+	select {
+	case err = <-done:
+	case <-ctx.Done():
+		err = <-done
+	case <-overflow:
+		_ = cmd.Process.Kill()
+		err = <-done
+		return CheckResult{ExitCode: 1, Stdout: stdout.String(), Stderr: stderr.String() + fmt.Sprintf("go command output exceeded %d bytes", maxProcessCheckOutputBytes)}
+	}
 	if ctx.Err() == context.DeadlineExceeded {
 		return CheckResult{ExitCode: 1, Stdout: stdout.String(), Stderr: stderr.String() + "go command timed out"}
 	}

@@ -163,6 +163,10 @@ If a test mostly asserts mocks were called, snapshots noise, or duplicates imple
   - responsive screenshots only for deep tier or layout-sensitive changes.
 - Store evidence under `.kb/qa-screenshots/` or the repo's configured QA artifact path.
 - Keep screenshots until `kb-finalize` cleanup. Do not keep unlimited traces/videos unless they explain a failure.
+- A web UI check is not complete until its receipt names the route, headless
+  transport, interaction (or `display-only`), rendered DOM assertion, command
+  and exit code, screenshot path, and console/network result. Missing receipt
+  evidence is agent-owned test work while a browser transport is accessible.
 
 ## Script Rule
 
