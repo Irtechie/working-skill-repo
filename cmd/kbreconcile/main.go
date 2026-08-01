@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,6 +20,8 @@ const usage = `kbreconcile inventories and plans portfolio reconciliation withou
 Usage:
   kbreconcile dry-run --repo <path> [--repo <path>...] [--policy <path>] [--cutoff <RFC3339>] [--json]
   kbreconcile plan --repo <path> [--repo <path>...] --output <path> [--policy <path>] [--cutoff <RFC3339>] [--json]
+  kbreconcile apply --input <plan.json> --receipt <receipt.json> [--policy <path>] [--session-id <id>] [--json]
+  kbreconcile verify --input <plan.json> --receipt <receipt.json> [--policy <path>] [--session-id <id>] [--json]
 `
 
 var now = time.Now
@@ -36,14 +40,16 @@ func (values *stringList) Set(value string) error {
 }
 
 type commandResult struct {
-	SchemaVersion int               `json:"schema_version"`
-	Status        string            `json:"status"`
-	Mode          string            `json:"mode,omitempty"`
-	Cutoff        time.Time         `json:"cutoff,omitempty"`
-	Output        string            `json:"output,omitempty"`
-	Ledger        *reconcile.Ledger `json:"ledger,omitempty"`
-	Plan          *reconcile.Plan   `json:"plan,omitempty"`
-	Error         *commandError     `json:"error,omitempty"`
+	SchemaVersion int                     `json:"schema_version"`
+	Status        string                  `json:"status"`
+	Mode          string                  `json:"mode,omitempty"`
+	Cutoff        time.Time               `json:"cutoff,omitempty"`
+	Output        string                  `json:"output,omitempty"`
+	Ledger        *reconcile.Ledger       `json:"ledger,omitempty"`
+	Plan          *reconcile.Plan         `json:"plan,omitempty"`
+	Receipt       *reconcile.ApplyReceipt `json:"receipt,omitempty"`
+	Verification  *reconcile.Verification `json:"verification,omitempty"`
+	Error         *commandError           `json:"error,omitempty"`
 }
 
 type commandError struct {
@@ -61,9 +67,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	mode := args[0]
-	if mode != reconcile.ModeDryRun && mode != reconcile.ModePlan {
-		return writeCommandError(stdout, stderr, hasJSON(args), 2, "unsupported-mode", "command must be dry-run or plan")
+	if mode == "apply" || mode == "verify" {
+		return runApplyVerify(mode, args[1:], stdout, stderr)
 	}
+	if mode != reconcile.ModeDryRun && mode != reconcile.ModePlan {
+		return writeCommandError(stdout, stderr, hasJSON(args), 2, "unsupported-mode", "command must be dry-run, plan, apply, or verify")
+	}
+
 	flags := flag.NewFlagSet("kbreconcile "+mode, flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	var roots stringList
@@ -141,12 +151,156 @@ func run(args []string, stdout, stderr io.Writer) int {
 		_, _ = stdout.Write(content)
 		return 0
 	}
+
 	fmt.Fprintf(stdout, "kbreconcile: %s ok repositories=%d actions=%d decisions=%d\n",
 		mode, len(ledger.Repositories), len(plan.Actions), len(plan.DecisionPacket.Items))
 	if result.Output != "" {
 		fmt.Fprintf(stdout, "plan: %s\n", result.Output)
 	}
 	return 0
+}
+
+func runApplyVerify(mode string, args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("kbreconcile "+mode, flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	var inputPath, receiptPath, policyPath, sessionID string
+	var jsonMode bool
+	flags.StringVar(&inputPath, "input", "", "cutoff-bound plan bundle")
+	flags.StringVar(&receiptPath, "receipt", "", "durable apply receipt")
+	flags.StringVar(&policyPath, "policy", "", "versioned reconciliation policy")
+	flags.StringVar(&sessionID, "session-id", os.Getenv("COPILOT_SESSION_ID"), "current executor session identity")
+	flags.BoolVar(&jsonMode, "json", false, "emit stable JSON")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if flags.NArg() != 0 {
+		return writeCommandError(stdout, stderr, jsonMode, 2, "unexpected-argument", "unexpected positional arguments")
+	}
+	if strings.TrimSpace(inputPath) == "" || strings.TrimSpace(receiptPath) == "" {
+		return writeCommandError(stdout, stderr, jsonMode, 2, "missing-input", "apply and verify require --input and --receipt")
+	}
+	policy := reconcile.DefaultPolicy()
+	if policyPath != "" {
+		loaded, err := reconcile.LoadPolicy(policyPath)
+		if err != nil {
+			return writeCommandError(stdout, stderr, jsonMode, 1, "policy-unavailable", err.Error())
+		}
+		policy = loaded
+	}
+	bundle, err := loadPlanBundle(inputPath)
+	if err != nil {
+		return writeCommandError(stdout, stderr, jsonMode, 1, "plan-unavailable", err.Error())
+	}
+	absoluteReceipt, err := filepath.Abs(filepath.Clean(receiptPath))
+	if err != nil {
+		return writeCommandError(stdout, stderr, jsonMode, 1, "invalid-receipt", err.Error())
+	}
+	current, _ := os.Getwd()
+	options := reconcile.ApplyOptions{
+		Bundle: bundle, Policy: policy, CurrentWorktree: current,
+		CurrentSession: sessionID, Now: now(),
+	}
+	result := commandResult{SchemaVersion: 1, Status: "ok", Mode: mode, Output: absoluteReceipt}
+	switch mode {
+	case "apply":
+		existing, loadErr := loadApplyReceiptIfPresent(absoluteReceipt)
+		if loadErr != nil {
+			return writeCommandError(stdout, stderr, jsonMode, 1, "receipt-unavailable", loadErr.Error())
+		}
+		options.ExistingReceipt = existing
+		receipt, applyErr := reconcile.Apply(options)
+		if applyErr != nil {
+			return writeCommandError(stdout, stderr, jsonMode, 1, "apply-refused", applyErr.Error())
+		}
+		result.Receipt = &receipt
+	case "verify":
+		existing, loadErr := loadApplyReceipt(absoluteReceipt)
+		if loadErr != nil {
+			return writeCommandError(stdout, stderr, jsonMode, 1, "receipt-unavailable", loadErr.Error())
+		}
+		verification, receipt, verifyErr := reconcile.Verify(options, existing)
+		if verifyErr != nil {
+			return writeCommandError(stdout, stderr, jsonMode, 1, "verify-refused", verifyErr.Error())
+		}
+		result.Receipt = &receipt
+		result.Verification = &verification
+	}
+	content, err := reconcile.MarshalStable(*result.Receipt)
+	if err != nil {
+		return writeCommandError(stdout, stderr, jsonMode, 1, "encode-failed", err.Error())
+	}
+	if err := writeAtomic(absoluteReceipt, content); err != nil {
+		return writeCommandError(stdout, stderr, jsonMode, 1, "write-failed", err.Error())
+	}
+	if jsonMode {
+		content, err := reconcile.MarshalStable(result)
+		if err != nil {
+			return writeCommandError(stdout, stderr, true, 1, "encode-failed", err.Error())
+		}
+		_, _ = stdout.Write(content)
+	} else {
+		fmt.Fprintf(stdout, "kbreconcile: %s %s receipt=%s\n", mode, result.Receipt.Status, absoluteReceipt)
+	}
+	return 0
+}
+
+func loadPlanBundle(path string) (reconcile.PlanBundle, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return reconcile.PlanBundle{}, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	var result commandResult
+	if err := decoder.Decode(&result); err != nil {
+		return reconcile.PlanBundle{}, fmt.Errorf("parse plan bundle: %w", err)
+	}
+	if err := requireJSONEnd(decoder); err != nil {
+		return reconcile.PlanBundle{}, fmt.Errorf("parse plan bundle: %w", err)
+	}
+	if result.Ledger == nil || result.Plan == nil || result.Status != "ok" || result.Mode != reconcile.ModePlan {
+		return reconcile.PlanBundle{}, fmt.Errorf("input is not a successful durable plan bundle")
+	}
+	return reconcile.PlanBundle{Ledger: *result.Ledger, Plan: *result.Plan}, nil
+}
+
+func loadApplyReceiptIfPresent(path string) (*reconcile.ApplyReceipt, error) {
+	receipt, err := loadApplyReceipt(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &receipt, nil
+}
+
+func loadApplyReceipt(path string) (reconcile.ApplyReceipt, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return reconcile.ApplyReceipt{}, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	var receipt reconcile.ApplyReceipt
+	if err := decoder.Decode(&receipt); err != nil {
+		return reconcile.ApplyReceipt{}, fmt.Errorf("parse apply receipt: %w", err)
+	}
+	if err := requireJSONEnd(decoder); err != nil {
+		return reconcile.ApplyReceipt{}, fmt.Errorf("parse apply receipt: %w", err)
+	}
+	return receipt, nil
+}
+
+func requireJSONEnd(decoder *json.Decoder) error {
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return fmt.Errorf("unexpected trailing JSON value")
+		}
+		return err
+	}
+	return nil
 }
 
 func writeCommandError(stdout, stderr io.Writer, jsonMode bool, exitCode int, code, message string) int {

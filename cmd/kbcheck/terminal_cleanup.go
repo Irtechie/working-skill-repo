@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/Irtechie/working-skill-repo/internal/modelrouting"
+	"github.com/Irtechie/working-skill-repo/internal/reconcile"
 )
 
 const terminalCleanupSchemaVersion = 2
+const terminalCleanupSafetyContractVersion = reconcile.WorktreeSafetyContractVersion
 
 var terminalCleanupRetryDelays = []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond}
 
@@ -60,6 +62,7 @@ type terminalCleanupReceipt struct {
 	RemovedAt        string                   `json:"removed_at,omitempty"`
 	ReleasedAt       string                   `json:"released_at,omitempty"`
 	Limitation       string                   `json:"limitation,omitempty"`
+	SafetyPolicy     string                   `json:"safety_policy_version"`
 }
 
 type terminalCleanupResult struct {
@@ -110,6 +113,28 @@ type terminalGitWorktree struct {
 	Branch string
 	Head   string
 	Locked bool
+}
+
+func terminalCleanupSafetyPredicates() []string {
+	return []string{
+		"clean-ignored",
+		"clean-tracked",
+		"clean-untracked",
+		"different-executor",
+		"durable-endpoint",
+		"empty-residual-only",
+		"exact-worktree-generation",
+		"git-admin-round-trip",
+		"non-force-only",
+		"not-current",
+		"not-default",
+		"not-locked",
+		"not-moved",
+		"not-post-cutoff",
+		"not-primary",
+		"remote-monotonic",
+		"terminal-or-suspended-claim",
+	}
 }
 
 func runTerminalCleanupCommand(root string, opts options, stdout, stderr io.Writer) int {
@@ -242,6 +267,7 @@ func registerTerminalCleanup(opts terminalCleanupOptions) (terminalCleanupResult
 		RegisteredAt:  opts.Now.Format(time.RFC3339Nano),
 		UpdatedAt:     opts.Now.Format(time.RFC3339Nano),
 		Limitation:    "host UI session records remain host-owned; this receipt retires the Git worktree and exact merged local ref",
+		SafetyPolicy:  terminalCleanupSafetyContractVersion,
 	}
 	if receipt.Branch == "" || receipt.CommitSHA == "" {
 		return blockedTerminalCleanup("register", "worktree, branch, and commit-sha are required", &receipt), nil
@@ -393,9 +419,14 @@ func sweepOneTerminalCleanupLocked(
 	if receipt.Status == "released" {
 		return terminalCleanupResult{OK: true, Action: "sweep", Receipt: &receipt}, nil
 	}
+	if receipt.SafetyPolicy != terminalCleanupSafetyContractVersion {
+		return blockedTerminalCleanup("sweep", "terminal cleanup safety policy version is missing or incompatible", &receipt), nil
+	}
+
 	if receipt.UpdatedAt != observedUpdatedAt {
 		return blockedTerminalCleanup("sweep", "cleanup receipt changed while sweep evidence was collected", &receipt), nil
 	}
+
 	queue, err := loadTerminalCleanupQueue(opts.RepoRoot)
 	if err != nil {
 		return blockedTerminalCleanup("sweep", err.Error(), &receipt), nil

@@ -120,6 +120,24 @@ gate_ledger:
     blockers: []
     passed_at: "2026-08-01T17:00:01Z"
     allowed_next_action: "kb-work docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
+  - gate_id: slice-slice-002-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Apply and verify accept only an unexpired cutoff-bound plan/receipt whose schema, policy, target identities, fingerprints, and mandatory predicates still match fresh evidence acquired under the compatible repository lock."
+      - "Only allowlisted local non-force worktree retirement and exact-SHA local-ref CAS are available; every protected external action remains unavailable."
+      - "Delivery, physical cleanup, ref retirement, and session-record states remain independent, with idempotent exact-empty residual repair and fail-closed preservation on nonempty or identity-drift residuals."
+      - "The shared global predicate policy matches or exceeds the established terminal-cleanup safety corpus."
+    proof:
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-002.md
+      - internal/reconcile/apply_test.go
+      - cmd/kbreconcile/main_test.go
+      - cmd/kbcheck/reconcile_contract_test.go
+      - cmd/kbcheck/terminal_cleanup_test.go
+    blockers: []
+    passed_at: "2026-08-01T18:11:44Z"
+    allowed_next_action: "kb-work docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
 slices:
   - id: slice-001
     title: "Inventory and plan a portfolio without deleting first"
@@ -149,9 +167,9 @@ slices:
         update_policy: "requires an explicit slice-plan amendment"
       - path: cmd/kbreconcile/main_test.go
         role: "standalone binary, stable JSON plan, fail-closed CLI, and plain-repository oracle"
-        sha256: "04e3576e383cd841750fb832bf11260864f23e660d896458b76f4bd433f7cc4d"
+        sha256: "f0fcbc98de2ba78741592178d13723bbc388b1ea2b1f0f1194fac0f0dbf3ca74"
         update_policy: "requires an explicit slice-plan amendment"
-    notes: "DDR route=current orchestrator; exact slice proof PASS; standalone no-KB binary dry-run PASS; gofmt/go vet/go build/git diff --check PASS; qa-browser skipped no UI-reachable behavior; forecast implementation=8 actual implementation=8 discovered lifecycle/proof=3 unused=0 unexplained=0; policy-sha256=57a11f5e79164efde34713ededfbed972eaab3e0053f5b5d8b6c0bc70d5d0c16; memory-impact=durable reconciler architecture, context refresh deferred to slice-003 lifecycle integration; aggregate core/local-release intentionally not run."
+    notes: "DDR route=current orchestrator; exact slice proof PASS; standalone no-KB binary dry-run PASS; gofmt/go vet/go build/git diff --check PASS; qa-browser skipped no UI-reachable behavior; forecast implementation=8 actual implementation=8 discovered lifecycle/proof=3 unused=0 unexplained=0; policy-sha256=57a11f5e79164efde34713ededfbed972eaab3e0053f5b5d8b6c0bc70d5d0c16; memory-impact=durable reconciler architecture, context refresh deferred to slice-003 lifecycle integration; aggregate core/local-release intentionally not run; slice-002 explicitly rebinds cmd/kbreconcile/main_test.go from 04e3576e383cd841750fb832bf11260864f23e660d896458b76f4bd433f7cc4d to f0fcbc98de2ba78741592178d13723bbc388b1ea2b1f0f1194fac0f0dbf3ca74 solely to add apply/verify CLI fail-closed and deterministic-JSON coverage."
   - id: slice-002
     title: "Apply and verify only unchanged high-confidence actions"
     path: docs/plans/2026-08-01-002-global-reconciler-apply-plan.md
@@ -170,9 +188,19 @@ slices:
       kind: command_exit
       command: "go test ./internal/reconcile ./cmd/kbreconcile ./cmd/kbcheck -run 'Apply|Verify|Reconcile|TerminalCleanup' -count=1"
       expect: 0
-    status: pending
+    status: done
     owner: agent
     can_continue_other_slices: false
+    protected_oracles:
+      - path: cmd/kbcheck/terminal_cleanup_test.go
+        role: "existing current, primary, dirty, ignored, remote, and exact-SHA CAS preservation oracle"
+        sha256: "6779c3904a3aa087bbae9b2e2f7f6271d947665338dd55f66d1000c7631d922d"
+        update_policy: "preserved unchanged"
+      - path: internal/reconcile/apply_test.go
+        role: "fresh lock/evidence, mutation gates, partial recovery, and idempotency oracle"
+        sha256: "4598510ed34823993c5baaf0c7cea608de5718b87f4cf796ad337e0f1b6ab0dd"
+        update_policy: "requires an explicit slice-plan amendment"
+    notes: "DDR route=current orchestrator; exact narrow proof PASS; complete touched-package tests PASS; gofmt/go vet/go build/git diff --check PASS; destructive behavior exercised only in disposable test repositories/worktrees; protected external adapters unavailable; forecast implementation=7 actual forecast=6 discovered implementation=2 unused forecast=1 lifecycle/proof=2 unexplained=0; terminal_cleanup_test.go preserved byte-for-byte and its shared-policy obligation moved to reconcile_contract_test.go; memory-impact=durable checked reconciliation and shared terminal-safety policy, context refresh deferred to slice-003 lifecycle integration; aggregate core/local-release intentionally not run."
   - id: slice-003
     title: "Make KB lifecycle and global install converge automatically"
     path: docs/plans/2026-08-01-003-global-reconciler-lifecycle-plan.md

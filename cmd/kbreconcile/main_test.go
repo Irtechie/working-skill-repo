@@ -121,6 +121,72 @@ func TestPlanRequiresOutput(t *testing.T) {
 	}
 }
 
+func TestApplyVerifyStableJSONAndFailClosedInput(t *testing.T) {
+	root := initPlainRepo(t)
+	directory := t.TempDir()
+	planPath := filepath.Join(directory, "plan.json")
+	receiptPath := filepath.Join(directory, "receipt.json")
+	planArgs := []string{
+		"plan", "--repo", root, "--output", planPath,
+		"--cutoff", "2026-08-01T16:30:00Z", "--json",
+	}
+	var planOut, planErr bytes.Buffer
+	if code := run(planArgs, &planOut, &planErr); code != 0 {
+		t.Fatalf("plan code=%d stderr=%s", code, planErr.String())
+	}
+
+	applyArgs := []string{"apply", "--input", planPath, "--receipt", receiptPath, "--session-id", "apply-test", "--json"}
+	var firstOut, firstErr bytes.Buffer
+	if code := run(applyArgs, &firstOut, &firstErr); code != 0 {
+		t.Fatalf("apply code=%d stderr=%s", code, firstErr.String())
+	}
+	firstReceipt, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var secondOut, secondErr bytes.Buffer
+	if code := run(applyArgs, &secondOut, &secondErr); code != 0 {
+		t.Fatalf("repeat apply code=%d stderr=%s", code, secondErr.String())
+	}
+	secondReceipt, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(firstOut.Bytes(), secondOut.Bytes()) || !bytes.Equal(firstReceipt, secondReceipt) {
+		t.Fatal("repeated apply was not deterministic")
+	}
+
+	var verifyOut, verifyErr bytes.Buffer
+	if code := run([]string{"verify", "--input", planPath, "--receipt", receiptPath, "--session-id", "apply-test", "--json"}, &verifyOut, &verifyErr); code != 0 {
+		t.Fatalf("verify code=%d stderr=%s", code, verifyErr.String())
+	}
+	var verified commandResult
+	if err := json.Unmarshal(verifyOut.Bytes(), &verified); err != nil {
+		t.Fatal(err)
+	}
+	if verified.Verification == nil || verified.Receipt == nil ||
+		verified.Verification.Status != "verified" {
+		t.Fatalf("unexpected verify result: %#v", verified)
+	}
+
+	tampered := bytes.Replace(planOut.Bytes(), []byte(reconcile.DefaultPolicyVersion), []byte("tampered-policy/v1"), 1)
+	tamperedPath := filepath.Join(directory, "tampered.json")
+	if err := os.WriteFile(tamperedPath, tampered, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var rejectedOut, rejectedErr bytes.Buffer
+	if code := run([]string{"apply", "--input", tamperedPath, "--receipt", filepath.Join(directory, "rejected.json"), "--json"}, &rejectedOut, &rejectedErr); code == 0 {
+		t.Fatal("tampered policy input was accepted")
+	}
+	var rejected commandResult
+	if err := json.Unmarshal(rejectedOut.Bytes(), &rejected); err != nil {
+		t.Fatal(err)
+	}
+	if rejected.Error == nil {
+		t.Fatalf("tampered input did not return fail-closed JSON: %s", rejectedErr.String())
+	}
+}
+
 func initPlainRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
