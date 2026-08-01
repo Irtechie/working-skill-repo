@@ -16,6 +16,10 @@ go run ./cmd/kbcheck core
 
 Use this set for ordinary repo-local validation.
 
+On Windows, core's `go-test` check runs ordinary packages in the generic
+contained aggregate, then runs `cmd/kbcheck` and `cmd/kbrouter` separately.
+Both packages own child-process containment and must not inherit the outer job.
+
 Focused Cargo storage proof:
 
 ```powershell

@@ -360,11 +360,6 @@ func executeDDRAttempt(opts ddrAttemptOptions) (ddrAttemptReport, int, error) {
 		report.ProbeLatencyMS = elapsedMilliseconds(probeStart)
 		return blockOrReturn(classifyDDRFailure(endpointErr), "probe")
 	}
-	if token != "" && endpoint.URL.Scheme != "https" && !allLoopbackIPs(endpoint.PinnedIPs) {
-		cancelProbe()
-		report.ProbeLatencyMS = elapsedMilliseconds(probeStart)
-		return blockOrReturn("endpoint-unavailable", "probe")
-	}
 	models, probeErr := fetchOpenAICompatibleModels(probeContext, endpoint, route, token, maxCatalogBytes)
 	cancelProbe()
 	report.ProbeLatencyMS = elapsedMilliseconds(probeStart)
@@ -683,18 +678,6 @@ func ddrRouteStillApproved(userRoot, projectRoot string, expected modelrouting.R
 		routeProjectApproved(route, policy, now) &&
 		routeAuthApproved(route, policy, now) &&
 		eligibleImportedDDRRoute(route, work, policy)
-}
-
-func allLoopbackIPs(values []net.IP) bool {
-	if len(values) == 0 {
-		return false
-	}
-	for _, value := range values {
-		if !value.IsLoopback() {
-			return false
-		}
-	}
-	return true
 }
 
 func ddrAttemptReceiptLocation(userRoot, projectID, runID, sliceID string) (string, string) {

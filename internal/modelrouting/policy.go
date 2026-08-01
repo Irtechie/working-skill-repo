@@ -161,6 +161,12 @@ func validateEndpointStatic(route Route) error {
 		return ErrUnsafeEndpoint
 	}
 	host := parsed.Hostname()
+	if scheme == "http" && route.AuthEnv != "" {
+		ip := net.ParseIP(host)
+		if !strings.EqualFold(host, "localhost") && (ip == nil || !ip.IsLoopback()) {
+			return ErrUnsafeEndpoint
+		}
+	}
 	if strings.EqualFold(host, "localhost") {
 		if route.Boundary != BoundaryPrivate {
 			return fmt.Errorf("%w: localhost requires private trust boundary", ErrInvalidCatalog)
@@ -240,6 +246,9 @@ func validateEndpoint(ctx context.Context, route Route, policy PolicyContext, re
 			private = true
 		}
 	}
+	if scheme == "http" && route.AuthEnv != "" && !allLoopbackIPs(ips) {
+		return ValidatedEndpoint{}, ErrUnsafeEndpoint
+	}
 	origin := endpointOrigin(parsed)
 	if private {
 		if route.Boundary != BoundaryPrivate {
@@ -295,6 +304,18 @@ func cloneIPs(values []net.IP) []net.IP {
 		result = append(result, append(net.IP(nil), value...))
 	}
 	return result
+}
+
+func allLoopbackIPs(values []net.IP) bool {
+	if len(values) == 0 {
+		return false
+	}
+	for _, value := range values {
+		if !value.IsLoopback() {
+			return false
+		}
+	}
+	return true
 }
 
 func unsafeMetadataIP(ip net.IP) bool {

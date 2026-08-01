@@ -114,6 +114,9 @@ docs are:
   `local-release`.
 - [verified] `kbcheck` owns the maintainer gate surface now; PowerShell here is
   installer/helper scope, not the main quality gate.
+- [verified] On Windows, core isolates the child-process-owning `cmd/kbcheck`
+  and `cmd/kbrouter` package tests from the outer process job while retaining
+  containment for the ordinary package aggregate.
 - [verified] Graph routing is optional-provider safe. `graph-route` validates
   provider-neutral packets; stale or unavailable providers must fall back.
 - [verified] `kbrouter` stores route preference and optional private routes

@@ -70,6 +70,12 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
 
 - `core` is intentionally repo-local. User-global inspection moves behind
   explicit commands like `provider-hygiene --include-user`.
+- On Windows, the `go-test` check keeps ordinary packages in one contained
+  aggregate but runs `cmd/kbcheck` and `cmd/kbrouter` separately without the
+  outer job. Those packages own child-process containment themselves; nesting
+  them can stall command fixtures and cleanup. The isolated runner gives test
+  binaries an earlier Go timeout, bounds inherited output pipes with
+  `WaitDelay`, and reports timeout/output termination as exit 124/125.
 - `local-release` is the sync gate. A green `core` does not prove global roots
   are current.
 - `graph-routing-eval --require-ready` is deterministic fixture proof only. It

@@ -2,6 +2,20 @@
 
 > Archive of completed items from `todo.md`. Most recent at top.
 
+## 2026-08-01
+
+- Authenticated private-LAN transport consistency - security review rejected
+  plaintext bearer credentials under every approval mode. Shared endpoint
+  validation now permits authenticated HTTP only when every resolved address is
+  loopback, requires HTTPS for authenticated private-LAN routes, and makes
+  import, doctor, selection, and DDR fail closed before network I/O.
+
+- Windows `kbcheck` containment - core's Go check now isolates only the
+  child-process-owning `cmd/kbcheck` and `cmd/kbrouter` packages from the outer
+  Windows job. Focused orchestration tests, the exact seven-package partition,
+  and `core --verbose` pass; the latter advances beyond `go-test` and completes
+  all checks.
+
 ## 2026-07-31
 
 - Optional kbrouter route approval - made missing/`disabled` approval mode the

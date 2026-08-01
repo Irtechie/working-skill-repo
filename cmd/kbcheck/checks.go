@@ -55,7 +55,7 @@ func DiscoverChecks(root string) ([]Check, error) {
 			Reason:     "Go module detected",
 			Required:   true,
 			Confidence: "deterministic-local",
-			Run:        runGoTestsWithRouterIsolation,
+			Run:        runGoTestsWithProcessIsolation,
 		})
 	}
 	checks = append(checks, dotnetChecks(root)...)
@@ -72,20 +72,12 @@ func DiscoverChecks(root string) ([]Check, error) {
 	return checks, nil
 }
 
-func runGoTestsWithRouterIsolation(root string) CheckResult {
+func runGoTestsWithProcessIsolation(root string) CheckResult {
 	list := runProcessCheck(root, Check{Args: []string{"go", "list", "./..."}})
 	if list.ExitCode != 0 {
 		return list
 	}
-	var regular []string
-	router := ""
-	for _, pkg := range strings.Fields(list.Stdout) {
-		if strings.HasSuffix(pkg, "/cmd/kbrouter") {
-			router = pkg
-		} else {
-			regular = append(regular, pkg)
-		}
-	}
+	regular, isolated := partitionGoTestPackages(strings.Fields(list.Stdout))
 	var stdout, stderr strings.Builder
 	if len(regular) > 0 {
 		args := append([]string{"go", "test", "-buildvcs=false"}, regular...)
@@ -96,11 +88,10 @@ func runGoTestsWithRouterIsolation(root string) CheckResult {
 			return CheckResult{ExitCode: result.ExitCode, Stdout: stdout.String(), Stderr: stderr.String()}
 		}
 	}
-	if router != "" {
-		// kbrouter tests validate their own Windows job-object containment, so
-		// nesting only this package inside the generic check job blocks its
-		// command fixtures from starting.
-		result := runGoCommandWithoutOuterContainment(root, "test", "-buildvcs=false", router)
+	for _, pkg := range isolated {
+		// These packages own child-process containment. Nesting them inside the
+		// generic check job can block their command fixtures or process cleanup.
+		result := runGoCommandWithoutOuterContainment(root, isolatedGoTestArgs(pkg)...)
 		stdout.WriteString(result.Stdout)
 		stderr.WriteString(result.Stderr)
 		if result.ExitCode != 0 {
@@ -110,11 +101,34 @@ func runGoTestsWithRouterIsolation(root string) CheckResult {
 	return CheckResult{Stdout: stdout.String(), Stderr: stderr.String()}
 }
 
+func partitionGoTestPackages(packages []string) (regular, isolated []string) {
+	for _, pkg := range packages {
+		if strings.HasSuffix(pkg, "/cmd/kbcheck") || strings.HasSuffix(pkg, "/cmd/kbrouter") {
+			isolated = append(isolated, pkg)
+		} else {
+			regular = append(regular, pkg)
+		}
+	}
+	sort.Strings(regular)
+	sort.Strings(isolated)
+	return regular, isolated
+}
+
+func isolatedGoTestArgs(pkg string) []string {
+	timeout := defaultProcessCheckTimeout - processCheckTerminationWait
+	return []string{"test", "-buildvcs=false", "-timeout=" + timeout.String(), pkg}
+}
+
 func runGoCommandWithoutOuterContainment(root string, args ...string) CheckResult {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultProcessCheckTimeout)
+	return runCommandWithoutOuterContainment(root, defaultProcessCheckTimeout, processCheckTerminationWait, "go", args...)
+}
+
+func runCommandWithoutOuterContainment(root string, timeout, terminationWait time.Duration, executable string, args ...string) CheckResult {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd := exec.CommandContext(ctx, executable, args...)
 	cmd.Dir = root
+	cmd.WaitDelay = terminationWait
 	overflow := make(chan struct{}, 1)
 	stdout := newCappedCheckBuffer(overflow)
 	stderr := newCappedCheckBuffer(overflow)
@@ -129,14 +143,22 @@ func runGoCommandWithoutOuterContainment(root string, args ...string) CheckResul
 	select {
 	case err = <-done:
 	case <-ctx.Done():
-		err = <-done
+		_ = cmd.Process.Kill()
+		select {
+		case err = <-done:
+		case <-time.After(terminationWait):
+			return CheckResult{ExitCode: 124, Stdout: stdout.String(), Stderr: appendCheckDiagnostic(stderr.String(), fmt.Sprintf("go command timed out after %s and did not exit within %s", timeout, terminationWait))}
+		}
 	case <-overflow:
 		_ = cmd.Process.Kill()
-		err = <-done
-		return CheckResult{ExitCode: 1, Stdout: stdout.String(), Stderr: stderr.String() + fmt.Sprintf("go command output exceeded %d bytes", maxProcessCheckOutputBytes)}
+		select {
+		case err = <-done:
+		case <-time.After(terminationWait):
+		}
+		return CheckResult{ExitCode: 125, Stdout: stdout.String(), Stderr: appendCheckDiagnostic(stderr.String(), fmt.Sprintf("go command output exceeded %d bytes", maxProcessCheckOutputBytes))}
 	}
 	if ctx.Err() == context.DeadlineExceeded {
-		return CheckResult{ExitCode: 1, Stdout: stdout.String(), Stderr: stderr.String() + "go command timed out"}
+		return CheckResult{ExitCode: 124, Stdout: stdout.String(), Stderr: appendCheckDiagnostic(stderr.String(), fmt.Sprintf("go command timed out after %s", timeout))}
 	}
 	if err == nil {
 		return CheckResult{Stdout: stdout.String(), Stderr: stderr.String()}

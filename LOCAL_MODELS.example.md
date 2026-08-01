@@ -99,6 +99,9 @@ kbrouter models add --scope user `
 
 Store only the environment-variable name in route configuration. Never put a
 token value in this file, a command, a plan, a handoff, or Git.
+Authenticated HTTP is limited to endpoints whose resolved addresses are all
+loopback. Use HTTPS for authenticated private-LAN routes. Unauthenticated
+private-LAN HTTP remains supported when the route uses the private boundary.
 
 ## Choose Approval Mode And Check
 

@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestDiscoverPackageChecks(t *testing.T) {
@@ -26,21 +30,108 @@ func TestDiscoverPackageChecks(t *testing.T) {
 	}
 }
 
-func TestGoTestsIsolateRouterAndPropagateFailure(t *testing.T) {
+func TestGoTestsIsolateChildProcessOwnersAndPropagateFailure(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.test/fixture\n\ngo 1.23\n")
 	writeFile(t, filepath.Join(root, "pkg", "regular.go"), "package regular\n")
 	writeFile(t, filepath.Join(root, "pkg", "regular_test.go"), "package regular\n\nimport \"testing\"\n\nfunc TestRegular(t *testing.T) {}\n")
+	checkTest := filepath.Join(root, "cmd", "kbcheck", "check_test.go")
+	writeFile(t, checkTest, "package kbcheck\n\nimport \"testing\"\n\nfunc TestCheck(t *testing.T) {}\n")
 	routerTest := filepath.Join(root, "cmd", "kbrouter", "router_test.go")
 	writeFile(t, routerTest, "package kbrouter\n\nimport \"testing\"\n\nfunc TestRouter(t *testing.T) { t.Fatal(\"router failure\") }\n")
 
-	if result := runGoTestsWithRouterIsolation(root); result.ExitCode == 0 {
+	if result := runGoTestsWithProcessIsolation(root); result.ExitCode == 0 {
 		t.Fatal("router package failure was not propagated")
 	}
 
 	writeFile(t, routerTest, "package kbrouter\n\nimport \"testing\"\n\nfunc TestRouter(t *testing.T) {}\n")
-	if result := runGoTestsWithRouterIsolation(root); result.ExitCode != 0 {
+	writeFile(t, checkTest, "package kbcheck\n\nimport \"testing\"\n\nfunc TestCheck(t *testing.T) { t.Fatal(\"kbcheck failure\") }\n")
+	if result := runGoTestsWithProcessIsolation(root); result.ExitCode == 0 {
+		t.Fatal("kbcheck package failure was not propagated")
+	}
+
+	writeFile(t, checkTest, "package kbcheck\n\nimport \"testing\"\n\nfunc TestCheck(t *testing.T) {}\n")
+	if result := runGoTestsWithProcessIsolation(root); result.ExitCode != 0 {
 		t.Fatalf("isolated Go tests failed after repair: exit=%d stdout=%s stderr=%s", result.ExitCode, result.Stdout, result.Stderr)
+	}
+}
+
+func TestGoTestPackagePartitionIsolatesOnlyChildProcessOwners(t *testing.T) {
+	packages := []string{
+		"example.test/fixture/cmd/kbcheck",
+		"example.test/fixture/cmd/kbrouter",
+		"example.test/fixture/cmd/other",
+		"example.test/fixture/internal/modelrouting",
+	}
+	regular, isolated := partitionGoTestPackages(packages)
+	if want := []string{
+		"example.test/fixture/cmd/other",
+		"example.test/fixture/internal/modelrouting",
+	}; !reflect.DeepEqual(regular, want) {
+		t.Fatalf("regular=%v want=%v", regular, want)
+	}
+	if want := []string{
+		"example.test/fixture/cmd/kbcheck",
+		"example.test/fixture/cmd/kbrouter",
+	}; !reflect.DeepEqual(isolated, want) {
+		t.Fatalf("isolated=%v want=%v", isolated, want)
+	}
+}
+
+func TestIsolatedGoTestArgsBoundThePackageTestBinary(t *testing.T) {
+	args := isolatedGoTestArgs("example.test/fixture/cmd/kbcheck")
+	if len(args) != 4 || args[0] != "test" || args[1] != "-buildvcs=false" ||
+		args[2] != "-timeout="+(defaultProcessCheckTimeout-processCheckTerminationWait).String() ||
+		args[3] != "example.test/fixture/cmd/kbcheck" {
+		t.Fatalf("isolated args=%v", args)
+	}
+}
+
+func TestUncontainedRunnerBoundsTimeoutOverflowAndInheritedPipes(t *testing.T) {
+	switch os.Getenv("KBCHECK_UNCONTAINED_HELPER") {
+	case "timeout":
+		time.Sleep(5 * time.Second)
+		return
+	case "overflow":
+		fmt.Print(strings.Repeat("x", maxProcessCheckOutputBytes+1))
+		time.Sleep(5 * time.Second)
+		return
+	case "pipe-parent":
+		child := exec.Command(os.Args[0], "-test.run=^TestUncontainedRunnerBoundsTimeoutOverflowAndInheritedPipes$")
+		child.Env = append(os.Environ(), "KBCHECK_UNCONTAINED_HELPER=pipe-child")
+		child.Stdout = os.Stdout
+		child.Stderr = os.Stderr
+		if err := child.Start(); err != nil {
+			os.Exit(2)
+		}
+		return
+	case "pipe-child":
+		for range 20 {
+			fmt.Print("retained-pipe-output")
+			time.Sleep(25 * time.Millisecond)
+		}
+		return
+	}
+
+	run := func(mode string, timeout time.Duration) (CheckResult, time.Duration) {
+		t.Helper()
+		t.Setenv("KBCHECK_UNCONTAINED_HELPER", mode)
+		start := time.Now()
+		result := runCommandWithoutOuterContainment(
+			t.TempDir(), timeout, 100*time.Millisecond,
+			os.Args[0], "-test.run=^TestUncontainedRunnerBoundsTimeoutOverflowAndInheritedPipes$",
+		)
+		return result, time.Since(start)
+	}
+
+	if result, elapsed := run("timeout", 50*time.Millisecond); result.ExitCode != 124 || elapsed > 2*time.Second {
+		t.Fatalf("timeout result=%+v elapsed=%s", result, elapsed)
+	}
+	if result, elapsed := run("overflow", time.Second); result.ExitCode != 125 || elapsed > 2*time.Second {
+		t.Fatalf("overflow result=%+v elapsed=%s", result, elapsed)
+	}
+	if result, elapsed := run("pipe-parent", time.Second); result.ExitCode == 0 || elapsed > 2*time.Second {
+		t.Fatalf("inherited-pipe result=%+v elapsed=%s", result, elapsed)
 	}
 }
 

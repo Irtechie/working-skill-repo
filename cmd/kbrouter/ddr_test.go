@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -162,6 +163,40 @@ func TestDDRAttemptDefaultApprovalModeDoesNotRequireTrustReceipt(t *testing.T) {
 	report = decodeDDRAttemptReport(t, stdout)
 	if code != 0 || report.Status != "completed" {
 		t.Fatalf("proof resolve exit=%d report=%#v stderr=%s", code, report, stderr)
+	}
+}
+
+func TestDoctorAndDDRRejectStoredAuthenticatedPrivateHTTPBeforeNetwork(t *testing.T) {
+	fixture := newDDRAttemptFixture(t, "http://127.0.0.1:4000/v1", "LOCAL_DDR_TEST_KEY", true)
+	t.Setenv("LOCAL_DDR_TEST_KEY", "fixture-token")
+	catalog := loadUserCatalogForTest(t, fixture.userRoot)
+	catalog.ApprovalMode = modelrouting.ApprovalModeDisabled
+	catalog.Routes[0].Endpoint = "http://192.168.1.205:4000/v1"
+	if err := modelrouting.SaveAtomicJSON(fixture.userRoot, userCatalogFile, catalog, maxCatalogBytes); err != nil {
+		t.Fatal(err)
+	}
+
+	previous := fetchOpenAICompatibleModels
+	var calls atomic.Int32
+	fetchOpenAICompatibleModels = func(context.Context, modelrouting.ValidatedEndpoint, modelrouting.Route, string, int64) ([]string, error) {
+		calls.Add(1)
+		return []string{"operator-model"}, nil
+	}
+	defer func() { fetchOpenAICompatibleModels = previous }()
+
+	doctorCode, _, doctorStderr := runForTest(
+		"models", "doctor", "--user-root", fixture.userRoot,
+		"--project-root", fixture.projectRoot, "--probe", "--json",
+	)
+	if doctorCode == 0 || !strings.Contains(strings.ToLower(doctorStderr), "unsafe endpoint") {
+		t.Fatalf("doctor accepted authenticated private HTTP: exit=%d stderr=%s", doctorCode, doctorStderr)
+	}
+	ddrCode, ddrStdout, ddrStderr := fixture.run()
+	if ddrCode == 0 || !strings.Contains(strings.ToLower(ddrStdout+ddrStderr), "unsafe endpoint") {
+		t.Fatalf("DDR accepted authenticated private HTTP: exit=%d output=%s%s", ddrCode, ddrStdout, ddrStderr)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("authenticated private HTTP reached network fetch %d times", calls.Load())
 	}
 }
 
