@@ -12,21 +12,21 @@ pre_slice_review_contract: true
 model_tier_contract: true
 workspace_isolation_contract: true
 proof_governor_contract: true
-source_requirements_sha256: 4797f42c98313fb207fc109a51fe075d6cda63ab13f1027097a998cc97c3e818
+source_requirements_sha256: edc3f8a084547dcb35f664f3ca1fc77c90cee1048c6d965128eccb8633f997de
 pre_slice_review:
   status: passed
   source: docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
-  source_sha256: 4797f42c98313fb207fc109a51fe075d6cda63ab13f1027097a998cc97c3e818
+  source_sha256: edc3f8a084547dcb35f664f3ca1fc77c90cee1048c6d965128eccb8633f997de
   mode: requirements-wide
-  review_id: global-cleanup-reconciliation-requirements-11545592e2fe
-  reviewed_at: "2026-08-01T16:21:57Z"
-  review_artifact: docs/results/proofs/global-cleanup-reconciliation-requirements-4797f42c9831.json
-  review_artifact_sha256: d1e1d38897d4997ca53e9b85104f72995ad8cdb137d061a556e2145fafb4c813
-  persona_evidence_json: '{"adversarial-document-reviewer":"adversarial-risk: cross-repository merge, salvage, PR supersession, worktree/ref retirement, and host session-record retirement require stress-testing evidence, race, authority, and recovery boundaries."}'
-  selected_personas_json: '["adversarial-document-reviewer"]'
-  completed_personas_json: '["adversarial-document-reviewer"]'
+  review_id: global-cleanup-reconciliation-requirements-edc3f8a08454
+  reviewed_at: "2026-08-01T17:20:00Z"
+  review_artifact: docs/results/document-reviews/global-cleanup-reconciliation-requirements-edc3f8a08454.json
+  review_artifact_sha256: 7af9ad1feb938cd5742964e6841e4c21f46873bc59f67bfbcbb7f5057a7302a5
+  persona_evidence_json: '{"security-lens-reviewer":"security-risk: authoritative semantic-writer claims, scoped caller authority, stale-worker fencing, sole-path credentials, idempotency, rollback, and gateway commit atomicity define a new privileged trust boundary."}'
+  selected_personas_json: '["security-lens-reviewer"]'
+  completed_personas_json: '["security-lens-reviewer"]'
   failed_personas_json: '[]'
-  findings_resolved: 11
+  findings_resolved: 10
   unresolved_p0: 0
   unresolved_p1: 0
   residual_findings: 0
@@ -56,7 +56,7 @@ workspace_isolation_contract:
   default_branch_delivery_owner: kb-complete
   allowed_modes: [shared-serial]
 plan_run_worktree:
-  branch: codex/kb-2026-08-01-global-cleanup-reconciliation
+  branch: codex/the-worktrees-filed-a-grievance
   workspace_mode: shared-serial
   commit_authorized: true
   commit_authorized_by: user
@@ -77,21 +77,23 @@ gate_ledger:
       - "The reviewed requirements define fail-closed inventory, exact containment, policy thresholds, risk budgets, compact decision packets, salvage, and separate delivery/cleanup/ref/session gates."
       - "The requirements-wide adversarial review has no unresolved P0/P1 findings."
       - "The global baseline remains useful without repo-native kbcheck or host/forge adapters."
+      - "The amended trust contract preserves disjoint DAG/worktree parallelism while requiring authoritative CAS claims, monotonically fenced generations, scoped caller authority, endpoint high-water validation, idempotency, rollback detection, and sole-path credential proof for protected semantic writers."
     proof:
       - docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
-      - docs/results/document-reviews/global-cleanup-reconciliation-requirements-11545592e2fe.json
+      - docs/results/document-reviews/global-cleanup-reconciliation-requirements-edc3f8a08454.json
+      - docs/context/research/2026-08-01-agent-dag-concurrency-and-fencing.md
       - cmd/kbcheck/terminal_cleanup.go
     blockers: []
-    passed_at: "2026-08-01T16:27:00Z"
+    passed_at: "2026-08-01T17:22:00Z"
     allowed_next_action: "kb-plan docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md"
   - gate_id: plan-to-work
     owner_skill: kb-plan
     gate_scope: implementation
     status: passed
     required_evidence:
-      - "Three vertical slices cover read-only portfolio convergence, checked apply/verify, and lifecycle/distribution integration."
+      - "Three vertical slices cover read-only portfolio convergence, checked apply/verify, and lifecycle/distribution plus fenced semantic-writer integration."
       - "Every requirement maps to a slice and every destructive path retains existing terminal-cleanup predicates or fails closed."
-      - "The dependency graph is acyclic and serializes shared Git, installer, skill, and documentation surfaces."
+      - "The dependency graph is acyclic, preserves proven-disjoint parallelism, and serializes shared Git, installer, skill, documentation, and semantic-writer resources."
       - "Local plan-run commits are explicitly authorized; publishing remains unauthorized."
     proof:
       - docs/plans/2026-08-01-001-global-reconciler-inventory-plan.md
@@ -99,7 +101,7 @@ gate_ledger:
       - docs/plans/2026-08-01-003-global-reconciler-lifecycle-plan.md
       - docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
     blockers: []
-    passed_at: "2026-08-01T16:27:00Z"
+    passed_at: "2026-08-01T17:22:00Z"
     allowed_next_action: "kb-work docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
   - gate_id: slice-slice-001-to-done
     owner_skill: kb-work
@@ -160,8 +162,8 @@ slices:
     execution_class: cli
     model_tier: large
     model_tier_reason: "Mutates Git worktrees, exact refs, and queue metadata under concurrent races and partial failures."
-    model_requirements: ["Git worktree internals", "compare-and-swap refs", "remote containment", "cross-platform locks"]
-    escalation_triggers: ["force would be required", "remote authority is unresolved", "plan identity drift", "terminal-cleanup parity gap"]
+    model_requirements: ["Git worktree internals", "compare-and-swap refs", "remote containment", "cross-platform locks", "protected action authority downgrade"]
+    escalation_triggers: ["force would be required", "remote authority is unresolved", "plan identity drift", "terminal-cleanup parity gap", "protected external action lacks fenced authority"]
     workspace_mode: shared-serial
     conflict_domains: ["go:reconcile-core", "go:terminal-cleanup", "git:worktrees", "git:refs", "state:work-queue"]
     proof_check:
@@ -180,14 +182,14 @@ slices:
     functional_risk: broad
     execution_class: cli
     model_tier: large
-    model_tier_reason: "Connects checked convergence to queue lifecycle, managed binary distribution, skills, and workflow documentation."
-    model_requirements: ["cross-skill lifecycle design", "managed binary installation", "queue CAS", "documentation synchronization"]
-    escalation_triggers: ["install becomes mandatory", "open PR consumes active WIP", "delivery and cleanup states collapse", "global drift is newer"]
+    model_tier_reason: "Connects checked convergence to queue lifecycle, globally fenced semantic-writer authority, managed binary distribution, skills, and workflow documentation."
+    model_requirements: ["cross-skill lifecycle design", "managed binary installation", "queue and authoritative CAS", "fencing and idempotency", "documentation synchronization"]
+    escalation_triggers: ["install becomes mandatory", "open PR consumes active WIP", "delivery and cleanup states collapse", "global drift is newer", "claim adapter cannot prove atomic high-water fencing or sole-path enforcement"]
     workspace_mode: shared-serial
-    conflict_domains: ["skill:kb-start", "skill:kb-complete", "skill:kb-finalize", "installer:managed-binaries", "docs:workflow"]
+    conflict_domains: ["skill:kb-start", "skill:kb-complete", "skill:kb-finalize", "installer:managed-binaries", "docs:workflow", "authority:semantic-writers"]
     proof_check:
       kind: command_exit
-      command: "go test ./... && node --test ./bin/kb-install.test.mjs && go run ./cmd/kbcheck skill-lint --root ."
+      command: "go test ./... && node --test ./bin/kb-install.test.mjs && go run ./cmd/kbcheck skill-lint --root . && go test ./internal/reconcile ./cmd/kbreconcile ./cmd/kbcheck -run 'SemanticClaim|Fence|Idempot|DeliveryChain' -count=1"
       expect: 0
     status: pending
     owner: agent
@@ -198,5 +200,6 @@ slices:
 
 The manifest delivers one fail-closed global reconciliation product in three
 observable increments. The current session coordinates serial execution because
-the slices share the Go core, Git safety contract, installer, and KB lifecycle
-surfaces.
+the slices share the Go core, Git safety contract, installer, KB lifecycle, and
+semantic-writer authority surfaces. Runtime DAG nodes remain parallel only when
+their declared semantic resources are proven disjoint.

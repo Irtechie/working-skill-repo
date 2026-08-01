@@ -9,8 +9,8 @@ functional_risk: destructive
 execution_class: cli
 model_tier: large
 model_tier_reason: "This slice mutates Git worktrees, exact local refs, and queue metadata under races, so it requires deep trust-boundary and recovery reasoning."
-model_requirements: ["Git worktree internals", "compare-and-swap refs", "remote containment", "partial failure recovery", "cross-platform locking"]
-escalation_triggers: ["an action needs force", "remote authority is unresolved", "the plan cutoff or identity changed", "terminal-cleanup parity cannot be proven"]
+model_requirements: ["Git worktree internals", "compare-and-swap refs", "remote containment", "partial failure recovery", "cross-platform locking", "authority downgrade"]
+escalation_triggers: ["an action needs force", "remote authority is unresolved", "the plan cutoff or identity changed", "terminal-cleanup parity cannot be proven", "a protected external action lacks fenced authority"]
 workspace_mode: shared-serial
 conflict_domains: ["go:reconcile-core", "go:terminal-cleanup", "git:worktrees", "git:refs", "state:work-queue"]
 shared_resources: ["git:common-directory", "lock:work-queue", "remote:default"]
@@ -67,6 +67,9 @@ expected_files:
   delivery and physical retirement are verified.
 - Missing host/forge adapters prohibit PR mutation, merge, remote-ref deletion,
   and destructive host session-record retirement.
+- Protected publication/deployment actions are outside the local allowlist and
+  remain planned/preserved unless a later lifecycle adapter proves the amended
+  authoritative claim and endpoint-fencing contract.
 - Verify reports delivery, physical cleanup, ref retirement, and session record
   states separately and reconciles only exact safe partial outcomes.
 - Repeated apply/verify is idempotent.
@@ -79,6 +82,8 @@ expected_files:
 3. Reject dirty/ignored/current/primary/default/locked/moved fixtures.
 4. Delete only an exact merged local ref through CAS; preserve mismatch.
 5. Recover an exact empty residual and preserve every non-empty residual.
+6. Feed a protected external action without fenced authority and observe an
+   unavailable/quarantined result with no adapter call.
 
 ## Scope Boundary
 

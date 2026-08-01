@@ -57,6 +57,15 @@ salvage, policy enforcement, and proof. It does not mean deletion-first cleanup.
   layer.
 - The installer already has a precedent for a checksum-verified user-global
   binary under `~/.kb/bin`; skills themselves are not standalone binaries.
+- Git worktrees isolate checkout contents, `HEAD`, and indexes, but ordinary
+  refs and most repository state remain shared. Worktrees do not coordinate
+  semantic responsibility, separate clones, publishers, deployments, or
+  external side effects.
+- Established schedulers preserve DAG parallelism by combining dependency edges
+  with resource constraints. Kubernetes/etcd-style compare-and-swap claims
+  select one writer, but lease expiry alone does not fence a paused stale
+  worker. A protected mutation endpoint must reject stale monotonically
+  increasing generations and idempotently recognize replay.
 
 **Confidence:** High for the existing lifecycle and safety boundaries because
 they are directly represented in source and tests. Medium for host session
@@ -111,10 +120,25 @@ policy + confidence + risk-budget classifier
    other forge, queue/lease, and repo-policy adapters add evidence or actions.
    An unavailable adapter reduces authority; it never creates a success-shaped
    fallback.
+8. **Semantic scheduler:** each DAG node declares operational resource keys,
+   including `publisher:<product>`, `release-manifest:<product>`, and
+   `deploy:<environment>`. Disjoint nodes may run in parallel; conflicting
+   writers require one authoritative claim even when their paths do not overlap.
+9. **Fenced side-effect gateway:** protected publication and deployment adapters
+   accept only a current controller-issued generation, validate it immediately
+   before the side effect, and atomically reject stale workers. Agents do not
+   receive a bypass path around the gateway.
 
 The exact executable name and package layout are planning decisions. The
 required boundary is a global deterministic core with optional repo adapters,
 not a skill that shells into a repository-specific `go run ./cmd/kbcheck`.
+
+The trust model treats workers as potentially stale, buggy, or compromised
+within their unprivileged execution boundary. The controller, policy trust root,
+claim store, and fenced gateway are privileged components and must minimize
+their APIs, authenticate each other, protect integrity, and retain auditable
+evidence. No worker-provided ledger field, generation number, or summary is
+authority by itself.
 
 ## Lifecycle Model
 
@@ -186,6 +210,12 @@ and a durable resume packet allow the execution session to suspend safely.
   predicates, limitations, and confidence. LLM judgment, naming similarity,
   age, inactivity, or a successful prior run cannot independently prove
   duplication, containment, supersession, or safe deletion.
+- **R6a.** Controller-owned policy, evidence ledgers, adapter assertions, claim
+  records, receipts, and audit events require schema validation, authenticated
+  source identity, capability-scoped write APIs, tamper-evident ordering, and
+  rollback detection. Workers may propose evidence but cannot rewrite accepted
+  authority or postconditions. A failed integrity check invalidates the affected
+  evidence and downgrades dependent mutation to preserve or quarantine.
 
 ### Exact Deduplication And Containment
 
@@ -306,6 +336,13 @@ and a durable resume packet allow the execution session to suspend safely.
   identity, cutoff, evidence fingerprints, exact target identities, action
   preconditions, observed-before and observed-after state, actor/session,
   timestamps, and result. Repeated apply/verify must be idempotent.
+- **R23a.** Treat global ledger and receipt metadata as sensitive operational
+  data. Store the minimum fields, redact secret values and protected-path
+  details from packets/logs, use least-privilege file/service permissions and
+  authenticated transport, and apply policy-defined retention to claims,
+  idempotency records, receipts, audit events, and backups. Retention expiry
+  cannot erase evidence still required to prevent replay, generation rollback,
+  or unique-data loss.
 - **R24.** Ref deletion must use exact-SHA compare-and-swap. Worktree retirement
   must use non-force Git removal with bounded retries. Missing registration,
   replaced paths, non-empty residuals, identity drift, or failed postconditions
@@ -361,11 +398,90 @@ and a durable resume packet allow the execution session to suspend safely.
   and skip that repository. After lock acquisition it must discard stale plan
   evidence and rerun the action's mandatory predicates before mutation.
 
+### Semantic Writer Coordination And Fencing
+
+- **R31b.** Preserve DAG and worktree parallelism for proven-disjoint work, but
+  require every mutating node to declare versioned canonical semantic read/write
+  resource keys. Human-readable examples include `publisher:<product>`,
+  `release-manifest:<product>`, and `deploy:<environment>`; the authoritative
+  identity additionally binds provider, tenant/account, resource type, and
+  provider-canonical resource ID. The schema defines Unicode normalization,
+  case handling, escaping, maximum length, and collision rejection. Unknown
+  aliases quarantine rather than creating a second authority domain.
+  Conflicting writers serialize even when they edit different repositories,
+  branches, or paths.
+- **R31c.** A protected semantic writer requires an authoritative claim acquired
+  through compare-and-swap against the current claim version. The claim binds
+  resource key, holder/session, objective/work ID, source revision, claim
+  revision, monotonically increasing fencing generation, issued/expiry times,
+  adapter identity, controller incarnation, and authenticated workload identity.
+  Local worktree or Git-common-directory leases may add coordination but cannot
+  satisfy global authority.
+- **R31d.** Lease expiry is a recheck signal, not takeover authority. A successor
+  may become active only after authoritative compare-and-swap advances the claim
+  revision and fencing generation. Read-then-write replacement, age-only
+  takeover, and generation reuse are forbidden.
+- **R31e.** Every publish, release-manifest promotion, deployment, or other
+  policy-protected external side effect must carry the resource key, exact
+  holder, fencing generation, source/manifest digest, idempotency key, and an
+  unforgeable short-lived authorization bound to audience, controller/workload
+  identity, work ID, operation, resource key, generation, request digest, and
+  expiry. The authoritative endpoint owns a per-resource high-water generation
+  and serializes authorization validation, generation admission, idempotency
+  reservation, and side-effect commit, or uses a provider-native conditional
+  mutation with equivalent atomicity. Stale, missing, expired, mismatched,
+  forged, or unverifiable authority is rejected without mutation. Providers
+  unable to enforce this boundary are unsupported for protected automation.
+- **R31f.** Replaying the same idempotency key and identical payload returns the
+  recorded result without repeating the side effect. Reusing a key with a
+  different payload fails closed. The gateway atomically reserves the key and
+  digest before side effects and exposes durable `in-flight`, `committed`, and
+  `failed-safe` states. `unknown`, missing-after-admission, or still-in-flight
+  status preserves the claim and blocks retry; it never proves the original
+  request cannot commit. Receipts bind the claim revision, generation, request
+  digest, endpoint result, and postcondition evidence.
+- **R31g.** Failure recovery is bounded and dependency-aware. Ambiguous timeout
+  or transport failure triggers status lookup by idempotency key before retry.
+  Retry count and elapsed time are policy-capped; exhaustion preserves the claim
+  or enters quarantine and blocks only dependent nodes. It must not create a
+  second publisher, advance the generation speculatively, or ask the user to
+  classify routine retry state.
+- **R31h.** If the authoritative claim adapter or endpoint validation is
+  unavailable, protected writer work may be planned or preserved but may not
+  acquire authority or perform its side effect. The compact human exception
+  packet remains reserved for unresolved irreversible ambiguity or
+  policy-defined authority, not coordinator outages that have a safe retry.
+- **R31i.** All credentialed production paths must pass through the fenced
+  endpoint. Repository concurrency groups, merge queues, environments, and
+  remote Git claims are defense in depth; none independently proves a global
+  fence. Production IAM and network policy must admit only the gateway principal;
+  agents receive gateway-invocation authority only; direct production
+  credentials are revoked and rotated; alternate workflows lack a permitted
+  principal. The adapter must prove these controls or downgrade protected
+  mutation to unavailable. Conformance tests attempt direct and alternate-path
+  bypass.
+- **R31j.** The first implementation must expose a versioned provider-neutral
+  claim/fence adapter contract and deterministic conformance fixtures. A concrete
+  controller may implement it with a linearizable database, Kubernetes
+  `resourceVersion`, etcd transaction, or equivalent CAS. No consuming
+  repository must run a new daemon; missing global coordination fails closed.
+- **R31k.** Claim and gateway authorization keys require a pinned trust root,
+  rotation identifiers, bounded overlap, explicit revocation, and audience
+  separation. Rotation or compromise advances the controller incarnation and
+  invalidates outstanding worker authority unless a policy-defined,
+  audit-recorded reissue proves the same claim and request.
+- **R31l.** Claim storage disaster recovery cannot restore an old generation as
+  current. Persist a monotonic controller incarnation or high-water epoch outside
+  the claim snapshot rollback domain. On restore, reject lower epochs, invalidate
+  outstanding authority, reconcile gateway high-water state, and block protected
+  mutation until rollback checks pass.
+
 ### Proactive Prevention
 
 - **R32.** Register every autonomous run at lifecycle start with canonical repo,
-  session, worktree, branch, objective, owner, cutoff, and heartbeat. Mutation
-  without a durable registration fails before work.
+  session, worktree, branch, objective, owner, cutoff, heartbeat, and declared
+  semantic resources. Mutation without durable registration fails before work;
+  protected semantic writers additionally require R31b-R31j authority.
 - **R33.** Enforce WIP caps on active execution owners, not accidentally on
   multiple claims belonging to the same owner. `awaiting-review`, terminal,
   quarantined, and suspended states must not consume active mutation capacity.
@@ -393,9 +509,11 @@ and a durable resume packet allow the execution session to suspend safely.
 - **R37a.** Releasing an orphaned active claim requires authoritative host proof
   that the exact owning session is terminal or absent, no live process/heartbeat,
   and compare-and-swap of the unchanged work ID, session ID, branch/worktree,
-  status, and `updated_at`. When host proof is unavailable, age only triggers a
-  grouped decision-packet item after a configurable threshold (default 72
-  hours); it never authorizes takeover or release.
+  status, and `updated_at`. Transient or retryable host-adapter outage remains
+  preserved or quarantined with a retry sensor. Only proven capability absence
+  or unresolved authority-bearing ambiguity may enter the grouped decision
+  packet after a configurable threshold (default 72 hours); age never authorizes
+  takeover or release.
 
 ## Success Criteria
 
@@ -435,6 +553,17 @@ and a durable resume packet allow the execution session to suspend safely.
   recoverable.
 - The global baseline works in a fixture repository with no KB files or
   `cmd/kbcheck`; repo-native adapters add evidence without becoming mandatory.
+- Two DAG nodes with disjoint files and resources may execute concurrently. Two
+  nodes claiming the same protected semantic writer serialize globally; only
+  the current fencing generation can commit a side effect.
+- Conformance fixtures reject stale workers after takeover, reject expiry-only
+  takeover, return the recorded result for identical idempotent replay, reject
+  idempotency-key payload mismatch, and fail closed during coordinator or
+  endpoint-validation outage.
+- Security fixtures reject forged or wrong-audience authority, direct credential
+  and alternate-workflow bypass, resource-key aliases/collisions, claim-store
+  rollback, lower controller incarnations, validation-to-commit races, and an
+  original timed-out request that commits after a status miss.
 
 ## Scope Boundaries
 
@@ -446,9 +575,10 @@ and a durable resume packet allow the execution session to suspend safely.
 - Do not auto-close ordinary long-lived PRs because of age or inactivity.
 - Do not require every consuming repository to vendor this bundle or build Go
   source locally.
-- Do not introduce a required daemon, MCP server, vector database, or
-  cross-machine lock. Scheduled invocation is allowed; distributed coordination
-  is parked.
+- Do not introduce a required per-repository daemon, MCP server, or vector
+  database. A versioned authoritative coordination adapter is required only for
+  protected global semantic writers; ordinary local inventory and preservation
+  remain available without it.
 - Do not read or copy credential contents, private model state, or live runtime
   data into salvage PRs or decision packets.
 - Do not delete host session records or remote refs through Git-only inference.
@@ -474,14 +604,20 @@ and a durable resume packet allow the execution session to suspend safely.
   budget availability never authorizes a failed proof.
 - **Human attention is batched:** unresolved irreversible choices become one
   bounded packet; unanswered items preserve data.
+- **Parallel where proven, fenced where shared:** worktrees and DAG edges retain
+  useful parallelism, while semantic writer keys serialize conflicting
+  responsibility and endpoint fencing rejects stale authority.
 
 ## Dependencies / Assumptions
 
-- **[safe-assumption]** A checksum-managed user-global binary can follow the
-  existing `~/.kb/bin` installation pattern. Reversible because planning may
-  choose a separate executable or extend a compatible installed binary.
-  Evidence/proof: installer tests must prove verified install, drift-safe
-  upgrade, and global execution in a non-KB fixture repo.
+- **[safe-assumption]** A managed user-global binary can follow the existing
+  `~/.kb/bin` installation pattern. Reversible because planning may choose a
+  separate executable or extend a compatible installed binary. Distribution
+  must bind the checksum manifest to a signed release or verifiable provenance
+  anchored in a pinned trust root, enforce rollback protection, and verify
+  destination permissions. Evidence/proof: installer tests must reject altered
+  binaries, manifests, signatures/provenance, and downgraded releases while
+  proving drift-safe upgrade and global execution in a non-KB fixture repo.
 - **[safe-assumption]** Hosts and forges can expose versioned adapters for at
   least read-only session/PR inventory. Reversible because missing adapters
   downgrade only their owned mutations. Evidence/proof: capability negotiation
@@ -490,6 +626,12 @@ and a durable resume packet allow the execution session to suspend safely.
   while retaining durable resume state. Reversible because the remote topic,
   PR, local ref, receipt, and resume packet remain. Evidence/proof: a fixture
   resumes after worktree retirement and then reconciles after merge.
+- **[safe-assumption]** Protected publishers/deployers can expose a versioned
+  claim and fencing adapter even when its storage implementation differs.
+  Reversible because the first release defines a provider-neutral contract and
+  fails closed when no adapter exists. Evidence/proof: conformance fixtures must
+  prove CAS acquisition, monotonic generations, stale-worker rejection,
+  idempotent replay, bounded recovery, and outage preservation.
 
 ## Alternatives Considered
 
@@ -508,6 +650,13 @@ and a durable resume packet allow the execution session to suspend safely.
   worktree retirement while preserving delivery refs.
 - **Treat passing tests or PR state as sufficient containment proof:** rejected
   because tests do not establish remote identity and provider state may race.
+- **Serialize the whole DAG:** rejected because dependencies and disjoint
+  semantic resources permit useful parallel work.
+- **Treat worktrees or path-disjoint edits as semantic locks:** rejected because
+  separate paths and clones can still create competing publishers or mutate the
+  same environment.
+- **Use lease expiry without endpoint fencing:** rejected because a paused stale
+  worker can resume after takeover.
 
 ## Slice Candidates
 
@@ -539,9 +688,10 @@ None.
 
 ### Parked / Out Of Scope
 
-- **[parked][Affects R31]** Cross-machine distributed locking and reconciliation
-  of copied clones without provider identity. Forbidden claim: the first version
-  coordinates concurrent mutation across machines.
+- **[parked][Affects R31b-R31j]** Automatically discovering that independently
+  named resource keys represent the same semantic responsibility. The first
+  version requires normalized policy-declared keys and may quarantine aliases;
+  model similarity cannot merge authority domains.
 - **[parked][Affects R29]** Automatic deletion of remote feature refs without a
   provider race-safe exact-ref API. Forbidden claim: plain Git branch deletion
   provides compare-and-swap safety.
@@ -563,6 +713,7 @@ None.
 - `cmd/kbcheck/delivery_chain_contract_test.go`
 - `docs/context/architecture/kb-workflow.md`
 - `docs/context/architecture/kbcheck.md`
+- `docs/context/research/2026-08-01-agent-dag-concurrency-and-fencing.md`
 - `README.md`
 
 ## Next Steps
