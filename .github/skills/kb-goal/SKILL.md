@@ -134,7 +134,8 @@ One sentence.
 
 ## Done Criteria
 
-- <observable condition>
+- [user] <observable condition the user actually asked for>
+- [derived] <condition the agent added, naming which [user] item it serves>
 
 ## Terminal Proof
 
@@ -346,6 +347,25 @@ agent-owned repair can still make meaningful progress. Release, deployment,
 signing, optional-provider, and optional-platform gates block only that
 promotion/capability unless the objective explicitly defines them as core done
 criteria.
+
+### Criteria provenance
+
+Every `Done Criteria` line carries its source: `[user]` for conditions the user
+asked for, `[derived]` for conditions the agent added. A `[derived]` line must
+name the `[user]` line it serves. A `[derived]` line that cannot name one is not
+a criterion; drop it or ask.
+
+A `[derived]` criterion may not, by itself, keep a goal active. If every
+unsatisfied criterion is `[derived]`, the goal is complete: mark it complete and
+move the remainder to follow-up work.
+
+Adding a `[derived]` criterion that requires building new infrastructure - a new
+service, installer, image, socket, container, or deployment mechanism - is a
+stop-and-ask, not a silent amendment.
+
+This constrains what may enter the list. It does not weaken persistence: `[user]`
+criteria keep a goal open indefinitely, across sessions and days, exactly as
+before.
 
 Valid blockers include:
 
