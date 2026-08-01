@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "policy_version": "reconcile-predicates/v1",
+  "plan_ttl": "10m",
+  "thresholds": {
+    "destructive": 1.0,
+    "integration": 1.0,
+    "reversible_remote": 0.98,
+    "additive_salvage": 0.9
+  },
+  "decision_packet": {
+    "max_groups": 5
+  },
+  "risk_budget": {
+    "per_run": {
+      "merge": 0,
+      "pr-close": 0,
+      "local-ref-retire": 5,
+      "remote-ref-retire": 0,
+      "worktree-retire": 5,
+      "session-record-retire": 0,
+      "salvage": 2
+    },
+    "per_repository": {
+      "merge": 0,
+      "pr-close": 0,
+      "local-ref-retire": 3,
+      "remote-ref-retire": 0,
+      "worktree-retire": 3,
+      "session-record-retire": 0,
+      "salvage": 1
+    }
+  },
+  "protected_path_classes": [
+    "credential",
+    "model-runtime",
+    "learning-memory",
+    "database",
+    "socket-lock",
+    "ignored-live-state"
+  ],
+  "dedup_proof_algorithms": [
+    "identical-blob-v1",
+    "identical-tree-v1",
+    "same-base-full-index-binary-patch-v1",
+    "commit-ancestry-v1",
+    "remote-topic-containment-v1",
+    "remote-default-ancestry-v1",
+    "provider-merge-identity+exact-tree-v1",
+    "provider-merge-identity+same-base-full-index-binary-patch-v1"
+  ],
+  "actions": [
+    {
+      "class": "merge",
+      "threshold": 1.0,
+      "destructive": true,
+      "allowed": false,
+      "downgrade": "quarantine",
+      "mandatory_predicates": [
+        {"name": "explicit-merge-authority", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "exact-pr-head-base", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "required-checks-green", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "required-reviews-green", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "fresh-mergeability", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "remote-default-authority", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-post-cutoff", "authoritative_adapters": ["ledger"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "exact-final-tree", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"}
+      ]
+    },
+    {
+      "class": "pr-close",
+      "threshold": 0.98,
+      "destructive": false,
+      "allowed": false,
+      "downgrade": "quarantine",
+      "mandatory_predicates": [
+        {"name": "exact-containment", "authoritative_adapters": ["git", "provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "no-unresolved-provider-blocker", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "reopen-supported", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "explicit-close-policy", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-post-cutoff", "authoritative_adapters": ["ledger"], "freshness": "5m", "downgrade": "quarantine"}
+      ]
+    },
+    {
+      "class": "local-ref-retire",
+      "threshold": 1.0,
+      "destructive": true,
+      "allowed": true,
+      "downgrade": "protected",
+      "mandatory_predicates": [
+        {"name": "integrated-endpoint", "authoritative_adapters": ["git", "provider"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "exact-ref-sha", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "not-default", "authoritative_adapters": ["git", "provider"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "not-checked-out", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "provider-merge-identity-for-rewrite", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "exact-tree-or-same-base-patch", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "not-post-cutoff", "authoritative_adapters": ["ledger"], "freshness": "5m", "downgrade": "protected"}
+      ]
+    },
+    {
+      "class": "remote-ref-retire",
+      "threshold": 1.0,
+      "destructive": true,
+      "allowed": false,
+      "downgrade": "protected",
+      "mandatory_predicates": [
+        {"name": "provider-exact-ref-cas", "authoritative_adapters": ["provider"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "explicit-remote-ref-policy", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "not-post-cutoff", "authoritative_adapters": ["ledger"], "freshness": "5m", "downgrade": "protected"}
+      ]
+    },
+    {
+      "class": "worktree-retire",
+      "threshold": 1.0,
+      "destructive": true,
+      "allowed": true,
+      "downgrade": "quarantine",
+      "mandatory_predicates": [
+        {"name": "different-executor", "authoritative_adapters": ["host-session"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "clean-tracked", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "clean-untracked", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "clean-ignored", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "terminal-or-suspended-claim", "authoritative_adapters": ["queue"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "exact-worktree-generation", "authoritative_adapters": ["git-admin"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "git-admin-round-trip", "authoritative_adapters": ["git-admin"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "durable-endpoint", "authoritative_adapters": ["git", "provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-current", "authoritative_adapters": ["git", "host-session"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-primary", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-default", "authoritative_adapters": ["git", "provider"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-locked", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-moved", "authoritative_adapters": ["git-admin"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "not-post-cutoff", "authoritative_adapters": ["ledger"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "remote-monotonic", "authoritative_adapters": ["provider", "git-fetch"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "non-force-only", "authoritative_adapters": ["policy"], "freshness": "24h", "downgrade": "quarantine"},
+        {"name": "empty-residual-only", "authoritative_adapters": ["policy"], "freshness": "24h", "downgrade": "quarantine"}
+      ]
+    },
+    {
+      "class": "session-record-retire",
+      "threshold": 1.0,
+      "destructive": true,
+      "allowed": false,
+      "downgrade": "protected",
+      "mandatory_predicates": [
+        {"name": "host-record-cas", "authoritative_adapters": ["host-session"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "no-active-process", "authoritative_adapters": ["host-session"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "durable-resume-or-delivery", "authoritative_adapters": ["host-session", "provider"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "physical-state-independent", "authoritative_adapters": ["git", "host-session"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "retention-policy", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "not-post-cutoff", "authoritative_adapters": ["ledger"], "freshness": "5m", "downgrade": "protected"}
+      ]
+    },
+    {
+      "class": "salvage",
+      "threshold": 0.9,
+      "destructive": false,
+      "allowed": true,
+      "downgrade": "quarantine",
+      "mandatory_predicates": [
+        {"name": "unique-work", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "provable-base-and-scope", "authoritative_adapters": ["git"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "protected-path-check-pass", "authoritative_adapters": ["metadata-classifier"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "additive-only", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "quarantine"},
+        {"name": "salvage-authority", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "quarantine"}
+      ]
+    }
+  ]
+}

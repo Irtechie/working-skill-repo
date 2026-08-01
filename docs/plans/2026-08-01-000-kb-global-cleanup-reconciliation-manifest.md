@@ -12,16 +12,16 @@ pre_slice_review_contract: true
 model_tier_contract: true
 workspace_isolation_contract: true
 proof_governor_contract: true
-source_requirements_sha256: 11545592e2fe3f184babfc2f9e7b2f9e175fa8b9f6a88a6c7174cf8bf8676d98
+source_requirements_sha256: 4797f42c98313fb207fc109a51fe075d6cda63ab13f1027097a998cc97c3e818
 pre_slice_review:
   status: passed
   source: docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
-  source_sha256: 11545592e2fe3f184babfc2f9e7b2f9e175fa8b9f6a88a6c7174cf8bf8676d98
+  source_sha256: 4797f42c98313fb207fc109a51fe075d6cda63ab13f1027097a998cc97c3e818
   mode: requirements-wide
   review_id: global-cleanup-reconciliation-requirements-11545592e2fe
   reviewed_at: "2026-08-01T16:21:57Z"
-  review_artifact: docs/results/document-reviews/global-cleanup-reconciliation-requirements-11545592e2fe.json
-  review_artifact_sha256: 6bda7d5b6143be0805ad542e4922fe4c837b542d8ed31ef7d275fdf4090ec717
+  review_artifact: docs/results/proofs/global-cleanup-reconciliation-requirements-4797f42c9831.json
+  review_artifact_sha256: d1e1d38897d4997ca53e9b85104f72995ad8cdb137d061a556e2145fafb4c813
   persona_evidence_json: '{"adversarial-document-reviewer":"adversarial-risk: cross-repository merge, salvage, PR supersession, worktree/ref retirement, and host session-record retirement require stress-testing evidence, race, authority, and recovery boundaries."}'
   selected_personas_json: '["adversarial-document-reviewer"]'
   completed_personas_json: '["adversarial-document-reviewer"]'
@@ -101,6 +101,23 @@ gate_ledger:
     blockers: []
     passed_at: "2026-08-01T16:27:00Z"
     allowed_next_action: "kb-work docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
+  - gate_id: slice-slice-001-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "A standalone kbreconcile binary inventories and plans a plain non-KB Git repository without repo-local kbcheck files."
+      - "The mixed 20-artifact oracle preserves active, protected, dirty, ignored, post-cutoff, credential/model/learning/live, unique, ambiguous, and unproven work."
+      - "Routine exact cases produce zero prompts; ambiguity is grouped into one bounded decision packet and excess ambiguity defaults to quarantine."
+      - "The versioned predicate manifest, deterministic confidence, and per-run/per-repository risk budget fail closed without enabling mutation."
+    proof:
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-001.md
+      - internal/reconcile/reconcile_test.go
+      - cmd/kbreconcile/main_test.go
+      - config/reconcile-predicates.json
+    blockers: []
+    passed_at: "2026-08-01T17:00:01Z"
+    allowed_next_action: "kb-work docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
 slices:
   - id: slice-001
     title: "Inventory and plan a portfolio without deleting first"
@@ -120,9 +137,19 @@ slices:
       kind: command_exit
       command: "go test ./internal/reconcile ./cmd/kbreconcile -run 'Inventory|Plan|DecisionPacket|NoKBRepo' -count=1"
       expect: 0
-    status: pending
+    status: done
     owner: agent
     can_continue_other_slices: false
+    protected_oracles:
+      - path: internal/reconcile/reconcile_test.go
+        role: "mixed-portfolio preservation, compact decision packet, policy parity, and no-KB inventory oracle"
+        sha256: "ba84b73ddd5e04607a94f118193cab03824c30e0b363fe1aeb044393b928ac12"
+        update_policy: "requires an explicit slice-plan amendment"
+      - path: cmd/kbreconcile/main_test.go
+        role: "standalone binary, stable JSON plan, fail-closed CLI, and plain-repository oracle"
+        sha256: "04e3576e383cd841750fb832bf11260864f23e660d896458b76f4bd433f7cc4d"
+        update_policy: "requires an explicit slice-plan amendment"
+    notes: "DDR route=current orchestrator; exact slice proof PASS; standalone no-KB binary dry-run PASS; gofmt/go vet/go build/git diff --check PASS; qa-browser skipped no UI-reachable behavior; forecast implementation=8 actual implementation=8 discovered lifecycle/proof=3 unused=0 unexplained=0; policy-sha256=57a11f5e79164efde34713ededfbed972eaab3e0053f5b5d8b6c0bc70d5d0c16; memory-impact=durable reconciler architecture, context refresh deferred to slice-003 lifecycle integration; aggregate core/local-release intentionally not run."
   - id: slice-002
     title: "Apply and verify only unchanged high-confidence actions"
     path: docs/plans/2026-08-01-002-global-reconciler-apply-plan.md
