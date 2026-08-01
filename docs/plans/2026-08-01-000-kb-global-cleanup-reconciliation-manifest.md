@@ -4,8 +4,57 @@ manifest_schema: 3
 kb_id: kb-2026-08-01-global-cleanup-reconciliation
 brainstorm_path: docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
 created: 2026-08-01
-status: active
+status: completed
 workflow_shape: pipeline-change
+scope-verified-files:
+  - .github/skills/kb-complete/SKILL.md
+  - .github/skills/kb-finalize/SKILL.md
+  - .github/skills/kb-start/SKILL.md
+  - .github/skills/kb-start/scripts/work_queue.ps1
+  - README.md
+  - bin/kb-install.mjs
+  - bin/kb-install.test.mjs
+  - cmd/kbcheck/delivery_chain_contract_test.go
+  - cmd/kbcheck/main.go
+  - cmd/kbcheck/reconcile_contract_test.go
+  - cmd/kbcheck/semantic_claim_contract_test.go
+  - cmd/kbcheck/terminal_cleanup.go
+  - cmd/kbcheck/terminal_cleanup_test.go
+  - cmd/kbreconcile/main.go
+  - cmd/kbreconcile/main_test.go
+  - config/reconcile-predicates.json
+  - docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
+  - docs/context/PROJECT.md
+  - docs/context/architecture/kb-workflow.md
+  - docs/context/architecture/kbcheck.md
+  - docs/context/operations/skill-bundle-maintenance.md
+  - docs/context/research/2026-08-01-agent-dag-concurrency-and-fencing.md
+  - docs/context/research/README.md
+  - docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md
+  - docs/plans/2026-08-01-001-global-reconciler-inventory-plan.md
+  - docs/plans/2026-08-01-002-global-reconciler-apply-plan.md
+  - docs/plans/2026-08-01-003-global-reconciler-lifecycle-plan.md
+  - docs/results/code-reviews/global-cleanup-reconcile-20260801-security-review.json
+  - docs/results/document-reviews/global-cleanup-reconciliation-requirements-11545592e2fe.json
+  - docs/results/document-reviews/global-cleanup-reconciliation-requirements-edc3f8a08454.json
+  - docs/results/proofs/global-cleanup-reconcile-20260801-aggregate.md
+  - docs/results/proofs/global-cleanup-reconcile-20260801-slice-001.md
+  - docs/results/proofs/global-cleanup-reconcile-20260801-slice-002.md
+  - docs/results/proofs/global-cleanup-reconcile-20260801-slice-003.md
+  - docs/results/proofs/global-cleanup-reconciliation-requirements-4797f42c9831.json
+  - internal/reconcile/apply.go
+  - internal/reconcile/apply_test.go
+  - internal/reconcile/claim.go
+  - internal/reconcile/claim_test.go
+  - internal/reconcile/git.go
+  - internal/reconcile/inventory.go
+  - internal/reconcile/plan.go
+  - internal/reconcile/policy.go
+  - internal/reconcile/receipt.go
+  - internal/reconcile/reconcile.go
+  - internal/reconcile/reconcile_test.go
+  - todo-done.md
+  - todo.md
 objective_contract: true
 blocker_lifecycle_contract: true
 pre_slice_review_contract: true
@@ -157,6 +206,30 @@ gate_ledger:
     blockers: []
     passed_at: "2026-08-01T19:19:51Z"
     allowed_next_action: "kb-work docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
+  - gate_id: work-to-complete
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "Every planned slice is done and every security-review P1 is confirmed resolved."
+      - "The final code tree passes the contributor core gate and the required local-release gate."
+      - "The functional CLI flow exercises dry-run, plan, apply, verify, claim capability, and claim conformance."
+      - "scope-verified-files covers every intentional implementation and bookkeeping path."
+      - "No Cargo command ran, and the native machine-validated not-applicable receipt passes."
+    proof:
+      - docs/results/proofs/global-cleanup-reconcile-20260801-aggregate.md
+      - docs/results/code-reviews/global-cleanup-reconcile-20260801-security-review.json
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-001.md
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-002.md
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-003.md
+    proof_commands:
+      - "go run ./cmd/kbcheck core"
+      - "go run ./cmd/kbcheck local-release --json"
+      - "go run ./cmd/kbcheck cargo-storage --action validate --run-id global-cleanup-reconcile-20260801 --root . --json"
+      - "git diff --check"
+    blockers: []
+    passed_at: "2026-08-01T21:21:49Z"
+    allowed_next_action: "kb-finalize docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
 slices:
   - id: slice-001
     title: "Inventory and plan a portfolio without deleting first"

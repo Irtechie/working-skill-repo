@@ -2,7 +2,23 @@
   "schema_version": 1,
   "review_id": "global-cleanup-reconcile-20260801-security-review",
   "base_commit": "2e231cb269e9e098063aed0b2797582f999775ac",
-  "status": "fixed-pending-confirmation",
+  "status": "confirmed",
+  "confirmation": {
+    "profile": "security-reviewer",
+    "mode": "bounded-confirmation",
+    "integrated_tree": "75f47f90fa3eeae4de7c2617c439794b474da176",
+    "finding_counts": {
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "p3": 0
+    },
+    "confirmed_resolutions": 7,
+    "residual_risks": [
+      "Protected mutation remains unavailable until a real authoritative provider adapter and signed privileged provenance exist."
+    ],
+    "result": "All seven P1 fixes were confirmed; no new actionable findings."
+  },
   "findings": [
     {
       "id": "P1-1",
