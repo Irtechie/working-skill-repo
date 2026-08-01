@@ -255,6 +255,7 @@ Invoke-WithQueueLock {
         $owned.status = $Status
         $owned.updated_at = $now.ToString("o")
         $owned.completed_at = $null
+        if ($Action -eq "update") { $owned.worktree = $paths.Root }
         if ($Branch) { $owned.branch = $Branch }
         if ($Summary) { $owned.summary = $Summary }
         if ($Scope) { $owned.scope = $Scope }

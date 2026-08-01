@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -57,4 +60,80 @@ func TestDeliveryChainLifecycleStatesRemainSeparate(t *testing.T) {
 			t.Errorf("status=%s mode=%s got=%t want=%t", test.status, test.mode, got, test.want)
 		}
 	}
+}
+
+func TestWorkQueueUpdateMigratesOwnedWorktreeIdentity(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("PowerShell work queue helper is Windows-only")
+	}
+
+	sourceRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(sourceRoot, ".github", "skills", "kb-start", "scripts", "work_queue.ps1")
+	temp := t.TempDir()
+	repo := filepath.Join(temp, "repo")
+	worktree := filepath.Join(temp, "worktree")
+
+	runQueueContractCommand(t, temp, "git", "init", "--initial-branch=main", repo)
+	if err := os.WriteFile(filepath.Join(repo, "seed.txt"), []byte("seed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runQueueContractCommand(t, repo, "git", "add", "seed.txt")
+	runQueueContractCommand(
+		t, repo, "git", "-c", "user.name=KB Test", "-c", "user.email=kb@example.invalid",
+		"commit", "-m", "seed",
+	)
+	runQueueContractCommand(
+		t, repo, "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+		"-File", script, "-Action", "claim", "-WorkId", "queue-migration-test",
+		"-SessionId", "session-1", "-Branch", "main", "-Summary", "test", "-Scope", "test",
+	)
+	runQueueContractCommand(t, repo, "git", "worktree", "add", "-b", "feature", worktree)
+	t.Cleanup(func() {
+		command := exec.Command("git", "worktree", "remove", worktree)
+		command.Dir = repo
+		_ = command.Run()
+	})
+
+	runQueueContractCommand(
+		t, worktree, "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+		"-File", script, "-Action", "update", "-WorkId", "queue-migration-test",
+		"-SessionId", "session-1", "-Branch", "feature", "-Summary", "test", "-Scope", "test",
+	)
+	output := runQueueContractCommand(
+		t, worktree, "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+		"-File", script, "-Action", "list",
+	)
+
+	type queueEntry struct {
+		WorkID   string `json:"work_id"`
+		Worktree string `json:"worktree"`
+	}
+	var entries []queueEntry
+	if err := json.Unmarshal([]byte(output), &entries); err != nil {
+		var entry queueEntry
+		if singleErr := json.Unmarshal([]byte(output), &entry); singleErr != nil {
+			t.Fatalf("decode queue list: array=%v single=%v\n%s", err, singleErr, output)
+		}
+		entries = []queueEntry{entry}
+	}
+	if len(entries) != 1 || entries[0].WorkID != "queue-migration-test" {
+		t.Fatalf("unexpected queue entries: %+v", entries)
+	}
+	if !strings.EqualFold(filepath.Clean(entries[0].Worktree), filepath.Clean(worktree)) {
+		t.Fatalf("queue worktree = %q, want %q", entries[0].Worktree, worktree)
+	}
+}
+
+func runQueueContractCommand(t *testing.T, dir, name string, args ...string) string {
+	t.Helper()
+	command := exec.Command(name, args...)
+	command.Dir = dir
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s %v: %v\n%s", name, args, err, output)
+	}
+	return strings.TrimSpace(string(output))
 }
