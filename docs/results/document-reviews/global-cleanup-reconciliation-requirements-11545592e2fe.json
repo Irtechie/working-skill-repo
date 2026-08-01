@@ -1,0 +1,23 @@
+{
+  "review_id": "global-cleanup-reconciliation-requirements-11545592e2fe",
+  "source": "docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md",
+  "source_sha256": "11545592e2fe3f184babfc2f9e7b2f9e175fa8b9f6a88a6c7174cf8bf8676d98",
+  "reviewed_at": "2026-08-01T16:21:57Z",
+  "document_type": "requirements",
+  "mode": "requirements-wide",
+  "selected_personas": [
+    "adversarial-document-reviewer"
+  ],
+  "completed_personas": [
+    "adversarial-document-reviewer"
+  ],
+  "persona_evidence": {
+    "adversarial-document-reviewer": "adversarial-risk: cross-repository merge, salvage, PR supersession, worktree/ref retirement, and host session-record retirement require stress-testing evidence, race, authority, and recovery boundaries."
+  },
+  "failed_personas": [],
+  "findings_resolved": 11,
+  "unresolved_p0": 0,
+  "unresolved_p1": 0,
+  "residual_findings": 0,
+  "residual_items": []
+}
