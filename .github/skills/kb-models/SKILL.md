@@ -56,7 +56,8 @@ endpoint, and optional auth environment-variable name. Common defaults:
 
 - LM Studio/Ollama-style OpenAI-compatible endpoint: `http://127.0.0.1:1234/v1`
 - LiteLLM endpoint: `http://127.0.0.1:4000/v1`
-- Private LAN LiteLLM endpoint: `http://<host-or-ip>:4000/v1`
+- Private LAN LiteLLM endpoint without auth: `http://<host-or-ip>:4000/v1`
+- Authenticated private LAN LiteLLM endpoint: `https://<host-or-ip>:4000/v1`
 
 Use this template for a local route with no auth:
 
@@ -71,6 +72,10 @@ handoffs:
 ```powershell
 kbrouter models add --scope user --alias local.coder --model <model-id> --endpoint http://127.0.0.1:4000/v1 --auth-env LOCAL_LITELLM_API_KEY --hosting self-hosted --retention none --training-use no --trust-provenance "user-local LiteLLM"
 ```
+
+Authenticated HTTP is accepted only when every resolved address is loopback.
+Use HTTPS for authenticated private-LAN routes; approval records consent but
+does not make plaintext bearer credentials safe.
 
 For a private endpoint, route execution also needs attended project approval.
 Show the command and pause; do not answer the confirmation for the user:

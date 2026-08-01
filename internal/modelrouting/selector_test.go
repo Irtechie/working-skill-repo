@@ -715,11 +715,47 @@ func TestEndpointValidationReturnsPinnedIPsAndRequiresPrivateApproval(t *testing
 	}
 }
 
+func TestAuthenticatedHTTPRequiresAnExclusivelyLoopbackEndpoint(t *testing.T) {
+	now := fixedNow()
+	route := provenRoute("local-auth", ClassMedium, "local-lan", "openai-compatible", "chat-completions", "local-model", "code", now.Add(time.Hour))
+	route.Endpoint = "http://192.168.1.205:4000/v1"
+	route.AuthEnv = "LOCAL_KEY"
+	route.Boundary = BoundaryPrivate
+	route.ManagementOrigin = OriginExtra
+	policy := publicPolicy()
+	policy.ApprovalMode = ApprovalModeDisabled
+
+	if _, err := ValidateEndpoint(route, policy, nil, now); !errors.Is(err, ErrUnsafeEndpoint) {
+		t.Fatalf("authenticated private HTTP error=%v", err)
+	}
+
+	route.AuthEnv = ""
+	if _, err := ValidateEndpoint(route, policy, nil, now); err != nil {
+		t.Fatalf("unauthenticated private HTTP rejected: %v", err)
+	}
+
+	route.AuthEnv = "LOCAL_KEY"
+	route.Endpoint = "http://localhost:4000/v1"
+	loopback := StaticResolver(map[string][]net.IP{"localhost": {net.ParseIP("127.0.0.1"), net.ParseIP("::1")}})
+	if _, err := ValidateEndpoint(route, policy, loopback, now); err != nil {
+		t.Fatalf("authenticated loopback HTTP rejected: %v", err)
+	}
+	mixed := StaticResolver(map[string][]net.IP{"localhost": {net.ParseIP("127.0.0.1"), net.ParseIP("192.168.1.205")}})
+	if _, err := ValidateEndpoint(route, policy, mixed, now); !errors.Is(err, ErrUnsafeEndpoint) {
+		t.Fatalf("mixed localhost resolution error=%v", err)
+	}
+
+	route.Endpoint = "https://192.168.1.205:4000/v1"
+	if _, err := ValidateEndpoint(route, policy, nil, now); err != nil {
+		t.Fatalf("authenticated private HTTPS rejected: %v", err)
+	}
+}
+
 func TestApprovalModeDisabledSkipsOnlyAttendedChecks(t *testing.T) {
 	now := fixedNow()
 	route := provenRoute("optional", ClassMedium, "local-lan", "openai-compatible", "chat-completions", "local-model", "code", now.Add(time.Hour))
 	route.Endpoint = "http://192.168.1.205:4000/v1"
-	route.AuthEnv = "LOCAL_KEY"
+	route.AuthEnv = ""
 	route.Boundary = BoundaryPrivate
 	route.ManagementOrigin = OriginExtra
 	policy := publicPolicy()
@@ -769,15 +805,15 @@ func TestStorageRoundTripsAuthenticatedAndPrivateRoutesWithTrustedLocalBindings(
 	public := provenRoute("public-auth", ClassMedium, "openai", "openai-compatible", "chat-completions", "gpt", "code", now.Add(time.Hour))
 	public.Endpoint, public.AuthEnv = "https://api.openai.com/v1", "OPENAI_API_KEY"
 	private := provenRoute("private-auth", ClassMedium, "local-lan", "openai-compatible", "chat-completions", "qwen", "code", now.Add(time.Hour))
-	private.Endpoint, private.AuthEnv, private.Boundary = "http://192.168.1.205:4000/v1", "LOCAL_KEY", BoundaryPrivate
+	private.Endpoint, private.AuthEnv, private.Boundary = "https://192.168.1.205:4000/v1", "LOCAL_KEY", BoundaryPrivate
 	policy := publicPolicy()
 	policy.Trusted.AuthBindings = []AuthBinding{
 		{Env: "OPENAI_API_KEY", Adapter: "openai-compatible", Origin: "https://api.openai.com", ExpiresAt: now.Add(time.Hour)},
-		{Env: "LOCAL_KEY", Adapter: "openai-compatible", Origin: "http://192.168.1.205:4000", ExpiresAt: now.Add(time.Hour)},
+		{Env: "LOCAL_KEY", Adapter: "openai-compatible", Origin: "https://192.168.1.205:4000", ExpiresAt: now.Add(time.Hour)},
 	}
 	// This is trusted user-local endpoint consent for persistence. Project route
 	// activation remains separately gated by a route fingerprint approval.
-	policy.Trusted.EndpointApprovals = []EndpointApproval{{Origin: "http://192.168.1.205:4000", ExpiresAt: now.Add(time.Hour)}}
+	policy.Trusted.EndpointApprovals = []EndpointApproval{{Origin: "https://192.168.1.205:4000", ExpiresAt: now.Add(time.Hour)}}
 	opts := StorageOptions{MaxBytes: 64 * 1024, Resolver: publicResolver(), Now: now, Policy: policy, Source: CatalogSourceRun}
 	catalog := catalogWithCurrent(now, []Route{public, private})
 	sealCatalogForTest(t, &catalog)

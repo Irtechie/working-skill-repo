@@ -112,6 +112,9 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
   refused.
 - Optional self-hosted/private routes are kept in user/project runtime state,
   not committed into KB manifests.
+- Authenticated HTTP is loopback-only after DNS resolution. Authenticated
+  private-LAN routes require HTTPS; approval is consent, not transport
+  confidentiality. Unauthenticated private HTTP remains available.
 - Import reads one bounded regular non-symlink JSON file, rejects unknown fields
   and secret values, and atomically writes only canonical route state. It never
   creates, renews, or changes `trust.json`.

@@ -213,6 +213,40 @@ func TestModelsImportIsAtomicAcrossMultipleRoutes(t *testing.T) {
 	}
 }
 
+func TestModelsImportRejectsAuthenticatedPrivateHTTPWithoutMutatingCatalog(t *testing.T) {
+	root := t.TempDir()
+	userRoot := filepath.Join(root, "user")
+	projectRoot := filepath.Join(root, "project")
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	importPath := filepath.Join(root, "routes.json")
+	writeJSONForTest(t, importPath, map[string]any{"schema_version": 1, "routes": []map[string]any{validImportRoute()}})
+	code, stdout, stderr := runForTest(
+		"models", "import", "--user-root", userRoot, "--project-root", projectRoot,
+		"--file", importPath, "--json",
+	)
+	if code != 0 {
+		t.Fatalf("seed import exit=%d output=%s%s", code, stdout, stderr)
+	}
+	before := readFileForTest(t, filepath.Join(userRoot, userCatalogFile))
+
+	route := validImportRoute()
+	route["endpoint"] = "http://192.168.1.205:4000/v1"
+	route["auth_env"] = "LOCAL_API_KEY"
+	writeJSONForTest(t, importPath, map[string]any{"schema_version": 1, "routes": []map[string]any{route}})
+	code, stdout, stderr = runForTest(
+		"models", "import", "--user-root", userRoot, "--project-root", projectRoot,
+		"--file", importPath, "--json",
+	)
+	if code == 0 || !strings.Contains(strings.ToLower(stdout+stderr), "unsafe endpoint") {
+		t.Fatalf("authenticated private HTTP import accepted: code=%d output=%s%s", code, stdout, stderr)
+	}
+	if after := readFileForTest(t, filepath.Join(userRoot, userCatalogFile)); after != before {
+		t.Fatalf("rejected import mutated catalog:\nbefore=%s\nafter=%s", before, after)
+	}
+}
+
 func TestCheckedInRouteExampleIsARejectedPlaceholder(t *testing.T) {
 	root := t.TempDir()
 	userRoot := filepath.Join(root, "user")
