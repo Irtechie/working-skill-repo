@@ -4,7 +4,7 @@ manifest_schema: 3
 kb_id: kb-2026-08-01-global-cleanup-reconciliation
 brainstorm_path: docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
 created: 2026-08-01
-status: completed
+status: reviewed
 workflow_shape: pipeline-change
 scope-verified-files:
   - .github/skills/kb-complete/SKILL.md
@@ -230,6 +230,36 @@ gate_ledger:
     blockers: []
     passed_at: "2026-08-01T21:21:49Z"
     allowed_next_action: "kb-finalize docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
+  - gate_id: complete-to-ship
+    owner_skill: kb-finalize
+    gate_scope: release
+    status: passed
+    required_evidence:
+      - "Final implementation tree 75f47f90fa3eeae4de7c2617c439794b474da176 passes core 39/39 and the required local-release gate."
+      - "The real functional CLI flow covers dry-run, plan, apply, verify, claim capability, and claim conformance."
+      - "One security profile found seven P1 issues; all seven fixes were confirmed with zero residual P0-P3 findings."
+      - "The final work-to-complete bookkeeping tree e053a9ff4fd12d6e569c5725b7469e791b2b6323 is committed, scope-verified, and accepted by the plan-run proof ledger."
+      - "No Cargo command ran; the native not-applicable receipt validates with zero retained or removed bytes."
+      - "Knowledge work is skipped because slice 003 already refreshed durable architecture, operations, project-map, and research memory; no additional learning signal remains."
+      - "Todo state is archived, global skills match 129/129 required comparisons, and local delivery remains separately gated."
+    proof:
+      - docs/results/proofs/global-cleanup-reconcile-20260801-aggregate.md
+      - docs/results/code-reviews/global-cleanup-reconcile-20260801-security-review.json
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-001.md
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-002.md
+      - docs/results/proofs/global-cleanup-reconcile-20260801-slice-003.md
+      - todo-done.md
+      - E:\Dev\Tools\working-skill-repo\.git\kb\plan-run-proofs\kb-2026-08-01-global-cleanup-reconciliation\final-bookkeeping-e053a9ff4fd12d6e569c5725b7469e791b2b6323.json
+      - E:\Dev\Tools\working-skill-repo\.git\kb\cargo-storage\global-cleanup-reconcile-20260801-3d3c381031cd5adb.json
+    proof_commands:
+      - "go run ./cmd/kbcheck core"
+      - "go run ./cmd/kbcheck local-release --json"
+      - "go run ./cmd/kbcheck manifest-contract --manifest docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md --json"
+      - "go run ./cmd/kbcheck cargo-storage --action validate --run-id global-cleanup-reconcile-20260801 --root . --json"
+      - "git diff --check"
+    blockers: []
+    passed_at: "2026-08-01T21:31:00Z"
+    allowed_next_action: "kb-complete docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md"
 slices:
   - id: slice-001
     title: "Inventory and plan a portfolio without deleting first"
