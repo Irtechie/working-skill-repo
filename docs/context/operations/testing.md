@@ -26,6 +26,17 @@ This covers public CLI parsing and exit codes, project/worktree resolution,
 concurrent receipt updates, guarded temporary cleanup, receipt validation, and
 the cross-skill contract.
 
+Focused model-tier qualification proof:
+
+```powershell
+go test ./cmd/kbcheck -run 'ModelTierEval' -count=1
+```
+
+This consumes the deterministic corpus under
+`evals/model-tier-qualification/`, exercises the public offline CLI, and covers
+strict input safety, admission, exclusions, trust, replay, freshness, Medium
+thresholds, and bounded output.
+
 ## Canonical Release / Sync Commands
 
 ```powershell
@@ -189,6 +200,8 @@ go run ./cmd/kbcheck graph-routing-lifecycle-selftest
 go run ./cmd/kbcheck graph-routing-eval --require-ready
 go test ./cmd/kbrouter -run Catalog|Doctor|Policy
 go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
+go test ./cmd/kbcheck -run 'ModelTierEval' -count=1
+go run ./cmd/kbcheck model-tier-eval --evidence <evidence.json> --json
 ```
 
 ### Skill / route evals

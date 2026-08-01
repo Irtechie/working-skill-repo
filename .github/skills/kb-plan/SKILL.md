@@ -71,6 +71,40 @@ Enabling slices are allowed only when they are the smallest prerequisite for a
 named downstream slice. Prefer behavior-first slices over schema/service/UI
 phases.
 
+### Qualification Evidence Plans (Opt-In)
+
+Ordinary KB plans do not need semantic-plan grading. Opt in only when a plan
+will be admitted as evidence for a model-tier qualification decision:
+
+```yaml
+qualification_plan_contract: true
+qualification_plan:
+  record_path: docs/plans/<name>-qualification-plan.json
+  record_sha256: <sha256 of the strict JSON record>
+```
+
+The sidecar binds the exact plan and requirements-wide review by repo-relative
+path and SHA-256. The bound Markdown plan must declare the exact reviewed
+invariant IDs before any prose that follows:
+
+```yaml
+qualification_invariants:
+  - stable-invariant-id
+```
+
+The strict JSON record must contain that exact invariant set. Each nontrivial
+invariant must choose exactly one checkable path:
+
+- repository-specific guidance with a contained source path and hash, stable
+  anchor, mechanism or hazard, concrete executor action, and proof target; or
+- an uncertainty-driven raise from the target tier to a higher supported tier
+  with a specific reason.
+
+Acceptance-criterion restatements, generic warnings, worker selection, and
+stronger model names are not mechanism guidance. `document-review` owns
+plan-sufficiency judgment; `kbcheck manifest-contract` validates paths, hashes,
+structure, and review bindings. Do not create a DDR-specific planner.
+
 ## Verification
 
 | Need | Verification |
@@ -132,6 +166,8 @@ pre_slice_review:
   unresolved_p1: 0
   residual_findings: 0
   not_required_reason: <required when not-required>
+# Include qualification_plan_contract and qualification_plan only when this
+# plan itself will be admitted as model-tier qualification evidence.
 ```
 
 The manifest also records `done_check`, ordered slices, gate ledger,

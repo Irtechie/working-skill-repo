@@ -994,6 +994,9 @@ Useful subcommands:
   refusal, timeout evidence, browser batching, and pre-spawn GUI denial
 - `learning-adoption` - measured gate for promoting learning changes
 - `route-eval` - validate `evals/route-complexity/*` fixtures
+- `model-tier-eval --evidence <repo-relative.json>` - experimentally classify a
+  complete, trusted, redacted cohort against the frozen Medium policy; output
+  never promotes routing automatically
 - `skill-eval`, `skill-eval-claims`, `skill-eval-quality`,
   `skill-eval-regression` - prompt/trace/claim/quality eval surfaces
 - `eval-run-codex`, `eval-run-ghcp`, `eval-run-live-corpus`,

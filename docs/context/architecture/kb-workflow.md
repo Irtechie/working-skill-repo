@@ -291,6 +291,14 @@ tier records minimum execution capability (`small`, `medium`, `large`; legacy
 `tiny` maps to `small`). It never lowers the executable proof requirement and
 does not freeze a worker.
 
+Plans used as model-tier qualification evidence opt into a stricter sidecar
+record. The record binds the exact plan and requirements-wide review hashes and
+maps every nontrivial invariant to repository-specific mechanism or hazard
+guidance, executor action, and proof target, or to an explicit
+uncertainty-driven tier raise. `document-review` owns the sufficiency judgment,
+`kb-plan` emits the record, and `kbcheck manifest-contract` validates it.
+Ordinary plans remain outside this contract, and no DDR-specific planner exists.
+
 Plans contain tier, requirements, risk, and proof only. They never name a model,
 route alias, source preference, adapter, endpoint, or transport. The
 orchestrator owns planning, minimum-tier judgment, selection, supervision,

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"id": "complete-medium-cohort", "mutation": "none", "expected_decision": "qualified", "expected_error": false},
+    {"id": "proof-model-failure", "mutation": "proof-failure", "expected_decision": "not-qualified", "expected_error": false},
+    {"id": "output-schema-model-failure", "mutation": "output-schema-failure", "expected_decision": "not-qualified", "expected_error": false},
+    {"id": "underpowered-cohort", "mutation": "underpowered", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "four-families", "mutation": "four-families", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "missing-holdout", "mutation": "missing-holdout", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "family-concentration", "mutation": "family-concentration", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "correlated-families", "mutation": "correlated-families", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "stale-fingerprint", "mutation": "stale-fingerprint", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "unsupported-trust", "mutation": "unsupported-trust", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "forged-provenance", "mutation": "forged-provenance", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "unobservable-provider-expired", "mutation": "unobservable-expired", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "plan-exclusion", "mutation": "exclude-plan", "expected_decision": "inconclusive", "expected_exclusion": "plan-insufficient", "expected_error": false},
+    {"id": "oracle-exclusion", "mutation": "exclude-oracle", "expected_decision": "inconclusive", "expected_exclusion": "oracle-invalid", "expected_error": false},
+    {"id": "preflight-exclusion", "mutation": "exclude-preflight", "expected_decision": "inconclusive", "expected_exclusion": "preflight-schema", "expected_error": false},
+    {"id": "route-exclusion", "mutation": "exclude-route", "expected_decision": "inconclusive", "expected_exclusion": "route-infrastructure-not-run", "expected_error": false},
+    {"id": "no-response-exclusion", "mutation": "exclude-no-response", "expected_decision": "inconclusive", "expected_exclusion": "execution-failed-no-response", "expected_error": false},
+    {"id": "indeterminate-exclusion", "mutation": "exclude-indeterminate", "expected_decision": "inconclusive", "expected_exclusion": "execution-indeterminate", "expected_error": false},
+    {"id": "proof-infrastructure-exclusion", "mutation": "exclude-proof", "expected_decision": "inconclusive", "expected_exclusion": "proof-infrastructure", "expected_error": false},
+    {"id": "omitted-attempt-is-fatal", "mutation": "omitted-attempt", "expected_error": true},
+    {"id": "omitted-attempt-and-ledger-is-fatal", "mutation": "omitted-attempt-and-ledger", "expected_error": true},
+    {"id": "replayed-attempt-is-fatal", "mutation": "replayed-attempt", "expected_error": true},
+    {"id": "unknown-field-is-fatal", "mutation": "unknown-field", "expected_error": true},
+    {"id": "mixed-fingerprint-is-fatal", "mutation": "mixed-fingerprint", "expected_error": true},
+    {"id": "artifact-hash-mismatch-is-fatal", "mutation": "artifact-hash-mismatch", "expected_error": true},
+    {"id": "cohort-manifest-hash-mismatch-is-fatal", "mutation": "cohort-manifest-hash-mismatch", "expected_error": true},
+    {"id": "unsupported-target-is-fatal", "mutation": "unsupported-target", "expected_error": true},
+    {"id": "sensitive-value-is-fatal", "mutation": "sensitive-value", "expected_error": true}
+  ]
+}
