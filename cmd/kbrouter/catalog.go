@@ -152,16 +152,17 @@ type doctorDimension struct {
 }
 
 type doctorOutput struct {
-	Discovery         doctorDimension `json:"discovery"`
-	Configured        doctorDimension `json:"configured"`
-	ProjectSelectable doctorDimension `json:"project_selectable"`
-	Selectable        doctorDimension `json:"selectable"`
-	Auth              doctorDimension `json:"auth"`
-	Reachability      doctorDimension `json:"reachability"`
-	ModelPresence     doctorDimension `json:"model_presence"`
-	Dispatch          doctorDimension `json:"dispatch"`
-	DispatchProven    doctorDimension `json:"dispatch_proven"`
-	Control           doctorDimension `json:"control"`
+	ApprovalMode      modelrouting.ApprovalMode `json:"approval_mode"`
+	Discovery         doctorDimension           `json:"discovery"`
+	Configured        doctorDimension           `json:"configured"`
+	ProjectSelectable doctorDimension           `json:"project_selectable"`
+	Selectable        doctorDimension           `json:"selectable"`
+	Auth              doctorDimension           `json:"auth"`
+	Reachability      doctorDimension           `json:"reachability"`
+	ModelPresence     doctorDimension           `json:"model_presence"`
+	Dispatch          doctorDimension           `json:"dispatch"`
+	DispatchProven    doctorDimension           `json:"dispatch_proven"`
+	Control           doctorDimension           `json:"control"`
 }
 
 type runRootMarker struct {
@@ -1363,6 +1364,7 @@ func doctorReport(userRoot, projectRoot string, probe bool) (doctorOutput, error
 		}
 	}
 	return doctorOutput{
+		ApprovalMode:      modelrouting.EffectiveApprovalMode(catalog.ApprovalMode),
 		Discovery:         doctorDimension{Status: discoveryStatus, Message: discoveryMessage},
 		Configured:        doctorDimension{Status: configStatus, Count: len(catalog.Routes)},
 		ProjectSelectable: doctorDimension{Status: statusForCount(projectSelectable), Count: projectSelectable},
@@ -1567,6 +1569,7 @@ func policyContextForProject(userRoot, projectRoot string) (modelrouting.PolicyC
 			AllowedAliases: projectPolicy.AllowedAliases,
 			MaxRetention:   modelrouting.RetentionLimited,
 		},
+		ApprovalMode: modelrouting.EffectiveApprovalMode(userCatalog.ApprovalMode),
 		Trusted:      trustForProject(trustFile, projectID),
 		RouteSources: routeSources,
 	}, nil
@@ -1752,6 +1755,9 @@ func routeProjectSelectable(route modelrouting.Route, policy modelrouting.Policy
 			return false
 		}
 	}
+	if !modelrouting.ApprovalRequired(policy) {
+		return true
+	}
 	for _, approval := range policy.Trusted.RouteApprovals {
 		if approval.ProjectID == policy.Project.ProjectID && approval.RouteFingerprint == fingerprint && now.Before(approval.ExpiresAt) {
 			return true
@@ -1761,6 +1767,9 @@ func routeProjectSelectable(route modelrouting.Route, policy modelrouting.Policy
 }
 
 func routeAuthApproved(route modelrouting.Route, policy modelrouting.PolicyContext, now time.Time) bool {
+	if !modelrouting.ApprovalRequired(policy) {
+		return true
+	}
 	if route.AuthEnv == "" {
 		return true
 	}

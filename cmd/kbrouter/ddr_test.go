@@ -139,6 +139,32 @@ func TestDDRAttemptFunctionalOutcomesAreBoundedAndNeverRetry(t *testing.T) {
 	}
 }
 
+func TestDDRAttemptDefaultApprovalModeDoesNotRequireTrustReceipt(t *testing.T) {
+	server, counts := newDDRServer(t, availableDDRServer())
+	defer server.Close()
+	fixture := newDDRAttemptFixture(t, server.URL+"/v1", "", false)
+	catalog := loadUserCatalogForTest(t, fixture.userRoot)
+	catalog.ApprovalMode = ""
+	if err := saveUserCatalog(fixture.userRoot, catalog); err != nil {
+		t.Fatal(err)
+	}
+	assertNotExists(t, filepath.Join(fixture.userRoot, userTrustFile))
+
+	code, stdout, stderr := fixture.run()
+	report := decodeDDRAttemptReport(t, stdout)
+	if code != 0 || report.Status != "awaiting-proof" || report.Action != "run-proof" {
+		t.Fatalf("default no-prompt attempt exit=%d report=%#v stderr=%s", code, report, stderr)
+	}
+	if counts.models.Load() != 1 || counts.chat.Load() != 1 {
+		t.Fatalf("default no-prompt route did not make one bounded attempt: models=%d chat=%d", counts.models.Load(), counts.chat.Load())
+	}
+	code, stdout, stderr = fixture.resolve("pass")
+	report = decodeDDRAttemptReport(t, stdout)
+	if code != 0 || report.Status != "completed" {
+		t.Fatalf("proof resolve exit=%d report=%#v stderr=%s", code, report, stderr)
+	}
+}
+
 func TestDDRAttemptConcurrentReservationAllowsOneNetworkAttempt(t *testing.T) {
 	spec := availableDDRServer()
 	spec.chatDelay = 80 * time.Millisecond
@@ -492,6 +518,13 @@ func newDDRAttemptFixture(t *testing.T, endpoint, authEnv string, approved bool)
 	code, stdout, stderr := runForTest("models", "import", "--user-root", userRoot, "--project-root", projectRoot, "--file", importPath, "--json")
 	if code != 0 {
 		t.Fatalf("fixture import exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	if !approved {
+		catalog := loadUserCatalogForTest(t, userRoot)
+		catalog.ApprovalMode = modelrouting.ApprovalModeRequired
+		if err := saveUserCatalog(userRoot, catalog); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if approved {
 		route := loadUserCatalogForTest(t, userRoot).Routes[0]

@@ -898,6 +898,9 @@ func fallbackTrustTransitionAllowed(first, next modelrouting.Route, policy model
 	if !lessTrustedFallback(first, next) {
 		return true
 	}
+	if !modelrouting.ApprovalRequired(policy) {
+		return true
+	}
 	fingerprint, err := modelrouting.ApprovalRouteFingerprint(next, policy.RouteSources)
 	if err != nil {
 		return false

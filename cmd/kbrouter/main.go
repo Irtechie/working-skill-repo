@@ -26,6 +26,7 @@ Usage:
   kbrouter models select --run-root <path> --run-id <id> --tier <small|medium|large> [--attempt-tier <small|medium>] --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] [--json]
   kbrouter models priority --project-root <path> (--mode automatic|self-hosted-first|native-first | --clear | --reset) [--json]
   kbrouter models local-routing --enabled true|false [--json]
+  kbrouter models approval-mode --mode disabled|required [--json]
   kbrouter models import --file <path> [--project-root <path>] [--json]
   kbrouter models add --scope user|project [options]
   kbrouter models remove --scope user|project --alias <alias>
@@ -186,6 +187,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runModelsPriority(args[2:], stdout, stderr)
 	case "local-routing":
 		return runModelsLocalRouting(args[2:], stdout, stderr)
+	case "approval-mode":
+		return runModelsApprovalMode(args[2:], stdout, stderr)
 	case "import":
 		return runModelsImport(args[2:], stdout, stderr)
 	case "add":
@@ -251,6 +254,36 @@ func runModelsLocalRouting(args []string, stdout, stderr io.Writer) int {
 	}, opts.json, nil)
 }
 
+func runModelsApprovalMode(args []string, stdout, stderr io.Writer) int {
+	fs := flagSet("models approval-mode")
+	opts := commonOptions{}
+	opts.bind(fs)
+	var value string
+	fs.StringVar(&value, "mode", "", "disabled for no-prompt routing or required for attended endpoint/auth approval")
+	if err := fs.Parse(args); err != nil {
+		return flagError(stderr, err)
+	}
+	if customUserRootRejected(fs) {
+		fmt.Fprintln(stderr, "approval mode uses the fixed user-local root; custom --user-root is test-only")
+		return 2
+	}
+	mode := modelrouting.ApprovalMode(strings.ToLower(strings.TrimSpace(value)))
+	if mode != modelrouting.ApprovalModeDisabled && mode != modelrouting.ApprovalModeRequired {
+		fmt.Fprintln(stderr, "approval-mode requires --mode disabled|required")
+		return 2
+	}
+	if err := mutateUserCatalog(opts.userRoot, func(catalog *modelrouting.Catalog) {
+		catalog.ApprovalMode = mode
+	}); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	return printResult(stdout, stderr, map[string]any{
+		"approval_mode": mode,
+		"path":          filepath.Join(opts.userRoot, userCatalogFile),
+	}, opts.json, nil)
+}
+
 func runModelsPriority(args []string, stdout, stderr io.Writer) int {
 	fs := flagSet("models priority")
 	opts := commonOptions{}
@@ -301,6 +334,7 @@ func runModelsShow(args []string, stdout, stderr io.Writer) int {
 	report := map[string]any{
 		"user_catalog":   redactCatalog(userCatalog),
 		"project_policy": projectPolicy,
+		"approval_mode":  modelrouting.EffectiveApprovalMode(userCatalog.ApprovalMode),
 		"errors":         compactErrors(userErr, projectErr),
 	}
 	return printResult(stdout, stderr, report, opts.json, userErr, projectErr)

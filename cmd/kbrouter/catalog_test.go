@@ -214,6 +214,72 @@ func TestModelsLocalRoutingTogglesWithoutDeletingRoutes(t *testing.T) {
 	}
 }
 
+func TestModelsApprovalModeDefaultsDisabledAndRequiredOptIn(t *testing.T) {
+	userRoot := t.TempDir()
+	code, stdout, stderr := runForTest(
+		"models", "add", "--user-root", userRoot, "--project-root", ".", "--scope", "user",
+		"--alias", "hosted.optional", "--model", "remote-model",
+		"--adapter", "openai-compatible", "--dispatch-method", "chat-completions",
+		"--destination", "hosted-optional", "--endpoint", "https://models.example.invalid/v1",
+		"--boundary", "hosted", "--retention", "session", "--training-use", "no",
+		"--residency", "declared", "--trust-provenance", "operator import", "--class", "small",
+	)
+	if code != 0 {
+		t.Fatalf("add hosted route exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	catalog := loadUserCatalogForTest(t, userRoot)
+	policy, err := policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy.ApprovalMode != modelrouting.ApprovalModeDisabled || !routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatalf("missing mode did not default to no-prompt routing: catalog=%#v policy=%#v", catalog, policy)
+	}
+	assertNotExists(t, filepath.Join(userRoot, userTrustFile))
+
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "required", "--json")
+	if code != 0 {
+		t.Fatalf("require approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	catalog = loadUserCatalogForTest(t, userRoot)
+	policy, err = policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog.ApprovalMode != modelrouting.ApprovalModeRequired || routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatalf("required mode did not enforce approval: catalog=%#v policy=%#v", catalog, policy)
+	}
+
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "disabled", "--json")
+	if code != 0 {
+		t.Fatalf("disable approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	policy, err = policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy.ApprovalMode != modelrouting.ApprovalModeDisabled || !routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatalf("disabled mode did not restore no-prompt routing: %#v", policy)
+	}
+
+	code, stdout, stderr = runForTest("models", "deny", "--user-root", userRoot, "--project-root", ".", "--alias", "hosted.optional", "--json")
+	if code != 0 {
+		t.Fatalf("deny exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	policy, err = policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatal("disabled approval mode bypassed an explicit route denial")
+	}
+
+	code, _, _ = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "sometimes")
+	if code != 2 || loadUserCatalogForTest(t, userRoot).ApprovalMode != modelrouting.ApprovalModeDisabled {
+		t.Fatal("invalid approval mode mutated the catalog")
+	}
+}
+
 func TestProjectPriorityIsUserLocalCanonicalAndQuickAddIsConservative(t *testing.T) {
 	root := t.TempDir()
 	userRoot := filepath.Join(root, "user")
@@ -649,7 +715,7 @@ func TestTrustIsSeparateExplicitProjectBoundAndRevocable(t *testing.T) {
 	}
 }
 
-func TestHostedExtraRouteRequiresExplicitProjectApproval(t *testing.T) {
+func TestHostedExtraRouteRequiresExplicitProjectApprovalWhenEnabled(t *testing.T) {
 	userRoot := t.TempDir()
 	code, stdout, stderr := runForTest(
 		"models", "add", "--user-root", userRoot, "--project-root", ".", "--scope", "user",
@@ -661,6 +727,10 @@ func TestHostedExtraRouteRequiresExplicitProjectApproval(t *testing.T) {
 	)
 	if code != 0 {
 		t.Fatalf("add hosted route exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "required", "--json")
+	if code != 0 {
+		t.Fatalf("require approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
 	}
 	policy, err := policyContextForProject(userRoot, ".")
 	if err != nil {
@@ -945,6 +1015,10 @@ func TestCatalogDoesNotMintTrustOrSendCatalogNamedSecret(t *testing.T) {
 		"--residency", "local", "--trust-provenance", "unapproved fixture", "--class", "medium")
 	if code != 0 {
 		t.Fatalf("store unapproved route exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "required", "--json")
+	if code != 0 {
+		t.Fatalf("require approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
 	}
 	assertNotExists(t, filepath.Join(userRoot, userTrustFile))
 

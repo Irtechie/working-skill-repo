@@ -317,8 +317,10 @@ KB separates three decisions that agents often blur together:
 
 ### Difficulty-Driven Routing (DDR)
 
-DDR is the decision pattern; `kbrouter ddr attempt` reserves and runs the one
-bounded local attempt for an already configured and approved user-local route.
+DDR is the decision pattern; `kbrouter ddr attempt` reserves and runs one
+bounded local attempt for an eligible configured user-local route. Attended
+endpoint/auth approval is required only when the user opts into `required`
+approval mode.
 On a returned result, the parent runs deterministic proof and records the
 verdict with `kbrouter ddr resolve`. Planning records required capability and
 proof; execution records `current` or `delegated` ownership and chooses from
@@ -366,13 +368,17 @@ as `automatic`, `self-hosted-first`, or `native-first`. Credentials and private
 endpoints never enter plans or shared skills.
 
 Local route setup is explicit. Copy the placeholder, fill an ignored local
-file, import it into canonical user-local state, approve it separately when
-private, then let work-time routing decide whether it is eligible. See
+file, import it into canonical user-local state, choose no-prompt routing
+(`disabled`, the default) or opt into attended approval (`required`), then let
+work-time routing decide whether it is eligible. See
 [LOCAL_MODELS.example.md](LOCAL_MODELS.example.md) for the full contract.
 
 ```powershell
 Copy-Item config\kbrouter-routes.example.json kbrouter-routes.local.json
 kbrouter models import --file kbrouter-routes.local.json
+kbrouter models approval-mode --mode disabled  # bounded loops need no permission prompt
+# Optional attended boundary:
+kbrouter models approval-mode --mode required
 kbrouter models approve --alias <filled-alias> --project-root <project-root>
 kbrouter models doctor --project-root <project-root>
 kbrouter models priority --project-root <project-root> --mode self-hosted-first

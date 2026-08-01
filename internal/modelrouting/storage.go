@@ -522,6 +522,9 @@ func ValidateCatalogStatic(catalog Catalog, source CatalogSource) error {
 	if catalog.SchemaVersion != CatalogSchemaVersion {
 		return fmt.Errorf("%w: unsupported schema version", ErrInvalidCatalog)
 	}
+	if !ValidApprovalMode(catalog.ApprovalMode) || (source != CatalogSourceUser && catalog.ApprovalMode != "") {
+		return fmt.Errorf("%w: invalid approval mode", ErrInvalidCatalog)
+	}
 	if source == CatalogSourceRun && catalog.Fingerprint == "" {
 		return fmt.Errorf("%w: run catalog fingerprint is required", ErrInvalidCatalog)
 	}

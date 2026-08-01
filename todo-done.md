@@ -4,6 +4,15 @@
 
 ## 2026-07-31
 
+- Optional kbrouter route approval - made missing/`disabled` approval mode the
+  no-prompt default for bounded routing while preserving attended
+  project/fingerprint/endpoint/auth approval as explicit `required` opt-in.
+  Unknown modes fail closed; explicit denials, endpoint safety, data policy,
+  one-attempt DDR, and deterministic proof remain enforced. Installed the final
+  router with `deepseek-local` selectable without `trust.json`, synchronized
+  `kb-models` across Codex/Copilot/shared-agent globals, passed core 39/39 and
+  post-sync `local-release`, and closed one security-review P2 on unknown modes.
+
 - `kbrouter` protected-DACL catalog repair - accepted Windows' harmless `AI`
   DACL control metadata while retaining exact current-user/SYSTEM ownership and
   ACE checks; proved that the 103-byte disabled schema-v1 catalog with

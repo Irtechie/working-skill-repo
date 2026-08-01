@@ -100,15 +100,25 @@ kbrouter models add --scope user `
 Store only the environment-variable name in route configuration. Never put a
 token value in this file, a command, a plan, a handoff, or Git.
 
-## Approve And Check
+## Choose Approval Mode And Check
 
-Private endpoints require an attended approval tied to the canonical project
-path. The user must run and confirm this command in their own interactive
-console:
+Bounded local routing defaults to no approval prompt. Persist that preference
+explicitly with:
 
 ```powershell
+kbrouter models approval-mode --mode disabled
+```
+
+Users who want a project-bound endpoint/auth gate can opt in:
+
+```powershell
+kbrouter models approval-mode --mode required
 kbrouter models approve --alias <alias> --project-root <project-root>
 ```
+
+Only `models approve` is attended. Disabling approval does not disable explicit
+route denials, endpoint safety checks, data policy, bounded-attempt receipts, or
+deterministic proof.
 
 Inspect configuration without contacting the endpoint:
 
