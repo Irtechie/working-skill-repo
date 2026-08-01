@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -864,7 +865,7 @@ func runProcessCheck(root string, check Check) CheckResult {
 		result.Stderr = appendCheckDiagnostic(result.Stderr, fmt.Sprintf("check timed out after %s", timeout))
 		return result
 	}
-	if exitReason == "overflow" || stdout.truncated || stderr.truncated {
+	if exitReason == "overflow" || stdout.Truncated() || stderr.Truncated() {
 		result.ExitCode = 125
 		result.Stderr = appendCheckDiagnostic(result.Stderr, fmt.Sprintf("check output exceeded %d bytes", maxProcessCheckOutputBytes))
 		return result
@@ -883,6 +884,7 @@ func runProcessCheck(root string, check Check) CheckResult {
 }
 
 type cappedCheckBuffer struct {
+	mu        sync.Mutex
 	data      []byte
 	truncated bool
 	overflow  chan<- struct{}
@@ -893,6 +895,8 @@ func newCappedCheckBuffer(overflow chan<- struct{}) cappedCheckBuffer {
 }
 
 func (buffer *cappedCheckBuffer) Write(content []byte) (int, error) {
+	buffer.mu.Lock()
+	defer buffer.mu.Unlock()
 	remaining := maxProcessCheckOutputBytes - len(buffer.data)
 	if remaining > 0 {
 		copyBytes := len(content)
@@ -911,7 +915,17 @@ func (buffer *cappedCheckBuffer) Write(content []byte) (int, error) {
 	return len(content), nil
 }
 
-func (buffer *cappedCheckBuffer) String() string { return string(buffer.data) }
+func (buffer *cappedCheckBuffer) String() string {
+	buffer.mu.Lock()
+	defer buffer.mu.Unlock()
+	return string(buffer.data)
+}
+
+func (buffer *cappedCheckBuffer) Truncated() bool {
+	buffer.mu.Lock()
+	defer buffer.mu.Unlock()
+	return buffer.truncated
+}
 
 func appendCheckDiagnostic(existing, diagnostic string) string {
 	if strings.TrimSpace(existing) == "" {

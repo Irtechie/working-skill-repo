@@ -72,8 +72,6 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
-| Authenticated private-LAN transport consistency | ✅ done | P0 | Shared endpoint validation rejects configured credentials on non-loopback HTTP; import, doctor, selection, and DDR now fail closed consistently before network I/O; authenticated private-LAN routes require HTTPS |
-| Windows `kbcheck` child-process containment | 🔧 in_progress | P0 | Isolate child-process-owning `cmd/kbcheck` package analogously to existing `cmd/kbrouter` isolation and prove `core --verbose` advances through `go-test` |
 | Deepseek4 DDR evaluation rerun | ⬜ pending | P0 | Session `df9c6b72-4785-40db-a649-81f41febf905`; installed kbrouter now reports `approval_mode=disabled`, local routing enabled, and configured `deepseek-local` project-selectable without `trust.json`. Resume the bounded rerun in its owning session; deterministic proof remains required. |
 | Bounded graph-run provenance | 🔧 in_progress | P0 | Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md`; next: `kb-work` |
 | DDR planning validation and model tier classifier | 🔒 blocked | P0 | Portable classifier and both slices are complete; final `local-release` is blocked by the existing Windows nested `cmd/kbrouter` `.cmd` execution failure. Recheck after harness-validation recovery. Epic: `docs/context/epics/ddr-planning-validation.md`; manifest: `docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md`; TokenZoom DS4 evidence runs separately |

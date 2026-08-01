@@ -481,7 +481,7 @@ func runModelRoutingProductionProof(ctx context.Context, root string, command []
 	if exitReason == "timeout" {
 		return modelRoutingProofResult{ExitCode: 1, Output: output, Err: ctx.Err()}
 	}
-	if exitReason == "overflow" || stdout.truncated || stderr.truncated {
+	if exitReason == "overflow" || stdout.Truncated() || stderr.Truncated() {
 		return modelRoutingProofResult{ExitCode: 1, Output: output, Err: fmt.Errorf("proof output exceeded %d bytes", maxProcessCheckOutputBytes), Truncated: true}
 	}
 	exitCode := 0
