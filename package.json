@@ -27,7 +27,10 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test ./bin/*.test.mjs",
+    "test": "node --test ./bin/*.test.mjs && npm test --prefix ./packages/universal-ui-skills-contribution",
+    "test:universal-ui-skills": "npm test --prefix ./packages/universal-ui-skills-contribution",
+    "pack:universal-ui-skills": "npm run pack:release --prefix ./packages/universal-ui-skills-contribution",
+    "verify:universal-ui-contract": "npm run contract:verify --prefix ./packages/universal-ui-skills-contribution",
     "wiki:build": "node ./bin/kb-learning-wiki.mjs",
     "test:install:core": "node ./bin/kb-install.mjs --target all --profile core --install-root ./.tmp/node-install-core --router skip --yes",
     "test:install:full": "node ./bin/kb-install.mjs --target all --profile full --install-root ./.tmp/node-install-full --router skip --yes"

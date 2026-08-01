@@ -898,6 +898,9 @@ func fallbackTrustTransitionAllowed(first, next modelrouting.Route, policy model
 	if !lessTrustedFallback(first, next) {
 		return true
 	}
+	if !modelrouting.ApprovalRequired(policy) {
+		return true
+	}
 	fingerprint, err := modelrouting.ApprovalRouteFingerprint(next, policy.RouteSources)
 	if err != nil {
 		return false
@@ -1039,10 +1042,11 @@ func runWorkerProcess(execPath string, req modelrouting.DispatchRequest, stdin [
 	ctx, cancel := context.WithTimeout(context.Background(), req.Timeout)
 	defer cancel()
 	args := codexExecArgs(req)
-	cmd := exec.CommandContext(ctx, execPath, args...)
+	cmd := workerCommand(ctx, execPath, args)
 	if err := configureProcessTree(cmd); err != nil {
 		return processResult{exitCode: -1, notStarted: true, err: err}
 	}
+
 	cmd.Dir = req.CWD
 	cmd.Stdin = bytes.NewReader(stdin)
 	cmd.Env = minimalDispatchEnv(codexHome, routeAuthEnv)
@@ -1096,6 +1100,20 @@ func runWorkerProcess(execPath string, req modelrouting.DispatchRequest, stdin [
 		return result
 	}
 	return result
+}
+
+func workerCommand(ctx context.Context, execPath string, args []string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		ext := strings.ToLower(filepath.Ext(execPath))
+		if ext == ".cmd" || ext == ".bat" {
+			commandShell := os.Getenv("ComSpec")
+			if commandShell == "" {
+				commandShell = "cmd.exe"
+			}
+			return exec.CommandContext(ctx, commandShell, append([]string{"/d", "/c", execPath}, args...)...)
+		}
+	}
+	return exec.CommandContext(ctx, execPath, args...)
 }
 
 func codexExecArgs(req modelrouting.DispatchRequest) []string {

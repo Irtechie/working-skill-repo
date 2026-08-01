@@ -1,0 +1,24 @@
+{
+  "max_skill_lines": 500,
+  "max_hot_path_lines": 450,
+  "hot_path": [
+    "kb-start",
+    "kb-map",
+    "kb-brainstorm",
+    "kb-plan",
+    "kb-work",
+    "kb-complete",
+    "kb-finalize",
+    "kb-review",
+    "kb-check",
+    "kb-goal",
+    "kb-qa"
+  ],
+  "deprecated_skills": [
+    "ce-review",
+    "kb-finish",
+    "klfg"
+  ],
+  "audit_path": "config/skill-guidance-audit.json",
+  "removed_skill_inventory_path": "config/removed-skills.json"
+}

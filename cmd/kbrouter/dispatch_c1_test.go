@@ -318,7 +318,10 @@ func TestC1FallbackTrustTransitionRequiresApproval(t *testing.T) {
 	next := base
 	next.Alias, next.DisplayModelID = "next", "next"
 	next.Capability.RouteAlias, next.Capability.ModelID = next.Alias, next.DisplayModelID
-	policy := modelrouting.PolicyContext{Project: modelrouting.ProjectPolicy{ProjectID: "project-a"}}
+	policy := modelrouting.PolicyContext{
+		Project:      modelrouting.ProjectPolicy{ProjectID: "project-a"},
+		ApprovalMode: modelrouting.ApprovalModeRequired,
+	}
 
 	cases := []struct {
 		name  string

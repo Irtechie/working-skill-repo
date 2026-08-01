@@ -5,7 +5,7 @@
   "repo_state": "Clear bounded feature, no manifest yet, behavior touches UI and command handling.",
   "expected": {
     "route": "kb-plan",
-    "complexity_tier": "standard",
+    "complexity_tier": "medium",
     "max_user_questions": 1,
     "artifacts": ["requirements assumptions if needed", "KB manifest", "slice plans"],
     "proof": ["manifest before kb-work", "functional-browser or functional-cli proof after execution"]

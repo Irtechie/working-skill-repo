@@ -71,19 +71,10 @@ func runWorkflowGovernorSelftest(root string, stdout, stderr io.Writer) int {
 			},
 		},
 		{
-			Path: ".github/skills/klfg/SKILL.md",
-			Needles: []string{
-				"Deprecated compatibility alias for kb-complete.",
-				"The strict brainstorm/plan/work/finalize gates remain enforced by their owning",
-				"`kb-complete` now orchestrates those phases and applies project delivery",
-				"Do not duplicate phase execution.",
-			},
-		},
-		{
 			Path: ".github/skills/kb-finalize/SKILL.md",
 			Needles: []string{
-				"do not leave known, fixable follow-up work unresolved",
-				"write `complete-to-ship` in the manifest `gate_ledger`",
+				"follow-up-resolution: resolved N, logged M, blocked K",
+				"Write `complete-to-ship`",
 				"status: reviewed",
 			},
 		},
@@ -91,7 +82,7 @@ func runWorkflowGovernorSelftest(root string, stdout, stderr io.Writer) int {
 			Path: ".github/skills/kb-goal/SKILL.md",
 			Needles: []string{
 				"Own the durable objective, not the implementation lane.",
-				"`klfg` is one strict pipeline run. `kb-goal` may run many pipeline runs.",
+				"`kb-complete` is one state-aware completion run.",
 				"Inside a goal, brainstorming should minimize human stops.",
 				"Ask the user only for `ask-now` blockers",
 				"## Stop Protocol",

@@ -62,6 +62,7 @@ Usage:
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
   kbcheck skill-lint [--root <path>] [--config <path>] [--json]
+  kbcheck skill-guidance [--root <path>] [--config <path>]
   kbcheck skill-sync-report [--root <path>] [--config <path>] [--json] [--verbose-optional]
   kbcheck doctor [--root <path>] [--config <path>] [--fix] [--json]
   kbcheck doctor-selftest [--root <path>]
@@ -326,6 +327,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runScopeLeaseSelftest(stdout, stderr)
 	case "skill-lint":
 		return runSkillLintCommand(root, opts, stdout, stderr)
+	case "skill-guidance":
+		return runSkillGuidanceCommand(root, opts, stdout, stderr)
 	case "skill-sync-report":
 		return runSkillSyncReportCommand(root, opts, stdout, stderr)
 	case "doctor":
@@ -407,7 +410,7 @@ func parse(args []string) (options, error) {
 		"model-tier-eval": true, "model-routing-release": true,
 		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
-		"skill-lint": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
+		"skill-lint": true, "skill-guidance": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
 		"marketplace-promote": true, "marketplace-promote-selftest": true,
 		"benchmark-validate": true, "route-eval": true, "dishonest-completion-selftest": true, "review-reference-guard": true, "release-selftest": true, "workflow-governor-selftest": true,
@@ -540,7 +543,7 @@ func parse(args []string) (options, error) {
 	if opts.command != "scope-lease" && opts.ledger != "" {
 		return options{}, fmt.Errorf("--ledger is only supported for scope-lease")
 	}
-	if opts.config != "" && opts.command != "skill-lint" && opts.command != "skill-sync-report" && opts.command != "marketplace-firebreak" && opts.command != "marketplace-firebreak-selftest" && opts.command != "marketplace-promote" && opts.command != "review-reference-guard" {
+	if opts.config != "" && opts.command != "skill-lint" && opts.command != "skill-guidance" && opts.command != "skill-sync-report" && opts.command != "marketplace-firebreak" && opts.command != "marketplace-firebreak-selftest" && opts.command != "marketplace-promote" && opts.command != "review-reference-guard" {
 		return options{}, fmt.Errorf("--config is only supported for native validator commands")
 	}
 	if opts.verboseOptional && opts.command != "skill-sync-report" {

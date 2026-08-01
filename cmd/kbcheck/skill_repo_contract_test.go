@@ -16,6 +16,7 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DiscoverChecks returned error: %v", err)
 	}
+
 	got := checkNames(checks)
 	want := []string{
 		"context-packet-selftest",
@@ -47,6 +48,68 @@ func TestSkillRepoContractForNativeCheckNames(t *testing.T) {
 	for _, name := range want {
 		if !contains(got, name) {
 			t.Fatalf("checks=%v missing %s", got, name)
+		}
+	}
+}
+
+func TestWebUIProofRemainsAgentOwned(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]string{
+		".github/skills/kb-qa/SKILL.md": {
+			"default for local/public UI functional checks",
+			"Do not ask the user whether to run browser proof",
+			"Run browser proof headless automatically unless the user explicitly requests",
+			"record one proof receipt containing the route",
+			"do not report partial completion",
+			"automation gap into manual verification",
+		},
+		".github/skills/kb-functional-test/SKILL.md": {
+			"Do not ask the user whether to run browser proof",
+			"Run browser proof headless automatically unless the user explicitly requests",
+			"A web UI check is not complete until its receipt names the route",
+			"evidence is agent-owned test work",
+		},
+	}
+	for relative, phrases := range required {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, phrase := range phrases {
+			if !strings.Contains(string(content), phrase) {
+				t.Errorf("%s missing web UI proof contract %q", relative, phrase)
+			}
+		}
+	}
+}
+
+func TestPlanRunWorktreeAndBranchShareFunnyTaskName(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := map[string][]string{
+		".github/skills/kb-work/SKILL.md": {
+			"Use the same codename for the worktree directory and plan-run branch",
+			"must relate recognizably to the task",
+		},
+		".github/skills/kb-work/references/worktree-isolation.md": {
+			"Branch and worktree basename must share that exact codename",
+			"`codex/the-reviewers-have-unionized`",
+		},
+	}
+	for relative, phrases := range required {
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, phrase := range phrases {
+			if !strings.Contains(string(content), phrase) {
+				t.Errorf("%s missing worktree naming contract %q", relative, phrase)
+			}
 		}
 	}
 }
@@ -181,7 +244,8 @@ func TestPlanWideSpecialistReviewContract(t *testing.T) {
 	required := map[string][]string{
 		".github/skills/kb-plan/SKILL.md": {
 			"document-review mode:headless",
-			"Do not invoke `document-review` for a small, mechanically constrained, low-risk source",
+			"perform the main-agent requirements check",
+			"selects exactly one best-fit reviewer",
 			"pre_slice_review_contract: true",
 			"pre_slice_review",
 			"source_sha256",
@@ -190,14 +254,16 @@ func TestPlanWideSpecialistReviewContract(t *testing.T) {
 			"not_required_reason",
 		},
 		".github/skills/document-review/SKILL.md": {
-			"requirements-wide review belongs before `kb-plan` decomposes the source into slices",
-			"never dispatch one document-review persona per slice",
+			"optional uncertainty reducer",
+			"Never run always-on reviewers and never stack personas",
+			"Never review one slice at a time",
 			"`spec-flow-analyzer`",
-			"reviewers are analysis-only",
+			"The reviewer is read-only",
 			"docs/results/document-reviews/",
 		},
 		".github/skills/kb-brainstorm/SKILL.md": {
-			"run reviewers only when their findings could materially change",
+			"First perform the requirements self-check",
+			"selects exactly one best-fit reviewer",
 			"document-review mode:headless",
 			"source SHA-256 still matches",
 			"do not dispatch placeholder personas",

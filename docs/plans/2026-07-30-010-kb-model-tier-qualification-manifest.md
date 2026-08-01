@@ -59,7 +59,7 @@ gate_ledger:
     status: passed
     required_evidence:
       - "The requirements define model, plan, oracle, schema, route, and infrastructure attribution."
-      - "The Medium capability and 30-fixture threshold were frozen independently of Deepseek4 outcomes."
+      - "The Medium capability and 30-fixture threshold were frozen independently of candidate-route outcomes."
       - "Question Gate classification exists with no unresolved ask-now or research-first item."
       - "The requirements-wide review receipt has no unresolved P0/P1 and no failed selected persona."
     proof:
@@ -228,6 +228,6 @@ eval fixtures, documentation, and required skill-copy propagation must agree.
 
 ## External Integration
 
-TokenZoom owns the Deepseek4 evidence export and bounded Medium decision. That
+The consuming project owns the candidate-route evidence export and bounded Medium decision. That
 integration is tracked by `docs/context/epics/ddr-planning-validation.md` and is
 not a blocker for the experimental portable scorer.

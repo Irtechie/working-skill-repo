@@ -170,8 +170,8 @@ func computeRouteEval(root, configPath string) (routeEvalResult, error) {
 			AllowedPlatforms []string `json:"allowed_platforms"`
 			AllowedRoutes    []string `json:"allowed_routes"`
 			Rubric           struct {
-				SmallMax    int `json:"small_max"`
-				StandardMax int `json:"standard_max"`
+				SmallMax  int `json:"small_max"`
+				MediumMax int `json:"medium_max"`
 			} `json:"rubric"`
 		} `json:"route_complexity"`
 	}
@@ -231,8 +231,8 @@ func computeRouteEval(root, configPath string) (routeEvalResult, error) {
 			tier := "large"
 			if score <= raw.RouteComplexity.Rubric.SmallMax {
 				tier = "small"
-			} else if score <= raw.RouteComplexity.Rubric.StandardMax {
-				tier = "standard"
+			} else if score <= raw.RouteComplexity.Rubric.MediumMax {
+				tier = "medium"
 			}
 			if tier != stringValue(expected["complexity_tier"]) {
 				result.Issues = append(result.Issues, simpleIssue{Fixture: name, Message: fmt.Sprintf("Expected tier '%s' but rubric computed '%s' (score %d).", stringValue(expected["complexity_tier"]), tier, score)})

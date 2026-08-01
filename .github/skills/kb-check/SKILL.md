@@ -102,9 +102,11 @@ another consumer may be active.
 
 A temporary target is allowed only in native mode after the native
 `register-temp` action creates an ownership marker under an approved temporary
-root for a documented technical incompatibility. Finalization owns deletion
-through the same native guard. Never delete or rotate the stable shared target
-as routine KB cleanup.
+root for a documented technical incompatibility. Its basename must be
+`kb-cargo-temp-<24-lowercase-hex>` so phase, worker, slice, and run labels
+cannot masquerade as approved isolation. Finalization owns deletion through the
+same native guard. Never delete or rotate the stable shared target as routine
+KB cleanup.
 
 When the selected proof set contains no Cargo command and native `cmd/kbcheck`
 is present, create the machine-validated terminal state with

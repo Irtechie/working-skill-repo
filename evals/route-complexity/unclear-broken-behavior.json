@@ -5,7 +5,7 @@
   "repo_state": "Symptom is real but root cause is unknown; logs/browser/tests may be needed before editing.",
   "expected": {
     "route": "kb-troubleshoot",
-    "complexity_tier": "standard",
+    "complexity_tier": "medium",
     "max_user_questions": 1,
     "artifacts": ["reproduction evidence", "root cause note", "verification proof"],
     "proof": ["repro fails before fix", "same path passes after fix"]

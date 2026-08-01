@@ -28,7 +28,7 @@
       "prompt": "The UI sometimes loses state after navigation. Figure out what is happening.",
       "expected": {
         "route": "kb-troubleshoot",
-        "complexity": "standard",
+        "complexity": "medium",
         "must_include": ["reproduce", "inspect logs or browser behavior", "fix after evidence"]
       },
       "forbidden_failures": [

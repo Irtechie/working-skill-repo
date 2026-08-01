@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -44,6 +45,8 @@ func TestModelTierEvalDeterministicCorpus(t *testing.T) {
 			root := t.TempDir()
 			evidence := validModelTierEvalEvidence()
 			applyModelTierEvalMutation(t, evidence, fixture.Mutation)
+			materializeModelTierEvalArtifacts(t, root, evidence)
+			applyModelTierEvalPostMaterializationMutation(t, evidence, fixture.Mutation)
 			path := filepath.Join(root, "evidence.json")
 			writeJSONFixture(t, path, evidence)
 			var stdout, stderr strings.Builder
@@ -79,7 +82,9 @@ func TestModelTierEvalDeterministicCorpus(t *testing.T) {
 
 func TestModelTierEvalTextOutputIsScoped(t *testing.T) {
 	root := t.TempDir()
-	writeJSONFixture(t, filepath.Join(root, "evidence.json"), validModelTierEvalEvidence())
+	evidence := validModelTierEvalEvidence()
+	materializeModelTierEvalArtifacts(t, root, evidence)
+	writeJSONFixture(t, filepath.Join(root, "evidence.json"), evidence)
 	var stdout, stderr strings.Builder
 	code := run([]string{"model-tier-eval", "--root", root, "--evidence", "evidence.json"}, &stdout, &stderr)
 	if code != 0 {
@@ -124,9 +129,8 @@ func validModelTierEvalEvidence() map[string]any {
 	families := []any{}
 	for index := 0; index < 5; index++ {
 		families = append(families, map[string]any{
-			"id":                 fmt.Sprintf("family-%d", index+1),
-			"holdout":            index == 4,
-			"authority_verified": true,
+			"id":      fmt.Sprintf("family-%d", index+1),
+			"holdout": index == 4,
 			"dimensions": map[string]any{
 				"task_structure":       fmt.Sprintf("structure-%d", index+1),
 				"repository_mechanism": fmt.Sprintf("mechanism-%d", index+1),
@@ -171,10 +175,22 @@ func validModelTierEvalEvidence() map[string]any {
 			"proof_bound":                  true,
 			"trust": map[string]any{
 				"plan":      "reproduced",
-				"route":     "signature-verified",
-				"execution": "signature-verified",
+				"route":     "reproduced",
+				"execution": "reproduced",
 				"oracle":    "reproduced",
 				"proof":     "reproduced",
+			},
+			"artifact_paths": map[string]any{
+				"cohort_manifest":      "",
+				"fixture":              "",
+				"frozen_plan":          "",
+				"request":              "",
+				"response":             "",
+				"plan_sufficiency":     "",
+				"executor_package":     "",
+				"route_execution":      "",
+				"oracle_qualification": "",
+				"proof_result":         "",
 			},
 			"artifact_hashes": map[string]any{
 				"cohort_manifest":      hashStringFixture("cohort"),
@@ -200,14 +216,16 @@ func validModelTierEvalEvidence() map[string]any {
 			"route_revision":        "route-config-1",
 		},
 		"cohort": map[string]any{
-			"id":                   "medium-cohort-1",
-			"manifest_sha256":      hashStringFixture("cohort"),
-			"preregistered_at":     "2026-06-01T00:00:00Z",
-			"first_attempt_at":     "2026-06-02T00:00:00Z",
-			"provenance_kind":      "signed-git-commit",
-			"provenance_verified":  true,
-			"expected_attempt_ids": expected,
-			"families":             families,
+			"id":                         "medium-cohort-1",
+			"manifest_path":              filepath.ToSlash(filepath.Join("artifacts", "cohort-manifest.json")),
+			"manifest_sha256":            hashStringFixture("cohort"),
+			"manifest_signer_id":         "model-tier-test",
+			"manifest_signature_ed25519": strings.Repeat("0", ed25519.SignatureSize*2),
+			"preregistered_at":           "2026-06-01T00:00:00Z",
+			"first_attempt_at":           "2026-06-02T00:00:00Z",
+			"provenance_kind":            "ed25519-signature",
+			"expected_attempt_ids":       expected,
+			"families":                   families,
 		},
 		"execution_fingerprint":                fingerprint,
 		"current_execution_fingerprint_sha256": fingerprintHash,
@@ -250,6 +268,7 @@ func applyModelTierEvalMutation(t *testing.T, evidence map[string]any, mutation 
 		refreshModelTierEvalFingerprint(evidence)
 	case "omitted-attempt":
 		evidence["attempts"] = attempts[:29]
+	case "omitted-attempt-and-ledger", "artifact-hash-mismatch", "cohort-manifest-hash-mismatch", "forged-provenance":
 	case "replayed-attempt":
 		evidence["attempts"] = append(attempts, attempts[0])
 	case "unknown-field":
@@ -284,6 +303,102 @@ func applyModelTierEvalMutation(t *testing.T, evidence map[string]any, mutation 
 	}
 }
 
+func applyModelTierEvalPostMaterializationMutation(t *testing.T, evidence map[string]any, mutation string) {
+	t.Helper()
+	switch mutation {
+	case "omitted-attempt-and-ledger":
+		attempts := evidence["attempts"].([]any)
+		evidence["attempts"] = attempts[:29]
+		cohort := evidence["cohort"].(map[string]any)
+		expected := cohort["expected_attempt_ids"].([]any)
+		cohort["expected_attempt_ids"] = expected[:29]
+	case "artifact-hash-mismatch":
+		attempt := evidence["attempts"].([]any)[0].(map[string]any)
+		attempt["artifact_hashes"].(map[string]any)["frozen_plan"] = strings.Repeat("0", 64)
+	case "cohort-manifest-hash-mismatch":
+		evidence["cohort"].(map[string]any)["manifest_sha256"] = strings.Repeat("0", 64)
+	case "forged-provenance":
+		evidence["cohort"].(map[string]any)["manifest_signature_ed25519"] = strings.Repeat("0", ed25519.SignatureSize*2)
+	}
+}
+
+func materializeModelTierEvalArtifacts(t *testing.T, root string, evidence map[string]any) {
+	t.Helper()
+	cohort := evidence["cohort"].(map[string]any)
+	fingerprintHash := hashJSONFixture(evidence["execution_fingerprint"])
+	manifest := map[string]any{
+		"schema_version":               1,
+		"id":                           cohort["id"],
+		"target_tier":                  evidence["target_tier"],
+		"threshold_revision":           evidence["threshold_revision"],
+		"scope":                        evidence["scope"],
+		"preregistered_at":             cohort["preregistered_at"],
+		"first_attempt_at":             cohort["first_attempt_at"],
+		"provenance_kind":              cohort["provenance_kind"],
+		"expected_attempt_ids":         cohort["expected_attempt_ids"],
+		"families":                     cohort["families"],
+		"execution_fingerprint_sha256": fingerprintHash,
+	}
+	manifestRelative := cohort["manifest_path"].(string)
+	manifestPath := filepath.Join(root, filepath.FromSlash(manifestRelative))
+	writeJSONFixture(t, manifestPath, manifest)
+	manifestContent, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read cohort manifest: %v", err)
+	}
+	manifestHash := hashBytesFixture(manifestContent)
+	cohort["manifest_sha256"] = manifestHash
+	privateKey := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{7}, ed25519.SeedSize))
+	publicKey := privateKey.Public().(ed25519.PublicKey)
+	cohort["manifest_signature_ed25519"] = hex.EncodeToString(ed25519.Sign(privateKey, manifestContent))
+	writeJSONFixture(t, filepath.Join(root, "config", "model-tier-trust.json"), map[string]any{
+		"schema_version": 1,
+		"signers": []any{map[string]any{
+			"id":                 cohort["manifest_signer_id"],
+			"public_key_ed25519": hex.EncodeToString(publicKey),
+		}},
+	})
+
+	for _, raw := range evidence["attempts"].([]any) {
+		attempt := raw.(map[string]any)
+		id := attempt["id"].(string)
+		base := filepath.ToSlash(filepath.Join("artifacts", id))
+		contents := map[string]string{
+			"fixture":              "fixture-" + id,
+			"frozen_plan":          "plan-" + id,
+			"request":              "request-" + id,
+			"response":             "response-" + id,
+			"plan_sufficiency":     "sufficiency-" + id,
+			"executor_package":     "executor",
+			"route_execution":      "route-" + id,
+			"oracle_qualification": "oracle",
+			"proof_result":         "proof-" + id,
+		}
+		paths := map[string]any{"cohort_manifest": manifestRelative}
+		hashes := map[string]any{"cohort_manifest": manifestHash}
+		for name, content := range contents {
+			relative := filepath.ToSlash(filepath.Join(base, name+".txt"))
+			path := filepath.Join(root, filepath.FromSlash(relative))
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatalf("create artifact directory: %v", err)
+			}
+			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+				t.Fatalf("write artifact: %v", err)
+			}
+			paths[name] = relative
+			if name != "request" && name != "response" {
+				hashes[name] = hashStringFixture(content)
+			}
+		}
+		attempt["artifact_paths"] = paths
+		attempt["artifact_hashes"] = hashes
+		attempt["plan_sha256"] = hashes["frozen_plan"]
+		attempt["request_sha256"] = hashStringFixture(contents["request"])
+		attempt["response_sha256"] = hashStringFixture(contents["response"])
+		attempt["proof_sha256"] = hashes["proof_result"]
+	}
+}
+
 func refreshModelTierEvalFingerprint(evidence map[string]any) {
 	hash := hashJSONFixture(evidence["execution_fingerprint"])
 	evidence["current_execution_fingerprint_sha256"] = hash
@@ -300,6 +415,11 @@ func hashJSONFixture(value any) string {
 
 func hashStringFixture(value string) string {
 	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
+}
+
+func hashBytesFixture(value []byte) string {
+	sum := sha256.Sum256(value)
 	return hex.EncodeToString(sum[:])
 }
 

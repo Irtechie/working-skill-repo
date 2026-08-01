@@ -646,6 +646,9 @@ func ddrAttemptBindingHash(opts ddrAttemptOptions, projectID, requestHash, route
 }
 
 func routeProjectApproved(route modelrouting.Route, policy modelrouting.PolicyContext, now time.Time) bool {
+	if !modelrouting.ApprovalRequired(policy) {
+		return true
+	}
 	fingerprint, err := modelrouting.ApprovalRouteFingerprint(route, policy.RouteSources)
 	if err != nil {
 		return false

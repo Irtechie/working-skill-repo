@@ -123,8 +123,9 @@ an isolation mechanism.
   forbids temporary targets, and performs no deletion.
 - Never create `target-check`, `target-repair`, `target-repro`,
   `release-api-probe-target`, or equivalent agent-run targets.
-- Allow a run-owned temporary target only through native `register-temp`, then
-  remove it through native `finalize` after its final consumer.
+- Allow a run-owned temporary target only through native `register-temp`, using
+  the basename `kb-cargo-temp-<24-lowercase-hex>`, then remove it through native
+  `finalize` after its final consumer.
 - Finalization reports stable bytes retained and temporary bytes removed. It
   never removes the shared target as routine cleanup.
 - Record no-Cargo runs with native `not-applicable --reason`; `validate` accepts

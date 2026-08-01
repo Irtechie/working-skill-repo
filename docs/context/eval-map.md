@@ -21,6 +21,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 | Skill docs/frontmatter stay valid | `.github/skills/**/SKILL.md` | `go run ./cmd/kbcheck skill-lint` | Some inherited long skills still warn instead of failing | P1 |
 | Route selection stays calibrated | `evals/route-complexity/*.json` | `go run ./cmd/kbcheck route-eval` | Deterministic fixtures only; not live prompt runs | P0 |
 | Installer surface stays healthy | `package.json`, `bin/kb-install.mjs`, `scripts/install-kb.ps1` | `npm run test`; `npm run test:install:core`; `npm run test:install:full` | No checked-in CI workflow runs these automatically | P1 |
+| UniversalUI Skills projection stays safe and packable | `packages/universal-ui-skills-contribution/**`, `.github/skills/**/SKILL.md` | `npm run test:universal-ui-skills`; `npm run pack:universal-ui-skills` | Browser smoke uses a local UniversalUI checkout through `UNIVERSAL_UI_ROOT` | P0 |
 | Required skill copies stay synced | working repo + global skill roots | `go run ./cmd/kbcheck local-release`; `go run ./cmd/kbcheck skill-sync-report`; `go run ./cmd/kbcheck doctor` | Depends on local install availability | P1 |
 | Skill edits do not regress routing/proof behavior | `evals/skill-eval/**` | `go run ./cmd/kbcheck skill-eval`; `skill-eval-claims`; `skill-eval-quality`; `skill-eval-regression` | Live corpus is still narrow | P0 |
 | Live adapter wrappers stay safe | Codex/GHCP adapters | `go run ./cmd/kbcheck eval-run-codex --fixture-id tiny-typo-fix --dry-run`; `go run ./cmd/kbcheck eval-run-ghcp --fixture-id tiny-typo-fix --dry-run`; `go run ./cmd/kbcheck skill-eval-wrap --fixture-id tiny-typo-fix --dry-run --sealed` | Authenticated live runs remain explicit | P0 |
@@ -43,6 +44,8 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 ### Package / installer
 
 - `npm run test`
+- `npm run test:universal-ui-skills`
+- `npm run pack:universal-ui-skills`
 - `npm run test:install:core`
 - `npm run test:install:full`
 
@@ -100,6 +103,8 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 
 ```powershell
 npm run test
+npm run test:universal-ui-skills
+npm run pack:universal-ui-skills
 go build ./...
 go vet ./...
 go run ./cmd/kbcheck plan-worktree-selftest

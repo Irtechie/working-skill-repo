@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
+	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -42,20 +45,45 @@ type modelTierScope struct {
 
 type modelTierCohort struct {
 	ID                 string            `json:"id"`
+	ManifestPath       string            `json:"manifest_path"`
 	ManifestSHA256     string            `json:"manifest_sha256"`
+	ManifestSignerID   string            `json:"manifest_signer_id"`
+	ManifestSignature  string            `json:"manifest_signature_ed25519"`
 	PreregisteredAt    string            `json:"preregistered_at"`
 	FirstAttemptAt     string            `json:"first_attempt_at"`
 	ProvenanceKind     string            `json:"provenance_kind"`
-	ProvenanceVerified bool              `json:"provenance_verified"`
 	ExpectedAttemptIDs []string          `json:"expected_attempt_ids"`
 	Families           []modelTierFamily `json:"families"`
 }
 
 type modelTierFamily struct {
-	ID                string                    `json:"id"`
-	Holdout           bool                      `json:"holdout"`
-	AuthorityVerified bool                      `json:"authority_verified"`
-	Dimensions        modelTierFamilyDimensions `json:"dimensions"`
+	ID         string                    `json:"id"`
+	Holdout    bool                      `json:"holdout"`
+	Dimensions modelTierFamilyDimensions `json:"dimensions"`
+}
+
+type modelTierCohortManifest struct {
+	SchemaVersion              int               `json:"schema_version"`
+	ID                         string            `json:"id"`
+	TargetTier                 string            `json:"target_tier"`
+	ThresholdRevision          string            `json:"threshold_revision"`
+	Scope                      modelTierScope    `json:"scope"`
+	PreregisteredAt            string            `json:"preregistered_at"`
+	FirstAttemptAt             string            `json:"first_attempt_at"`
+	ProvenanceKind             string            `json:"provenance_kind"`
+	ExpectedAttemptIDs         []string          `json:"expected_attempt_ids"`
+	Families                   []modelTierFamily `json:"families"`
+	ExecutionFingerprintSHA256 string            `json:"execution_fingerprint_sha256"`
+}
+
+type modelTierTrustPolicy struct {
+	SchemaVersion int                      `json:"schema_version"`
+	Signers       []modelTierTrustedSigner `json:"signers"`
+}
+
+type modelTierTrustedSigner struct {
+	ID               string `json:"id"`
+	PublicKeyEd25519 string `json:"public_key_ed25519"`
 }
 
 type modelTierFamilyDimensions struct {
@@ -95,6 +123,7 @@ type modelTierAttempt struct {
 	OneAttemptIdentityValid    bool                    `json:"one_attempt_identity_valid"`
 	ProofBound                 bool                    `json:"proof_bound"`
 	Trust                      modelTierAttemptTrust   `json:"trust"`
+	ArtifactPaths              modelTierArtifactPaths  `json:"artifact_paths"`
 	ArtifactHashes             modelTierArtifactHashes `json:"artifact_hashes"`
 }
 
@@ -110,6 +139,19 @@ type modelTierArtifactHashes struct {
 	CohortManifest      string `json:"cohort_manifest"`
 	Fixture             string `json:"fixture"`
 	FrozenPlan          string `json:"frozen_plan"`
+	PlanSufficiency     string `json:"plan_sufficiency"`
+	ExecutorPackage     string `json:"executor_package"`
+	RouteExecution      string `json:"route_execution"`
+	OracleQualification string `json:"oracle_qualification"`
+	ProofResult         string `json:"proof_result"`
+}
+
+type modelTierArtifactPaths struct {
+	CohortManifest      string `json:"cohort_manifest"`
+	Fixture             string `json:"fixture"`
+	FrozenPlan          string `json:"frozen_plan"`
+	Request             string `json:"request"`
+	Response            string `json:"response"`
 	PlanSufficiency     string `json:"plan_sufficiency"`
 	ExecutorPackage     string `json:"executor_package"`
 	RouteExecution      string `json:"route_execution"`
@@ -163,7 +205,7 @@ func runModelTierEvalCommand(root string, opts options, stdout, stderr io.Writer
 		fmt.Fprintln(stderr, "model-tier-eval: invalid strict evidence document")
 		return 2
 	}
-	result, err := evaluateModelTierEvidence(evidence, time.Now().UTC())
+	result, err := evaluateModelTierEvidence(root, evidence, time.Now().UTC())
 	if err != nil {
 		fmt.Fprintln(stderr, "model-tier-eval:", err)
 		return 2
@@ -182,7 +224,7 @@ func runModelTierEvalCommand(root string, opts options, stdout, stderr io.Writer
 	return 0
 }
 
-func evaluateModelTierEvidence(evidence modelTierEvidence, now time.Time) (modelTierEvalResult, error) {
+func evaluateModelTierEvidence(root string, evidence modelTierEvidence, now time.Time) (modelTierEvalResult, error) {
 	if evidence.SchemaVersion != modelTierEvalSchemaVersion {
 		return modelTierEvalResult{}, fmt.Errorf("unsupported schema_version")
 	}
@@ -209,6 +251,22 @@ func evaluateModelTierEvidence(evidence modelTierEvidence, now time.Time) (model
 	if err := validateModelTierCohort(evidence.Cohort); err != nil {
 		return modelTierEvalResult{}, err
 	}
+	cohortManifest, authorityVerified, err := loadModelTierCohortManifest(root, evidence.Cohort)
+	if err != nil {
+		return modelTierEvalResult{}, err
+	}
+	if cohortManifest.ID != evidence.Cohort.ID ||
+		cohortManifest.TargetTier != evidence.TargetTier ||
+		cohortManifest.ThresholdRevision != evidence.ThresholdRevision ||
+		cohortManifest.PreregisteredAt != evidence.Cohort.PreregisteredAt ||
+		cohortManifest.FirstAttemptAt != evidence.Cohort.FirstAttemptAt ||
+		cohortManifest.ProvenanceKind != evidence.Cohort.ProvenanceKind ||
+		cohortManifest.ExecutionFingerprintSHA256 != fingerprintHash ||
+		!reflect.DeepEqual(cohortManifest.Scope, evidence.Scope) ||
+		!reflect.DeepEqual(cohortManifest.ExpectedAttemptIDs, evidence.Cohort.ExpectedAttemptIDs) ||
+		!reflect.DeepEqual(cohortManifest.Families, evidence.Cohort.Families) {
+		return modelTierEvalResult{}, fmt.Errorf("evidence does not match the verified cohort manifest")
+	}
 	if len(evidence.Attempts) > 500 {
 		return modelTierEvalResult{}, fmt.Errorf("attempt count exceeds 500")
 	}
@@ -218,7 +276,7 @@ func evaluateModelTierEvidence(evidence modelTierEvidence, now time.Time) (model
 		return modelTierEvalResult{}, fmt.Errorf("duplicate expected attempt id")
 	}
 	families := map[string]modelTierFamily{}
-	unsupportedAuthority := !evidence.Cohort.ProvenanceVerified
+	unsupportedAuthority := !authorityVerified
 	for _, family := range evidence.Cohort.Families {
 		if !modelTierEvalIDPattern.MatchString(family.ID) || families[family.ID].ID != "" {
 			return modelTierEvalResult{}, fmt.Errorf("invalid or duplicate family id")
@@ -226,14 +284,11 @@ func evaluateModelTierEvidence(evidence modelTierEvidence, now time.Time) (model
 		if !validFamilyDimensions(family.Dimensions) {
 			return modelTierEvalResult{}, fmt.Errorf("family dimensions must be complete")
 		}
-		if !family.AuthorityVerified {
-			unsupportedAuthority = true
-		}
 		families[family.ID] = family
 	}
 
 	exclusions := map[string]int{}
-	trustCounts := map[string]int{"reproduced": 0, "signature-verified": 0, "unsupported": 0}
+	trustCounts := map[string]int{"reproduced": 0, "unsupported": 0}
 	attemptIDs := map[string]bool{}
 	fixtureIDs := map[string]bool{}
 	familyCounts := map[string]int{}
@@ -263,8 +318,11 @@ func evaluateModelTierEvidence(evidence modelTierEvidence, now time.Time) (model
 		if err := validateModelTierAttemptHashes(attempt); err != nil {
 			return modelTierEvalResult{}, err
 		}
+		if err := verifyModelTierAttemptArtifacts(root, evidence.Cohort, attempt); err != nil {
+			return modelTierEvalResult{}, err
+		}
 		for _, status := range []string{attempt.Trust.Plan, attempt.Trust.Route, attempt.Trust.Execution, attempt.Trust.Oracle, attempt.Trust.Proof} {
-			if status != "reproduced" && status != "signature-verified" && status != "unsupported" {
+			if status != "reproduced" && status != "unsupported" {
 				return modelTierEvalResult{}, fmt.Errorf("invalid receipt trust status")
 			}
 			trustCounts[status]++
@@ -388,7 +446,9 @@ func validateModelTierScope(scope modelTierScope) error {
 }
 
 func validateModelTierCohort(cohort modelTierCohort) error {
-	if !modelTierEvalIDPattern.MatchString(cohort.ID) || !validReleaseHash(cohort.ManifestSHA256) ||
+	if !modelTierEvalIDPattern.MatchString(cohort.ID) || strings.TrimSpace(cohort.ManifestPath) == "" ||
+		!validReleaseHash(cohort.ManifestSHA256) || !modelTierEvalIDPattern.MatchString(cohort.ManifestSignerID) ||
+		len(cohort.ManifestSignature) != ed25519.SignatureSize*2 ||
 		len(cohort.ExpectedAttemptIDs) == 0 || len(cohort.Families) == 0 {
 		return fmt.Errorf("cohort manifest is incomplete")
 	}
@@ -400,10 +460,65 @@ func validateModelTierCohort(cohort modelTierCohort) error {
 	if err != nil || !preregistered.Before(firstAttempt) {
 		return fmt.Errorf("cohort must be preregistered before the first attempt")
 	}
-	if !oneOf(cohort.ProvenanceKind, "signed-git-commit", "trusted-timestamp-signature", "append-only-authority") {
+	if cohort.ProvenanceKind != "ed25519-signature" {
 		return fmt.Errorf("unsupported preregistration provenance")
 	}
 	return nil
+}
+
+func loadModelTierCohortManifest(root string, cohort modelTierCohort) (modelTierCohortManifest, bool, error) {
+	path, err := resolveModelRoutingReleaseFile(root, cohort.ManifestPath)
+	if err != nil {
+		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest path is unsafe")
+	}
+	content, err := readSafeBoundedModelRoutingFile(path)
+	if err != nil {
+		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest is unavailable or unsafe")
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(content)); got != strings.ToLower(cohort.ManifestSHA256) {
+		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest sha256 mismatch")
+	}
+	if err := validateJSONShape(content, 8); err != nil {
+		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest is not strict JSON")
+	}
+	var manifest modelTierCohortManifest
+	if err := decodeStrictModelRoutingJSON(path, content, &manifest); err != nil {
+		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest is invalid")
+	}
+	if manifest.SchemaVersion != 1 {
+		return modelTierCohortManifest{}, false, fmt.Errorf("unsupported cohort manifest schema")
+	}
+	return manifest, verifyModelTierManifestAuthority(root, cohort, content), nil
+}
+
+func verifyModelTierManifestAuthority(root string, cohort modelTierCohort, manifest []byte) bool {
+	path, err := resolveModelRoutingReleaseFile(root, filepath.Join("config", "model-tier-trust.json"))
+	if err != nil {
+		return false
+	}
+	content, err := readSafeBoundedModelRoutingFile(path)
+	if err != nil || validateJSONShape(content, 6) != nil {
+		return false
+	}
+	var policy modelTierTrustPolicy
+	if decodeStrictModelRoutingJSON(path, content, &policy) != nil || policy.SchemaVersion != 1 {
+		return false
+	}
+	signature, err := hex.DecodeString(cohort.ManifestSignature)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return false
+	}
+	for _, signer := range policy.Signers {
+		if signer.ID != cohort.ManifestSignerID {
+			continue
+		}
+		publicKey, err := hex.DecodeString(signer.PublicKeyEd25519)
+		if err != nil || len(publicKey) != ed25519.PublicKeySize {
+			return false
+		}
+		return ed25519.Verify(ed25519.PublicKey(publicKey), manifest, signature)
+	}
+	return false
 }
 
 func validateModelTierFingerprint(fingerprint modelTierFingerprint) error {
@@ -431,6 +546,7 @@ func validateModelTierAttemptHashes(attempt modelTierAttempt) error {
 		attempt.ArtifactHashes.PlanSufficiency, attempt.ArtifactHashes.ExecutorPackage, attempt.ArtifactHashes.RouteExecution,
 		attempt.ArtifactHashes.OracleQualification, attempt.ArtifactHashes.ProofResult,
 	}
+
 	if attempt.ResponseProduced {
 		hashes = append(hashes, attempt.ResponseSHA256)
 	}
@@ -441,6 +557,60 @@ func validateModelTierAttemptHashes(attempt modelTierAttempt) error {
 		if !validReleaseHash(hash) {
 			return fmt.Errorf("attempt artifact hash is missing or invalid")
 		}
+	}
+	return nil
+}
+
+func verifyModelTierAttemptArtifacts(root string, cohort modelTierCohort, attempt modelTierAttempt) error {
+	if filepath.ToSlash(attempt.ArtifactPaths.CohortManifest) != filepath.ToSlash(cohort.ManifestPath) ||
+		attempt.ArtifactHashes.CohortManifest != cohort.ManifestSHA256 {
+		return fmt.Errorf("attempt cohort manifest binding mismatch")
+	}
+	bindings := []struct {
+		label string
+		path  string
+		hash  string
+	}{
+		{"cohort manifest", attempt.ArtifactPaths.CohortManifest, attempt.ArtifactHashes.CohortManifest},
+		{"fixture", attempt.ArtifactPaths.Fixture, attempt.ArtifactHashes.Fixture},
+		{"frozen plan", attempt.ArtifactPaths.FrozenPlan, attempt.ArtifactHashes.FrozenPlan},
+		{"request", attempt.ArtifactPaths.Request, attempt.RequestSHA256},
+		{"plan sufficiency", attempt.ArtifactPaths.PlanSufficiency, attempt.ArtifactHashes.PlanSufficiency},
+		{"executor package", attempt.ArtifactPaths.ExecutorPackage, attempt.ArtifactHashes.ExecutorPackage},
+		{"route execution", attempt.ArtifactPaths.RouteExecution, attempt.ArtifactHashes.RouteExecution},
+		{"oracle qualification", attempt.ArtifactPaths.OracleQualification, attempt.ArtifactHashes.OracleQualification},
+		{"proof result", attempt.ArtifactPaths.ProofResult, attempt.ArtifactHashes.ProofResult},
+	}
+	if attempt.ResponseProduced {
+		bindings = append(bindings, struct {
+			label string
+			path  string
+			hash  string
+		}{"response", attempt.ArtifactPaths.Response, attempt.ResponseSHA256})
+	}
+	for _, binding := range bindings {
+		if err := verifyModelTierArtifact(root, binding.label, binding.path, binding.hash); err != nil {
+			return err
+		}
+	}
+	if attempt.PlanSHA256 != attempt.ArtifactHashes.FrozenPlan ||
+		(attempt.ProofBound && attempt.ProofSHA256 != attempt.ArtifactHashes.ProofResult) {
+		return fmt.Errorf("attempt top-level artifact binding mismatch")
+	}
+	return nil
+}
+
+func verifyModelTierArtifact(root, label, relative, want string) error {
+	path, err := resolveModelRoutingReleaseFile(root, relative)
+	if err != nil {
+		return fmt.Errorf("%s path is unsafe", label)
+	}
+	content, err := readSafeBoundedModelRoutingFile(path)
+	if err != nil {
+		return fmt.Errorf("%s artifact is unavailable or unsafe", label)
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(content)); got != strings.ToLower(want) {
+		return fmt.Errorf("%s artifact sha256 mismatch", label)
 	}
 	return nil
 }
@@ -469,7 +639,7 @@ func hashModelTierFingerprint(fingerprint modelTierFingerprint) (string, error) 
 func countIndependentFamilies(families map[string]modelTierFamily, admitted map[string]int) int {
 	ids := make([]string, 0, len(admitted))
 	for id, count := range admitted {
-		if count > 0 && families[id].AuthorityVerified {
+		if count > 0 {
 			ids = append(ids, id)
 		}
 	}

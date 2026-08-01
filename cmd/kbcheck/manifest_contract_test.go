@@ -134,7 +134,7 @@ func TestPreSliceReviewContractRejectsInvalidReceipts(t *testing.T) {
 		"invalid-status":            {"status: passed", "status: complete"},
 		"invalid-review-id":         {"review_id: feature-requirements-review", "review_id: BAD"},
 		"invalid-reviewed-at":       {`reviewed_at: "2026-07-29T20:00:00Z"`, `reviewed_at: yesterday`},
-		"scalar-persona-evidence":   {`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'`, `persona_evidence_json: 'coherence-reviewer'`},
+		"scalar-persona-evidence":   {`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift"}'`, `persona_evidence_json: 'coherence-reviewer'`},
 		"unknown-persona":           {"coherence-reviewer", "implementation-owner"},
 		"missing-selection-reason":  {"consistency-risk: source has cross-section terminology drift", ""},
 		"failed-persona":            {`failed_personas_json: '[]'`, `failed_personas_json: '[\"security-lens-reviewer\"]'`},
@@ -143,16 +143,15 @@ func TestPreSliceReviewContractRejectsInvalidReceipts(t *testing.T) {
 		"quoted-count":              {"findings_resolved: 2", `findings_resolved: "2"`},
 		"placeholder-reason":        {"consistency-risk: source has cross-section terminology drift", "reviewer applies here"},
 		"mismatched-reason-basis":   {"consistency-risk: source has cross-section terminology drift", "security-risk: source changes authentication boundaries"},
-		"incomplete-selected-roster": {
-			`selected_personas_json: '["coherence-reviewer","feasibility-reviewer"]'`,
-			`selected_personas_json: '["coherence-reviewer"]'`,
+		"multiple-reviewers": {
+			`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift"}'`,
+			`persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'`,
 		},
 		"incomplete-completed-roster": {
-			`completed_personas_json: '["coherence-reviewer","feasibility-reviewer"]'`,
 			`completed_personas_json: '["coherence-reviewer"]'`,
+			`completed_personas_json: '[]'`,
 		},
-		"unresolved-p0":             {"unresolved_p0: 0", "unresolved_p0: 1"},
-		"missing-required-reviewer": {"feasibility-reviewer", "product-lens-reviewer"},
+		"unresolved-p0": {"unresolved_p0: 0", "unresolved_p0: 1"},
 	}
 	for name, replacement := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -356,6 +355,12 @@ func TestQualificationPlanContractRejectsWeakOrStaleRecords(t *testing.T) {
 			invariants := record["invariants"].([]any)
 			record["invariants"] = append(invariants, invariants[0])
 		},
+		"missing-reviewed-invariant": func(record map[string]any) {
+			record["invariants"] = []any{}
+		},
+		"absent-source-anchor": func(record map[string]any) {
+			record["invariants"].([]any)[0].(map[string]any)["source"].(map[string]any)["anchor"] = "missingAnchor"
+		},
 		"unknown-field": func(record map[string]any) {
 			record["unexpected"] = true
 		},
@@ -410,12 +415,46 @@ func TestQualificationPlanContractRejectsEscapedOrStaleRecord(t *testing.T) {
 	}
 }
 
+func TestQualificationPlanContractRejectsDuplicateJSONKeys(t *testing.T) {
+	mutations := map[string]func(string) string{
+		"top-level": func(record string) string {
+			return strings.Replace(record, `"schema_version": 1,`, `"schema_version": 1,`+"\n  "+`"schema_version": 1,`, 1)
+		},
+		"nested": func(record string) string {
+			return strings.Replace(record, `"path": "docs/plans/qualification-evidence-plan.md",`, `"path": "docs/plans/qualification-evidence-plan.md",`+"\n    "+`"path": "docs/plans/qualification-evidence-plan.md",`, 1)
+		},
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			path := writeQualificationPlanManifest(t, nil)
+			root := filepath.Dir(filepath.Dir(filepath.Dir(path)))
+			recordPath := filepath.Join(root, "docs", "plans", "qualification-plan-record.json")
+			record := mutate(string(mustReadFile(t, recordPath)))
+			writeFile(t, recordPath, record)
+			manifest := string(mustReadFile(t, path))
+			manifest = regexp.MustCompile(`record_sha256: [0-9a-f]{64}`).ReplaceAllString(
+				manifest,
+				fmt.Sprintf("record_sha256: %x", sha256.Sum256([]byte(record))),
+			)
+			writeFile(t, path, manifest)
+
+			result, err := validateManifestContract(path)
+			if err != nil {
+				t.Fatalf("validateManifestContract returned error: %v", err)
+			}
+			if result.OK || !hasManifestIssue(result.Issues, "invalid-qualification-plan") {
+				t.Fatalf("duplicate JSON key was accepted: %#v", result)
+			}
+		})
+	}
+}
+
 func writeQualificationPlanManifest(t *testing.T, mutate func(map[string]any)) string {
 	t.Helper()
 	path := writePreSliceReviewManifest(t, validPreSliceReviewReceipt())
 	root := filepath.Dir(filepath.Dir(filepath.Dir(path)))
 	planRelative := "docs/plans/qualification-evidence-plan.md"
-	planContent := []byte("# Qualification evidence plan\n\nUse the manifest parser and focused contract tests.\n")
+	planContent := []byte("# Qualification evidence plan\n\nqualification_invariants:\n  - strict-manifest-input\n\nUse the manifest parser and focused contract tests.\n")
 	writeFile(t, filepath.Join(root, filepath.FromSlash(planRelative)), string(planContent))
 	reviewRelative := "docs/results/document-reviews/feature-requirements-review.json"
 	reviewContent := mustReadFile(t, filepath.Join(root, filepath.FromSlash(reviewRelative)))
@@ -475,9 +514,9 @@ pre_slice_review:
   reviewed_at: "2026-07-29T20:00:00Z"
   review_artifact: {{REVIEW_ARTIFACT}}
   review_artifact_sha256: {{REVIEW_ARTIFACT_SHA256}}
-  persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift","feasibility-reviewer":"delivery-risk: source has implementation dependency uncertainty"}'
-  selected_personas_json: '["coherence-reviewer","feasibility-reviewer"]'
-  completed_personas_json: '["coherence-reviewer","feasibility-reviewer"]'
+  persona_evidence_json: '{"coherence-reviewer":"consistency-risk: source has cross-section terminology drift"}'
+  selected_personas_json: '["coherence-reviewer"]'
+  completed_personas_json: '["coherence-reviewer"]'
   failed_personas_json: '[]'
   findings_resolved: 2
   unresolved_p0: 0
@@ -498,8 +537,7 @@ func writePreSliceReviewManifest(t *testing.T, receipt string) string {
 	sourceHash := fmt.Sprintf("%x", sha256.Sum256(source))
 	writeFile(t, filepath.Join(dir, filepath.FromSlash(sourceRelative)), string(source))
 	personas := map[string]string{
-		"coherence-reviewer":   "consistency-risk: source has cross-section terminology drift",
-		"feasibility-reviewer": "delivery-risk: source has implementation dependency uncertainty",
+		"coherence-reviewer": "consistency-risk: source has cross-section terminology drift",
 	}
 	artifact := preSliceReviewArtifact{
 		ReviewID:          "feature-requirements-review",
@@ -508,8 +546,8 @@ func writePreSliceReviewManifest(t *testing.T, receipt string) string {
 		ReviewedAt:        "2026-07-29T20:00:00Z",
 		DocumentType:      "requirements",
 		Mode:              "requirements-wide",
-		SelectedPersonas:  []string{"coherence-reviewer", "feasibility-reviewer"},
-		CompletedPersonas: []string{"coherence-reviewer", "feasibility-reviewer"},
+		SelectedPersonas:  []string{"coherence-reviewer"},
+		CompletedPersonas: []string{"coherence-reviewer"},
 		PersonaEvidence:   personas,
 		FailedPersonas:    []string{},
 		FindingsResolved:  2,
@@ -532,7 +570,7 @@ func writePreSliceReviewManifest(t *testing.T, receipt string) string {
 	path := filepath.Join(dir, "docs", "plans", "manifest.md")
 	writeFile(t, path, strings.TrimLeft(`
 ---
-manifest_schema: 2
+manifest_schema: 3
 pre_slice_review_contract: true
 `+receipt+`
 slices:

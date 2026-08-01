@@ -1,5 +1,12 @@
 # KB Gate Ledger
 
+## Contents
+
+- Gate Record
+- Question Gate proof
+- Phase transitions
+- Validation
+
 Use a gate ledger when a workflow has multiple phases, expensive tests, model
 runs, benchmark waves, or any path where "almost done" can waste time.
 

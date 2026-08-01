@@ -55,12 +55,15 @@ func TestWindowsStorageOwnerMayBeSecuredIsNarrow(t *testing.T) {
 	}
 }
 
-func TestWindowsStorageDescriptorMatchAcceptsEquivalentAceOrderOnly(t *testing.T) {
+func TestWindowsStorageDescriptorMatchAcceptsSafeProtectedMetadataAndAceOrder(t *testing.T) {
 	const sid = "S-1-5-21-100-200-300-1001"
 	for _, descriptor := range []string{
 		"O:" + sid + "D:P(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAR(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
 		"O:" + sid + "D:P(A;;FA;;;" + sid + ")(A;;FA;;;SY)",
 		"O:" + sid + "G:SYD:P(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
+		"O:" + sid + "G:" + sid + "D:PAI(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
 	} {
 		if !windowsStorageDescriptorMatches(descriptor, sid, false) {
 			t.Fatalf("rejected equivalent file descriptor %q", descriptor)
@@ -69,14 +72,92 @@ func TestWindowsStorageDescriptorMatchAcceptsEquivalentAceOrderOnly(t *testing.T
 	if !windowsStorageDescriptorMatches("O:"+sid+"D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;"+sid+")", sid, true) {
 		t.Fatal("rejected equivalent directory descriptor")
 	}
+	if !windowsStorageDescriptorMatches(
+		"O:"+sid+"G:"+sid+"D:PAI(A;OICI;FA;;;SY)(A;OICI;0x1200a9;;;S-1-5-21-100-200-300-1002)(A;OICI;FA;;;"+sid+")",
+		sid,
+		true,
+	) {
+		t.Fatal("rejected protected directory with a non-mutating traversal ACE")
+	}
 	for _, descriptor := range []string{
 		"O:" + sid + "D:P(A;;FA;;;WD)(A;;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;ID;FA;;;SY)(A;;FA;;;" + sid + ")",
 		"O:S-1-5-21-100-200-300-1002D:P(A;;FA;;;SY)(A;;FA;;;" + sid + ")",
 		"O:" + sid + "D:P(A;;FA;;;SY)",
+		"O:" + sid + "D:PAI(A;;FA;;;SY)(A;;0x1200a9;;;S-1-5-21-100-200-300-1002)(A;;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;OICIID;FA;;;SY)(A;OICI;0x1200a9;;;S-1-5-21-100-200-300-1002)(A;OICI;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;OICI;FA;;;SY)(A;OICI;0x1201bf;;;S-1-5-21-100-200-300-1002)(A;OICI;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;OICI;FA;;;SY)(A;OICI;0x11200a9;;;S-1-5-21-100-200-300-1002)(A;OICI;FA;;;" + sid + ")",
+		"O:" + sid + "D:PAI(A;OICI;FA;;;SY)(A;OICI;0x21200a9;;;S-1-5-21-100-200-300-1002)(A;OICI;FA;;;" + sid + ")",
 	} {
-		if windowsStorageDescriptorMatches(descriptor, sid, false) {
+		directory := strings.Contains(descriptor, "OICI")
+		if windowsStorageDescriptorMatches(descriptor, sid, directory) {
 			t.Fatalf("accepted unsafe descriptor %q", descriptor)
 		}
+	}
+}
+
+func TestPrivateTempFileReceivesProtectedACLAtCreation(t *testing.T) {
+	root := t.TempDir()
+	sid, err := currentWindowsSID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor, free, err := windowsDescriptor(
+		"O:" + sid + "D:PAI(A;OICI;FA;;;SY)(A;OICI;0x1200a9;;;S-1-5-21-100-200-300-1002)(A;OICI;FA;;;" + sid + ")",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer free()
+	pathPointer, err := syscall.UTF16PtrFromString(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, _, callErr := setFileSecurityW.Call(
+		uintptr(unsafe.Pointer(pathPointer)),
+		uintptr(ownerSecurityInformation|daclSecurityInformation|protectedDACLSSecurityInformation),
+		descriptor,
+	)
+	if result == 0 {
+		t.Fatalf("install host-style directory DACL: %v", callErr)
+	}
+
+	originalCreateFile := windowsCreateFile
+	defer func() {
+		windowsCreateFile = originalCreateFile
+	}()
+	protectedAtCreation := false
+	windowsCreateFile = func(
+		name *uint16,
+		access uint32,
+		mode uint32,
+		security *syscall.SecurityAttributes,
+		createMode uint32,
+		attrs uint32,
+		templateFile int32,
+	) (syscall.Handle, error) {
+		if security != nil && security.SecurityDescriptor != 0 {
+			sddl, descriptorErr := windowsDescriptorString(
+				security.SecurityDescriptor,
+				ownerSecurityInformation|daclSecurityInformation,
+			)
+			protectedAtCreation = descriptorErr == nil && windowsStorageDescriptorMatches(sddl, sid, false)
+		}
+		return originalCreateFile(name, access, mode, security, createMode, attrs, templateFile)
+	}
+	file, err := createStorageTempFile(root, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := file.Name()
+	defer os.Remove(name)
+	defer file.Close()
+	if !protectedAtCreation {
+		t.Fatal("private temporary file was not created with the protected DACL")
+	}
+	if err := validateStorageFileSecurity(name); err != nil {
+		t.Fatalf("private temporary file was not protected at creation: %v", err)
 	}
 }
 

@@ -5,7 +5,7 @@
   "repo_state": "Skill source, required sync targets, and testing docs may change, but the work is one coherent bundle change.",
   "expected": {
     "route": "kb-plan",
-    "complexity_tier": "standard",
+    "complexity_tier": "medium",
     "max_user_questions": 1,
     "artifacts": ["manifest", "sync proof", "check output"],
     "proof": ["git diff --check", "kb-check -All", "skill-sync-report"]

@@ -141,7 +141,7 @@ func computeMinimality(root, skillRoot, agentRoot string, trimThreshold int) (mi
 	}
 
 	hotPath := setOf("kb-start", "kb-map", "kb-brainstorm", "kb-plan", "kb-work", "kb-complete", "kb-review", "kb-check")
-	protectedSkills := setOf("kb-review", "ce-review", "ce-compound", "ce-compound-refresh", "document-review")
+	protectedSkills := setOf("kb-review", "ce-compound", "ce-compound-refresh", "document-review")
 	unusedPatterns := []string{"ce-ideate", "ce-plan", "ce-work", "lfg", "slfg", "workflows-*"}
 	report := minimalityReport{
 		GeneratedAt: time.Now().Format(time.RFC3339Nano), Root: root, SkillRoot: skillRootFull, AgentRoot: agentRootFull, StaticOnly: true,
@@ -230,7 +230,6 @@ func runMinimalitySelftest(stdout, stderr io.Writer) int {
 	write(".github/skills/kb-start/SKILL.md", "---\nname: kb-start\ndescription: route requests\n---\nUse correctness-reviewer and kb-work.\n")
 	write(".github/skills/kb-work/SKILL.md", "---\nname: kb-work\ndescription: run work\n---\nRun plans and call conditional-reviewer for special checks.\n")
 	write(".github/skills/feature-lane/SKILL.md", "---\nname: feature-lane\ndescription: optional lane\n---\nUse conditional-reviewer when needed.\n")
-	write(".github/skills/ce-review/SKILL.md", "---\nname: ce-review\ndescription: protected generalized review skill\n---\nProtected even when static inbound references are absent.\n")
 	write(".github/skills/giant-skill/SKILL.md", "---\nname: giant-skill\ndescription: large skill\n---\none\ntwo\nthree\nfour\nfive\nsix\nseven\n")
 	write(".github/skills/workflows-old/SKILL.md", "---\nname: workflows-old\ndescription: superseded workflow\n---\nold alias\n")
 	write(".github/skills/docs-mentioned/SKILL.md", "---\nname: docs-mentioned\ndescription: mentioned only in docs\n---\nstandalone\n")
@@ -269,7 +268,6 @@ func runMinimalitySelftest(stdout, stderr io.Writer) int {
 		!assert("agent", "unreferenced-reviewer", "unproven", "none") ||
 		!assert("skill", "giant-skill", "trim-candidate", "") ||
 		!assert("skill", "workflows-old", "unused-candidate", "") ||
-		!assert("skill", "ce-review", "protected", "") ||
 		!assert("skill", "docs-mentioned", "unproven", "docs-only") ||
 		!assert("skill", "example-mentioned", "unproven", "example-only") ||
 		!assert("skill", "runtime-mentioned", "unproven", "runtime") {

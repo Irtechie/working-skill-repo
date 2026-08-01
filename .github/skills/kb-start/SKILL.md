@@ -182,7 +182,7 @@ reconcile it with a second shape or complexity table.
 | 16 | Fuzzy idea, product direction, or high path dependency | `kb-brainstorm` | answered questions before planning |
 | 17 | Small known bug, typo, narrow cleanup, or one skill/doc edit with no sync/eval/proof-harness implications | `kb-fix` or bounded direct edit | targeted proof plus `kb-check` when relevant |
 | 18 | Memory/docs/responses are too verbose | `kb-compact` | preserve commands, paths, dates, blockers |
-| 19 | Legacy `klfg` or `kb-finish` invocation | compatibility alias to `kb-complete` | full state-aware pipeline |
+| 19 | Legacy full-pipeline or finish wording | `kb-complete` | full state-aware pipeline |
 
 A commit-required plan-run manifest without explicit local check-in authority
 stops before mutation. Do not route it through row 6 or infer authority from

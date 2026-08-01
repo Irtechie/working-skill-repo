@@ -4,12 +4,35 @@ The manifest group is the only worktree unit. Every slice for that workstream
 runs and commits on its one plan-run branch. Never create a worktree or branch
 per slice.
 
+## Naming
+
+Choose a short, task-specific worktree codename with irreverent, self-aware,
+absurdly specific humor that remains safe on a shared screen, terminal, PR, or
+audit log. Aim for something a wisecracking antihero would name, not the
+antihero's name or fandom references. Prefer names such as
+`the-reviewers-have-unionized`, `this-prompt-needs-an-adult`, or
+`somehow-another-abstraction` over opaque generated pairs such as
+`improved-funicular`. Keep the manifest ID in receipts; the human-facing name
+should optimize recognition rather than duplicate it.
+
+Branch and worktree basename must share that exact codename. A namespace prefix
+is allowed for the branch, but the funny task name must remain intact:
+
+| Task | Worktree basename | Branch |
+|---|---|---|
+| Reduce reviewer overuse | `the-reviewers-have-unionized` | `codex/the-reviewers-have-unionized` |
+| Simplify an overgrown prompt | `this-prompt-needs-an-adult` | `codex/this-prompt-needs-an-adult` |
+| Remove needless abstractions | `somehow-another-abstraction` | `codex/somehow-another-abstraction` |
+
+Do not use a funny name merely because it is funny. It must relate recognizably
+to the work so branch lists and worktree paths remain useful routing evidence.
+
 ## Prepare the Plan Run
 
 Before mutation, prepare or resume the manifest-owned workspace:
 
 ```powershell
-go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <plan-token> --base-sha <reviewed-base-sha> --json
+go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <plan-token> --base-sha <reviewed-base-sha> --worktree <parent>\<repo>-<codename> --branch codex/<codename> --json
 ```
 
 The receipt records the immutable base, explicit non-default integration ref

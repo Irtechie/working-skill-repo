@@ -39,7 +39,7 @@ Typical routing:
 | valid manifest exists | `kb-work` |
 | all slices are done and need completion gates | `kb-complete` |
 | reviewed work needs commit, push, and PR | `kb-ship` |
-| plan/manifest should reach done-done and a checked-in PR | `kb-finish` |
+| plan/manifest should reach its configured endpoint | `kb-complete` |
 | multi-subsystem initiative or migration | `kb-epic` |
 | external docs or prior art could change the decision | `kb-research` |
 
@@ -77,7 +77,9 @@ Enforced by skills and artifacts today:
 - `kb-work`, `kb-finalize`, and `kb-complete` advance only through manifest gate-ledger records,
   not chat confidence.
 - `kb-complete` is the state-aware orchestrator for the full loop:
-  `brainstorm when needed -> kb-plan -> kb-work -> kb-finalize -> delivery`.
+  `brainstorm when needed -> kb-plan -> kb-work -> kb-finalize -> kb-complete`.
+- Configured PR delivery continues as
+  `kb-work -> kb-finalize -> kb-complete -> kb-ship -> authorized kb-land`.
 
 The deterministic maintainer proof is:
 
@@ -210,9 +212,17 @@ successor work or a commit. Only an explicit user resume addressed to the owning
 goal can reactivate it. A permanent end parks—not completes—the ledger and
 returns the exact `To resume: /kb-goal <objective>` command.
 
-`kb-work` auto-invokes only `kb-finalize`, which cannot publish. Explicit
-`kb-complete` applies project delivery policy after finalization. `kb-finish`
-and `klfg` remain compatibility aliases.
+`kb-work` auto-invokes `kb-finalize`, successful finalization returns to
+`kb-complete`, and successful PR shipping returns to the same state loop.
+`kb-work` and `kb-ship` return durable evidence to `kb-complete` instead of
+ending the run. `kb-complete` applies configured delivery policy or explicit
+run-scoped authorization and invokes the next owner without repeating valid
+proof.
+
+The automatic chain does not broaden authority. `kb-work` never merges or
+pushes the resolved default branch. `kb-ship` never merges. Only `kb-land` may
+integrate the resolved remote default branch. Missing policy remains local-only,
+and no phase bypasses branch protection, required checks, or required reviews.
 
 For recurring or trend-improvement goals, `kb-goal` may add a live-steering
 block to the goal ledger. That block names the set point, sensor, controller,
@@ -475,8 +485,12 @@ all runnable slices are done or intentionally skipped.
 from a feature description, plan, active manifest, or reviewed manifest; it
 delegates planning, work, and finalization, then applies project delivery
 policy. `kb-ship` owns internal PR delivery and `kb-land` owns explicit
-merge/direct integration plus configured post-integration sync. Legacy `klfg`
-and `kb-finish` delegate to `kb-complete`.
+merge/direct integration plus configured post-integration sync. Full
+idea-to-endpoint requests route directly to `kb-complete`.
+
+Successful internal phases return to that orchestrator automatically:
+`kb-work -> kb-finalize -> kb-complete`, followed by `kb-ship` and authorized
+`kb-land` when policy or same-run authorization selects PR integration.
 
 The steering step classifies review, iteration, and maintainer feedback as
 current-only, steering memory, observation, landmine candidate, or instinct

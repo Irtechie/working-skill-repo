@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -46,7 +49,14 @@ func DiscoverChecks(root string) ([]Check, error) {
 		checks = append(checks, Check{Name: "pytest", Args: []string{"python", "-m", "pytest"}, Reason: "Python test config detected", Required: true, Confidence: "deterministic-local"})
 	}
 	if exists(root, "go.mod") {
-		checks = append(checks, Check{Name: "go-test", Args: []string{"go", "test", "-buildvcs=false", "./..."}, Reason: "Go module detected", Required: true, Confidence: "deterministic-local"})
+		checks = append(checks, Check{
+			Name:       "go-test",
+			Args:       []string{"go", "test", "-buildvcs=false", "./..."},
+			Reason:     "Go module detected",
+			Required:   true,
+			Confidence: "deterministic-local",
+			Run:        runGoTestsWithRouterIsolation,
+		})
 	}
 	checks = append(checks, dotnetChecks(root)...)
 	if exists(root, "Makefile") {
@@ -60,6 +70,83 @@ func DiscoverChecks(root string) ([]Check, error) {
 		checks = append(checks, skillChecks...)
 	}
 	return checks, nil
+}
+
+func runGoTestsWithRouterIsolation(root string) CheckResult {
+	list := runProcessCheck(root, Check{Args: []string{"go", "list", "./..."}})
+	if list.ExitCode != 0 {
+		return list
+	}
+	var regular []string
+	router := ""
+	for _, pkg := range strings.Fields(list.Stdout) {
+		if strings.HasSuffix(pkg, "/cmd/kbrouter") {
+			router = pkg
+		} else {
+			regular = append(regular, pkg)
+		}
+	}
+	var stdout, stderr strings.Builder
+	if len(regular) > 0 {
+		args := append([]string{"go", "test", "-buildvcs=false"}, regular...)
+		result := runProcessCheck(root, Check{Args: args})
+		stdout.WriteString(result.Stdout)
+		stderr.WriteString(result.Stderr)
+		if result.ExitCode != 0 {
+			return CheckResult{ExitCode: result.ExitCode, Stdout: stdout.String(), Stderr: stderr.String()}
+		}
+	}
+	if router != "" {
+		// kbrouter tests validate their own Windows job-object containment, so
+		// nesting only this package inside the generic check job blocks its
+		// command fixtures from starting.
+		result := runGoCommandWithoutOuterContainment(root, "test", "-buildvcs=false", router)
+		stdout.WriteString(result.Stdout)
+		stderr.WriteString(result.Stderr)
+		if result.ExitCode != 0 {
+			return CheckResult{ExitCode: result.ExitCode, Stdout: stdout.String(), Stderr: stderr.String()}
+		}
+	}
+	return CheckResult{Stdout: stdout.String(), Stderr: stderr.String()}
+}
+
+func runGoCommandWithoutOuterContainment(root string, args ...string) CheckResult {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultProcessCheckTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = root
+	overflow := make(chan struct{}, 1)
+	stdout := newCappedCheckBuffer(overflow)
+	stderr := newCappedCheckBuffer(overflow)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return CheckResult{ExitCode: 1, Stderr: err.Error()}
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	var err error
+	select {
+	case err = <-done:
+	case <-ctx.Done():
+		err = <-done
+	case <-overflow:
+		_ = cmd.Process.Kill()
+		err = <-done
+		return CheckResult{ExitCode: 1, Stdout: stdout.String(), Stderr: stderr.String() + fmt.Sprintf("go command output exceeded %d bytes", maxProcessCheckOutputBytes)}
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		return CheckResult{ExitCode: 1, Stdout: stdout.String(), Stderr: stderr.String() + "go command timed out"}
+	}
+	if err == nil {
+		return CheckResult{Stdout: stdout.String(), Stderr: stderr.String()}
+	}
+	exitCode := 1
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		exitCode = exitErr.ExitCode()
+	}
+	return CheckResult{ExitCode: exitCode, Stdout: stdout.String(), Stderr: stderr.String()}
 }
 
 func packageChecks(root string) ([]Check, error) {
@@ -119,6 +206,7 @@ func skillRepoChecks(root string) ([]Check, error) {
 	}
 	nativeChecks := []nativeCheck{
 		{"skill-lint", "skill quality config detected"},
+		{"skill-guidance", "current agent skill guidance contract detected"},
 		{"kb-doctor-selftest", "KB doctor install drift repair selftest detected"},
 		{"route-complexity-eval", "route complexity eval fixtures detected"},
 		{"review-reference-guard", "review skill shared-reference drift guard detected"},
@@ -186,6 +274,14 @@ func skillRepoChecks(root string) ([]Check, error) {
 				Name: "skill-lint", Args: []string{"kbcheck", "skill-lint"},
 				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
 				Run: func(root string) CheckResult { return runNativeCommand(root, []string{"skill-lint"}) },
+			})
+			continue
+		}
+		if pc.Name == "skill-guidance" {
+			checks = append(checks, Check{
+				Name: "skill-guidance", Args: []string{"kbcheck", "skill-guidance"},
+				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
+				Run: func(root string) CheckResult { return runNativeCommand(root, []string{"skill-guidance"}) },
 			})
 			continue
 		}

@@ -155,7 +155,11 @@ func executeCargoStorageLocked(opts cargoStorageOptions, action, receiptPath str
 	if err != nil {
 		return cargoStorageResult{Action: action, Issue: err.Error()}, nil
 	}
-	if receipt.RunID != opts.RunID || receipt.RepoIdentity != repoIdentity(opts.RepoRoot, filepath.Dir(receiptPath)) {
+	identityMatches, err := cargoStorageReceiptIdentityMatches(opts.RepoRoot, receiptPath, receipt.RepoIdentity)
+	if err != nil {
+		return cargoStorageResult{}, err
+	}
+	if receipt.RunID != opts.RunID || !identityMatches {
 		return cargoStorageResult{Action: action, Issue: "receipt identity does not match the active run and repository", Receipt: &receipt}, nil
 	}
 	switch action {
@@ -265,16 +269,24 @@ func validateCargoStorageFinal(opts cargoStorageOptions, receiptPath string, rec
 }
 
 func resolveCargoStorage(opts cargoStorageOptions, receiptPath string) (cargoStorageReceipt, error) {
-	identity := repoIdentity(opts.RepoRoot, filepath.Dir(receiptPath))
+	identity, err := cargoStorageRepositoryIdentity(opts.RepoRoot)
+	if err != nil {
+		return cargoStorageReceipt{}, err
+	}
 	if _, err := os.Stat(receiptPath); err == nil {
 		existing, loadErr := loadCargoStorageReceipt(receiptPath)
 		if loadErr != nil {
 			return cargoStorageReceipt{}, loadErr
 		}
-		if existing.RunID != opts.RunID || existing.RepoIdentity != identity {
+		identityMatches, matchErr := cargoStorageReceiptIdentityMatches(opts.RepoRoot, receiptPath, existing.RepoIdentity)
+		if matchErr != nil {
+			return cargoStorageReceipt{}, matchErr
+		}
+		if existing.RunID != opts.RunID || !identityMatches {
 			return cargoStorageReceipt{}, fmt.Errorf("existing Cargo storage receipt conflicts with the active run or repository")
 		}
 		if existing.Cleanup.Status == "pending" {
+			existing.RepoIdentity = identity
 			existing.CargoConfigFingerprint = cargoConfigFingerprint(opts.RepoRoot)
 			existing.UpdatedAt = opts.Now.Format(time.RFC3339Nano)
 			if err := writeCargoStorageReceipt(receiptPath, existing); err != nil {
@@ -313,11 +325,15 @@ func recordCargoStorageNotApplicable(opts cargoStorageOptions, receiptPath strin
 	} else if !os.IsNotExist(err) {
 		return cargoStorageReceipt{}, err
 	}
+	identity, err := cargoStorageRepositoryIdentity(opts.RepoRoot)
+	if err != nil {
+		return cargoStorageReceipt{}, err
+	}
 	now := opts.Now.Format(time.RFC3339Nano)
 	receipt := cargoStorageReceipt{
 		SchemaVersion: cargoStorageSchemaVersion,
 		RunID:         opts.RunID,
-		RepoIdentity:  repoIdentity(opts.RepoRoot, filepath.Dir(receiptPath)),
+		RepoIdentity:  identity,
 		StableSource:  "not-applicable",
 		Cleanup: cargoStorageCleanup{
 			Status: "not-applicable",
@@ -375,6 +391,17 @@ func registerCargoTemporaryTarget(opts cargoStorageOptions, receiptPath string, 
 	if strings.TrimSpace(opts.Target) == "" || strings.TrimSpace(opts.TempRoot) == "" || strings.TrimSpace(opts.Reason) == "" {
 		return cargoStorageResult{}, fmt.Errorf("register-temp requires target, temp-root, and reason")
 	}
+	ready, err := validateCargoStorageReady(opts, receipt)
+	if err != nil {
+		return cargoStorageResult{}, err
+	}
+	if !ready.OK {
+		return cargoStorageResult{
+			Action:  "register-temp",
+			Issue:   "build-storage receipt is not execution-ready: " + ready.Issue,
+			Receipt: &receipt,
+		}, nil
+	}
 	target, err := canonicalPath(opts.Target)
 	if err != nil {
 		return cargoStorageResult{}, err
@@ -393,6 +420,9 @@ func registerCargoTemporaryTarget(opts cargoStorageOptions, receiptPath string, 
 	}
 	if filepath.Dir(target) != tempRoot || !cargoPathWithin(target, tempRoot) {
 		return cargoStorageResult{Action: "register-temp", Issue: "temporary target must be a direct child of the approved temporary root", Receipt: &receipt}, nil
+	}
+	if !cargoTemporaryTargetNameAllowed(target) {
+		return cargoStorageResult{Action: "register-temp", Issue: "temporary target basename must be kb-cargo-temp- followed by 24 lowercase hex characters", Receipt: &receipt}, nil
 	}
 	if _, err := os.Lstat(target); err == nil {
 		return cargoStorageResult{Action: "register-temp", Issue: "temporary target must not already exist", Receipt: &receipt}, nil
@@ -544,6 +574,45 @@ func cargoStorageReceiptPath(root, runID string) (string, error) {
 	runHash := sha256.Sum256([]byte(runID))
 	filename := fmt.Sprintf("%s-%s.json", safeRunID, hex.EncodeToString(runHash[:8]))
 	return filepath.Join(common, "kb", "cargo-storage", filename), nil
+}
+
+func cargoStorageRepositoryIdentity(root string) (string, error) {
+	common, err := gitCommonDir(root)
+	if err != nil {
+		return "", err
+	}
+	identity, err := canonicalPath(common)
+	if err != nil {
+		return "", fmt.Errorf("canonicalize Git common directory: %w", err)
+	}
+	return filepath.Clean(identity), nil
+}
+
+func cargoStorageReceiptIdentityMatches(root, receiptPath, receiptIdentity string) (bool, error) {
+	identity, err := cargoStorageRepositoryIdentity(root)
+	if err != nil {
+		return false, err
+	}
+	if receiptIdentity == identity {
+		return true, nil
+	}
+	legacyStateRoot := filepath.Dir(receiptPath)
+	return receiptIdentity == repoIdentity(root, legacyStateRoot) ||
+		receiptIdentity == "state-root:"+filepath.ToSlash(legacyStateRoot), nil
+}
+
+func cargoTemporaryTargetNameAllowed(path string) bool {
+	const prefix = "kb-cargo-temp-"
+	name := filepath.Base(filepath.Clean(path))
+	if !strings.HasPrefix(name, prefix) || len(name) != len(prefix)+24 {
+		return false
+	}
+	for _, r := range name[len(prefix):] {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func loadCargoStorageReceipt(path string) (cargoStorageReceipt, error) {

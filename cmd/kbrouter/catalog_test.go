@@ -157,6 +157,40 @@ func TestUserCatalogEnabledFalsePreservesConfigAndDisablesRoutes(t *testing.T) {
 	}
 }
 
+func TestModelsShowAcceptsDisabledEmptyCatalogWithNullRoutes(t *testing.T) {
+	userRoot := t.TempDir()
+	disabled := false
+	catalog := modelrouting.Catalog{
+		SchemaVersion: modelrouting.CatalogSchemaVersion,
+		Enabled:       &disabled,
+	}
+	if err := modelrouting.SaveAtomicJSON(userRoot, userCatalogFile, catalog, maxCatalogBytes); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(userRoot, userCatalogFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() != 103 {
+		t.Fatalf("catalog fixture size=%d want 103", info.Size())
+	}
+	loaded, err := loadUserCatalog(userRoot)
+	if err != nil {
+		t.Fatalf("load disabled empty catalog: %v", err)
+	}
+	if loaded.Enabled == nil || *loaded.Enabled || loaded.Routes != nil {
+		t.Fatalf("disabled empty catalog shape changed: %#v", loaded)
+	}
+
+	code, stdout, stderr := runForTest("models", "show", "--user-root", userRoot, "--json")
+	if code != 0 {
+		t.Fatalf("models show code=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	if !strings.Contains(stdout, `"enabled":false`) {
+		t.Fatalf("disabled empty catalog was not shown: %s", stdout)
+	}
+}
+
 func TestModelsLocalRoutingTogglesWithoutDeletingRoutes(t *testing.T) {
 	userRoot := t.TempDir()
 	addTrustedRouteForTest(t, userRoot, "local.coder", "coder", "http://127.0.0.1:4000/v1")
@@ -177,6 +211,72 @@ func TestModelsLocalRoutingTogglesWithoutDeletingRoutes(t *testing.T) {
 	catalog = loadUserCatalogForTest(t, userRoot)
 	if catalog.Enabled == nil || !*catalog.Enabled || len(catalog.Routes) != 1 {
 		t.Fatalf("enable did not preserve route configuration: %#v", catalog)
+	}
+}
+
+func TestModelsApprovalModeDefaultsDisabledAndRequiredOptIn(t *testing.T) {
+	userRoot := t.TempDir()
+	code, stdout, stderr := runForTest(
+		"models", "add", "--user-root", userRoot, "--project-root", ".", "--scope", "user",
+		"--alias", "hosted.optional", "--model", "remote-model",
+		"--adapter", "openai-compatible", "--dispatch-method", "chat-completions",
+		"--destination", "hosted-optional", "--endpoint", "https://models.example.invalid/v1",
+		"--boundary", "hosted", "--retention", "session", "--training-use", "no",
+		"--residency", "declared", "--trust-provenance", "operator import", "--class", "small",
+	)
+	if code != 0 {
+		t.Fatalf("add hosted route exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	catalog := loadUserCatalogForTest(t, userRoot)
+	policy, err := policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy.ApprovalMode != modelrouting.ApprovalModeDisabled || !routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatalf("missing mode did not default to no-prompt routing: catalog=%#v policy=%#v", catalog, policy)
+	}
+	assertNotExists(t, filepath.Join(userRoot, userTrustFile))
+
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "required", "--json")
+	if code != 0 {
+		t.Fatalf("require approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	catalog = loadUserCatalogForTest(t, userRoot)
+	policy, err = policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog.ApprovalMode != modelrouting.ApprovalModeRequired || routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatalf("required mode did not enforce approval: catalog=%#v policy=%#v", catalog, policy)
+	}
+
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "disabled", "--json")
+	if code != 0 {
+		t.Fatalf("disable approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	policy, err = policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy.ApprovalMode != modelrouting.ApprovalModeDisabled || !routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatalf("disabled mode did not restore no-prompt routing: %#v", policy)
+	}
+
+	code, stdout, stderr = runForTest("models", "deny", "--user-root", userRoot, "--project-root", ".", "--alias", "hosted.optional", "--json")
+	if code != 0 {
+		t.Fatalf("deny exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	policy, err = policyContextForProject(userRoot, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if routeProjectSelectable(catalog.Routes[0], policy) {
+		t.Fatal("disabled approval mode bypassed an explicit route denial")
+	}
+
+	code, _, _ = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "sometimes")
+	if code != 2 || loadUserCatalogForTest(t, userRoot).ApprovalMode != modelrouting.ApprovalModeDisabled {
+		t.Fatal("invalid approval mode mutated the catalog")
 	}
 }
 
@@ -615,7 +715,7 @@ func TestTrustIsSeparateExplicitProjectBoundAndRevocable(t *testing.T) {
 	}
 }
 
-func TestHostedExtraRouteRequiresExplicitProjectApproval(t *testing.T) {
+func TestHostedExtraRouteRequiresExplicitProjectApprovalWhenEnabled(t *testing.T) {
 	userRoot := t.TempDir()
 	code, stdout, stderr := runForTest(
 		"models", "add", "--user-root", userRoot, "--project-root", ".", "--scope", "user",
@@ -627,6 +727,10 @@ func TestHostedExtraRouteRequiresExplicitProjectApproval(t *testing.T) {
 	)
 	if code != 0 {
 		t.Fatalf("add hosted route exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "required", "--json")
+	if code != 0 {
+		t.Fatalf("require approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
 	}
 	policy, err := policyContextForProject(userRoot, ".")
 	if err != nil {
@@ -911,6 +1015,10 @@ func TestCatalogDoesNotMintTrustOrSendCatalogNamedSecret(t *testing.T) {
 		"--residency", "local", "--trust-provenance", "unapproved fixture", "--class", "medium")
 	if code != 0 {
 		t.Fatalf("store unapproved route exit=%d stderr=%s stdout=%s", code, stderr, stdout)
+	}
+	code, stdout, stderr = runForTest("models", "approval-mode", "--user-root", userRoot, "--mode", "required", "--json")
+	if code != 0 {
+		t.Fatalf("require approval mode exit=%d stderr=%s stdout=%s", code, stderr, stdout)
 	}
 	assertNotExists(t, filepath.Join(userRoot, userTrustFile))
 

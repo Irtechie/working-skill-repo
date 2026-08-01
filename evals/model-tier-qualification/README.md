@@ -15,11 +15,13 @@ failure after valid execution is a model failure. Plan, oracle, preflight,
 route, no-response, indeterminate, and proof-infrastructure outcomes are visible
 exclusions and never improve the denominator.
 
-Evidence must bind a preregistered complete cohort, one immutable execution
-fingerprint, unique attempt and fixture identities, family dimensions, artifact
-hashes, and normalized receipt trust. Receipt facts are `reproduced`,
-`signature-verified`, or `unsupported`; unsupported authority cannot qualify.
-Preregistration must be independently verifiable before the first attempt.
+Evidence must bind a repo-contained preregistered cohort manifest, one immutable
+execution fingerprint, unique attempt and fixture identities, family dimensions,
+and repo-contained artifact paths with recomputed SHA-256 hashes. The cohort
+manifest must carry a valid Ed25519 signature from a signer listed in
+`config/model-tier-trust.json`. Receipt facts are `reproduced` or `unsupported`;
+unsupported authority cannot qualify, so self-asserted trust labels and forged
+signatures cannot qualify.
 
 The scorer rejects unknown or duplicate fields, path escape, symlinks,
 oversized/deep input, sensitive fields or values, mixed fingerprints, omitted

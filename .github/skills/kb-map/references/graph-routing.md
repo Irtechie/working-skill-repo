@@ -1,5 +1,12 @@
 # Graph Routing Reference
 
+## Contents
+
+- Size Preflight
+- Activation thresholds
+- Packet lifecycle
+- Freshness and fallback
+
 Use graph routing only when repo size or structural complexity makes normal
 project-memory lookup too expensive.
 

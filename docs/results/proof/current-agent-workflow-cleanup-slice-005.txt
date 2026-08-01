@@ -1,0 +1,24 @@
+slice: slice-005
+completed_at: 2026-07-31T06:15:00Z
+
+Drift review:
+- changed required skills: 14
+- all three global targets had identical older hashes
+- target-only files: 0
+
+Synchronization:
+- codex-global: 43 matches
+- copilot-global: 43 matches
+- agents-global: 43 matches
+- total comparisons: 129
+- required issues: 0
+- retired folders absent: ce-review, kb-finish, klfg
+
+Release proof:
+- go run ./cmd/kbcheck local-release
+- result: passed all required checks
+
+Windows proof repair:
+- fixed model-routing release proof so kbrouter's own job-object tests are not
+  nested inside a second Windows containment job
+- targeted release and model-routing proof passed

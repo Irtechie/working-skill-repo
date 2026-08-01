@@ -121,6 +121,9 @@ Inspect PRs by exact head repository/ref.
 - Record the PR URL. Never merge without a separate explicit merge request.
 - PR/manual stops with the correctly based open PR. `kb-ship` never merges it;
   only explicitly authorized `kb-land` may integrate the remote default.
+- Return the shipped PR evidence to `kb-complete` so it can stop at `pr-open` or
+  invoke authorized `kb-land`; PR creation is not terminal when the same run
+  already carries valid merge authorization.
 
 ### Lazy visual review
 
@@ -158,6 +161,15 @@ for an ordinary PR that did not request the visual.
 `shipped` requires release checks, audited staged scope, committed changes,
 matching local/upstream SHAs, a correctly based open PR, and a clean worktree
 except explicitly documented unrelated files.
+
+```yaml
+delivery_authority:
+  push_topic: true
+  open_pr: true
+  merge_remote_default: false
+  push_remote_default: false
+  integrate_remote_default: false
+```
 
 If no local/remote branch delta exists, still create a missing PR when the
 topic branch has deliverable commits. Use `nothing-to-ship` only when no

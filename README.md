@@ -61,6 +61,29 @@ The core loop is six skills:
 
 Everything else is an internal phase, compatibility alias, or optional depth.
 
+### Current proportional lifecycle
+
+The default path is single-agent-first and plan-wide rather than reviewer-heavy:
+
+1. Requirements receive a main-agent self-check; `document-review` runs only
+   for a material unresolved uncertainty.
+2. Slices run narrow deterministic proof, then one integrated aggregate.
+3. `kb-review` runs one broad profile or one replacement specialist after the
+   integrated tree is ready, never a reviewer swarm per slice.
+4. Final exact-tree proof runs after code-affecting review fixes.
+5. `ce-compound`, `learn`, `evolve`, and memory maintenance run only when their
+   evidence signals are present.
+
+Planning classifies each slice's minimum execution capability as `small`,
+`medium`, or `large`; deterministic route-complexity fixtures protect that
+rubric. Work-time DDR resolves one actually callable same-tier-or-higher route
+without writing provider or model names into durable plans.
+
+Manifest worktrees and their plan-run branches share one short, task-relevant,
+irreverent-but-work-safe codename, such as worktree
+`the-reviewers-have-unionized` with branch
+`codex/the-reviewers-have-unionized`, not opaque random adjective-noun pairs.
+
 ### One owner, one useful proof wave
 
 Before mutation, `kb-start` writes a repository-wide work claim under the Git
@@ -97,6 +120,76 @@ npm run wiki:build
 This preserves the learning model's narrow-scope and promotion rules instead of
 creating a second manually maintained knowledge store.
 
+## UniversalUI Skills Contribution
+
+This repository owns the canonical Skills catalog under
+`.github/skills/*/SKILL.md`. The installer packages that tree, and the
+UniversalUI contribution at `packages/universal-ui-skills-contribution`
+projects its stable frontmatter identity into one host-owned React route:
+
+| Field | Value |
+| --- | --- |
+| Package | `@irtechie/universal-ui-skills-contribution` |
+| Contribution | `io.irtechie.working-skill-repo.skills` |
+| Stable route | `/apps/skills` |
+| Legacy input | `/?tab=skills` |
+| Contract | `universal_ui.contribution.v1`, host `^0.1.0` |
+
+The projection includes only each skill's repo-relative identity, description,
+argument hint, category, and public source URL. Skill Markdown bodies are not
+shipped in the catalog. React renders every projected value as text; the
+contribution has no raw-HTML renderer, executable Markdown, shell, router,
+global frame, or machine-private source path.
+
+Build the catalog, test the package, and create its release artifact:
+
+```shell
+npm run catalog:build --prefix packages/universal-ui-skills-contribution
+npm run test:universal-ui-skills
+npm run pack:universal-ui-skills
+```
+
+The optional rendered smoke fixture uses React and Vite from a local
+UniversalUI checkout without adding them as contribution-owned dependencies.
+Set `UNIVERSAL_UI_ROOT` to that checkout, start Vite with
+`packages/universal-ui-skills-contribution/test/browser-fixture` as its root,
+then open the printed local URL with `agent-browser`.
+
+The pack command writes the tarball and
+`release/universal-ui.release-lock.json` under the contribution package. The
+release lock binds `contributionDefinition` to the tarball SHA-256.
+
+UniversalUI should install the tarball with scripts disabled, import
+`contributionDefinition` and `routeLoaders`, import the package's
+`styles.css`, and merge them into its existing active-set preflight and
+host-owned router. The lazy `skills` route component accepts
+`{ context: ShellContextV1 }`; it does not mount React or create a shell.
+The current UniversalUI fleet test contribution also registers `skills`, so
+the host must remove that synthetic route before activating this canonical
+owner package or active-set collision preflight will reject the release.
+
+The private `@irtechie/universal-ui-contract` package is not a registry,
+workspace, or source-alias dependency. To optionally prove conformance against
+an immutable local contract tarball:
+
+```powershell
+$env:UNIVERSAL_UI_CONTRACT_TGZ = "<immutable-contract-tarball>"
+$env:UNIVERSAL_UI_CONTRACT_SHA256 = "<expected-sha256>"
+npm run verify:universal-ui-contract
+```
+
+On macOS or Linux:
+
+```shell
+export UNIVERSAL_UI_CONTRACT_TGZ="<immutable-contract-tarball>"
+export UNIVERSAL_UI_CONTRACT_SHA256="<expected-sha256>"
+npm run verify:universal-ui-contract
+```
+
+The verifier runs an offline, `--ignore-scripts` install, checks package name
+and version, then validates the local contribution through the installed
+contract's public export.
+
 Optional `kb-configure` writes portable per-project execution policy. Most users
 never need it. Orchestrator-directed DDR is the default: the current
 orchestrator either retains a slice or delegates it once to one qualified
@@ -116,8 +209,8 @@ direct integration and post-integration sync.
 
 For long-lived objectives that may run across days or sessions, use `kb-goal`.
 It keeps the durable objective and terminal proof ledger, then routes each work
-unit through the normal KB lanes. `klfg` is one strict idea-to-done pipeline;
-`kb-goal` can run many pipelines or smaller lanes until the larger goal is
+unit through the normal KB lanes. `kb-complete` is one state-aware completion
+run; `kb-goal` can run many runs or smaller lanes until the larger goal is
 complete or honestly blocked. Under a goal, brainstorming is low-interruption:
 the agent picks the best path from evidence and asks only for true planning
 blockers.
@@ -198,7 +291,7 @@ project. This table is the human reference; the current
 | Fuzzy idea or high-path-dependency product direction | `kb-brainstorm` | Planning questions resolved |
 | Small known bug, typo, or narrow contained edit | `kb-fix` | Targeted proof |
 | Memory, docs, or output are too hard to scan | `kb-compact` | Technical truth preserved with lower reading burden |
-| Legacy `klfg` or `kb-finish` request | `kb-complete` | Compatibility alias; same completion gates |
+| Full idea-to-endpoint completion request | `kb-complete` | Same state-aware completion gates |
 
 Handoffs re-enter through `kb-start` and `kb-map`; durable goals route each work
 unit back through these same lanes.
@@ -224,8 +317,10 @@ KB separates three decisions that agents often blur together:
 
 ### Difficulty-Driven Routing (DDR)
 
-DDR is the decision pattern; `kbrouter ddr attempt` reserves and runs the one
-bounded local attempt for an already configured and approved user-local route.
+DDR is the decision pattern; `kbrouter ddr attempt` reserves and runs one
+bounded local attempt for an eligible configured user-local route. Attended
+endpoint/auth approval is required only when the user opts into `required`
+approval mode.
 On a returned result, the parent runs deterministic proof and records the
 verdict with `kbrouter ddr resolve`. Planning records required capability and
 proof; execution records `current` or `delegated` ownership and chooses from
@@ -273,13 +368,17 @@ as `automatic`, `self-hosted-first`, or `native-first`. Credentials and private
 endpoints never enter plans or shared skills.
 
 Local route setup is explicit. Copy the placeholder, fill an ignored local
-file, import it into canonical user-local state, approve it separately when
-private, then let work-time routing decide whether it is eligible. See
+file, import it into canonical user-local state, choose no-prompt routing
+(`disabled`, the default) or opt into attended approval (`required`), then let
+work-time routing decide whether it is eligible. See
 [LOCAL_MODELS.example.md](LOCAL_MODELS.example.md) for the full contract.
 
 ```powershell
 Copy-Item config\kbrouter-routes.example.json kbrouter-routes.local.json
 kbrouter models import --file kbrouter-routes.local.json
+kbrouter models approval-mode --mode disabled  # bounded loops need no permission prompt
+# Optional attended boundary:
+kbrouter models approval-mode --mode required
 kbrouter models approve --alias <filled-alias> --project-root <project-root>
 kbrouter models doctor --project-root <project-root>
 kbrouter models priority --project-root <project-root> --mode self-hosted-first
@@ -441,8 +540,10 @@ live cost, latency, token, or savings claim.
   cost time up front. They earn their place only when they prevent the agent
   from guessing, drifting, or calling unverified work done.
 - **Complete to the configured endpoint.** `kb-complete` resumes from source,
-  plan, active work, or reviewed manifest. `kb-work` auto-invokes only internal
-  `kb-finalize`, so ordinary work never publishes by accident.
+  plan, active work, or reviewed manifest. Successful `kb-work` continues
+  through internal `kb-finalize` and returns to `kb-complete`; delivery still
+  requires configured policy or explicit run-scoped authorization, so automatic
+  phase continuation does not grant accidental publishing authority.
 
 KB means **Kanban-Based**. The workflow still uses boards, manifests, vertical
 slices, and done archives, but user-facing commands use the shorter `kb-`
@@ -576,7 +677,7 @@ for help only for product decisions, credentials, unsafe operations, or genuine
 ambiguity. `kb-check` and `kb-functional-test` push verification into executable
 checks instead of letting the model re-inspect behavior by hand.
 
-`kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-epic`, and `klfg` share a workflow
+`kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-epic`, and `kb-complete` share a workflow
 governor contract: unresolved `ask-now` or `research-first` questions block
 planning, safe assumptions must be recorded with proof, and later phases advance
 through gate-ledger records rather than chat confidence. The maintainer proof is
@@ -634,18 +735,16 @@ This is a command index. For the ordered lane decision, see
 | `kb-architecture-deepening` | Explore where a codebase should get deeper, simpler, or more modular |
 | `kb-plan` | Requirements exist and need vertical slices |
 | `kb-work` | A manifest exists and should be executed |
-| `kb-review` | KB-specific code review with structural quality review |
+| `kb-review` | One integrated broad or replacement specialist code review |
 | `kb-complete` | Feature/plan/manifest should reach its configured endpoint |
 | `kb-finalize` | Internal post-work review, proof, learning, memory, cleanup |
 | `kb-memory-review` | High-cost pass for stale, bloated, or contradictory memory |
 | `kb-ship` | Internal commit, push, and PR delivery phase |
 | `kb-land` | Internal merge/direct integration and post-integration sync phase |
-| `kb-finish` | Deprecated alias to `kb-complete` |
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
 | `kb-compact` | Memory, docs, or output need low-burden organization with the smallest useful prose, table, decision block, or workflow view |
 | `kb-executive-brief` | Generate an executive first screen and an optional evidence-backed Mermaid flow |
 | `pr-review-workbench` | Generate a commit-pinned, offline visual PR review after a PR exists |
-| `klfg` | Deprecated alias to `kb-complete` |
 | `repo-critic` | Claims-vs-code evidence review before a claim ships |
 | `safe-shell-quoting` | Run fragile PowerShell, Bash, or mixed-shell quoting from validated temporary script files |
 
@@ -679,9 +778,16 @@ Execution lanes:
 
 - `kb-fix`, `kb-troubleshoot`, `kb-brainstorm`, `kb-research`
 - `kb-architecture-deepening`, `kb-plan`, `kb-work`, `kb-finalize`, `kb-complete`
-- `kb-ship`, `kb-land`, `kb-finish`, `kb-epic`, `kb-task`, `kb-goal`,
-  `kb-first-principles`, `klfg`
+- `kb-ship`, `kb-land`, `kb-epic`, `kb-task`, `kb-goal`,
+  `kb-first-principles`
 - `safe-shell-quoting` - file-backed execution and validated cleanup for quote-heavy shell commands
+
+Successful planned work does not stop at phase handoffs:
+`kb-work -> kb-finalize -> kb-complete`. Configured PR delivery then invokes
+`kb-ship`, and authorized merge delivery continues to `kb-land` after required
+checks and reviews. `kb-work` never pushes or merges the resolved default
+branch, `kb-ship` never merges, and only `kb-land` integrates remote default
+before optional source-to-installed skill sync.
 
 `kb-ship` uses a low-burden PR first screen: what changed and why, genuine
 reviewer-owned decisions, work the agent already handled, verification, and
@@ -714,16 +820,15 @@ Verification and gates:
 - `kb-qa` - per-slice QA gate
 - `kb-repair` - surgical fix loop with stuck detection
 - `kb-regression-snapshot` - capture/replay deterministic regression snapshots
-- `kb-review` - tiered-persona structural review
+- `kb-review` - one evidence-bound broad or replacement specialist review
 - `kb-eval-map` - map repo-native eval surfaces and proof commands
 - `kb-memory-review` - high-cost project-memory maintenance pass
 
-Direct dependencies include `ce-review`, `ce-compound`,
-`ce-compound-refresh`, `document-review`, `tdd`, `learn`, `evolve`,
-`todo-create`, and `todo-triage`. Do not remove `kb-review`, `ce-review`,
-`ce-compound`, or `ce-compound-refresh` unless the skills that invoke them are
-rewritten first. `kb-finalize` uses `kb-review`; `ce-review` remains the
-generalized CE review skill.
+Direct dependencies include `ce-compound`, `ce-compound-refresh`,
+`document-review`, `tdd`, `learn`, `evolve`, `todo-create`, and `todo-triage`.
+Do not remove `kb-review`, `ce-compound`, or `ce-compound-refresh` unless their
+callers are rewritten first. `kb-review` owns both KB completion and standalone
+bundle code review.
 
 ## Project Memory
 
@@ -798,23 +903,23 @@ Deep dive: [KB learning model](docs/context/architecture/kb-learning-model.md).
 
 ## Review Agents
 
-The reviewer agents are runtime dependencies, not optional docs. Removing them
-causes `document-review`, `kb-review`, `ce-review`, `kb-complete`, and related
-gates to fail or degrade.
+Reviewer agents are optional execution profiles used by `document-review` and
+`kb-review`. Each review boundary selects at most one; local fallback remains
+available when the runtime cannot dispatch that profile.
 
-Always-on KB code review personas:
+The broad code profile covers:
 
-- `correctness-reviewer`
-- `testing-reviewer`
-- `thermo-nuclear-code-quality-reviewer`
-- `project-standards-reviewer`
+- intent/spec alignment;
+- test validity;
+- correctness;
+- code health.
 
-Conditional reviewers include security, performance, API contracts, migrations,
-reliability, frontend races, schema drift, deployment, prior comments,
-language-specific reviewers, and adversarial review.
+Security, migration, performance, reliability, API, CLI, and Thermonuclear
+profiles replace the broad profile when that risk dominates; they do not stack.
 
-Document-review uses its own lens agents: coherence, feasibility, product,
-design, flow, security, scope, and adversarial document review.
+Document-review runs only after the main-agent self-check leaves material
+uncertainty, selecting one coherence, feasibility, product, design, flow,
+security, scope, or adversarial lens.
 
 Deep dive: [KB workflow architecture](docs/context/architecture/kb-workflow.md)
 and [kb-review persona catalog](.github/skills/kb-review/references/persona-catalog.md).
@@ -1064,8 +1169,7 @@ Deep dive:
 These are intentionally left out of the portable runtime bundle:
 
 - upstream `deepen-*` passes; use `kb-research` and proportional research
-- one-shot LFG/SLFG style workflows; use `klfg` only when you want the full
-  pipeline
+- one-shot LFG/SLFG style workflows; use `kb-complete` for the full pipeline
 - upstream `workflows-*` aliases; use KB lanes directly unless a current app
   explicitly needs an ATV alias
 - upstream `land`; internal `kb-ship` and `kb-land` are governed by

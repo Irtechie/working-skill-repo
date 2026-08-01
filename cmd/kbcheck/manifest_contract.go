@@ -719,6 +719,9 @@ func validateQualificationPlanContract(path string) []manifestContractIssue {
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(recordHash) || recordHash != gotHash {
 		issues = add(issues, "qualification_plan record_sha256 must match the current record")
 	}
+	if err := validateJSONShape(content, 12); err != nil {
+		return add(issues, fmt.Sprintf("invalid qualification plan JSON shape: %v", err))
+	}
 	var record qualificationPlanRecord
 	decoder := json.NewDecoder(strings.NewReader(string(content)))
 	decoder.DisallowUnknownFields()
@@ -739,6 +742,10 @@ func validateQualificationPlanContract(path string) []manifestContractIssue {
 	issues = append(issues, validateQualificationFileBinding(root, "plan", record.Plan)...)
 	issues = append(issues, validateQualificationFileBinding(root, "review", record.Review)...)
 	issues = append(issues, validateQualificationReviewBinding(path, record.Review)...)
+	expectedInvariantIDs, err := qualificationPlanExpectedInvariantIDs(root, record.Plan)
+	if err != nil {
+		issues = add(issues, err.Error())
+	}
 	if len(record.Invariants) == 0 {
 		issues = add(issues, "qualification plan requires at least one invariant")
 	}
@@ -765,7 +772,54 @@ func validateQualificationPlanContract(path string) []manifestContractIssue {
 			issues = append(issues, validateQualificationTierRaise(label, record.TargetTier, invariant)...)
 		}
 	}
+	for id := range expectedInvariantIDs {
+		if !seen[id] {
+			issues = add(issues, fmt.Sprintf("qualification plan record omits reviewed invariant %s", id))
+		}
+	}
+	for id := range seen {
+		if !expectedInvariantIDs[id] {
+			issues = add(issues, fmt.Sprintf("qualification plan record contains unreviewed invariant %s", id))
+		}
+	}
 	return issues
+}
+
+func qualificationPlanExpectedInvariantIDs(root string, binding qualificationPlanFileBinding) (map[string]bool, error) {
+	content, err := readQualificationPlanFile(root, binding.Path)
+	if err != nil {
+		return nil, fmt.Errorf("qualification plan invariant ledger is unreadable: %v", err)
+	}
+	ids := map[string]bool{}
+	inLedger := false
+	entryPattern := regexp.MustCompile(`^\s+-\s+([a-z0-9][a-z0-9-]{2,127})\s*$`)
+	for _, line := range strings.Split(string(content), "\n") {
+		if strings.TrimSpace(line) == "qualification_invariants:" {
+			inLedger = true
+			continue
+		}
+		if !inLedger {
+			continue
+		}
+		if match := entryPattern.FindStringSubmatch(line); len(match) == 2 {
+			if ids[match[1]] {
+				return nil, fmt.Errorf("qualification plan invariant ledger contains duplicate id %s", match[1])
+			}
+			ids[match[1]] = true
+			continue
+		}
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if len(line) == len(strings.TrimLeft(line, " \t")) {
+			break
+		}
+		return nil, fmt.Errorf("qualification plan invariant ledger contains an invalid entry")
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("qualification plan must declare qualification_invariants")
+	}
+	return ids, nil
 }
 
 func validateQualificationFileBinding(root, label string, binding qualificationPlanFileBinding) []manifestContractIssue {
@@ -818,6 +872,8 @@ func validateQualificationGuidance(root, label string, invariant qualificationPl
 	anchor := strings.TrimSpace(invariant.Source.Anchor)
 	if anchor == "" {
 		add(label + " source requires a stable anchor")
+	} else if !strings.Contains(string(sourceContent), anchor) {
+		add(label + " source anchor must exist in the bound repository file")
 	}
 	guidance := invariant.Guidance
 	mechanism := strings.TrimSpace(guidance.MechanismOrHazard)
@@ -989,8 +1045,13 @@ func validatePassedPreSliceReview(path string, values map[string]string) []manif
 		issues = add(issues, "passed pre_slice_review reviewed_at must be RFC3339")
 	}
 	personas := map[string]string{}
-	if err := json.Unmarshal([]byte(values["persona_evidence_json"]), &personas); err != nil || len(personas) == 0 {
+	schemaText, _, _ := manifestTopLevelScalarDetails(path, "manifest_schema")
+	schemaVersion, _ := strconv.Atoi(schemaText)
+	personaErr := json.Unmarshal([]byte(values["persona_evidence_json"]), &personas)
+	if personaErr != nil || len(personas) == 0 {
 		issues = add(issues, "passed pre_slice_review persona_evidence_json must be a nonempty JSON object")
+	} else if schemaVersion >= 3 && len(personas) != 1 {
+		issues = add(issues, "manifest_schema 3 requires exactly one pre-slice reviewer")
 	} else {
 		allowed := map[string]bool{
 			"coherence-reviewer": true, "feasibility-reviewer": true,
@@ -1004,11 +1065,6 @@ func validatePassedPreSliceReview(path string, values map[string]string) []manif
 			}
 			if !validPersonaSelectionReason(persona, reason) {
 				issues = add(issues, fmt.Sprintf("pre_slice_review persona %s requires a specific selection reason", persona))
-			}
-		}
-		for _, required := range []string{"coherence-reviewer", "feasibility-reviewer"} {
-			if _, ok := personas[required]; !ok {
-				issues = add(issues, fmt.Sprintf("passed pre_slice_review requires completed %s", required))
 			}
 		}
 	}

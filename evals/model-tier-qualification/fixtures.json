@@ -11,6 +11,7 @@
     {"id": "correlated-families", "mutation": "correlated-families", "expected_decision": "inconclusive", "expected_error": false},
     {"id": "stale-fingerprint", "mutation": "stale-fingerprint", "expected_decision": "inconclusive", "expected_error": false},
     {"id": "unsupported-trust", "mutation": "unsupported-trust", "expected_decision": "inconclusive", "expected_error": false},
+    {"id": "forged-provenance", "mutation": "forged-provenance", "expected_decision": "inconclusive", "expected_error": false},
     {"id": "unobservable-provider-expired", "mutation": "unobservable-expired", "expected_decision": "inconclusive", "expected_error": false},
     {"id": "plan-exclusion", "mutation": "exclude-plan", "expected_decision": "inconclusive", "expected_exclusion": "plan-insufficient", "expected_error": false},
     {"id": "oracle-exclusion", "mutation": "exclude-oracle", "expected_decision": "inconclusive", "expected_exclusion": "oracle-invalid", "expected_error": false},
@@ -20,9 +21,12 @@
     {"id": "indeterminate-exclusion", "mutation": "exclude-indeterminate", "expected_decision": "inconclusive", "expected_exclusion": "execution-indeterminate", "expected_error": false},
     {"id": "proof-infrastructure-exclusion", "mutation": "exclude-proof", "expected_decision": "inconclusive", "expected_exclusion": "proof-infrastructure", "expected_error": false},
     {"id": "omitted-attempt-is-fatal", "mutation": "omitted-attempt", "expected_error": true},
+    {"id": "omitted-attempt-and-ledger-is-fatal", "mutation": "omitted-attempt-and-ledger", "expected_error": true},
     {"id": "replayed-attempt-is-fatal", "mutation": "replayed-attempt", "expected_error": true},
     {"id": "unknown-field-is-fatal", "mutation": "unknown-field", "expected_error": true},
     {"id": "mixed-fingerprint-is-fatal", "mutation": "mixed-fingerprint", "expected_error": true},
+    {"id": "artifact-hash-mismatch-is-fatal", "mutation": "artifact-hash-mismatch", "expected_error": true},
+    {"id": "cohort-manifest-hash-mismatch-is-fatal", "mutation": "cohort-manifest-hash-mismatch", "expected_error": true},
     {"id": "unsupported-target-is-fatal", "mutation": "unsupported-target", "expected_error": true},
     {"id": "sensitive-value-is-fatal", "mutation": "sensitive-value", "expected_error": true}
   ]

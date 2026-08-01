@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -161,6 +162,18 @@ func windowsStorageDescriptorMatches(actual, sid string, directory bool) bool {
 		return false
 	}
 	aceText := remaining[daclIndex+len("D:P"):]
+	for {
+		switch {
+		case strings.HasPrefix(aceText, "AI"):
+			aceText = strings.TrimPrefix(aceText, "AI")
+		case strings.HasPrefix(aceText, "AR"):
+			aceText = strings.TrimPrefix(aceText, "AR")
+		default:
+			goto parseACEs
+		}
+	}
+
+parseACEs:
 	expectedFlags := ""
 	if directory {
 		expectedFlags = "OICI"
@@ -178,10 +191,11 @@ func windowsStorageDescriptorMatches(actual, sid string, directory bool) bool {
 			return false
 		}
 		ace := aceText[:end+1]
-		if _, ok := expected[ace]; !ok {
+		if _, ok := expected[ace]; ok {
+			expected[ace] = true
+		} else if !directory || !windowsDirectoryTraversalACEIsNonMutating(ace) {
 			return false
 		}
-		expected[ace] = true
 		aceText = aceText[end+1:]
 	}
 	for _, seen := range expected {
@@ -190,6 +204,34 @@ func windowsStorageDescriptorMatches(actual, sid string, directory bool) bool {
 		}
 	}
 	return true
+}
+
+func windowsDirectoryTraversalACEIsNonMutating(ace string) bool {
+	if len(ace) < 2 || ace[0] != '(' || ace[len(ace)-1] != ')' {
+		return false
+	}
+	fields := strings.Split(ace[1:len(ace)-1], ";")
+	if len(fields) != 6 || fields[0] != "A" || fields[1] != "OICI" ||
+		!strings.HasPrefix(fields[2], "0X") || !strings.HasPrefix(fields[5], "S-1-") {
+		return false
+	}
+	rights, err := strconv.ParseUint(strings.TrimPrefix(fields[2], "0X"), 16, 32)
+	if err != nil {
+		return false
+	}
+	const mutatingRights = 0x00000002 | // FILE_WRITE_DATA / FILE_ADD_FILE
+		0x00000004 | // FILE_APPEND_DATA / FILE_ADD_SUBDIRECTORY
+		0x00000010 | // FILE_WRITE_EA
+		0x00000040 | // FILE_DELETE_CHILD
+		0x00000100 | // FILE_WRITE_ATTRIBUTES
+		0x00010000 | // DELETE
+		0x00040000 | // WRITE_DAC
+		0x00080000 | // WRITE_OWNER
+		0x01000000 | // ACCESS_SYSTEM_SECURITY
+		0x02000000 | // MAXIMUM_ALLOWED
+		0x10000000 | // GENERIC_ALL
+		0x40000000 // GENERIC_WRITE
+	return rights&mutatingRights == 0
 }
 
 func windowsStorageOwner(path string) (string, error) {

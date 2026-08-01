@@ -8,7 +8,7 @@ Each fixture describes:
 - `prompt` - user request shape.
 - `repo_state` - assumed local context.
 - `expected.route` - the smallest correct KB lane.
-- `expected.complexity_tier` - `small`, `standard`, or `large`.
+- `expected.complexity_tier` - `small`, `medium`, or `large`.
 - `expected.max_user_questions` - maximum acceptable avoidable questions before action.
 - `expected.artifacts` - durable artifacts expected from the route.
 - `expected.proof` - proof the route must eventually produce.

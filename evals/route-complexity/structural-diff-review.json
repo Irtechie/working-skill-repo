@@ -5,7 +5,7 @@
   "repo_state": "A specific diff exists and the user wants review, not open-ended architecture exploration.",
   "expected": {
     "route": "kb-review",
-    "complexity_tier": "standard",
+    "complexity_tier": "medium",
     "max_user_questions": 0,
     "artifacts": ["review findings", "testing gaps"],
     "proof": ["diff read", "review output schema"]
