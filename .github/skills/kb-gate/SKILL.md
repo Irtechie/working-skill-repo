@@ -52,6 +52,16 @@ Before repeating a blocker in chat, a handoff, or a final summary, rerun its
 cheapest owning sensor or inspect current authoritative state. Report stale
 wording as corrected history, not as a current blocker.
 
+Every blocker carries a receipt: the command run and the output it returned.
+An asserted negative - "no credential exists", "the endpoint is unsupported" -
+is not a receipt and does not open a gate. Before accepting a missing-input
+blocker, run the cheapest call that would succeed without that input; the
+requirement is often imaginary. Before accepting "unsupported", establish
+whether the deployed build simply predates the feature, which calls for a
+deploy rather than a build. A claim inherited from a sub-agent needs its
+receipt carried across the boundary or re-verified. See `kb-goal` for the full
+rule.
+
 Scope propagation is narrow:
 
 - a blocked slice blocks only dependent slices;
