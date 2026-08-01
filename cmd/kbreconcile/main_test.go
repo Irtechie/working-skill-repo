@@ -187,6 +187,28 @@ func TestApplyVerifyStableJSONAndFailClosedInput(t *testing.T) {
 	}
 }
 
+func TestSemanticClaimCapabilityAndConformanceJSON(t *testing.T) {
+	for _, mode := range []string{"claim-capability", "claim-conformance"} {
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{mode, "--json"}, &stdout, &stderr); code != 0 {
+			t.Fatalf("%s code=%d stderr=%s", mode, code, stderr.String())
+		}
+		var result commandResult
+		if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result.ClaimCapability == nil || result.ClaimCapability.SchemaVersion != 1 {
+			t.Fatalf("%s missing stable capability: %#v", mode, result)
+		}
+		if result.ClaimCapability.ProtectedMutationAvailable || result.ClaimCapability.LiveProviderSupported {
+			t.Fatalf("%s claimed unsupported live authority: %#v", mode, result.ClaimCapability)
+		}
+		if mode == "claim-conformance" && (result.Conformance == nil || result.Conformance.Status != "passed") {
+			t.Fatalf("reference conformance failed: %#v", result)
+		}
+	}
+}
+
 func initPlainRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()

@@ -120,18 +120,23 @@ the narrowest owning scope.
    required.
 4. Move the completed feature summary from `todo.md` to `todo-done.md`; retain
    active, blocked, human-required, parked, and handoff-pointer work.
-5. Write `complete-to-ship` with:
+5. Register completion state and evidence for `kb-complete`, including the exact
+   tree, proof receipt, manifest/gate, session, branch, and declared semantic
+   resources. Finalization never deletes the current worktree and does not
+   release its ownership claim; registration and endpoint selection happen
+   before a later controller performs physical cleanup.
+6. Write `complete-to-ship` with:
    - final exact-tree proof and functional proof;
    - review or valid skip receipt;
    - P0/P1 resolution;
    - follow-up summary;
    - signal-driven knowledge/memory outcomes or skip reasons;
    - cleanup result and alerts.
-6. Run the gate-ledger checker. Set manifest `status: reviewed` only when the
+7. Run the gate-ledger checker. Set manifest `status: reviewed` only when the
    gate passes or explicitly quarantines unrelated work.
-7. Require an advanceable `passed|quarantined` gate before leaving
+8. Require an advanceable `passed|quarantined` gate before leaving
    finalization. Preserve quarantine evidence and forbidden claims.
-8. Invoke `kb-complete <manifest>` automatically.
+9. Invoke `kb-complete <manifest>` automatically.
 
 `kb-finalize` does not commit, push, open a PR, merge, or integrate the resolved
 remote default branch. It returns reviewed durable state to the delivery

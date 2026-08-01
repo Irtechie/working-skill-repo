@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const WorktreeSafetyContractVersion = "reconcile-predicates/v1"
+const WorktreeSafetyContractVersion = "reconcile-predicates/v2"
 
 type ApplyOptions struct {
 	Bundle          PlanBundle

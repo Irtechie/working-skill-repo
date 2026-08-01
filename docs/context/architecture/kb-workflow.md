@@ -19,6 +19,18 @@ session to the specific files it needs. The handoff tells the model what work is
 being resumed; `docs/context/PROJECT.md` tells it what the app is and where the
 relevant architecture docs live.
 
+Lifecycle registration precedes release: `local-durable`, `awaiting-review`, or
+`delivery-integrated` records the durable endpoint, while physical cleanup, ref
+retirement, and host session retirement remain separate later-controller
+dimensions. The finishing session never deletes its current worktree. An open
+PR can suspend execution for weeks without active WIP, but retains both refs and
+an exact resume packet.
+
+When available, globally installed `kbreconcile` performs the opportunistic,
+scheduled, or on-demand `plan -> apply -> verify` sweep. `kb-start` uses the
+repo-native terminal guard as a fail-closed fallback. Routine adapter outages
+remain agent-owned retry state; they do not become human packets.
+
 ## Route Selection
 
 `kb-start` is the workflow router. It chooses the lane for the actual work, not
@@ -179,6 +191,14 @@ The pipeline is designed around task sizes:
   then route each unit through the smallest valid KB lane.
 - **Medium feature:** use `kb-brainstorm` -> `kb-plan` -> `kb-work`.
 - **Large initiative:** use `kb-epic`.
+
+Every mutating node declares canonical semantic resources. Queue WIP counts
+distinct active owners, not duplicate claims. Disjoint resources may execute
+concurrently; conflicting local writers serialize. Protected publishers,
+release-manifest promoters, and deployers additionally require an authoritative
+CAS adapter and fenced gateway. Local worktree/queue leases never claim global
+authority, and protected mutation is unavailable when claim, verifier,
+atomic-commit, idempotency, or sole-path evidence is missing.
 
 `kb-fix` and `kb-troubleshoot` both require agent-run verification. The proof is
 not just "the edit looks right"; rerun the reproduction plus the relevant tests,

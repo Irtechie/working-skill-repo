@@ -48,6 +48,7 @@ const (
 	ActionWorktreeRetire  = "worktree-retire"
 	ActionSessionRetire   = "session-record-retire"
 	ActionSalvage         = "salvage"
+	ActionProtectedWriter = "protected-writer"
 
 	DedupIdenticalBlob          = "identical-blob-v1"
 	DedupIdenticalTree          = "identical-tree-v1"

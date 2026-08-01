@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "policy_version": "reconcile-predicates/v1",
+  "policy_version": "reconcile-predicates/v2",
   "plan_ttl": "10m",
   "thresholds": {
     "destructive": 1.0,
@@ -19,7 +19,8 @@
       "remote-ref-retire": 0,
       "worktree-retire": 5,
       "session-record-retire": 0,
-      "salvage": 2
+      "salvage": 2,
+      "protected-writer": 0
     },
     "per_repository": {
       "merge": 0,
@@ -28,7 +29,8 @@
       "remote-ref-retire": 0,
       "worktree-retire": 3,
       "session-record-retire": 0,
-      "salvage": 1
+      "salvage": 1,
+      "protected-writer": 0
     }
   },
   "protected_path_classes": [
@@ -162,6 +164,22 @@
         {"name": "protected-path-check-pass", "authoritative_adapters": ["metadata-classifier"], "freshness": "5m", "downgrade": "quarantine"},
         {"name": "additive-only", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "quarantine"},
         {"name": "salvage-authority", "authoritative_adapters": ["policy"], "freshness": "5m", "downgrade": "quarantine"}
+      ]
+    },
+    {
+      "class": "protected-writer",
+      "threshold": 1.0,
+      "destructive": true,
+      "allowed": false,
+      "downgrade": "protected",
+      "mandatory_predicates": [
+        {"name": "canonical-semantic-resource", "authoritative_adapters": ["policy", "claim-adapter"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "authoritative-claim-cas", "authoritative_adapters": ["claim-adapter"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "current-controller-incarnation", "authoritative_adapters": ["claim-adapter"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "scoped-authorization-verifier", "authoritative_adapters": ["authorization-verifier"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "gateway-high-water-atomic-commit", "authoritative_adapters": ["fenced-gateway"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "durable-idempotency-reservation", "authoritative_adapters": ["fenced-gateway"], "freshness": "5m", "downgrade": "protected"},
+        {"name": "sole-production-path", "authoritative_adapters": ["iam", "network-policy", "credential-audit"], "freshness": "5m", "downgrade": "protected"}
       ]
     }
   ]

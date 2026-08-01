@@ -22,6 +22,8 @@ Usage:
   kbreconcile plan --repo <path> [--repo <path>...] --output <path> [--policy <path>] [--cutoff <RFC3339>] [--json]
   kbreconcile apply --input <plan.json> --receipt <receipt.json> [--policy <path>] [--session-id <id>] [--json]
   kbreconcile verify --input <plan.json> --receipt <receipt.json> [--policy <path>] [--session-id <id>] [--json]
+  kbreconcile claim-capability [--json]
+  kbreconcile claim-conformance [--json]
 `
 
 var now = time.Now
@@ -40,16 +42,18 @@ func (values *stringList) Set(value string) error {
 }
 
 type commandResult struct {
-	SchemaVersion int                     `json:"schema_version"`
-	Status        string                  `json:"status"`
-	Mode          string                  `json:"mode,omitempty"`
-	Cutoff        time.Time               `json:"cutoff,omitempty"`
-	Output        string                  `json:"output,omitempty"`
-	Ledger        *reconcile.Ledger       `json:"ledger,omitempty"`
-	Plan          *reconcile.Plan         `json:"plan,omitempty"`
-	Receipt       *reconcile.ApplyReceipt `json:"receipt,omitempty"`
-	Verification  *reconcile.Verification `json:"verification,omitempty"`
-	Error         *commandError           `json:"error,omitempty"`
+	SchemaVersion   int                               `json:"schema_version"`
+	Status          string                            `json:"status"`
+	Mode            string                            `json:"mode,omitempty"`
+	Cutoff          time.Time                         `json:"cutoff,omitempty"`
+	Output          string                            `json:"output,omitempty"`
+	Ledger          *reconcile.Ledger                 `json:"ledger,omitempty"`
+	Plan            *reconcile.Plan                   `json:"plan,omitempty"`
+	Receipt         *reconcile.ApplyReceipt           `json:"receipt,omitempty"`
+	Verification    *reconcile.Verification           `json:"verification,omitempty"`
+	ClaimCapability *reconcile.GatewayCapability      `json:"claim_capability,omitempty"`
+	Conformance     *reconcile.ClaimConformanceResult `json:"claim_conformance,omitempty"`
+	Error           *commandError                     `json:"error,omitempty"`
 }
 
 type commandError struct {
@@ -67,11 +71,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	mode := args[0]
+	if mode == "claim-capability" || mode == "claim-conformance" {
+		return runClaimContract(mode, args[1:], stdout, stderr)
+	}
 	if mode == "apply" || mode == "verify" {
 		return runApplyVerify(mode, args[1:], stdout, stderr)
 	}
 	if mode != reconcile.ModeDryRun && mode != reconcile.ModePlan {
-		return writeCommandError(stdout, stderr, hasJSON(args), 2, "unsupported-mode", "command must be dry-run, plan, apply, or verify")
+		return writeCommandError(stdout, stderr, hasJSON(args), 2, "unsupported-mode", "command must be dry-run, plan, apply, verify, claim-capability, or claim-conformance")
 	}
 
 	flags := flag.NewFlagSet("kbreconcile "+mode, flag.ContinueOnError)
@@ -157,6 +164,38 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if result.Output != "" {
 		fmt.Fprintf(stdout, "plan: %s\n", result.Output)
 	}
+	return 0
+}
+
+func runClaimContract(mode string, args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("kbreconcile "+mode, flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	var jsonMode bool
+	flags.BoolVar(&jsonMode, "json", false, "emit stable JSON")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if flags.NArg() != 0 {
+		return writeCommandError(stdout, stderr, jsonMode, 2, "unexpected-argument", "unexpected positional arguments")
+	}
+	capability := reconcile.ReferenceClaimCapability()
+	result := commandResult{
+		SchemaVersion: 1, Status: "ok", Mode: mode, ClaimCapability: &capability,
+	}
+	if mode == "claim-conformance" {
+		conformance := reconcile.ReferenceClaimConformance()
+		result.Conformance = &conformance
+	}
+	if jsonMode {
+		content, err := reconcile.MarshalStable(result)
+		if err != nil {
+			return writeCommandError(stdout, stderr, true, 1, "encode-failed", err.Error())
+		}
+		_, _ = stdout.Write(content)
+		return 0
+	}
+	fmt.Fprintf(stdout, "kbreconcile: %s ok protected-mutation=%t live-provider=%t\n",
+		mode, capability.ProtectedMutationAvailable, capability.LiveProviderSupported)
 	return 0
 }
 

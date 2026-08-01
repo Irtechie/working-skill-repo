@@ -436,16 +436,17 @@ func sweepOneTerminalCleanupLocked(
 		return blockedTerminalCleanup("sweep", issue, &receipt), nil
 	}
 	for _, entry := range queue {
-		if entry.Status != "queued" && entry.Status != "in_progress" {
+		if entry.Status != "queued" && entry.Status != "in_progress" && entry.Status != "active" {
 			continue
 		}
 		if samePath(entry.Worktree, receipt.Worktree) || entry.Branch == receipt.Branch {
 			return blockedTerminalCleanup("sweep", "active queue claim still owns the worktree or branch", &receipt), nil
 		}
 	}
-	if claim.Status != "done" {
-		return blockedTerminalCleanup("sweep", "cleanup requires a durably done queue claim", &receipt), nil
+	if !terminalClaimMatchesDelivery(claim.Status, receipt.DeliveryMode) {
+		return blockedTerminalCleanup("sweep", "cleanup requires a registered lifecycle state matching delivery", &receipt), nil
 	}
+
 	if receipt.SessionID == opts.CurrentSession {
 		return blockedTerminalCleanup("sweep", "current executing session cannot retire its own worktree", &receipt), nil
 	}
@@ -662,6 +663,22 @@ func removeTerminalWorktreeWithRetry(root, worktree string) string {
 		output = strings.TrimSpace(current)
 	}
 	return "non-force worktree removal failed after bounded retries: " + output
+}
+
+func terminalClaimMatchesDelivery(status, deliveryMode string) bool {
+	if status == "done" {
+		return true
+	}
+	switch deliveryMode {
+	case "local":
+		return status == "local-durable"
+	case "pr":
+		return status == "awaiting-review"
+	case "direct":
+		return status == "delivery-integrated"
+	default:
+		return false
+	}
 }
 
 func validateTerminalCleanupTarget(root string, receipt terminalCleanupReceipt, currentWorktree string) string {

@@ -23,12 +23,19 @@ func TestAutomaticDeliveryChainContract(t *testing.T) {
 		".github/skills/kb-finalize/SKILL.md": {
 			"Invoke `kb-complete <manifest>` automatically.",
 			"`kb-finalize` does not commit, push, open a PR, merge, or integrate the resolved remote default branch.",
+			"Register completion state and evidence",
+			"never deletes the current worktree",
 		},
 		".github/skills/kb-complete/SKILL.md": {
 			"Successful delegated phases return to this state-driven loop automatically.",
 			"Invoke `kb-ship <manifest>`",
 			"invoke `kb-land <manifest>`",
 			"configured delivery policy or explicit run-scoped user authorization",
+			"`local-durable`",
+			"`awaiting-review`",
+			"`delivery-integrated`",
+			"delivery, physical cleanup, ref retirement, and host session retirement",
+			"Release or suspend ownership only after lifecycle registration succeeds",
 		},
 		".github/skills/kb-ship/SKILL.md": {
 			"`kb-ship` never merges it",

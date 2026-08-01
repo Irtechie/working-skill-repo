@@ -28,6 +28,7 @@ const FULL_ONLY_SKILLS = new Set([]);
 const VALID_TARGETS = new Set(["codex", "copilot", "agents", "repo", "all"]);
 const VALID_PROFILES = new Set(["core", "full"]);
 const VALID_ROUTER_MODES = new Set(["auto", "required", "skip", "uninstall"]);
+const VALID_RECONCILER_MODES = new Set(["auto", "required", "skip", "uninstall"]);
 const ROUTER_STATE_SCHEMA = 1;
 const DEFAULT_RELEASE_BASE = "https://github.com/Irtechie/working-skill-repo/releases/download";
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 30_000;
@@ -57,6 +58,10 @@ Options:
   --router-version <version>                Router release version. Default: package version
   --router-release <url-or-path>            Release directory override
   --router-dir <path>                       Binary directory. Default: <install-root>/.kb/bin
+  --reconciler <auto|required|skip|uninstall> Optional kbreconcile lifecycle. Default: auto
+  --reconciler-version <version>            Reconciler release version. Default: package version
+  --reconciler-release <url-or-path>         Reconciler release directory override
+  --reconciler-dir <path>                    Binary directory. Default: <install-root>/.kb/bin
   --yes                                    Back up and overwrite changed existing files
   --dry-run                                Print actions without writing
   --help                                   Show this help
@@ -78,6 +83,10 @@ function parseArgs(argv) {
     routerVersion: "",
     routerRelease: "",
     routerDir: "",
+    reconcilerMode: "auto",
+    reconcilerVersion: "",
+    reconcilerRelease: "",
+    reconcilerDir: "",
     yes: false,
     dryRun: false,
   };
@@ -122,6 +131,22 @@ function parseArgs(argv) {
       args.routerRelease = requireValue(argv, ++i, arg);
     } else if (arg.startsWith("--router-release=")) {
       args.routerRelease = arg.slice("--router-release=".length);
+    } else if (arg === "--reconciler") {
+      args.reconcilerMode = requireValue(argv, ++i, arg);
+    } else if (arg.startsWith("--reconciler=")) {
+      args.reconcilerMode = arg.slice("--reconciler=".length);
+    } else if (arg === "--reconciler-version") {
+      args.reconcilerVersion = requireValue(argv, ++i, arg);
+    } else if (arg.startsWith("--reconciler-version=")) {
+      args.reconcilerVersion = arg.slice("--reconciler-version=".length);
+    } else if (arg === "--reconciler-release") {
+      args.reconcilerRelease = requireValue(argv, ++i, arg);
+    } else if (arg.startsWith("--reconciler-release=")) {
+      args.reconcilerRelease = arg.slice("--reconciler-release=".length);
+    } else if (arg === "--reconciler-dir") {
+      args.reconcilerDir = requireValue(argv, ++i, arg);
+    } else if (arg.startsWith("--reconciler-dir=")) {
+      args.reconcilerDir = arg.slice("--reconciler-dir=".length);
     } else if (arg === "--router-dir") {
       args.routerDir = requireValue(argv, ++i, arg);
     } else if (arg.startsWith("--router-dir=")) {
@@ -140,11 +165,17 @@ function parseArgs(argv) {
   if (!VALID_ROUTER_MODES.has(args.routerMode)) {
     throw new Error(`Invalid --router '${args.routerMode}'. Use auto, required, skip, or uninstall.`);
   }
+  if (!VALID_RECONCILER_MODES.has(args.reconcilerMode)) {
+    throw new Error(`Invalid --reconciler '${args.reconcilerMode}'. Use auto, required, skip, or uninstall.`);
+  }
   if (args.target === "repo" && !args.repo) {
     throw new Error("--target repo requires --repo <path>.");
   }
   if (args.routerVersion && !STRICT_SEMVER.test(args.routerVersion)) {
     throw new Error("--router-version must be a strict semantic version.");
+  }
+  if (args.reconcilerVersion && !STRICT_SEMVER.test(args.reconcilerVersion)) {
+    throw new Error("--reconciler-version must be a strict semantic version.");
   }
 
   args.source = path.resolve(expandHome(args.source));
@@ -160,6 +191,16 @@ function parseArgs(argv) {
       assertHttpsReleaseRoot(args.routerRelease);
     } else {
       args.routerRelease = path.resolve(expandHome(args.routerRelease));
+    }
+  }
+  if (args.reconcilerDir) {
+    args.reconcilerDir = path.resolve(expandHome(args.reconcilerDir));
+  }
+  if (args.reconcilerRelease) {
+    if (URL_SCHEME.test(args.reconcilerRelease)) {
+      assertHttpsReleaseRoot(args.reconcilerRelease);
+    } else {
+      args.reconcilerRelease = path.resolve(expandHome(args.reconcilerRelease));
     }
   }
   return args;
@@ -200,6 +241,16 @@ async function main() {
     console.log(`KB router: ${result.status}${result.backupPath ? ` (backup: ${result.backupPath})` : ""}`);
     return;
   }
+  if (args.reconcilerMode === "uninstall") {
+    const result = await uninstallReconciler({
+      installRoot: args.installRoot,
+      reconcilerDir: args.reconcilerDir,
+      yes: args.yes,
+      dryRun: args.dryRun,
+    });
+    console.log(`KB reconciler: ${result.status}${result.backupPath ? ` (backup: ${result.backupPath})` : ""}`);
+    return;
+  }
 
   await assertSource(args.source);
   let routerResult = { status: "skipped" };
@@ -218,6 +269,29 @@ async function main() {
       console.warn(`KB router unavailable; continuing with skill-only install: ${routerResult.reason}`);
     } else {
       console.log(`KB router: ${routerResult.status} (${routerResult.binaryPath})`);
+    }
+  }
+  if (args.reconcilerMode !== "skip") {
+    let reconcilerResult;
+    try {
+      const version = args.reconcilerVersion || await packageVersion(args.source);
+      reconcilerResult = await installReconciler({
+        installRoot: args.installRoot,
+        reconcilerDir: args.reconcilerDir,
+        releaseRoot: args.reconcilerRelease || `${DEFAULT_RELEASE_BASE}/v${version}`,
+        version,
+        mode: args.reconcilerMode,
+        yes: args.yes,
+        dryRun: args.dryRun,
+      });
+    } catch (error) {
+      if (args.reconcilerMode !== "auto") throw error;
+      reconcilerResult = { status: "unavailable", reason: error.message };
+    }
+    if (reconcilerResult.status === "unavailable") {
+      console.warn(`KB reconciler unavailable; continuing with skill-only install: ${reconcilerResult.reason}`);
+    } else {
+      console.log(`KB reconciler: ${reconcilerResult.status} (${reconcilerResult.binaryPath}); protected writer capability remains unavailable without signed provenance and a live adapter`);
     }
   }
   const plan = await buildInstallPlan(args);
@@ -275,6 +349,154 @@ export function routerArtifactName({ platform = process.platform, arch = process
   return `kbrouter-${releasePlatform}-${releaseArchitecture}${extension}`;
 }
 
+export function reconcilerArtifactName({ platform = process.platform, arch = process.arch } = {}) {
+  const platforms = { win32: "windows", darwin: "darwin", linux: "linux" };
+  const architectures = { x64: "amd64", arm64: "arm64" };
+  const releasePlatform = platforms[platform];
+  const releaseArchitecture = architectures[arch];
+  if (!releasePlatform) {
+    throw new Error(`Unsupported reconciler platform: ${platform}`);
+  }
+  if (!releaseArchitecture) {
+    throw new Error(`Unsupported reconciler architecture: ${arch}`);
+  }
+  const extension = platform === "win32" ? ".exe" : "";
+  return `kbreconcile-${releasePlatform}-${releaseArchitecture}${extension}`;
+}
+
+export async function installReconciler(options = {}) {
+  const mode = options.mode || "required";
+  if (mode !== "auto" && mode !== "required") {
+    throw new Error(`Reconciler install mode must be auto or required, got '${mode}'.`);
+  }
+  try {
+    const installRoot = path.resolve(options.installRoot || os.homedir());
+    const binaryDir = path.resolve(options.reconcilerDir || path.join(installRoot, ".kb", "bin"));
+    const version = options.version;
+    if (typeof version !== "string" || !STRICT_SEMVER.test(version)) {
+      throw new Error("Reconciler version must be a strict semantic version.");
+    }
+    const targetPlatform = options.platform || process.platform;
+    const asset = reconcilerArtifactName({ platform: targetPlatform, arch: options.arch });
+    const releaseRoot = options.releaseRoot;
+    if (typeof releaseRoot !== "string" || releaseRoot.trim() === "") {
+      throw new Error("Reconciler release location is required.");
+    }
+    if (URL_SCHEME.test(releaseRoot)) assertHttpsReleaseRoot(releaseRoot);
+    const downloadOptions = {
+      fetchImpl: options.fetchImpl || globalThis.fetch,
+      timeoutMs: positiveIntegerOption(options.downloadTimeoutMs, DEFAULT_DOWNLOAD_TIMEOUT_MS, "download timeout"),
+      maxChecksumBytes: positiveIntegerOption(options.maxChecksumBytes, DEFAULT_MAX_CHECKSUM_BYTES, "checksum response limit"),
+      maxBinaryBytes: positiveIntegerOption(options.maxBinaryBytes, DEFAULT_MAX_BINARY_BYTES, "binary response limit"),
+    };
+    const checksums = parseChecksums((await readReleaseFile(releaseRoot, "SHA256SUMS", {
+      fetchImpl: downloadOptions.fetchImpl,
+      timeoutMs: downloadOptions.timeoutMs,
+      maxBytes: downloadOptions.maxChecksumBytes,
+    })).toString("utf8"));
+    const expected = checksums.get(asset);
+    if (!expected) throw new Error(`Release checksum not found for ${asset}.`);
+    const bytes = await readReleaseFile(releaseRoot, asset, {
+      fetchImpl: downloadOptions.fetchImpl,
+      timeoutMs: downloadOptions.timeoutMs,
+      maxBytes: downloadOptions.maxBinaryBytes,
+    });
+    const actual = sha256(bytes);
+    if (actual !== expected) {
+      throw new Error(`Checksum mismatch for ${asset}: expected ${expected}, got ${actual}.`);
+    }
+
+    const binaryName = targetPlatform === "win32" ? "kbreconcile.exe" : "kbreconcile";
+    const binaryPath = path.join(binaryDir, binaryName);
+    const statePath = path.join(binaryDir, ".kbreconcile-install.json");
+    const existingHash = await fileHashIfExists(binaryPath);
+    const stateRecord = await loadReconcilerState(statePath);
+    const existingState = stateRecord.state;
+    const unchangedManaged = Boolean(existingHash && stateRecord.valid && existingState.sha256 === existingHash);
+    if (unchangedManaged && compareSemver(version, existingState.version) < 0) {
+      throw new Error(`Reconciler downgrade from ${existingState.version} to ${version} is not allowed.`);
+    }
+    if (existingHash && !unchangedManaged && !options.yes) {
+      if (stateRecord.missing) throw new Error("Existing kbreconcile binary is untracked; rerun with --yes to back it up before replacement.");
+      if (!stateRecord.valid) throw new Error(`Existing kbreconcile has invalid KB install state; rerun with --yes to back it up before replacement: ${stateRecord.reason}`);
+      throw new Error("Existing kbreconcile binary changed since KB installed it; rerun with --yes to back it up before replacement.");
+    }
+    if (!existingHash && !stateRecord.missing && !options.yes) {
+      throw new Error(`Existing reconciler install state is inconsistent or invalid: ${stateRecord.reason || "managed binary is missing"}`);
+    }
+    if (unchangedManaged && existingState.version === version && existingState.sha256 === expected) {
+      return { status: "current", binaryPath, version, sha256: expected, provenance: "checksum-only", protectedWriterCapable: false };
+    }
+    if (options.dryRun) {
+      return { status: existingHash ? "would-upgrade" : "would-install", binaryPath, version, sha256: expected, provenance: "checksum-only", protectedWriterCapable: false };
+    }
+    await fs.mkdir(binaryDir, { recursive: true, mode: 0o700 });
+    const tempPath = path.join(binaryDir, `.${binaryName}.${process.pid}.tmp`);
+    await fs.writeFile(tempPath, bytes, { flag: "wx", mode: 0o700 });
+    let backupPath = "";
+    let stateBackupPath = "";
+    try {
+      if (existingHash) {
+        backupPath = await managedBackupPath(installRoot, binaryName, "reconciler");
+        await fs.mkdir(path.dirname(backupPath), { recursive: true, mode: 0o700 });
+        await fs.rename(binaryPath, backupPath);
+      }
+      if (!stateRecord.missing && !unchangedManaged) {
+        stateBackupPath = await managedBackupPath(installRoot, ".kbreconcile-install.json", "reconciler");
+        await fs.mkdir(path.dirname(stateBackupPath), { recursive: true, mode: 0o700 });
+        await fs.rename(statePath, stateBackupPath);
+      }
+      await fs.rename(tempPath, binaryPath);
+      if (process.platform !== "win32") await fs.chmod(binaryPath, 0o700);
+      await writeJsonAtomic(statePath, {
+        schema_version: ROUTER_STATE_SCHEMA, version, asset, binary_name: binaryName,
+        sha256: expected, provenance: "checksum-only", protected_writer_capable: false,
+      });
+    } catch (error) {
+      await fs.rm(tempPath, { force: true });
+      await fs.rm(binaryPath, { force: true });
+      if (backupPath && await exists(backupPath)) await fs.rename(backupPath, binaryPath);
+      if (stateBackupPath && await exists(stateBackupPath)) await fs.rename(stateBackupPath, statePath);
+      throw error;
+    }
+    return {
+      status: existingHash ? "upgraded" : "installed", binaryPath, backupPath,
+      version, sha256: expected, provenance: "checksum-only", protectedWriterCapable: false,
+    };
+  } catch (error) {
+    if (mode === "auto") return { status: "unavailable", reason: error.message };
+    throw error;
+  }
+}
+
+export async function uninstallReconciler(options = {}) {
+  const installRoot = path.resolve(options.installRoot || os.homedir());
+  const binaryDir = path.resolve(options.reconcilerDir || path.join(installRoot, ".kb", "bin"));
+  const statePath = path.join(binaryDir, ".kbreconcile-install.json");
+  const record = await loadReconcilerState(statePath);
+  if (record.missing) return { status: "absent" };
+  if (!record.valid) throw new Error(`Reconciler install state is invalid; refusing uninstall: ${record.reason}`);
+  const binaryPath = path.join(binaryDir, record.state.binary_name);
+  const currentHash = await fileHashIfExists(binaryPath);
+  if (!currentHash) {
+    if (!options.dryRun) await fs.rm(statePath, { force: true });
+    return { status: "absent" };
+  }
+  let backupPath = "";
+  if (currentHash !== record.state.sha256) {
+    if (!options.yes) throw new Error("Reconciler binary changed since KB installed it; rerun with --yes to back it up before uninstall.");
+    backupPath = await managedBackupPath(installRoot, record.state.binary_name, "reconciler");
+  }
+  if (options.dryRun) return { status: "would-uninstall", binaryPath, backupPath };
+  if (backupPath) {
+    await fs.mkdir(path.dirname(backupPath), { recursive: true, mode: 0o700 });
+    await fs.rename(binaryPath, backupPath);
+  } else {
+    await fs.rm(binaryPath);
+  }
+    await fs.rm(statePath, { force: true });
+    return { status: "uninstalled", binaryPath, backupPath };
+}
 export async function installRouter(options = {}) {
   const mode = options.mode || "required";
   if (mode !== "auto" && mode !== "required") {
@@ -608,6 +830,7 @@ async function loadRouterState(statePath) {
     if (reason) {
       return { state: parsed, valid: false, missing: false, reason };
     }
+
     return {
       state: { ...parsed, sha256: parsed.sha256.toLowerCase() },
       valid: true,
@@ -618,8 +841,81 @@ async function loadRouterState(statePath) {
     if (error.code === "ENOENT") {
       return { state: null, valid: false, missing: true, reason: "state is absent" };
     }
+
     return { state: null, valid: false, missing: false, reason: `state is unreadable: ${error.message}` };
   }
+}
+
+async function loadReconcilerState(statePath) {
+  try {
+    const parsed = JSON.parse(await fs.readFile(statePath, "utf8"));
+    const reason = validateReconcilerState(parsed);
+    if (reason) return { state: parsed, valid: false, missing: false, reason };
+    return {
+      state: { ...parsed, sha256: parsed.sha256.toLowerCase() },
+      valid: true,
+      missing: false,
+      reason: "",
+    };
+  } catch (error) {
+    if (error.code === "ENOENT") return { state: null, valid: false, missing: true, reason: "state is absent" };
+    return { state: null, valid: false, missing: false, reason: `state is unreadable: ${error.message}` };
+  }
+}
+
+function validateReconcilerState(state) {
+  if (!state || typeof state !== "object" || Array.isArray(state)) return "state must be an object";
+  if (state.schema_version !== ROUTER_STATE_SCHEMA) return `unsupported schema_version '${state.schema_version}'`;
+  if (state.binary_name !== "kbreconcile" && state.binary_name !== "kbreconcile.exe") {
+    return "binary_name must be exactly kbreconcile or kbreconcile.exe";
+  }
+  if (typeof state.sha256 !== "string" || !/^[a-fA-F0-9]{64}$/.test(state.sha256)) {
+    return "sha256 must contain exactly 64 hexadecimal characters";
+  }
+  if (typeof state.version !== "string" || !STRICT_SEMVER.test(state.version)) return "version must be a semantic release version";
+  if (typeof state.asset !== "string" || !/^kbreconcile-(?:linux|darwin)-(?:amd64|arm64)$|^kbreconcile-windows-(?:amd64|arm64)\.exe$/.test(state.asset)) {
+    return "asset is not a supported kbreconcile release filename";
+  }
+  if ((state.asset.endsWith(".exe")) !== (state.binary_name.endsWith(".exe"))) {
+    return "binary_name does not match the release asset platform";
+  }
+  if (state.provenance !== "checksum-only" || state.protected_writer_capable !== false) {
+    return "reconciler state must not claim signed provenance or protected-writer capability";
+  }
+  return "";
+}
+
+function compareSemver(left, right) {
+  const parse = value => {
+    const match = STRICT_SEMVER.exec(value);
+    return {
+      core: [Number(match[1]), Number(match[2]), Number(match[3])],
+      prerelease: match[4] ? match[4].split(".") : [],
+    };
+  };
+  const a = parse(left);
+  const b = parse(right);
+  for (let index = 0; index < 3; index += 1) {
+    if (a.core[index] !== b.core[index]) return a.core[index] < b.core[index] ? -1 : 1;
+  }
+  if (a.prerelease.length === 0 || b.prerelease.length === 0) {
+    if (a.prerelease.length === b.prerelease.length) return 0;
+    return a.prerelease.length === 0 ? 1 : -1;
+  }
+  const length = Math.max(a.prerelease.length, b.prerelease.length);
+  for (let index = 0; index < length; index += 1) {
+    if (a.prerelease[index] === undefined) return -1;
+    if (b.prerelease[index] === undefined) return 1;
+    if (a.prerelease[index] === b.prerelease[index]) continue;
+    const aNumeric = /^\d+$/.test(a.prerelease[index]);
+    const bNumeric = /^\d+$/.test(b.prerelease[index]);
+    if (aNumeric && bNumeric) {
+      return Number(a.prerelease[index]) < Number(b.prerelease[index]) ? -1 : 1;
+    }
+    if (aNumeric !== bNumeric) return aNumeric ? -1 : 1;
+    return a.prerelease[index] < b.prerelease[index] ? -1 : 1;
+  }
+  return 0;
 }
 
 function validateRouterState(state) {
@@ -670,9 +966,9 @@ async function writeJsonAtomic(destination, value) {
   }
 }
 
-async function managedBackupPath(installRoot, filename) {
+async function managedBackupPath(installRoot, filename, component = "router") {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const base = path.join(installRoot, ".kb", "install-backups", "router", stamp, filename);
+  const base = path.join(installRoot, ".kb", "install-backups", component, stamp, filename);
   let candidate = base;
   let suffix = 1;
   while (await exists(candidate)) {

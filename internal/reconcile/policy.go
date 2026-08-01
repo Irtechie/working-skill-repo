@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const DefaultPolicyVersion = "reconcile-predicates/v1"
+const DefaultPolicyVersion = "reconcile-predicates/v2"
 
 type Policy struct {
 	SchemaVersion   int            `json:"schema_version"`
@@ -88,11 +88,13 @@ func DefaultPolicy() Policy {
 				ActionMerge: 0, ActionPRClose: 0, ActionLocalRefRetire: 5,
 				ActionRemoteRefRetire: 0, ActionWorktreeRetire: 5,
 				ActionSessionRetire: 0, ActionSalvage: 2,
+				ActionProtectedWriter: 0,
 			},
 			PerRepository: map[string]int{
 				ActionMerge: 0, ActionPRClose: 0, ActionLocalRefRetire: 3,
 				ActionRemoteRefRetire: 0, ActionWorktreeRetire: 3,
 				ActionSessionRetire: 0, ActionSalvage: 1,
+				ActionProtectedWriter: 0,
 			},
 		},
 		ProtectedPaths: []string{
@@ -128,6 +130,11 @@ func DefaultPolicy() Policy {
 			actionPolicy(ActionSalvage, .90, false, true, ClassificationQuarantine,
 				"unique-work", "provable-base-and-scope", "protected-path-check-pass",
 				"additive-only", "salvage-authority"),
+			actionPolicy(ActionProtectedWriter, 1, true, false, ClassificationProtected,
+				"canonical-semantic-resource", "authoritative-claim-cas",
+				"current-controller-incarnation", "scoped-authorization-verifier",
+				"gateway-high-water-atomic-commit", "durable-idempotency-reservation",
+				"sole-production-path"),
 		},
 	}
 }
@@ -183,6 +190,16 @@ func adaptersForPredicate(name string) []string {
 		return []string{"git-admin"}
 	case "protected-path-check-pass":
 		return []string{"metadata-classifier"}
+	case "canonical-semantic-resource":
+		return []string{"policy", "claim-adapter"}
+	case "authoritative-claim-cas", "current-controller-incarnation":
+		return []string{"claim-adapter"}
+	case "scoped-authorization-verifier":
+		return []string{"authorization-verifier"}
+	case "gateway-high-water-atomic-commit", "durable-idempotency-reservation":
+		return []string{"fenced-gateway"}
+	case "sole-production-path":
+		return []string{"iam", "network-policy", "credential-audit"}
 	default:
 		return []string{"git"}
 	}
@@ -242,6 +259,7 @@ func ValidatePolicy(policy Policy) error {
 	for _, required := range []string{
 		ActionMerge, ActionPRClose, ActionLocalRefRetire, ActionRemoteRefRetire,
 		ActionWorktreeRetire, ActionSessionRetire, ActionSalvage,
+		ActionProtectedWriter,
 	} {
 		if !seen[required] {
 			return fmt.Errorf("policy is missing action class %s", required)

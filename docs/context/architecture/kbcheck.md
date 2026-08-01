@@ -39,6 +39,7 @@ Then branch by task:
 | Skill quality / eval | `skill-lint`, `route-eval`, `skill-eval*`, `eval-run-*`, `surface-report`, `minimality` | Scoring skill docs, route fixtures, captured results, and surface size |
 | Sync / marketplace | `skill-sync-report`, `doctor`, `review-reference-guard`, `marketplace-firebreak`, `marketplace-promote` | Inspecting or repairing install drift and enforcing reusable-skill policy |
 | Concurrency / isolation | `scope-lease`, `slice-lease`, `worktree`, `terminal-cleanup`, `cargo-storage` | Local leases, worktree coordination, terminal retirement, and shared Cargo build storage |
+| Reconciler conformance | `go test ./internal/reconcile ./cmd/kbreconcile ./cmd/kbcheck -run 'SemanticClaim|Fence|Idempot|DeliveryChain'` | Proving repo-native lifecycle and queue surfaces preserve global claim/fencing rules |
 
 `manifest-contract` also validates opt-in `pre_slice_review_contract` receipts:
 schema-v2 triggered plans must bind the review to the current requirements
@@ -54,6 +55,8 @@ go run ./cmd/kbcheck core
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbcheck graph-routing-eval --require-ready
 go test ./cmd/kbcheck -run TerminalCleanup -count=1
+go run ./cmd/kbreconcile claim-capability --json
+go run ./cmd/kbreconcile claim-conformance --json
 go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
 ```
 
@@ -105,3 +108,14 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
   exact-path finalization.
 - `eval-run-codex` and `eval-run-ghcp` dry-run surfaces are safe defaults; live
   runs are explicit and require host auth.
+
+## Standalone Reconciler Contract
+
+`kbreconcile` is a standalone global-capable CLI, not a `kbcheck` subcommand.
+Its deterministic in-memory fixtures define canonical semantic resources,
+authoritative CAS takeover, monotonic controller epochs, scoped authorization,
+gateway high-water fencing, durable idempotency, and direct/alternate bypass
+denial. They certify the reference contract only. Git-common-directory leases
+remain local coordination. Without a live adapter proving atomic conditional
+commit and gateway-only production credentials, protected mutation is
+unavailable.
