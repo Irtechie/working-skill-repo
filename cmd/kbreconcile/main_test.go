@@ -130,6 +130,7 @@ func TestApplyVerifyStableJSONAndFailClosedInput(t *testing.T) {
 		"plan", "--repo", root, "--output", planPath,
 		"--cutoff", "2026-08-01T16:30:00Z", "--json",
 	}
+
 	var planOut, planErr bytes.Buffer
 	if code := run(planArgs, &planOut, &planErr); code != 0 {
 		t.Fatalf("plan code=%d stderr=%s", code, planErr.String())
@@ -184,6 +185,69 @@ func TestApplyVerifyStableJSONAndFailClosedInput(t *testing.T) {
 	}
 	if rejected.Error == nil {
 		t.Fatalf("tampered input did not return fail-closed JSON: %s", rejectedErr.String())
+	}
+}
+
+func TestCurrentWorktreeResolvesGitTopLevelFromSubdirectory(t *testing.T) {
+	root := initPlainRepo(t)
+	nested := filepath.Join(root, "nested", "deeper")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(nested); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(original); err != nil {
+			t.Errorf("restore cwd: %v", err)
+		}
+	}()
+	current, err := currentGitTopLevel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, _ := filepath.Abs(root)
+	if current != want {
+		t.Fatalf("subdirectory resolved to %q, want worktree root %q", current, want)
+	}
+}
+
+func TestApplyRejectsEmptyCurrentSessionForMutationPlan(t *testing.T) {
+	root := initPlainRepo(t)
+	directory := t.TempDir()
+	planPath := filepath.Join(directory, "plan.json")
+	var planOut, planErr bytes.Buffer
+	if code := run([]string{
+		"plan", "--repo", root, "--output", planPath,
+		"--cutoff", "2026-08-01T16:30:00Z", "--json",
+	}, &planOut, &planErr); code != 0 {
+		t.Fatalf("plan code=%d stderr=%s", code, planErr.String())
+	}
+	var planResult commandResult
+	if err := json.Unmarshal(planOut.Bytes(), &planResult); err != nil {
+		t.Fatal(err)
+	}
+	planResult.Plan.Actions = append(planResult.Plan.Actions, reconcile.PlannedAction{
+		ID: "mutation-session-regression", MutationAllowed: true,
+	})
+	content, err := reconcile.MarshalStable(planResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(planPath, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := run([]string{
+		"apply", "--input", planPath, "--receipt", filepath.Join(directory, "receipt.json"),
+		"--session-id", "", "--json",
+	}, &stdout, &stderr)
+	if code == 0 || !bytes.Contains(stdout.Bytes(), []byte("session-identity-unavailable")) {
+		t.Fatalf("empty session was accepted: code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 }
 

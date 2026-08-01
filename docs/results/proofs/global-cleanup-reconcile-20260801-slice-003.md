@@ -87,6 +87,56 @@ landed-source versions:
 No global copy was synchronized because delivery policy is local/manual and the
 slice forbids propagation before landed source.
 
+The security-review amendment compared `kb-complete` again before editing: all
+four copies were then byte-identical at
+`21b5693bebbc8788aac87c5a988f2388a6209e8916eb7bdbaa13c8c4f641693a`.
+After adding the resume-packet contract, the repository copy is
+`2fed1773d208dec39780dedc1b431e378a3147cab62d3671e15527c0a8146062`;
+all three global copies remain mutually identical at the prior hash. They were
+not synchronized.
+
+## Authorized policy rebind
+
+Slice 002's recorded `config/reconcile-predicates.json` SHA-256
+`57a11f5e79164efde34713ededfbed972eaab3e0053f5b5d8b6c0bc70d5d0c16`
+remains immutable historical evidence. Slice 003 intentionally superseded that
+oracle when it added the mandatory protected-writer predicates in
+`reconcile-predicates/v2`. The exact final policy SHA-256 is
+`44bb64637003b1d5c7611dad9edeb140ebe975698a7927b7380e743cdf921136`.
+This is an explicit slice-003 provenance rebind, not a rewrite of slice-002
+history.
+
+## Security-review amendment
+
+The seven blocking findings against base
+`2e231cb269e9e098063aed0b2797582f999775ac` are fixed pending one independent
+confirmation review. Exact final-tree proof:
+
+| Command | Result |
+|---|---|
+| `go test ./internal/reconcile ./cmd/kbreconcile ./cmd/kbcheck -count=1` | PASS |
+| `go test ./internal/reconcile ./cmd/kbreconcile ./cmd/kbcheck -run 'Apply\|Verify\|Mutation\|Receipt\|CurrentWorktree\|ResumePacket\|ColdGateway\|Restore\|Rollback\|Fence\|TerminalCleanup\|DeliveryChain' -count=1` | PASS |
+| `go vet ./internal/reconcile ./cmd/kbreconcile ./cmd/kbcheck` | PASS |
+| `go build ./cmd/kbreconcile` | PASS; generated executable removed |
+| `go run ./cmd/kbcheck manifest-contract --manifest docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md --json` | PASS; no issues |
+| `git diff --check` | PASS; existing line-ending warning only |
+
+Amended protected-oracle hashes:
+
+- `cmd/kbreconcile/main_test.go`:
+  `f15b6a7c98587bcc67015c079ca2bfaef59b39e75b11a81bbc843c340e176db8`
+- `internal/reconcile/apply_test.go`:
+  `dfabc028c044c0c2d8e1138de466c9341dde0785a1188005e3b1c6b94df3b336`
+- `cmd/kbcheck/terminal_cleanup_test.go`:
+  `26708ec1c45376054420dde62e95260962d999395b920273ade0bfa9dbdbe4d0`
+- `cmd/kbcheck/delivery_chain_contract_test.go`:
+  `c449af78e106f918693dfafa7146b851862a8c36d44874929be787bde871f8a9`
+- `internal/reconcile/claim_test.go`:
+  `fca25a1936017468113487866bd63d43052dea1e4207d45d795986f8544623f5`
+
+No core/local-release aggregate, global skill sync, live provider mutation,
+publishing, remote-ref deletion, or host-session deletion was performed.
+
 ## Limitations and memory impact
 
 - No authoritative claim/provider adapter is configured.

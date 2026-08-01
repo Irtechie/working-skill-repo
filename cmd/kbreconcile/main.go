@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -119,7 +120,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		policy = loaded
 	}
-	current, _ := os.Getwd()
+	current, err := currentGitTopLevel()
+	if err != nil {
+		return writeCommandError(stdout, stderr, jsonMode, 1, "current-worktree-unavailable", err.Error())
+	}
 	ledger, err := reconcile.Inventory(reconcile.InventoryOptions{
 		Roots: roots, Cutoff: cutoff, CurrentWorktree: current,
 		CurrentSessionID: os.Getenv("COPILOT_SESSION_ID"), Now: now,
@@ -234,11 +238,19 @@ func runApplyVerify(mode string, args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return writeCommandError(stdout, stderr, jsonMode, 1, "invalid-receipt", err.Error())
 	}
-	current, _ := os.Getwd()
+	current, err := currentGitTopLevel()
+	if err != nil {
+		return writeCommandError(stdout, stderr, jsonMode, 1, "current-worktree-unavailable", err.Error())
+	}
+	if mode == "apply" && strings.TrimSpace(sessionID) == "" && planAllowsMutation(bundle.Plan) {
+		return writeCommandError(stdout, stderr, jsonMode, 1, "session-identity-unavailable",
+			"destructive apply requires a non-empty current session identity")
+	}
 	options := reconcile.ApplyOptions{
 		Bundle: bundle, Policy: policy, CurrentWorktree: current,
 		CurrentSession: sessionID, Now: now(),
 	}
+
 	result := commandResult{SchemaVersion: 1, Status: "ok", Mode: mode, Output: absoluteReceipt}
 	switch mode {
 	case "apply":
@@ -281,6 +293,36 @@ func runApplyVerify(mode string, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "kbreconcile: %s %s receipt=%s\n", mode, result.Receipt.Status, absoluteReceipt)
 	}
 	return 0
+}
+
+func currentGitTopLevel() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("resolve current directory: %w", err)
+	}
+	command := exec.Command("git", "-C", cwd, "rev-parse", "--show-toplevel")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("resolve current Git worktree: %s", strings.TrimSpace(string(output)))
+	}
+	root := strings.TrimSpace(string(output))
+	if root == "" {
+		return "", fmt.Errorf("resolve current Git worktree: empty top-level")
+	}
+	root, err = filepath.Abs(filepath.Clean(root))
+	if err != nil {
+		return "", fmt.Errorf("resolve current Git worktree: %w", err)
+	}
+	return root, nil
+}
+
+func planAllowsMutation(plan reconcile.Plan) bool {
+	for _, action := range plan.Actions {
+		if action.MutationAllowed {
+			return true
+		}
+	}
+	return false
 }
 
 func loadPlanBundle(path string) (reconcile.PlanBundle, error) {

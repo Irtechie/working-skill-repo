@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,8 @@ import (
 	"github.com/Irtechie/working-skill-repo/internal/reconcile"
 )
 
-const terminalCleanupSchemaVersion = 2
+const terminalCleanupSchemaVersion = 3
+const terminalResumePacketSchemaVersion = 1
 const terminalCleanupSafetyContractVersion = reconcile.WorktreeSafetyContractVersion
 
 var terminalCleanupRetryDelays = []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond}
@@ -25,12 +27,17 @@ var terminalCleanupRetryDelays = []time.Duration{0, 100 * time.Millisecond, 300 
 type terminalCleanupOptions struct {
 	Action             string
 	WorkID             string
+	ClaimID            string
 	SessionID          string
 	Worktree           string
 	Branch             string
 	CommitSHA          string
 	DeliveryMode       string
 	Remote             string
+	ResumePacket       string
+	Provider           string
+	PullRequestID      string
+	PullRequestURL     string
 	RepoRoot           string
 	CurrentWorktree    string
 	CurrentSession     string
@@ -40,29 +47,61 @@ type terminalCleanupOptions struct {
 }
 
 type terminalCleanupReceipt struct {
-	SchemaVersion    int                      `json:"schema_version"`
-	WorkID           string                   `json:"work_id"`
-	SessionID        string                   `json:"session_id"`
-	RepoRoot         string                   `json:"repo_root"`
-	Worktree         string                   `json:"worktree"`
-	WorktreeRealPath string                   `json:"worktree_real_path"`
-	WorktreeGitDir   string                   `json:"worktree_git_dir"`
-	Branch           string                   `json:"branch"`
-	CommitSHA        string                   `json:"commit_sha"`
-	WorktreeToken    string                   `json:"worktree_token"`
-	DeliveryMode     string                   `json:"delivery_mode"`
-	Remote           string                   `json:"remote,omitempty"`
-	EvidenceRecorded bool                     `json:"evidence_recorded"`
-	RemoteDefaults   []terminalRemoteEvidence `json:"remote_defaults,omitempty"`
-	TopicRef         string                   `json:"topic_ref,omitempty"`
-	TopicSHA         string                   `json:"topic_sha,omitempty"`
-	Status           string                   `json:"status"`
-	RegisteredAt     string                   `json:"registered_at"`
-	UpdatedAt        string                   `json:"updated_at"`
-	RemovedAt        string                   `json:"removed_at,omitempty"`
-	ReleasedAt       string                   `json:"released_at,omitempty"`
-	Limitation       string                   `json:"limitation,omitempty"`
-	SafetyPolicy     string                   `json:"safety_policy_version"`
+	SchemaVersion      int                      `json:"schema_version"`
+	WorkID             string                   `json:"work_id"`
+	ClaimID            string                   `json:"claim_id,omitempty"`
+	SessionID          string                   `json:"session_id"`
+	RepoRoot           string                   `json:"repo_root"`
+	Worktree           string                   `json:"worktree"`
+	WorktreeRealPath   string                   `json:"worktree_real_path"`
+	WorktreeGitDir     string                   `json:"worktree_git_dir"`
+	Branch             string                   `json:"branch"`
+	CommitSHA          string                   `json:"commit_sha"`
+	WorktreeToken      string                   `json:"worktree_token"`
+	DeliveryMode       string                   `json:"delivery_mode"`
+	Remote             string                   `json:"remote,omitempty"`
+	EvidenceRecorded   bool                     `json:"evidence_recorded"`
+	RemoteDefaults     []terminalRemoteEvidence `json:"remote_defaults,omitempty"`
+	TopicRef           string                   `json:"topic_ref,omitempty"`
+	TopicSHA           string                   `json:"topic_sha,omitempty"`
+	Status             string                   `json:"status"`
+	RegisteredAt       string                   `json:"registered_at"`
+	UpdatedAt          string                   `json:"updated_at"`
+	RemovedAt          string                   `json:"removed_at,omitempty"`
+	ReleasedAt         string                   `json:"released_at,omitempty"`
+	Limitation         string                   `json:"limitation,omitempty"`
+	SafetyPolicy       string                   `json:"safety_policy_version"`
+	ResumePacketPath   string                   `json:"resume_packet_path,omitempty"`
+	ResumePacketID     string                   `json:"resume_packet_id,omitempty"`
+	ResumePacketDigest string                   `json:"resume_packet_digest,omitempty"`
+	Provider           string                   `json:"provider,omitempty"`
+	PullRequestID      string                   `json:"pull_request_id,omitempty"`
+	PullRequestURL     string                   `json:"pull_request_url,omitempty"`
+}
+
+type terminalResumePacket struct {
+	SchemaVersion       int      `json:"schema_version"`
+	PacketID            string   `json:"packet_id"`
+	CanonicalRepository string   `json:"canonical_repository"`
+	WorkID              string   `json:"work_id"`
+	ClaimID             string   `json:"claim_id"`
+	SessionID           string   `json:"session_id"`
+	Branch              string   `json:"branch"`
+	DeliveredSHA        string   `json:"delivered_sha"`
+	Remote              string   `json:"remote"`
+	RemoteRef           string   `json:"remote_ref"`
+	RemoteSHA           string   `json:"remote_sha"`
+	Provider            string   `json:"provider"`
+	PullRequestID       string   `json:"pull_request_id"`
+	PullRequestURL      string   `json:"pull_request_url"`
+	Manifest            string   `json:"manifest"`
+	Requirements        string   `json:"requirements"`
+	GatePointers        []string `json:"gate_pointers"`
+	ProofPointers       []string `json:"proof_pointers"`
+	ProtectedPaths      []string `json:"protected_paths"`
+	QuarantinedPaths    []string `json:"quarantined_paths"`
+	RecreateCommand     string   `json:"recreate_command"`
+	ResumeCommand       string   `json:"resume_command"`
 }
 
 type terminalCleanupResult struct {
@@ -142,12 +181,17 @@ func runTerminalCleanupCommand(root string, opts options, stdout, stderr io.Writ
 	result, err := executeTerminalCleanup(terminalCleanupOptions{
 		Action:          opts.sliceLeaseAction,
 		WorkID:          opts.workID,
+		ClaimID:         opts.claimID,
 		SessionID:       opts.sessionID,
 		Worktree:        opts.worktreePath,
 		Branch:          opts.branchName,
 		CommitSHA:       opts.commitSHA,
 		DeliveryMode:    opts.deliveryMode,
 		Remote:          opts.remote,
+		ResumePacket:    opts.resumePacket,
+		Provider:        opts.provider,
+		PullRequestID:   opts.pullRequestID,
+		PullRequestURL:  opts.pullRequestURL,
 		RepoRoot:        root,
 		CurrentWorktree: current,
 		CurrentSession:  opts.sessionID,
@@ -245,6 +289,21 @@ func registerTerminalCleanup(opts terminalCleanupOptions) (terminalCleanupResult
 	if mode != "local" && mode != "pr" && mode != "direct" {
 		return blockedTerminalCleanup("register", "delivery-mode must be local, pr, or direct", nil), nil
 	}
+	if mode != "pr" && strings.TrimSpace(opts.ResumePacket) != "" {
+		return blockedTerminalCleanup("register", "resume-packet is accepted only for awaiting-review PR delivery", nil), nil
+	}
+	if mode == "pr" && (strings.TrimSpace(opts.ClaimID) == "" ||
+		strings.TrimSpace(opts.Provider) == "" ||
+		strings.TrimSpace(opts.PullRequestID) == "" ||
+		strings.TrimSpace(opts.PullRequestURL) == "") {
+		return blockedTerminalCleanup("register", "PR cleanup requires explicit claim, provider, PR identity, and PR URL", nil), nil
+	}
+	if mode != "pr" && (strings.TrimSpace(opts.ClaimID) != "" ||
+		strings.TrimSpace(opts.Provider) != "" ||
+		strings.TrimSpace(opts.PullRequestID) != "" ||
+		strings.TrimSpace(opts.PullRequestURL) != "") {
+		return blockedTerminalCleanup("register", "claim and PR identity flags are accepted only for awaiting-review PR delivery", nil), nil
+	}
 	worktree, err := filepath.Abs(filepath.Clean(opts.Worktree))
 	if err != nil {
 		return terminalCleanupResult{}, err
@@ -254,20 +313,24 @@ func registerTerminalCleanup(opts terminalCleanupOptions) (terminalCleanupResult
 		return blockedTerminalCleanup("register", err.Error(), nil), nil
 	}
 	receipt := terminalCleanupReceipt{
-		SchemaVersion: terminalCleanupSchemaVersion,
-		WorkID:        strings.TrimSpace(opts.WorkID),
-		SessionID:     strings.TrimSpace(opts.SessionID),
-		RepoRoot:      primary,
-		Worktree:      worktree,
-		Branch:        strings.TrimPrefix(strings.TrimSpace(opts.Branch), "refs/heads/"),
-		CommitSHA:     strings.TrimSpace(opts.CommitSHA),
-		DeliveryMode:  mode,
-		Remote:        strings.TrimSpace(opts.Remote),
-		Status:        "registered",
-		RegisteredAt:  opts.Now.Format(time.RFC3339Nano),
-		UpdatedAt:     opts.Now.Format(time.RFC3339Nano),
-		Limitation:    "host UI session records remain host-owned; this receipt retires the Git worktree and exact merged local ref",
-		SafetyPolicy:  terminalCleanupSafetyContractVersion,
+		SchemaVersion:  terminalCleanupSchemaVersion,
+		WorkID:         strings.TrimSpace(opts.WorkID),
+		ClaimID:        strings.TrimSpace(opts.ClaimID),
+		SessionID:      strings.TrimSpace(opts.SessionID),
+		RepoRoot:       primary,
+		Worktree:       worktree,
+		Branch:         strings.TrimPrefix(strings.TrimSpace(opts.Branch), "refs/heads/"),
+		CommitSHA:      strings.TrimSpace(opts.CommitSHA),
+		DeliveryMode:   mode,
+		Remote:         strings.TrimSpace(opts.Remote),
+		Status:         "registered",
+		RegisteredAt:   opts.Now.Format(time.RFC3339Nano),
+		UpdatedAt:      opts.Now.Format(time.RFC3339Nano),
+		Limitation:     "host UI session records remain host-owned; this receipt retires the Git worktree and exact merged local ref",
+		SafetyPolicy:   terminalCleanupSafetyContractVersion,
+		Provider:       strings.TrimSpace(opts.Provider),
+		PullRequestID:  strings.TrimSpace(opts.PullRequestID),
+		PullRequestURL: strings.TrimSpace(opts.PullRequestURL),
 	}
 	if receipt.Branch == "" || receipt.CommitSHA == "" {
 		return blockedTerminalCleanup("register", "worktree, branch, and commit-sha are required", &receipt), nil
@@ -302,6 +365,15 @@ func registerTerminalCleanup(opts terminalCleanupOptions) (terminalCleanupResult
 	receipt.RemoteDefaults = delivery.RemoteDefaults
 	receipt.TopicRef = delivery.TopicRef
 	receipt.TopicSHA = delivery.TopicSHA
+	if mode == "pr" {
+		packetPath, packetID, digest, issue := validateTerminalResumePacket(opts.ResumePacket, receipt)
+		if issue != "" {
+			return blockedTerminalCleanup("register", issue, &receipt), nil
+		}
+		receipt.ResumePacketPath = packetPath
+		receipt.ResumePacketID = packetID
+		receipt.ResumePacketDigest = digest
+	}
 	token, markerPath, gitDir, err := createTerminalWorktreeMarker(receipt.Worktree)
 	if err != nil {
 		return blockedTerminalCleanup("register", err.Error(), &receipt), nil
@@ -421,6 +493,15 @@ func sweepOneTerminalCleanupLocked(
 	}
 	if receipt.SafetyPolicy != terminalCleanupSafetyContractVersion {
 		return blockedTerminalCleanup("sweep", "terminal cleanup safety policy version is missing or incompatible", &receipt), nil
+	}
+	if receipt.DeliveryMode == "pr" {
+		_, packetID, digest, issue := validateTerminalResumePacket(receipt.ResumePacketPath, receipt)
+		if issue != "" {
+			return blockedTerminalCleanup("sweep", issue, &receipt), nil
+		}
+		if packetID != receipt.ResumePacketID || digest != receipt.ResumePacketDigest {
+			return blockedTerminalCleanup("sweep", "awaiting-review resume packet identity or digest changed", &receipt), nil
+		}
 	}
 
 	if receipt.UpdatedAt != observedUpdatedAt {
@@ -1024,6 +1105,94 @@ func terminalCleanupReceiptPath(root string, receipt terminalCleanupReceipt) (st
 		return "", err
 	}
 	return filepath.Join(dir, safePathPart(receipt.SessionID)+"-"+safePathPart(receipt.WorkID)+".json"), nil
+}
+
+func validateTerminalResumePacket(path string, receipt terminalCleanupReceipt) (string, string, string, string) {
+	if strings.TrimSpace(path) == "" {
+		return "", "", "", "awaiting-review worktree retirement requires an explicit resume packet"
+	}
+	absolute, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return "", "", "", "resume packet path is invalid: " + err.Error()
+	}
+	relative, err := filepath.Rel(receipt.Worktree, absolute)
+	if err != nil {
+		return "", "", "", "resume packet location cannot be compared to the retiring worktree"
+	}
+	if relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(os.PathSeparator))) {
+		return "", "", "", "resume packet must be stored outside the retiring worktree"
+	}
+	content, err := os.ReadFile(absolute)
+	if err != nil {
+		return "", "", "", "resume packet is unavailable: " + err.Error()
+	}
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	var packet terminalResumePacket
+	if err := decoder.Decode(&packet); err != nil {
+		return "", "", "", "resume packet is invalid: " + err.Error()
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return "", "", "", "resume packet must contain exactly one JSON document"
+	}
+	if packet.SchemaVersion != terminalResumePacketSchemaVersion {
+		return "", "", "", fmt.Sprintf("unsupported resume packet schema_version %d", packet.SchemaVersion)
+	}
+	required := map[string]string{
+		"packet_id": packet.PacketID, "canonical_repository": packet.CanonicalRepository,
+		"work_id": packet.WorkID, "claim_id": packet.ClaimID, "session_id": packet.SessionID,
+		"branch": packet.Branch, "delivered_sha": packet.DeliveredSHA,
+		"remote": packet.Remote, "remote_ref": packet.RemoteRef, "remote_sha": packet.RemoteSHA,
+		"provider": packet.Provider, "pull_request_id": packet.PullRequestID,
+		"pull_request_url": packet.PullRequestURL, "manifest": packet.Manifest,
+		"requirements": packet.Requirements, "recreate_command": packet.RecreateCommand,
+		"resume_command": packet.ResumeCommand,
+	}
+	for name, value := range required {
+		if strings.TrimSpace(value) == "" {
+			return "", "", "", "resume packet missing required " + name
+		}
+	}
+	if len(packet.GatePointers) == 0 || len(packet.ProofPointers) == 0 ||
+		packet.ProtectedPaths == nil || packet.QuarantinedPaths == nil ||
+		!allTerminalResumeValuesPresent(packet.GatePointers) ||
+		!allTerminalResumeValuesPresent(packet.ProofPointers) ||
+		!allTerminalResumeValuesPresent(packet.ProtectedPaths) ||
+		!allTerminalResumeValuesPresent(packet.QuarantinedPaths) {
+		return "", "", "", "resume packet must explicitly declare gate/proof pointers and protected/quarantined path lists"
+	}
+	canonicalRepository := strings.TrimSpace(gitOutput(receipt.RepoRoot, "remote", "get-url", receipt.Remote))
+	if canonicalRepository == "" || packet.CanonicalRepository != canonicalRepository {
+		return "", "", "", "resume packet canonical repository does not match the registered delivery remote"
+	}
+	if packet.WorkID != receipt.WorkID || packet.ClaimID != receipt.ClaimID ||
+		packet.SessionID != receipt.SessionID ||
+		packet.Branch != receipt.Branch || packet.DeliveredSHA != receipt.CommitSHA ||
+		packet.Remote != receipt.Remote || packet.RemoteRef != receipt.TopicRef ||
+		packet.RemoteSHA != receipt.TopicSHA || packet.Provider != receipt.Provider ||
+		packet.PullRequestID != receipt.PullRequestID ||
+		packet.PullRequestURL != receipt.PullRequestURL {
+		return "", "", "", "resume packet delivery or work identity does not match registration evidence"
+	}
+	if !strings.Contains(packet.PullRequestURL, "://") {
+		return "", "", "", "resume packet pull request URL is not absolute"
+	}
+	if !strings.Contains(packet.RecreateCommand, receipt.Branch) ||
+		!strings.Contains(packet.RecreateCommand, receipt.CommitSHA) ||
+		!strings.Contains(packet.ResumeCommand, receipt.WorkID) {
+		return "", "", "", "resume packet recreation/resume commands are not bound to the registered work"
+	}
+	sum := sha256.Sum256(content)
+	return absolute, packet.PacketID, "sha256:" + hex.EncodeToString(sum[:]), ""
+}
+
+func allTerminalResumeValuesPresent(values []string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func saveTerminalCleanupReceipt(root string, receipt terminalCleanupReceipt) error {

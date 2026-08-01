@@ -208,6 +208,17 @@ and URL, current gate and proof receipts, protected/quarantined paths, and exact
 recreation/resume commands. Missing resume evidence blocks worktree retirement,
 not the already-proven PR delivery.
 
+Write that resume packet as versioned JSON outside the worktree being retired;
+never infer or synthesize missing fields. Bind its immutable packet identity and
+SHA-256 digest into the cleanup receipt. It must explicitly contain the
+canonical delivery repository; work, claim, and session identities; branch;
+delivered SHA; remote/ref/observed SHA; provider, PR identity, and PR URL;
+manifest and requirements pointers; current gate and proof pointers;
+protected and quarantined path arrays (including explicit empty arrays); and
+exact worktree recreation and `kb-start` resume commands. Registration validates
+all identities against live delivery evidence. Sweep rereads the packet and
+blocks retirement if its path, identity, digest, or required contents drift.
+
 When `cmd/kbcheck` provides the guard, register the exact terminal target before
 releasing ownership:
 
@@ -216,7 +227,10 @@ go run ./cmd/kbcheck terminal-cleanup --action register `
   --work-id <work-id> --session-id <project-session-id> `
   --worktree <exact-worktree> --branch <exact-feature-branch> `
   --commit-sha <delivered-commit> --delivery-mode <local|pr|direct> `
-  [--remote <delivery-remote>] --root <project-root>
+  [--remote <delivery-remote>] `
+  [--claim-id <claim-id> --provider <provider> --pr-id <pr-id> `
+   --pr-url <pr-url> --resume-packet <path-for-pr>] `
+  --root <project-root>
 ```
 
 Then release or suspend the shared work claim with the matching lifecycle state

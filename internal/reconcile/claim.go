@@ -211,8 +211,14 @@ type MemoryClaimStore struct {
 	controllerEpoch uint64
 	epochHighWater  uint64
 	claims          map[string]Claim
+	claimHighWater  map[string]claimHighWater
 	revision        uint64
 	now             func() time.Time
+}
+
+type claimHighWater struct {
+	Generation uint64
+	Revision   string
 }
 
 func NewMemoryClaimStore() *MemoryClaimStore {
@@ -220,7 +226,9 @@ func NewMemoryClaimStore() *MemoryClaimStore {
 }
 
 func NewMemoryClaimStoreWithClock(now func() time.Time) *MemoryClaimStore {
-	return &MemoryClaimStore{claims: map[string]Claim{}, now: now}
+	return &MemoryClaimStore{
+		claims: map[string]Claim{}, claimHighWater: map[string]claimHighWater{}, now: now,
+	}
 }
 
 func (s *MemoryClaimStore) SetController(id string, epoch uint64) error {
@@ -300,6 +308,10 @@ func (s *MemoryClaimStore) writeClaim(request ClaimRequest, generation uint64) (
 		IssuedAt: request.Now.UTC(), ExpiresAt: request.Now.Add(request.TTL).UTC(),
 	}
 	s.claims[request.Key.Canonical] = claim
+	s.claimHighWater[request.Key.Canonical] = claimHighWater{
+		Generation: claim.Generation,
+		Revision:   claim.ClaimRevision,
+	}
 	return claim, nil
 }
 
@@ -335,10 +347,30 @@ func (s *MemoryClaimStore) Restore(snapshot ClaimSnapshot) error {
 	if snapshot.ControllerEpoch != s.controllerEpoch || snapshot.ControllerID != s.controllerID {
 		return fmt.Errorf("claim snapshot controller incarnation mismatch")
 	}
-	s.claims = make(map[string]Claim, len(snapshot.Claims))
-	for key, claim := range snapshot.Claims {
-		s.claims[key] = claim
+	for key, high := range s.claimHighWater {
+		claim, ok := snapshot.Claims[key]
+		if !ok {
+			return fmt.Errorf("claim snapshot omits durable high-water resource %s", key)
+		}
+		if claim.Generation < high.Generation ||
+			(claim.Generation == high.Generation && claim.ClaimRevision != high.Revision) {
+			return fmt.Errorf("claim snapshot resource high-water regression detected")
+		}
 	}
+	restored := make(map[string]Claim, len(snapshot.Claims))
+	for key, claim := range snapshot.Claims {
+		if key != claim.Key.Canonical || claim.Generation == 0 || claim.ClaimRevision == "" {
+			return fmt.Errorf("claim snapshot contains invalid resource identity")
+		}
+		restored[key] = claim
+	}
+	for key, claim := range restored {
+		s.claimHighWater[key] = claimHighWater{
+			Generation: claim.Generation,
+			Revision:   claim.ClaimRevision,
+		}
+	}
+	s.claims = restored
 	return nil
 }
 
@@ -436,19 +468,45 @@ type IdempotencyRecoveryVerifier interface {
 
 type SideEffectCommit func(context.Context, MutationRequest) (string, error)
 
+type GatewayBootstrapState struct {
+	SchemaVersion    int     `json:"schema_version"`
+	ReconciliationID string  `json:"reconciliation_id"`
+	ControllerID     string  `json:"controller_identity"`
+	ControllerEpoch  uint64  `json:"controller_epoch"`
+	CurrentClaims    []Claim `json:"current_claims"`
+}
+
+type GatewayBootstrapVerifierCapability struct {
+	AuthenticatedAuthority bool `json:"authenticated_authority"`
+	RollbackProtected      bool `json:"rollback_protected"`
+}
+
+func (c GatewayBootstrapVerifierCapability) Ready() bool {
+	return c.AuthenticatedAuthority && c.RollbackProtected
+}
+
+type GatewayBootstrapVerifier interface {
+	VerifyBootstrap(context.Context, GatewayBootstrapState) error
+	Capability() GatewayBootstrapVerifierCapability
+}
+
 type ReferenceGateway struct {
-	capability  GatewayCapability
-	verifier    AuthorizationVerifier
-	commit      SideEffectCommit
-	now         func() time.Time
-	lockMu      sync.Mutex
-	locks       map[string]*sync.Mutex
-	stateMu     sync.Mutex
-	highWater   map[string]uint64
-	revisions   map[string]string
-	epochs      map[string]uint64
-	controllers map[string]string
-	records     map[string]IdempotencyRecord
+	capability      GatewayCapability
+	verifier        AuthorizationVerifier
+	commit          SideEffectCommit
+	now             func() time.Time
+	lockMu          sync.Mutex
+	locks           map[string]*sync.Mutex
+	stateMu         sync.Mutex
+	highWater       map[string]uint64
+	revisions       map[string]string
+	epochs          map[string]uint64
+	controllers     map[string]string
+	records         map[string]IdempotencyRecord
+	baseReady       bool
+	bootstrapped    bool
+	controllerID    string
+	controllerEpoch uint64
 }
 
 func NewReferenceGateway(capability GatewayCapability, verifier AuthorizationVerifier, commit SideEffectCommit) *ReferenceGateway {
@@ -463,24 +521,100 @@ func NewReferenceGatewayWithClock(
 ) *ReferenceGateway {
 	capability.SchemaVersion = SemanticClaimSchemaVersion
 	capability.VerifierAvailable = verifier != nil && verifier.Capability().ProtectedMutationReady()
-	capability.ProtectedMutationAvailable = capability.AtomicConditionalCommit &&
+	baseReady := capability.AtomicConditionalCommit &&
 		capability.SolePath.GatewayPrincipalOnly && capability.SolePath.DirectPathDenied &&
 		capability.SolePath.AlternatePathDenied && capability.VerifierAvailable && commit != nil
+	capability.ProtectedMutationAvailable = false
 	capability.LiveProviderSupported = false
-	if !capability.ProtectedMutationAvailable {
+	if !baseReady {
 		capability.Limitations = append(capability.Limitations,
 			"protected mutation requires a real verifier, atomic conditional commit, and proven gateway-only production path")
 	}
+	capability.Limitations = append(capability.Limitations,
+		"protected mutation remains unavailable until authoritative controller and per-resource high-water bootstrap succeeds")
 	sort.Strings(capability.Limitations)
 	return &ReferenceGateway{
 		capability: capability, verifier: verifier, commit: commit, now: now,
 		locks: map[string]*sync.Mutex{}, highWater: map[string]uint64{},
 		revisions: map[string]string{}, epochs: map[string]uint64{},
 		controllers: map[string]string{}, records: map[string]IdempotencyRecord{},
+		baseReady: baseReady,
 	}
 }
 
-func (g *ReferenceGateway) Capability() GatewayCapability { return g.capability }
+func (g *ReferenceGateway) Capability() GatewayCapability {
+	g.stateMu.Lock()
+	defer g.stateMu.Unlock()
+	capability := g.capability
+	capability.ProtectedMutationAvailable = g.baseReady && g.bootstrapped
+	return capability
+}
+
+func (g *ReferenceGateway) Bootstrap(
+	ctx context.Context,
+	state GatewayBootstrapState,
+	verifier GatewayBootstrapVerifier,
+) error {
+	if !g.baseReady || verifier == nil || !verifier.Capability().Ready() {
+		return ErrProtectedMutationUnavailable
+	}
+	if state.SchemaVersion != SemanticClaimSchemaVersion ||
+		strings.TrimSpace(state.ReconciliationID) == "" ||
+		strings.TrimSpace(state.ControllerID) == "" || state.ControllerEpoch == 0 ||
+		len(state.CurrentClaims) == 0 {
+		return fmt.Errorf("authoritative gateway bootstrap is incomplete")
+	}
+	if err := verifier.VerifyBootstrap(ctx, state); err != nil {
+		return err
+	}
+	g.stateMu.Lock()
+	defer g.stateMu.Unlock()
+	if state.ControllerEpoch < g.controllerEpoch ||
+		(state.ControllerEpoch == g.controllerEpoch && g.controllerID != "" &&
+			state.ControllerID != g.controllerID) {
+		return ErrStaleGeneration
+	}
+	seen := make(map[string]bool, len(state.CurrentClaims))
+	for _, claim := range state.CurrentClaims {
+		if claim.Key.Canonical == "" || claim.ClaimRevision == "" || claim.Generation == 0 ||
+			claim.ControllerID != state.ControllerID || claim.ControllerEpoch != state.ControllerEpoch {
+			return fmt.Errorf("authoritative gateway bootstrap claim is inconsistent")
+		}
+		canonical, err := CanonicalResourceKey(ResourceIdentity{
+			Provider: claim.Key.Provider,
+			Tenant:   claim.Key.Tenant,
+			Account:  claim.Key.Account,
+			Type:     claim.Key.Type,
+			ID:       claim.Key.ID,
+		})
+		if err != nil || canonical != claim.Key || seen[claim.Key.Canonical] {
+			return fmt.Errorf("authoritative gateway bootstrap resource key is invalid or duplicated")
+		}
+		seen[claim.Key.Canonical] = true
+		if high := g.highWater[claim.Key.Canonical]; claim.Generation < high ||
+			(claim.Generation == high && high != 0 &&
+				g.revisions[claim.Key.Canonical] != claim.ClaimRevision) {
+			return ErrStaleGeneration
+		}
+	}
+	if state.ControllerEpoch > g.controllerEpoch && g.controllerEpoch != 0 {
+		for key := range g.highWater {
+			if !seen[key] {
+				return fmt.Errorf("new controller incarnation bootstrap omits existing resource high-water state")
+			}
+		}
+	}
+	for _, claim := range state.CurrentClaims {
+		g.highWater[claim.Key.Canonical] = claim.Generation
+		g.revisions[claim.Key.Canonical] = claim.ClaimRevision
+		g.epochs[claim.Key.Canonical] = claim.ControllerEpoch
+		g.controllers[claim.Key.Canonical] = claim.ControllerID
+	}
+	g.controllerID = state.ControllerID
+	g.controllerEpoch = state.ControllerEpoch
+	g.bootstrapped = true
+	return nil
+}
 
 func (g *ReferenceGateway) resourceLock(key string) *sync.Mutex {
 	g.lockMu.Lock()
@@ -494,7 +628,7 @@ func (g *ReferenceGateway) resourceLock(key string) *sync.Mutex {
 }
 
 func (g *ReferenceGateway) Commit(ctx context.Context, request MutationRequest) (MutationReceipt, error) {
-	if !g.capability.ProtectedMutationAvailable {
+	if !g.Capability().ProtectedMutationAvailable {
 		return MutationReceipt{}, ErrProtectedMutationUnavailable
 	}
 	if request.Claim.Key.Canonical == "" || request.IdempotencyKey == "" || request.RequestDigest == "" {
@@ -529,9 +663,15 @@ func (g *ReferenceGateway) Commit(ctx context.Context, request MutationRequest) 
 		}
 	}
 	high := g.highWater[request.Claim.Key.Canonical]
+	if high == 0 {
+		g.stateMu.Unlock()
+		return MutationReceipt{}, ErrProtectedMutationUnavailable
+	}
 	epoch := g.epochs[request.Claim.Key.Canonical]
 	controller := g.controllers[request.Claim.Key.Canonical]
-	if request.Claim.ControllerEpoch < epoch ||
+	if request.Claim.ControllerEpoch != g.controllerEpoch ||
+		request.Claim.ControllerID != g.controllerID ||
+		request.Claim.ControllerEpoch < epoch ||
 		(request.Claim.ControllerEpoch == epoch && controller != "" && request.Claim.ControllerID != controller) {
 		g.stateMu.Unlock()
 		return MutationReceipt{}, ErrStaleGeneration
@@ -678,7 +818,9 @@ func ReferenceClaimConformance() ClaimConformanceResult {
 		Checks: []string{
 			"canonical-key-alias-collision-rejection", "expiry-plus-cas-takeover",
 			"monotonic-generation", "stale-worker-rejection", "rollback-epoch-rejection",
+			"same-epoch-generation-revision-rollback-rejection",
 			"wrong-audience-and-forged-authority-rejection", "gateway-high-water",
+			"cold-gateway-authoritative-bootstrap-required",
 			"atomic-validation-to-commit-capability", "durable-idempotency-reservation",
 			"ambiguous-retry-blocking", "authoritative-outcome-recovery",
 			"direct-path-denial", "alternate-path-denial",

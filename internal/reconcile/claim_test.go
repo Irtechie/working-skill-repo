@@ -60,6 +60,7 @@ func TestSemanticClaimCASTakeoverAndRollbackFence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	staleSnapshot := store.Snapshot()
 	if _, err := store.Takeover(ClaimRequest{
 		Key: key, Holder: "session-b", WorkID: "release-widget", SourceRevision: "def",
 		AdapterID: "memory-reference", WorkloadIdentity: "worker-b", ControllerID: "controller-a",
@@ -88,6 +89,9 @@ func TestSemanticClaimCASTakeoverAndRollbackFence(t *testing.T) {
 	}
 	if err := store.ValidateCurrent(first); err == nil {
 		t.Fatal("stale worker remained current")
+	}
+	if err := store.Restore(staleSnapshot); err == nil {
+		t.Fatal("same-epoch generation and revision rollback was accepted")
 	}
 	forgedCurrent := second
 	forgedCurrent.Holder = "different-session"
@@ -143,6 +147,14 @@ func TestFenceGatewayAuthorizationIdempotencyAndBypass(t *testing.T) {
 			RequestDigest: "sha256:payload", IdempotencyKey: "deploy-widget-42",
 			ExpiresAt: now.Add(time.Minute),
 		},
+	}
+	if gateway.Capability().ProtectedMutationAvailable {
+		t.Fatal("cold gateway advertised protected mutation before authoritative bootstrap")
+	}
+	bootstrapGateway(t, gateway, request.Claim)
+	unseeded := validMutation(mustResource(t, "deploy", "staging"), now, "unseeded")
+	if _, err := gateway.Commit(ctx, unseeded); !errors.Is(err, ErrProtectedMutationUnavailable) {
+		t.Fatalf("unseeded resource was admitted by warm gateway: %v", err)
 	}
 	first, err := gateway.Commit(ctx, request)
 	if err != nil {
@@ -260,6 +272,7 @@ func TestFenceGatewayAmbiguousRetryFailsClosed(t *testing.T) {
 		atomic.AddInt32(&calls, 1)
 		return "", ErrCommitOutcomeUnknown
 	})
+	bootstrapGateway(t, gateway, request.Claim)
 	if _, err := gateway.Commit(context.Background(), request); !errors.Is(err, ErrCommitOutcomeUnknown) {
 		t.Fatalf("ambiguous commit error=%v", err)
 	}
@@ -324,6 +337,7 @@ func TestSemanticClaimDisjointConcurrencyAndSameResourceSerialization(t *testing
 	})
 	first := validMutation(mustResource(t, "publisher", "one"), now, "one")
 	second := validMutation(mustResource(t, "publisher", "two"), now, "two")
+	bootstrapGateway(t, gateway, first.Claim, second.Claim)
 	var wg sync.WaitGroup
 	for _, request := range []MutationRequest{first, second} {
 		wg.Add(1)
@@ -358,6 +372,7 @@ func TestSemanticClaimDisjointConcurrencyAndSameResourceSerialization(t *testing
 	})
 	sameA := validMutation(first.Claim.Key, now, "same-a")
 	sameB := validMutation(first.Claim.Key, now, "same-b")
+	bootstrapGateway(t, serial, sameA.Claim)
 	for _, request := range []MutationRequest{sameA, sameB} {
 		wg.Add(1)
 		go func(request MutationRequest) {
@@ -389,6 +404,8 @@ type staticRecovery struct {
 	err      error
 }
 
+type exactBootstrapVerifier struct{}
+
 func newTestGateway(
 	now time.Time,
 	capability GatewayCapability,
@@ -396,6 +413,34 @@ func newTestGateway(
 	commit SideEffectCommit,
 ) *ReferenceGateway {
 	return NewReferenceGatewayWithClock(capability, verifier, commit, func() time.Time { return now })
+}
+
+func bootstrapGateway(t *testing.T, gateway *ReferenceGateway, claims ...Claim) {
+	t.Helper()
+	if len(claims) == 0 {
+		t.Fatal("bootstrap requires current claims")
+	}
+	state := GatewayBootstrapState{
+		SchemaVersion:    SemanticClaimSchemaVersion,
+		ReconciliationID: "authoritative-test-bootstrap",
+		ControllerID:     claims[0].ControllerID,
+		ControllerEpoch:  claims[0].ControllerEpoch,
+		CurrentClaims:    claims,
+	}
+	if err := gateway.Bootstrap(context.Background(), state, exactBootstrapVerifier{}); err != nil {
+		t.Fatalf("bootstrap gateway: %v", err)
+	}
+}
+
+func (exactBootstrapVerifier) Capability() GatewayBootstrapVerifierCapability {
+	return GatewayBootstrapVerifierCapability{
+		AuthenticatedAuthority: true,
+		RollbackProtected:      true,
+	}
+}
+
+func (exactBootstrapVerifier) VerifyBootstrap(context.Context, GatewayBootstrapState) error {
+	return nil
 }
 
 func (r staticRecovery) Resolve(context.Context, IdempotencyRecord) (IdempotencyRecoveryDecision, error) {

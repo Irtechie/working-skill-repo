@@ -92,6 +92,9 @@ func ValidatePlanBundle(bundle PlanBundle, policy Policy, now time.Time, require
 		if !sameProofs(action.DedupProofs, artifact.DedupProofs) {
 			return "", fmt.Errorf("action %s dedup evidence does not match its target", action.ID)
 		}
+		if action.MutationAllowed != localMutationAuthorized(action.ActionClass, action.Classification, policy) {
+			return "", fmt.Errorf("action %s execution authorization does not match the active local mutation policy", action.ID)
+		}
 	}
 	return FingerprintPlan(bundle.Plan)
 }
@@ -133,7 +136,7 @@ func Apply(options ApplyOptions) (ApplyReceipt, error) {
 			receipt.Actions = append(receipt.Actions, result)
 		}
 	}
-	normalizeReceipt(&receipt)
+	normalizeReceipt(&receipt, false)
 	return receipt, nil
 }
 
@@ -184,7 +187,7 @@ func Verify(options ApplyOptions, receipt ApplyReceipt) (Verification, ApplyRece
 	}
 	receipt.Actions = actions
 	receipt.VerifiedAt = options.Now.UTC()
-	normalizeReceipt(&receipt)
+	normalizeReceipt(&receipt, true)
 	verification := Verification{
 		SchemaVersion: ApplyReceiptSchemaVersion,
 		Status:        receipt.Status, VerifiedAt: receipt.VerifiedAt,
@@ -196,7 +199,8 @@ func Verify(options ApplyOptions, receipt ApplyReceipt) (Verification, ApplyRece
 func applyOne(options ApplyOptions, repository Repository, artifact Artifact, action PlannedAction) ActionReceipt {
 	result := newActionReceipt(action, artifact, options.Now)
 	actionPolicy, _ := policyForAction(options.Policy, action.ActionClass)
-	if !actionPolicy.Allowed || (action.ActionClass != ActionWorktreeRetire && action.ActionClass != ActionLocalRefRetire) {
+	if !action.MutationAllowed || !localMutationAuthorized(action.ActionClass, action.Classification, options.Policy) ||
+		!actionPolicy.Allowed {
 		result.Result = "unavailable"
 		result.Issue = "action is outside the allowlisted local mutation surface; authoritative fenced adapter required"
 		return result

@@ -36,6 +36,9 @@ func TestAutomaticDeliveryChainContract(t *testing.T) {
 			"`delivery-integrated`",
 			"delivery, physical cleanup, ref retirement, and host session retirement",
 			"Release or suspend ownership only after lifecycle registration succeeds",
+			"versioned JSON outside the worktree being retired",
+			"SHA-256 digest into the cleanup receipt",
+			"--resume-packet <path-for-pr>",
 		},
 		".github/skills/kb-ship/SKILL.md": {
 			"`kb-ship` never merges it",

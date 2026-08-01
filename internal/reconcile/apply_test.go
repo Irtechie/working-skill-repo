@@ -227,6 +227,7 @@ func TestApplyRejectsExpiredOrMismatchedPlanAndProtectedAction(t *testing.T) {
 	action := fixture.bundle.Plan.Actions[0]
 	action.ID = "action:remote-ref-retire:test"
 	action.ActionClass = ActionRemoteRefRetire
+	action.MutationAllowed = false
 	action.Preconditions = passingPredicates(DefaultPolicy(), ActionRemoteRefRetire, fixture.now)
 	for repositoryIndex := range fixture.bundle.Ledger.Repositories {
 		for artifactIndex := range fixture.bundle.Ledger.Repositories[repositoryIndex].Artifacts {
@@ -234,6 +235,7 @@ func TestApplyRejectsExpiredOrMismatchedPlanAndProtectedAction(t *testing.T) {
 			if artifact.ID == action.ArtifactIDs[0] {
 				artifact.Predicates = append([]PredicateEvidence(nil), action.Preconditions...)
 			}
+
 		}
 	}
 	fingerprint, err := FingerprintLedger(fixture.bundle.Ledger)
@@ -255,6 +257,44 @@ func TestApplyRejectsExpiredOrMismatchedPlanAndProtectedAction(t *testing.T) {
 	}
 	if receipt.Actions[0].Result != "unavailable" || !pathExistsLocal(fixture.worktree) {
 		t.Fatalf("protected external action escaped quarantine: %#v", receipt.Actions[0])
+	}
+}
+
+func TestApplyEnforcesPlanExecutionAuthorization(t *testing.T) {
+	fixture := newApplyFixture(t, false)
+	fixture.bundle.Plan.Actions[0].MutationAllowed = false
+	if _, err := Apply(fixture.options()); err == nil ||
+		!strings.Contains(err.Error(), "execution authorization") {
+		t.Fatalf("tampered execution authorization was accepted: %v", err)
+	}
+	if !pathExistsLocal(fixture.worktree) {
+		t.Fatal("authorization mismatch mutated the worktree")
+	}
+}
+
+func TestApplyReceiptRequiresExactPlanCoverageAndVerification(t *testing.T) {
+	fixture := newApplyFixture(t, false)
+	fingerprint, err := FingerprintPlan(fixture.bundle.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty := NewApplyReceipt(fixture.bundle, fingerprint, fixture.now)
+	empty.Actions = nil
+	if err := ValidateApplyReceipt(empty, fixture.bundle, fingerprint); err == nil {
+		t.Fatal("receipt omitting planned actions was accepted")
+	}
+
+	receipt, err := Apply(fixture.options())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Status == "verified" || !receipt.VerifiedAt.IsZero() {
+		t.Fatalf("apply receipt claimed verification before Verify: %#v", receipt)
+	}
+	receipt.Actions[0].TargetSHA = "forged"
+	if _, _, err := Verify(fixture.options(), receipt); err == nil ||
+		!strings.Contains(err.Error(), "immutable identity") {
+		t.Fatalf("receipt identity mutation was accepted: %v", err)
 	}
 }
 

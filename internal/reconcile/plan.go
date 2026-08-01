@@ -158,9 +158,10 @@ func BuildPlan(ledger Ledger, policy Policy) (Plan, error) {
 				Confidence: outcome.Confidence, Preconditions: append([]PredicateEvidence(nil), artifact.Predicates...),
 				DedupProofs: append([]DedupProof(nil), artifact.DedupProofs...),
 				Cutoff:      ledger.Cutoff, ExpiresAt: plan.ExpiresAt,
-				MutationAllowed: false,
+				MutationAllowed: localMutationAuthorized(outcome.ActionClass, outcome.Classification, policy),
 			})
 		}
+
 	}
 
 	plan.DecisionPacket.Items = buildDecisionItems(plan.Outcomes, ambiguities, policy.DecisionPacket.MaxGroups)
@@ -204,6 +205,17 @@ func BuildPlan(ledger Ledger, policy Policy) (Plan, error) {
 	sort.Slice(plan.Actions, func(i, j int) bool { return plan.Actions[i].ID < plan.Actions[j].ID })
 	sort.Strings(plan.Limitations)
 	return plan, nil
+}
+
+func localMutationAuthorized(actionClass, classification string, policy Policy) bool {
+	if actionClass != ActionWorktreeRetire && actionClass != ActionLocalRefRetire {
+		return false
+	}
+	if classification != ClassificationRoutineRetire && classification != ClassificationSafeSupersede {
+		return false
+	}
+	actionPolicy, ok := policyForAction(policy, actionClass)
+	return ok && actionPolicy.Allowed
 }
 
 func classifyArtifact(artifact Artifact, cutoff time.Time, policy Policy) Outcome {

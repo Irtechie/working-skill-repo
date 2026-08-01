@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "review_id": "global-cleanup-reconcile-20260801-security-review",
+  "base_commit": "2e231cb269e9e098063aed0b2797582f999775ac",
+  "status": "fixed-pending-confirmation",
+  "findings": [
+    {
+      "id": "P1-1",
+      "title": "Plan execution authorization was unenforced",
+      "fix": "Bind deterministic local-only execution authorization into planning, bundle validation, and apply; protected external actions remain unavailable.",
+      "tests": ["TestApplyEnforcesPlanExecutionAuthorization"]
+    },
+    {
+      "id": "P1-2",
+      "title": "Apply receipts could omit planned actions and verify early",
+      "fix": "Preallocate one immutable pending receipt row per action, require exact plan coverage, and reserve verified state for Verify.",
+      "tests": ["TestApplyReceiptRequiresExactPlanCoverageAndVerification", "TestVerifyKeepsOutcomeDimensionsSeparate"]
+    },
+    {
+      "id": "P1-3",
+      "title": "Subdirectory and empty-session identity bypass",
+      "fix": "Resolve the current Git top-level and require a non-empty session identity for mutation-authorized apply.",
+      "tests": ["TestCurrentWorktreeResolvesGitTopLevelFromSubdirectory", "TestApplyRejectsEmptyCurrentSessionForMutationPlan"]
+    },
+    {
+      "id": "P1-4",
+      "title": "Awaiting-review retirement lacked an R34a resume packet",
+      "fix": "Require a versioned external resume packet, validate all recovery and delivery identities, bind its identity and digest into the receipt, and revalidate before sweep.",
+      "tests": ["TestTerminalCleanupRequiresRemoteContainmentAndRetainsPRRefs", "TestTerminalCleanupResumePacketDigestDriftBlocksAwaitingReviewRetirement", "TestAutomaticDeliveryChainContract"]
+    },
+    {
+      "id": "P1-5",
+      "title": "Cold gateway implicitly initialized high-water state",
+      "fix": "Keep protected mutation unavailable until an authenticated rollback-protected bootstrap seeds explicit current claims; reject unseeded resources.",
+      "tests": ["TestFenceGatewayAuthorizationIdempotencyAndBypass"]
+    },
+    {
+      "id": "P1-6",
+      "title": "Same-epoch claim restore could regress generation and revision",
+      "fix": "Maintain per-resource high-water state outside snapshots and reject missing, lower, or same-generation different-revision restores.",
+      "tests": ["TestSemanticClaimCASTakeoverAndRollbackFence"]
+    },
+    {
+      "id": "P1-7",
+      "title": "Final policy oracle lacked superseding provenance",
+      "fix": "Preserve slice-002 history and explicitly rebind slice-003 to the final reconcile-predicates/v2 SHA-256.",
+      "tests": ["manifest-contract"]
+    }
+  ]
+}

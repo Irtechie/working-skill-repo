@@ -81,7 +81,7 @@ func FingerprintPlan(plan Plan) (string, error) {
 
 func NewApplyReceipt(bundle PlanBundle, planFingerprint string, now time.Time) ApplyReceipt {
 	sum := sha256.Sum256([]byte(planFingerprint))
-	return ApplyReceipt{
+	receipt := ApplyReceipt{
 		SchemaVersion:   ApplyReceiptSchemaVersion,
 		ID:              "reconcile-apply:" + hex.EncodeToString(sum[:12]),
 		PlanFingerprint: planFingerprint, LedgerFingerprint: bundle.Plan.LedgerFingerprint,
@@ -89,6 +89,19 @@ func NewApplyReceipt(bundle PlanBundle, planFingerprint string, now time.Time) A
 		Actor: bundle.Plan.Actor, SessionID: bundle.Plan.SessionID,
 		AppliedAt: now.UTC(), Status: "pending",
 	}
+	for _, action := range bundle.Plan.Actions {
+		_, artifact, err := targetForAction(bundle.Ledger, action)
+		if err != nil {
+			continue
+		}
+		pending := newActionReceipt(action, artifact, time.Time{})
+		pending.Result = "pending"
+		receipt.Actions = append(receipt.Actions, pending)
+	}
+	sort.Slice(receipt.Actions, func(i, j int) bool {
+		return receipt.Actions[i].ActionID < receipt.Actions[j].ActionID
+	})
+	return receipt
 }
 
 func ValidateApplyReceipt(receipt ApplyReceipt, bundle PlanBundle, planFingerprint string) error {
@@ -101,25 +114,53 @@ func ValidateApplyReceipt(receipt ApplyReceipt, bundle PlanBundle, planFingerpri
 		!receipt.Cutoff.Equal(bundle.Plan.Cutoff) {
 		return fmt.Errorf("apply receipt does not match the cutoff-bound plan")
 	}
+	if len(receipt.Actions) != len(bundle.Plan.Actions) {
+		return fmt.Errorf("apply receipt must contain exactly one entry for every planned action")
+	}
+	planned := make(map[string]PlannedAction, len(bundle.Plan.Actions))
+	for _, action := range bundle.Plan.Actions {
+		planned[action.ID] = action
+	}
 	seen := map[string]bool{}
 	for _, action := range receipt.Actions {
 		if action.ActionID == "" || seen[action.ActionID] {
 			return fmt.Errorf("apply receipt has missing or duplicate action identity")
 		}
 		seen[action.ActionID] = true
+		expected, ok := planned[action.ActionID]
+		if !ok {
+			return fmt.Errorf("apply receipt action %s is absent from plan", action.ActionID)
+		}
+		_, artifact, err := targetForAction(bundle.Ledger, expected)
+		if err != nil {
+			return err
+		}
+		artifactID := ""
+		if len(expected.ArtifactIDs) == 1 {
+			artifactID = expected.ArtifactIDs[0]
+		}
+		if action.ActionClass != expected.ActionClass ||
+			action.RepositoryID != expected.RepositoryID ||
+			action.ArtifactID != artifactID ||
+			action.TargetPath != artifact.Path ||
+			action.TargetRef != artifact.Ref ||
+			action.TargetSHA != artifact.SHA {
+			return fmt.Errorf("apply receipt action %s immutable identity does not match the plan", action.ActionID)
+		}
 	}
 	return nil
 }
 
-func normalizeReceipt(receipt *ApplyReceipt) {
+func normalizeReceipt(receipt *ApplyReceipt, verified bool) {
 	sort.Slice(receipt.Actions, func(i, j int) bool {
 		return receipt.Actions[i].ActionID < receipt.Actions[j].ActionID
 	})
-	switch {
-	case len(receipt.Actions) == 0:
+	if verified {
 		receipt.Status = "verified"
-	default:
-		receipt.Status = "verified"
+	} else {
+		receipt.Status = "applied"
+	}
+	if len(receipt.Actions) > 0 {
 		for _, action := range receipt.Actions {
 			if action.Result == "blocked" || action.Result == "contended" ||
 				action.PhysicalCleanupState == StatePartialRepairable {

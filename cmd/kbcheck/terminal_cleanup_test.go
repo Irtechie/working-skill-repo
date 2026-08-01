@@ -182,6 +182,8 @@ func TestTerminalCleanupRequiresRemoteContainmentAndRetainsPRRefs(t *testing.T) 
 	uncontained, err := executeTerminalCleanup(terminalCleanupOptions{
 		Action: "register", WorkID: "remote-cleanup", SessionID: "session-2",
 		Worktree: worktree, Branch: branch, CommitSHA: commit, DeliveryMode: "pr",
+		ClaimID: "claim:remote-cleanup", Provider: "test-provider",
+		PullRequestID: "pr-42", PullRequestURL: "https://example.invalid/pull/42",
 		Remote: "origin", RepoRoot: root, CurrentWorktree: root, Now: time.Now().UTC(),
 	})
 	if err != nil || uncontained.OK || !strings.Contains(uncontained.Issue, "remote topic") {
@@ -189,14 +191,29 @@ func TestTerminalCleanupRequiresRemoteContainmentAndRetainsPRRefs(t *testing.T) 
 	}
 
 	runGitForSliceLease(t, worktree, "push", "-u", "origin", branch)
+	missingPacket, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "register", WorkID: "remote-cleanup", SessionID: "session-2",
+		Worktree: worktree, Branch: branch, CommitSHA: commit, DeliveryMode: "pr",
+		ClaimID: "claim:remote-cleanup", Provider: "test-provider",
+		PullRequestID: "pr-42", PullRequestURL: "https://example.invalid/pull/42",
+		Remote: "origin", RepoRoot: root, CurrentWorktree: root, Now: time.Now().UTC(),
+	})
+	if err != nil || missingPacket.OK || !strings.Contains(missingPacket.Issue, "resume packet") {
+		t.Fatalf("awaiting-review cleanup accepted no resume packet: result=%#v err=%v", missingPacket, err)
+	}
+	packet := writeTerminalResumePacket(t, root, "remote-cleanup", "session-2", branch, commit, "origin")
 	registered, err := executeTerminalCleanup(terminalCleanupOptions{
 		Action: "register", WorkID: "remote-cleanup", SessionID: "session-2",
 		Worktree: worktree, Branch: branch, CommitSHA: commit, DeliveryMode: "pr",
-		Remote: "origin", RepoRoot: root, CurrentWorktree: root, Now: time.Now().UTC(),
+		ClaimID: "claim:remote-cleanup", Provider: "test-provider",
+		PullRequestID: "pr-42", PullRequestURL: "https://example.invalid/pull/42",
+		Remote: "origin", ResumePacket: packet,
+		RepoRoot: root, CurrentWorktree: root, Now: time.Now().UTC(),
 	})
 	if err != nil || !registered.OK {
 		t.Fatalf("pushed PR work did not register: result=%#v err=%v", registered, err)
 	}
+
 	removed, err := executeTerminalCleanup(terminalCleanupOptions{
 		Action: "sweep", RepoRoot: root, CurrentWorktree: root, CurrentSession: "sweeper", Now: time.Now().UTC(),
 	})
@@ -208,6 +225,52 @@ func TestTerminalCleanupRequiresRemoteContainmentAndRetainsPRRefs(t *testing.T) 
 	}
 	if got := gitOutput(root, "show-ref", "--verify", "refs/remotes/origin/"+branch); got == "" {
 		t.Fatal("remote feature ref was deleted without a race-safe remote CAS")
+	}
+}
+
+func TestTerminalCleanupResumePacketDigestDriftBlocksAwaitingReviewRetirement(t *testing.T) {
+	root := initWorktreeRepo(t)
+	configureTerminalCleanupRemote(t, root)
+	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "resume-drift")
+	runGitForSliceLease(t, worktree, "push", "-u", "origin", branch)
+	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
+		WorkID: "resume-drift", SessionID: "session-resume",
+		Branch: branch, Worktree: worktree, Status: "done",
+	})
+	packet := writeTerminalResumePacket(t, root, "resume-drift", "session-resume", branch, commit, "origin")
+	registered, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "register", WorkID: "resume-drift", SessionID: "session-resume",
+		Worktree: worktree, Branch: branch, CommitSHA: commit, DeliveryMode: "pr",
+		ClaimID: "claim:resume-drift", Provider: "test-provider",
+		PullRequestID: "pr-42", PullRequestURL: "https://example.invalid/pull/42",
+		Remote: "origin", ResumePacket: packet,
+		RepoRoot: root, CurrentWorktree: root, Now: time.Now().UTC(),
+	})
+	if err != nil || !registered.OK {
+		t.Fatalf("register failed: result=%#v err=%v", registered, err)
+	}
+	content, err := os.ReadFile(packet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resume terminalResumePacket
+	if err := json.Unmarshal(content, &resume); err != nil {
+		t.Fatal(err)
+	}
+	resume.ProofPointers = append(resume.ProofPointers, "proof:changed")
+	changed, _ := json.MarshalIndent(resume, "", "  ")
+	if err := os.WriteFile(packet, changed, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := executeTerminalCleanup(terminalCleanupOptions{
+		Action: "sweep", RepoRoot: root, CurrentWorktree: root,
+		CurrentSession: "sweeper", Now: time.Now().UTC(),
+	})
+	if err != nil || result.OK || !strings.Contains(result.Issue, "digest changed") {
+		t.Fatalf("drifted resume packet was accepted: result=%#v err=%v", result, err)
+	}
+	if !pathExists(worktree) {
+		t.Fatal("drifted resume packet allowed worktree retirement")
 	}
 }
 
@@ -979,6 +1042,49 @@ func configureTerminalCleanupRemote(t *testing.T, root string) {
 	defaultBranch := gitOutput(root, "branch", "--show-current")
 	runGitForSliceLease(t, root, "push", "-u", "origin", defaultBranch)
 	runGitForSliceLease(t, "", "--git-dir", remote, "symbolic-ref", "HEAD", "refs/heads/"+defaultBranch)
+}
+
+func writeTerminalResumePacket(
+	t *testing.T,
+	root, workID, sessionID, branch, commit, remote string,
+) string {
+	t.Helper()
+	packet := terminalResumePacket{
+		SchemaVersion:       terminalResumePacketSchemaVersion,
+		PacketID:            "resume:" + workID,
+		CanonicalRepository: gitOutput(root, "remote", "get-url", remote),
+		WorkID:              workID,
+		ClaimID:             "claim:" + workID,
+		SessionID:           sessionID,
+		Branch:              branch,
+		DeliveredSHA:        commit,
+		Remote:              remote,
+		RemoteRef:           "refs/remotes/" + remote + "/" + branch,
+		RemoteSHA:           commit,
+		Provider:            "test-provider",
+		PullRequestID:       "pr-42",
+		PullRequestURL:      "https://example.invalid/pull/42",
+		Manifest:            "docs/plans/manifest.md",
+		Requirements:        "docs/brainstorms/requirements.md",
+		GatePointers:        []string{"gate:complete-to-ship"},
+		ProofPointers:       []string{"proof:ship"},
+		ProtectedPaths:      []string{},
+		QuarantinedPaths:    []string{},
+		RecreateCommand:     "git worktree add --detach recovered " + commit + " && git switch " + branch,
+		ResumeCommand:       "kb-start resume " + workID,
+	}
+	content, err := json.MarshalIndent(packet, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, ".git", "kb-resume", safePathPart(workID)+".json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(content, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func prepareDirectTerminalCleanup(t *testing.T, suffix string) (string, string, string, string) {
