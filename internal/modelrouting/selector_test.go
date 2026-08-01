@@ -504,12 +504,15 @@ func TestProjectPolicyNarrowsAndTrustedApprovalCannotBeForgedByProject(t *testin
 	public := provenRoute("hosted-medium", ClassMedium, "openai", "codex", "named-agent", "gpt-medium", "code", now.Add(time.Hour))
 	catalog := catalogWithCurrent(now, []Route{private, public})
 	req := broadRequest(TierMedium)
-	policy := PolicyContext{Project: ProjectPolicy{
-		ProjectID:           "project-a",
-		AllowedDestinations: []string{"local-lan", "openai"},
-		AllowedAliases:      []string{"local-qwen"},
-		MaxRetention:        RetentionSession,
-	}}
+	policy := PolicyContext{
+		Project: ProjectPolicy{
+			ProjectID:           "project-a",
+			AllowedDestinations: []string{"local-lan", "openai"},
+			AllowedAliases:      []string{"local-qwen"},
+			MaxRetention:        RetentionSession,
+		},
+		ApprovalMode: ApprovalModeRequired,
+	}
 
 	decision, err := selectForTest(t, catalog, req, policy, RunOverride{}, AttemptLedger{}, now)
 	if err != nil {
@@ -675,6 +678,7 @@ func TestEndpointValidationReturnsPinnedIPsAndRequiresPrivateApproval(t *testing
 	base := provenRoute("route", ClassMedium, "openai", "openai-compatible", "chat-completions", "gpt", "code", now.Add(time.Hour))
 	base.Endpoint, base.AuthEnv = "https://api.openai.com/v1", "OPENAI_API_KEY"
 	policy := publicPolicy()
+	policy.ApprovalMode = ApprovalModeRequired
 	policy.Trusted.AuthBindings = []AuthBinding{{Env: "OPENAI_API_KEY", Adapter: "openai-compatible", Origin: "https://api.openai.com", ExpiresAt: now.Add(time.Hour)}}
 	validated, err := ValidateEndpoint(base, policy, publicResolver(), now)
 	if err != nil || validated.Origin != "https://api.openai.com" || len(validated.PinnedIPs) != 1 {
@@ -708,6 +712,54 @@ func TestEndpointValidationReturnsPinnedIPsAndRequiresPrivateApproval(t *testing
 	base.Endpoint = "https://api.openai.com/v1?token=secret"
 	if _, err := ValidateEndpoint(base, policy, publicResolver(), now); !errors.Is(err, ErrUnsafeEndpoint) {
 		t.Fatalf("query credential error=%v", err)
+	}
+}
+
+func TestApprovalModeDisabledSkipsOnlyAttendedChecks(t *testing.T) {
+	now := fixedNow()
+	route := provenRoute("optional", ClassMedium, "local-lan", "openai-compatible", "chat-completions", "local-model", "code", now.Add(time.Hour))
+	route.Endpoint = "http://192.168.1.205:4000/v1"
+	route.AuthEnv = "LOCAL_KEY"
+	route.Boundary = BoundaryPrivate
+	route.ManagementOrigin = OriginExtra
+	policy := publicPolicy()
+	policy.ApprovalMode = ApprovalModeDisabled
+
+	if _, err := ValidateEndpoint(route, policy, nil, now); err != nil {
+		t.Fatalf("disabled approval mode rejected safe private endpoint: %v", err)
+	}
+	request := normalRequest(TierMedium)
+	if !RouteAllowedByPolicy(route, request, policy, now) {
+		t.Fatal("disabled approval mode rejected otherwise eligible route")
+	}
+
+	fingerprint, err := ApprovalRouteFingerprint(route, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy.Trusted.RouteDenials = []RouteDenial{{ProjectID: request.ProjectID, RouteFingerprint: fingerprint, CreatedAt: now}}
+	if RouteAllowedByPolicy(route, request, policy, now) {
+		t.Fatal("disabled approval mode bypassed explicit route denial")
+	}
+
+	policy.Trusted.RouteDenials = nil
+	route.Endpoint = "http://169.254.169.254/latest/meta-data"
+	if _, err := ValidateEndpoint(route, policy, nil, now); !errors.Is(err, ErrUnsafeEndpoint) {
+		t.Fatalf("disabled approval mode bypassed endpoint safety: %v", err)
+	}
+
+	route.Endpoint = "http://192.168.1.205:4000/v1"
+	policy.ApprovalMode = ApprovalModeRequired
+	if _, err := ValidateEndpoint(route, policy, nil, now); !errors.Is(err, ErrPrivateEndpointRequiresApproval) {
+		t.Fatalf("required approval mode lost attended gate: %v", err)
+	}
+
+	policy.ApprovalMode = ApprovalMode("unexpected")
+	if _, err := ValidateEndpoint(route, policy, nil, now); !errors.Is(err, ErrPrivateEndpointRequiresApproval) {
+		t.Fatalf("unknown approval mode did not fail closed: %v", err)
+	}
+	if RouteAllowedByPolicy(route, request, policy, now) {
+		t.Fatal("unknown approval mode bypassed route approval")
 	}
 }
 

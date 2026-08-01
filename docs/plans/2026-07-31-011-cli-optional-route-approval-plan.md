@@ -19,11 +19,11 @@ proof_check:
   command: "go test ./cmd/kbrouter ./internal/modelrouting -run 'ApprovalMode|OptionalRouteApproval' -count=1"
   expect: 0
 hitl: false
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Write the protected CLI oracle, prove RED, implement, run release gates, commit, deliver, install, and synchronize global skill copies."
+next_agent_action: "No implementation work remains; delivery is owned by the parent manifest."
 human_action: ""
 can_continue_other_slices: true
 protected_oracles:

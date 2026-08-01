@@ -25,6 +25,7 @@ returns to the active parent.
 | `models select` | Validate current ownership or pick one delegated route for a required tier / task family / risk |
 | `models priority` | Save or clear project source preference (`automatic`, `self-hosted-first`, `native-first`) |
 | `models local-routing` | Preserve configured user-local routes while enabling or bypassing all of them |
+| `models approval-mode` | Use no-prompt bounded routing (`disabled`, the default) or opt into attended endpoint/auth approval (`required`) |
 | `models import` | Strictly import an operator-filled route file into canonical `~/.kb/models.json` without changing trust |
 | `models add` | Add an optional route definition at user or project scope |
 | `models remove` | Remove a route alias |
@@ -74,6 +75,13 @@ returns to the active parent.
   slice. No fallback model/provider name is embedded in policy.
 - User-local and project-local route state is runtime configuration, not a repo
   source-of-truth replacement for manifests or proof.
+- Missing approval mode defaults to `disabled`: configured routes do not require
+  route, endpoint, or auth receipts merely to enter a bounded loop. Users may
+  opt into `required`; that mode keeps the project/fingerprint/endpoint/auth
+  console challenge and expiring `trust.json` receipts.
+- Approval mode never disables explicit route denials, static endpoint safety,
+  destination/retention/sensitive-data policy, DDR reservation, one-attempt
+  behavior, or deterministic proof.
 - `~/.kb/models.json` may set top-level `"enabled": false` to preserve configured
   extra routes while excluding them from discovery, selection, stale run
   catalogs, probes, dispatch, and DDR attempts. Missing `enabled` remains
@@ -99,7 +107,8 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence doc
 
 ## Sharp Edges
 
-- Attended approval requires an interactive console; redirected approval is
+- Attended approval is opt-in through `models approval-mode --mode required`.
+  In that mode it requires an interactive console and redirected approval is
   refused.
 - Optional self-hosted/private routes are kept in user/project runtime state,
   not committed into KB manifests.

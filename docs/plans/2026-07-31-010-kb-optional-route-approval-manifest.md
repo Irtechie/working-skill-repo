@@ -4,7 +4,7 @@ manifest_schema: 3
 kb_id: kb-2026-07-31-optional-route-approval
 brainstorm_path: direct-chat
 created: 2026-07-31
-status: reviewed
+status: complete
 workflow_shape: pipeline-change
 scope-verified-files:
   - internal/modelrouting/catalog.go
@@ -16,6 +16,8 @@ scope-verified-files:
   - cmd/kbrouter/dispatch.go
   - cmd/kbrouter/catalog_test.go
   - cmd/kbrouter/ddr_test.go
+  - cmd/kbrouter/dispatch_c1_test.go
+  - internal/modelrouting/selector_test.go
   - .github/skills/kb-models/SKILL.md
   - docs/context/architecture/kbrouter.md
   - LOCAL_MODELS.example.md
@@ -110,7 +112,7 @@ gate_ledger:
   - gate_id: slice-slice-001-to-done
     owner_skill: kb-work
     gate_scope: implementation
-    status: pending
+    status: passed
     required_evidence:
       - "The unchanged protected oracle fails before implementation and passes afterward."
       - "Approval-disabled is the missing-field default."
@@ -120,13 +122,38 @@ gate_ledger:
     proof:
       - cmd/kbrouter/catalog_test.go
       - cmd/kbrouter/ddr_test.go
+      - internal/modelrouting/selector_test.go
+      - "installed kbrouter sha256: 50d958ffb477cc493646849dc11bfae1d446c6a7cbd2032baa551ee20c371690"
+      - "global kb-models SKILL.md sha256: 06b887589827509b1d213f88606a7b6b4e6df26a4e99d87e46b794cd3572fcdf"
     proof_commands:
       - "go test ./cmd/kbrouter ./internal/modelrouting -run 'ApprovalMode|OptionalRouteApproval' -count=1"
       - "go run ./cmd/kbcheck core"
       - "go run ./cmd/kbcheck local-release"
       - "git diff --check"
     blockers: []
-    allowed_next_action: "kb-work docs/plans/2026-07-31-010-kb-optional-route-approval-manifest.md"
+    passed_at: "2026-08-01T01:46:00Z"
+    allowed_next_action: "kb-complete docs/plans/2026-07-31-010-kb-optional-route-approval-manifest.md"
+  - gate_id: work-to-complete
+    owner_skill: kb-work
+    gate_scope: release
+    status: passed
+    required_evidence:
+      - "The exact-tree core gate passes 39 checks."
+      - "One security review resolved its fail-open finding and confirmation is clean."
+      - "The installed router reports disabled mode and deepseek-local is selectable without trust.json."
+      - "All required global skill copies match and local-release passes after synchronization."
+    proof:
+      - cmd/kbrouter/catalog_test.go
+      - cmd/kbrouter/ddr_test.go
+      - internal/modelrouting/selector_test.go
+      - .github/skills/kb-models/SKILL.md
+    proof_commands:
+      - "go run ./cmd/kbcheck core"
+      - "go run ./cmd/kbcheck local-release"
+      - "kbrouter models doctor --project-root . --json"
+    blockers: []
+    passed_at: "2026-08-01T01:46:00Z"
+    allowed_next_action: "kb-complete docs/plans/2026-07-31-010-kb-optional-route-approval-manifest.md"
 slices:
   - id: slice-001
     title: "Let users disable attended route approval without disabling router safety"
@@ -148,11 +175,11 @@ slices:
       command: "go test ./cmd/kbrouter ./internal/modelrouting -run 'ApprovalMode|OptionalRouteApproval' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: done
     owner: agent
     blocked_reason: ""
     resume_when: ""
-    next_agent_action: "Write the protected CLI oracle, prove RED, implement, run release gates, install, and persist disabled mode."
+    next_agent_action: "Deliver the reviewed topic branch through the authorized PR and merge policy."
     human_action: ""
     can_continue_other_slices: true
 ---

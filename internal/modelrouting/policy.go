@@ -24,6 +24,30 @@ type ProjectPolicy struct {
 	DenyCurrentFallback bool           `json:"deny_current_fallback,omitempty"`
 }
 
+type ApprovalMode string
+
+const (
+	ApprovalModeDisabled ApprovalMode = "disabled"
+	ApprovalModeRequired ApprovalMode = "required"
+)
+
+func ValidApprovalMode(mode ApprovalMode) bool {
+	return mode == "" || mode == ApprovalModeDisabled || mode == ApprovalModeRequired
+}
+
+func EffectiveApprovalMode(mode ApprovalMode) ApprovalMode {
+	switch mode {
+	case "", ApprovalModeDisabled:
+		return ApprovalModeDisabled
+	default:
+		return ApprovalModeRequired
+	}
+}
+
+func ApprovalRequired(policy PolicyContext) bool {
+	return EffectiveApprovalMode(policy.ApprovalMode) == ApprovalModeRequired
+}
+
 // UserTrust is user-local trusted state. Repository content must never populate it.
 type UserTrust struct {
 	ProjectID         string             `json:"project_id"`
@@ -36,6 +60,7 @@ type UserTrust struct {
 type PolicyContext struct {
 	Project                  ProjectPolicy     `json:"project"`
 	Trusted                  UserTrust         `json:"trusted"`
+	ApprovalMode             ApprovalMode      `json:"approval_mode,omitempty"`
 	RouteSources             map[string]Route  `json:"-"`
 	TrustedRouteStates       map[string]string `json:"-"`
 	TrustedCurrentModelID    string            `json:"-"`
@@ -220,17 +245,22 @@ func validateEndpoint(ctx context.Context, route Route, policy PolicyContext, re
 		if route.Boundary != BoundaryPrivate {
 			return ValidatedEndpoint{}, fmt.Errorf("%w: private endpoint requires private trust boundary", ErrInvalidCatalog)
 		}
-		if projectScoped {
-			if !projectTrustMatches(policy, policy.Project.ProjectID) || !hasEndpointApproval(origin, policy.Trusted.ProjectID, policy.Trusted.EndpointApprovals, now) {
+		if projectScoped && !projectTrustMatches(policy, policy.Project.ProjectID) {
+			return ValidatedEndpoint{}, ErrPrivateEndpointRequiresApproval
+		}
+		if ApprovalRequired(policy) {
+			if projectScoped {
+				if !hasEndpointApproval(origin, policy.Trusted.ProjectID, policy.Trusted.EndpointApprovals, now) {
+					return ValidatedEndpoint{}, ErrPrivateEndpointRequiresApproval
+				}
+			} else if !hasAnyEndpointApproval(origin, policy.Trusted.EndpointApprovals, now) {
 				return ValidatedEndpoint{}, ErrPrivateEndpointRequiresApproval
 			}
-		} else if !hasAnyEndpointApproval(origin, policy.Trusted.EndpointApprovals, now) {
-			return ValidatedEndpoint{}, ErrPrivateEndpointRequiresApproval
 		}
 	} else if scheme != "https" {
 		return ValidatedEndpoint{}, ErrUnsafeEndpoint
 	}
-	if route.AuthEnv != "" && !authBound(route.AuthEnv, route.Adapter, origin, policy.Trusted.AuthBindings, now) {
+	if ApprovalRequired(policy) && route.AuthEnv != "" && !authBound(route.AuthEnv, route.Adapter, origin, policy.Trusted.AuthBindings, now) {
 		return ValidatedEndpoint{}, ErrAuthOriginMismatch
 	}
 	return ValidatedEndpoint{URL: parsed, Origin: origin, PinnedIPs: cloneIPs(ips), TLSServerName: host}, nil
@@ -312,7 +342,7 @@ func routeAllowedByPolicy(route Route, req WorkRequest, policy PolicyContext, no
 	if hasRouteDenial(route, req.ProjectID, policy.Trusted.RouteDenials, policy.RouteSources) {
 		return false
 	}
-	if (route.Boundary == BoundaryPrivate || route.ManagementOrigin == OriginExtra) &&
+	if ApprovalRequired(policy) && (route.Boundary == BoundaryPrivate || route.ManagementOrigin == OriginExtra) &&
 		!hasRouteApproval(route, req.ProjectID, policy.Trusted.RouteApprovals, policy.RouteSources, now) {
 		return false
 	}
