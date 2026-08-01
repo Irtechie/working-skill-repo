@@ -235,13 +235,14 @@ gate_ledger:
     gate_scope: release
     status: passed
     required_evidence:
-      - "Final implementation tree 75f47f90fa3eeae4de7c2617c439794b474da176 passes core 39/39 and the required local-release gate."
+      - "Final implementation tree 4d4fde32ea77340661fa6b9cdeef41a0658cb088 passes core 39/39 and the required local-release gate."
       - "The real functional CLI flow covers dry-run, plan, apply, verify, claim capability, and claim conformance."
       - "One security profile found seven P1 issues; all seven fixes were confirmed with zero residual P0-P3 findings."
       - "The final work-to-complete bookkeeping tree e053a9ff4fd12d6e569c5725b7469e791b2b6323 is committed, scope-verified, and accepted by the plan-run proof ledger."
       - "No Cargo command ran; the native not-applicable receipt validates with zero retained or removed bytes."
       - "Knowledge work is skipped because slice 003 already refreshed durable architecture, operations, project-map, and research memory; no additional learning signal remains."
       - "Todo state is archived, global skills match 129/129 required comparisons, and local delivery remains separately gated."
+      - "An owned queue update migrates source-checkout identity to the manifest worktree, allowing terminal registration without weakening its exact identity check."
     proof:
       - docs/results/proofs/global-cleanup-reconcile-20260801-aggregate.md
       - docs/results/code-reviews/global-cleanup-reconcile-20260801-security-review.json
@@ -254,6 +255,7 @@ gate_ledger:
     proof_commands:
       - "go run ./cmd/kbcheck core"
       - "go run ./cmd/kbcheck local-release --json"
+      - "go test ./cmd/kbcheck -run 'WorkQueueUpdateMigratesOwnedWorktreeIdentity|SemanticClaimRepoContract' -count=1"
       - "go run ./cmd/kbcheck manifest-contract --manifest docs/plans/2026-08-01-000-kb-global-cleanup-reconciliation-manifest.md --json"
       - "go run ./cmd/kbcheck cargo-storage --action validate --run-id global-cleanup-reconcile-20260801 --root . --json"
       - "git diff --check"

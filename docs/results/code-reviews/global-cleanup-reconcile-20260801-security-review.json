@@ -19,6 +19,23 @@
     ],
     "result": "All seven P1 fixes were confirmed; no new actionable findings."
   },
+  "post_completion_confirmation": {
+    "profile": "security-reviewer",
+    "mode": "bounded-confirmation",
+    "base_tree": "0dbbd3288fa55ef04e4a1b8cb2d5b4252dc2ac83",
+    "integrated_tree": "4d4fde32ea77340661fa6b9cdeef41a0658cb088",
+    "finding_counts": {
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "p3": 0
+    },
+    "confirmed_resolutions": 1,
+    "residual_risks": [
+      "Downstream terminal-cleanup registration remains independently checked by its fail-closed queue identity validation."
+    ],
+    "result": "Owned queue updates safely migrate the recorded worktree identity; proof is regression-sensitive and the implementation is minimal."
+  },
   "findings": [
     {
       "id": "P1-1",

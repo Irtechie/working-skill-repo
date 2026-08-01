@@ -2,7 +2,7 @@
 
 Run: `global-cleanup-reconcile-20260801`
 
-Implementation tree: `75f47f90fa3eeae4de7c2617c439794b474da176`
+Implementation tree: `4d4fde32ea77340661fa6b9cdeef41a0658cb088`
 
 Result: PASS. All three slices are done, the seven security findings are
 confirmed resolved, functional CLI behavior passes, and required global skill
@@ -13,7 +13,8 @@ copies match the repository source.
 | Proof | Result | Durable evidence |
 |---|---|---|
 | `go run ./cmd/kbcheck core` | PASS, 39/39 | `global-cleanup-core-final.log`, SHA-256 `0d5ebe347da9445148a238ae673c0fbe6952f2eb204ed1370103ce35306bde1d` |
-| `go run ./cmd/kbcheck local-release --json` | PASS, 0 required or optional failures | `global-cleanup-local-release-final.log`, SHA-256 `beea35795e0bb9140505f1f44e1d90b5ca7301d152d13ce61646deb66cbe449a` |
+| `go run ./cmd/kbcheck local-release --json` | PASS, 0 required or optional failures | `global-cleanup-local-release-final.log`, SHA-256 `3692a3ce7a3e57ca9bc17c3ee9bddc78bb3eafe8de1fed7da97246ffd54c9bc3` |
+| `go test ./cmd/kbcheck -run 'WorkQueueUpdateMigratesOwnedWorktreeIdentity\|SemanticClaimRepoContract' -count=1` | PASS | Proves an owned queue claim migrates from the source checkout to its linked plan-run worktree |
 | Required skill sync | PASS, 129/129 | Codex, Copilot, and shared-agents roots each match all 43 required skills |
 | Cargo storage validation | PASS, machine-validated `not-applicable` | `E:\Dev\Tools\working-skill-repo\.git\kb\cargo-storage\global-cleanup-reconcile-20260801-3d3c381031cd5adb.json` |
 
@@ -42,8 +43,13 @@ artifact directory `files\reconcile-functional-proof`.
 
 One security profile reviewed the trust boundary. Seven P1 findings were fixed
 in `75f47f90fa3eeae4de7c2617c439794b474da176`; the bounded confirmation found
-zero P0-P3 findings. Protected external mutation remains unavailable until a
-real authoritative provider adapter and signed privileged provenance exist.
+zero P0-P3 findings. A later real registration attempt exposed stale queue
+worktree identity after plan-run handoff. Tree
+`4d4fde32ea77340661fa6b9cdeef41a0658cb088` repairs that handoff, adds a
+functional linked-worktree regression, and passed a bounded security
+confirmation with zero findings. Protected external mutation remains
+unavailable until a real authoritative provider adapter and signed privileged
+provenance exist.
 
 ## Delivery boundary
 
