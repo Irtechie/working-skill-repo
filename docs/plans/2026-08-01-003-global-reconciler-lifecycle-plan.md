@@ -100,4 +100,3 @@ expected_files:
 
 Do not authorize publication, merge, remote ref deletion, host session deletion,
 required daemons, cross-machine locking, or global-copy sync before landed source.
-

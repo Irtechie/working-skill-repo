@@ -84,4 +84,3 @@ expected_files:
 
 No force removal, recursive deletion, remote ref deletion, PR close/merge,
 credential inspection, or host record deletion is allowed.
-

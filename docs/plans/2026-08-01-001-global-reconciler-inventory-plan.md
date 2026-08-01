@@ -84,4 +84,3 @@ expected_files:
 
 This slice performs no destructive mutation, PR publication, merge, ref
 deletion, worktree removal, or host session retirement.
-

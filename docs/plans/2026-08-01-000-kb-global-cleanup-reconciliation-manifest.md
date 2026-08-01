@@ -56,7 +56,6 @@ workspace_isolation_contract:
   default_branch_delivery_owner: kb-complete
   allowed_modes: [shared-serial]
 plan_run_worktree:
-  base_sha: 8bf72ab96ec2e925604169882bd32a6271924543
   branch: codex/kb-2026-08-01-global-cleanup-reconciliation
   workspace_mode: shared-serial
   commit_authorized: true
