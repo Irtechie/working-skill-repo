@@ -379,10 +379,56 @@ Valid blockers include:
 When blocked, write:
 
 - exact blocker;
+- its receipt - the command run and the output it returned;
 - what was attempted;
 - current artifact;
 - next allowed action after unblock;
 - whether unrelated units can continue.
+
+### Blocker receipts
+
+A blocker is a claim about the world, so it needs evidence from the world:
+the exact command run and its actual output. Reasoning, recollection, and the
+absence of a thing you never looked for are not receipts.
+
+The failure mode is a negative asserted from silence - "there is no token",
+"the endpoint is unsupported", "that host is unreachable". Each is cheap to
+test and expensive to assume, and a wrong one can cost a night of work spent
+building around a gate that was never there.
+
+| Claim | Not a receipt | Receipt |
+|---|---|---|
+| credential missing | "I could not find a token" | the auth-requiring call, run, and its 401 |
+| resource gated | "it probably needs approval" | the anonymous fetch and its status code |
+| endpoint unsupported | "the API does not have it" | the request, its 404, and which build answered |
+| host unreachable | "it looks down" | the probe, run from a host that can route to it |
+
+Before recording a missing-credential blocker, run the cheapest call that would
+succeed *without* the credential. Often the credential was never required.
+
+Receipts expire. Re-run the sensor before repeating a blocker in a later
+session and record `checked_at`.
+
+### Attribute a negative before believing it
+
+A 404, a 403, an empty result, or a missing feature has more than one cause.
+Establish which before concluding "unsupported":
+
+- the deployed build predates the feature -> deploy it, do not rebuild it;
+- the call was wrong (path, version, verb, auth) -> fix the call;
+- the feature genuinely does not exist -> now it is a blocker.
+
+Check the source before concluding a capability is missing. "Absent from the
+running system" and "absent from the codebase" are different findings with
+opposite remedies, and only the second justifies building anything.
+
+### Claims crossing agent boundaries
+
+A constraint reported by a sub-agent is a claim, not a policy. Carry its receipt
+across the boundary, or re-verify it, before acting on it.
+
+A sub-agent finding may never silently override a direct user instruction. If
+the two conflict, surface the conflict; do not resolve it in the agent's favour.
 
 ## Output
 
