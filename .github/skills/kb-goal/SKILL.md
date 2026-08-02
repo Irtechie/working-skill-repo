@@ -119,70 +119,7 @@ docs/context/goals/<goal-slug>.md
 
 Also add a compact pointer in `todo.md` while the goal is active.
 
-Use this shape:
-
-```markdown
-# <Goal Name>
-
-Status: active|paused|blocked|complete|parked
-Created: YYYY-MM-DD
-Last updated: YYYY-MM-DD
-
-## Objective
-
-One sentence.
-
-## Done Criteria
-
-- [user] <observable condition the user actually asked for>
-- [derived] <condition the agent added, naming which [user] item it serves>
-
-## Terminal Proof
-
-- <command, gate, artifact, or review condition required before completion>
-
-## Done Check
-
-- Type: command_exit|artifact_exists|gate|human_exception
-- Check: <exact command, artifact path, gate id, or exception summary>
-- Expected result: <exit code, path condition, gate status, or approval source>
-- Why sufficient: <which done criterion this proves>
-
-## Current State
-
-- Current artifact: <manifest/epic/handoff/path or none>
-- Next allowed action: <exact KB command>
-- Last proof: <command/artifact/status or none>
-
-## Live Steering (optional)
-
-Use this block only for recurring, scheduled, or trend-improvement goals where
-future runs should be steered by measurements and durable feedback. Omit it for
-ordinary one-shot goals.
-
-- Set point: <desired invariant, threshold, or direction>
-- Sensor: <command, query, test, or review signal that measures the gap>
-- Controller: <how the next reviewable increment is selected>
-- Actuator: <KB lane, coding agent, or workflow that applies the increment>
-- Disturbances: <outside changes the loop must tolerate>
-- Dampener: <optional check that prevents the measured issue getting worse>
-- Scope gate: <paths or systems the loop may change/read>
-- Batch size: <maximum targets per run>
-- WIP bound: <maximum active manifests/PRs/work items for this loop>
-- Steering memory: <goal-ledger section or docs/context/operations/steering/<slug>.md>
-
-## Work Units
-
-| Unit | Route | Artifact | Status | Proof |
-|---|---|---|---|---|
-
-## Blockers
-
-| Blocker | Type | Owner | Resume Condition |
-|---|---|---|---|
-
-## Notes
-```
+Use the shape in `references/goal-ledger-template.md`.
 
 Keep the ledger compact. Move routine history into `todo-done.md` when the goal
 closes.
@@ -196,27 +133,9 @@ For autonomous, recurring, or multi-session goals, create ephemeral run state at
 ```
 
 This is not a replacement for `todo.md`, manifests, handoffs, or the goal
-ledger. It is git-ignored control-loop state for the active run only.
-
-Required files:
-
-- `goal.md` - pointer to the durable goal ledger and current objective.
-- `done-check.json` - optional `kbcheck sense/accept` check spec when the done
-  check can be expressed as JSON.
-- `catalog.json` - the redacted live run catalog for this goal/run only.
-- `catalog-fingerprint.txt` - the last accepted host/config fingerprint used to
-  decide whether the run catalog can be reused.
-- `backlog.json` - small queue of candidate work units with route, priority,
-  blockers, and source artifact.
-- `progress.md` - compact current state, last accepted proof, and next allowed
-  action.
-- `route-history.jsonl` - one JSON object per route decision.
-
-Each `route-history.jsonl` row should include:
-
-```json
-{"ts":"<ISO-8601>","route":"kb-work","confidence":0.82,"state_changed":true,"progress_key":"slice-003-done"}
-```
+ledger. It is git-ignored control-loop state for the active run only. See
+`references/run-state.md` for the required files, the route-history row shape,
+and the run-catalog rules.
 
 Before choosing the next route for an existing run, validate the history:
 
@@ -227,12 +146,6 @@ go run ./cmd/kbcheck run-state --history .kb/runs/<goal-slug>/route-history.json
 If the guard flags `route-oscillation`, `low-confidence-no-progress`, or
 `no-progress-loop`, stop the loop and re-plan or ask the smallest human question
 instead of bouncing between lanes.
-
-The run catalog stays redacted, ephemeral, and project-local. It records only what this host
-and this run can select, plus any project-allowed aliases the user already
-configured. It is never a trust source; credentials, approvals, and trust stay
-under the OS user's private KB state. Refresh it only when the
-surface/provider/configuration or generated agent fingerprint changes.
 
 ## Routing
 
@@ -337,17 +250,6 @@ Complete only when all are true:
 If `kb-finalize` creates follow-up work, keep the goal open and route that work
 through the smallest valid KB lane.
 
-## Blocked Rules
-
-A goal is blocked only when further agent work would be fake progress.
-
-Before marking or repeating a blocker, rerun its cheapest owning sensor and
-record `checked_at`. Keep the goal active while any unrelated unit or safe
-agent-owned repair can still make meaningful progress. Release, deployment,
-signing, optional-provider, and optional-platform gates block only that
-promotion/capability unless the objective explicitly defines them as core done
-criteria.
-
 ### Criteria provenance
 
 Every `Done Criteria` line carries its source: `[user]` for conditions the user
@@ -366,6 +268,17 @@ stop-and-ask, not a silent amendment.
 This constrains what may enter the list. It does not weaken persistence: `[user]`
 criteria keep a goal open indefinitely, across sessions and days, exactly as
 before.
+
+## Blocked Rules
+
+A goal is blocked only when further agent work would be fake progress.
+
+Before marking or repeating a blocker, rerun its cheapest owning sensor and
+record `checked_at`. Keep the goal active while any unrelated unit or safe
+agent-owned repair can still make meaningful progress. Release, deployment,
+signing, optional-provider, and optional-platform gates block only that
+promotion/capability unless the objective explicitly defines them as core done
+criteria.
 
 Valid blockers include:
 
