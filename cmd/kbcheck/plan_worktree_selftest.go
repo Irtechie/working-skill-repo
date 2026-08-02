@@ -24,20 +24,20 @@ type planWorktreeSelftestRun struct {
 }
 
 type planWorktreeSelftestResult struct {
-	ArtifactRoot            string                    `json:"artifact_root"`
-	SourceHeadBefore        string                    `json:"source_head_before"`
-	SourceHeadAfter         string                    `json:"source_head_after"`
-	SourceStatusBefore      string                    `json:"source_status_before"`
-	SourceStatusAfter       string                    `json:"source_status_after"`
-	Runs                    []planWorktreeSelftestRun `json:"runs"`
-	CollisionOwnerEvidence  []string                  `json:"collision_owner_evidence"`
-	DirtyBlocked            bool                      `json:"dirty_blocked"`
-	StaleHeadBlocked        bool                      `json:"stale_head_blocked"`
-	WrongWorktreeBlocked    bool                      `json:"wrong_worktree_blocked"`
-	LocalStopBeforeMerge    bool                      `json:"local_stop_before_merge"`
-	PRManualStopBeforeMerge bool                      `json:"pr_manual_stop_before_merge"`
-	RealRepoRejected        bool                      `json:"real_repo_rejected"`
-	DisposableDefaultBranch string                    `json:"disposable_default_branch"`
+	ArtifactRoot                 string                    `json:"artifact_root"`
+	SourceHeadBefore             string                    `json:"source_head_before"`
+	SourceHeadAfter              string                    `json:"source_head_after"`
+	SourceStatusBefore           string                    `json:"source_status_before"`
+	SourceStatusAfter            string                    `json:"source_status_after"`
+	Runs                         []planWorktreeSelftestRun `json:"runs"`
+	CollisionOwnerEvidence       []string                  `json:"collision_owner_evidence"`
+	DirtyBlocked                 bool                      `json:"dirty_blocked"`
+	StaleHeadBlocked             bool                      `json:"stale_head_blocked"`
+	WrongWorktreeBlocked         bool                      `json:"wrong_worktree_blocked"`
+	DefaultPolicyStopBeforeMerge bool                      `json:"default_policy_stop_before_merge"`
+	PRManualStopBeforeMerge      bool                      `json:"pr_manual_stop_before_merge"`
+	RealRepoRejected             bool                      `json:"real_repo_rejected"`
+	DisposableDefaultBranch      string                    `json:"disposable_default_branch"`
 }
 
 type planWorktreeSelftestRunSpec struct {
@@ -227,17 +227,19 @@ func executePlanWorktreeSelftest(opts planWorktreeSelftestOptions) (result planW
 		return result, fmt.Errorf("source dirty bytes changed: content=%q err=%v", string(got), err)
 	}
 
-	result.LocalStopBeforeMerge = true
+	// Absent policy is PR/manual. It must still stop before the default branch:
+	// PR-ready is automatic, merging never is.
+	result.DefaultPolicyStopBeforeMerge = true
 	for index, receipt := range workspaceReceipts {
-		if receipt.DeliveryMode != "local" ||
+		if receipt.DeliveryMode != "pr" ||
 			receipt.DeliveryMerge != "manual" ||
 			specs[index].Branch == defaultBranch ||
 			gitOutput(sourceRoot, "rev-parse", "refs/heads/"+defaultBranch) != result.SourceHeadBefore {
-			result.LocalStopBeforeMerge = false
+			result.DefaultPolicyStopBeforeMerge = false
 		}
 	}
-	if !result.LocalStopBeforeMerge {
-		return result, fmt.Errorf("local delivery did not stop before default-branch merge")
+	if !result.DefaultPolicyStopBeforeMerge {
+		return result, fmt.Errorf("absent-policy PR/manual delivery did not stop before default-branch merge")
 	}
 
 	prPolicyRoot := filepath.Join(artifactRoot, "pr-policy")

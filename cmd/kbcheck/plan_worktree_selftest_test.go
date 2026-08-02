@@ -47,12 +47,12 @@ func TestPlanWorktreeSelftestExercisesDisposableLifecycle(t *testing.T) {
 	}
 
 	requiredProofs := map[string]bool{
-		"dirty recovery":          result.DirtyBlocked,
-		"stale-head recovery":     result.StaleHeadBlocked,
-		"wrong-worktree recovery": result.WrongWorktreeBlocked,
-		"local stop before merge": result.LocalStopBeforeMerge,
-		"PR/manual stop":          result.PRManualStopBeforeMerge,
-		"real-repo firebreak":     result.RealRepoRejected,
+		"dirty recovery":                   result.DirtyBlocked,
+		"stale-head recovery":              result.StaleHeadBlocked,
+		"wrong-worktree recovery":          result.WrongWorktreeBlocked,
+		"default policy stop before merge": result.DefaultPolicyStopBeforeMerge,
+		"PR/manual stop":                   result.PRManualStopBeforeMerge,
+		"real-repo firebreak":              result.RealRepoRejected,
 	}
 	for proof, passed := range requiredProofs {
 		if !passed {

@@ -126,13 +126,14 @@ func TestDeliveryOwnerSkillContracts(t *testing.T) {
 		},
 		".github/skills/kb-work/SKILL.md": {
 			"never merges or pushes a resolved default branch",
-			"Missing delivery policy is local-only",
+			"never delivers under any policy",
 			"local leases are not team locks",
 		},
 		".github/skills/kb-complete/SKILL.md": {
 			"reviewed manifest-owned plan-run branch is the only delivery candidate",
-			"Absent policy is always local-only",
-			"PR/manual is the recommended team policy",
+			"Absent policy is PR/manual",
+			"no policy authorizes merge",
+			"Sync now, or wait for PR review?",
 			"terminal-cleanup --action register",
 			"release the shared work claim",
 		},
@@ -144,12 +145,13 @@ func TestDeliveryOwnerSkillContracts(t *testing.T) {
 		},
 		".github/skills/kb-land/SKILL.md": {
 			"only KB skill authorized to integrate the resolved remote default branch",
-			"Absence of delivery policy is local-only",
+			"Absence of delivery policy never authorizes landing",
 			"remote default contains the delivered commit",
 		},
 		".github/skills/kb-configure/SKILL.md": {
-			"mode: local",
-			"PR/manual is the recommended team policy",
+			"mode: pr",
+			"PR/manual is the default",
+			"accepting a PR never is",
 			"not cross-machine team locks",
 		},
 	}

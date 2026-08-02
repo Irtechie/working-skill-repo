@@ -207,9 +207,9 @@ When all slices are done/skipped:
 8. Successful `kb-finalize` continues automatically to `kb-complete`; `kb-work`
    must not stop after slice completion or finalization.
 
-`kb-work` never merges or pushes a resolved default branch. Missing delivery
-policy is local-only. PR/manual delivery belongs to `kb-ship`; only authorized
-`kb-land` integrates a remote default branch.
+`kb-work` never merges or pushes a resolved default branch. `kb-work` never
+delivers under any policy. PR/manual delivery belongs to `kb-ship`; only
+authorized `kb-land` integrates a remote default branch.
 
 ```yaml
 delivery_authority:

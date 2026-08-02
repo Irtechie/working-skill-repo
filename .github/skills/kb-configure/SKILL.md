@@ -32,12 +32,15 @@ there. `kbrouter` continues to own host and user-local model configuration.
    - `amr-experiment-off` disables that benchmark.
    - Legacy `attempts-on` and `attempts-off` are readable aliases for those
      experiment flags only and must not alter normal `kb-work`.
-   - `delivery-local` keeps reviewed work local.
+   - `delivery-local` keeps reviewed work local. This is an opt-out: it leaves
+     finished work on a branch with no review path, so choose it only for
+     scratch or private projects.
    - `delivery-pr` commits, pushes a topic/fork branch, and opens/updates a PR.
+     This is the default when no policy file exists.
    - `delivery-direct` permits verified direct-default integration; protection
      or policy rejection falls back to PR or blocks.
-   - `show` reports AMR experiment disabled and local delivery without creating
-     a file.
+   - `show` reports AMR experiment disabled and PR/manual delivery without
+     creating a file.
    - `reset` removes only this project policy after explicit confirmation.
 3. If the file is absent and no mode was supplied, show the defaults and the
    exact commands above. Do not start a setup questionnaire.
@@ -56,7 +59,7 @@ experimental_amr:
   affects_normal_work: false
 
 delivery:
-  mode: local
+  mode: pr
   merge: manual
   post_merge_sync: false
 ```
@@ -72,8 +75,9 @@ These safety rules are fixed rather than configurable:
 - Ordinary proof remains authoritative. Routing receipts are telemetry.
 - Repository ownership/write access never selects direct delivery by itself.
 - Direct delivery, automatic merge, and post-merge sync require explicit policy.
-- PR/manual is the recommended team policy, but it is enabled only by an
-  explicit `delivery-pr` choice and never authorizes merge.
+- PR/manual is the default: reviewed work becomes a pushed, review-ready PR
+  without asking. It never authorizes merge. Reaching PR-ready is automatic;
+  accepting a PR never is.
 - Local common-directory leases coordinate sibling worktrees only; they are not
   cross-machine team locks.
 
@@ -83,7 +87,7 @@ When no config exists:
 
 - AMR experiment: disabled.
 - Normal DDR: orchestrator-owned and unaffected by the AMR experiment flag.
-- Delivery: local.
+- Delivery: PR with manual merge.
 - `kb-start`, `kb-plan`, and `kb-work` do not ask configuration questions.
 
 ## Output

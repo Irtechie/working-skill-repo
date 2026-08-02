@@ -27,7 +27,9 @@ can enforce narrow gates and resume safely.
 - Explicit `kb-complete` invocation authorizes safe local planning, execution,
   review, repair, proof, learning, and cleanup.
 - Publishing authority comes from configured delivery policy or explicit
-  run-scoped user authorization. Absence of policy defaults to `local`.
+  run-scoped user authorization. Absence of policy defaults to `pr`: reviewed
+  work is committed, pushed, and opened as a PR. Absence of policy never
+  authorizes merge, direct-default push, or post-merge sync.
 - Never infer direct-default permission from repository ownership or write
   access. Permissions answer where a push can go; policy answers whether a PR is
   required.
@@ -106,16 +108,20 @@ manages the portable project policy.
 
 ```yaml
 delivery:
-  mode: local        # local | pr | direct
+  mode: pr           # local | pr | direct
   merge: manual      # manual | auto-after-checks
   post_merge_sync: false
 ```
 
 Defaults when absent:
 
-- `mode: local`
+- `mode: pr`
 - `merge: manual`
 - `post_merge_sync: false`
+
+Finished work reaches a pushed, review-ready PR without asking. Reaching
+PR-ready is automatic; accepting a PR never is. A project that genuinely wants
+work to stay on disk must opt out with `kb-configure delivery-local`.
 
 ### Local
 
@@ -147,10 +153,10 @@ Invoke `kb-land <manifest>` with direct-delivery policy.
   ambiguous scope force PR fallback or block; never bypass protection.
 - Do not use force push or admin bypass.
 
-Absent policy is always local-only. PR/manual is the recommended team policy,
-but write access never enables it automatically and it never authorizes merge.
-Only `kb-land`, under explicit direct or authorized auto-merge policy, owns
-remote-default integration.
+Absent policy is PR/manual: reviewed work reaches an open PR and stops. Write
+access never enables direct delivery automatically and no policy authorizes
+merge. Only `kb-land`, under explicit direct or authorized auto-merge policy,
+owns remote-default integration.
 
 The automatic chain selects phase owners; it never transfers their authority.
 `kb-complete` invokes `kb-ship` for PR delivery and then invokes `kb-land` only
@@ -281,6 +287,31 @@ Next: none|<exact resume action>
 
 Do not report `landed` unless the remote default branch contains the delivered
 commit and any configured post-integration sync has been verified.
+
+## Terminal Integration Question
+
+After reporting `pr-open`, ask exactly one question and then stop:
+
+```text
+PR is ready for review: <url>
+Sync now, or wait for PR review?
+```
+
+Rules:
+
+- Ask only when the PR is genuinely review-ready: pushed, correctly based,
+  proof green, and scope audited. Never ask to paper over a failed gate.
+- Ask once. A `local`, `nothing-to-deliver`, `delivery-blocked`, or `blocked`
+  outcome has nothing to decide, so do not ask.
+- "Wait for PR review" is the default on silence. Leaving a PR open is a
+  finished state, not an unfinished one.
+- "Sync now" authorizes integration for this run only. It never writes policy,
+  never enables `auto-after-checks`, and never implies future auto-merge.
+- Honor the answer through `kb-land`, which still verifies that the remote
+  default branch contains the delivered commit.
+
+This is the only terminal question. Do not also ask whether to commit, push,
+open a PR, clean up, or retire a worktree: those are agent-owned.
 
 ## Compatibility
 

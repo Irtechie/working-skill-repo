@@ -23,9 +23,10 @@ Repository ownership, collaborator status, or write permission alone is not
 authorization.
 
 `kb-land` is the only KB skill authorized to integrate the resolved remote
-default branch. Absence of delivery policy is local-only and blocks landing.
-PR/manual also blocks here unless the user explicitly requests merge in this
-run; `kb-ship` opening a PR is not merge authorization.
+default branch. Absence of delivery policy never authorizes landing: the
+default reaches an open PR and stops there. PR/manual also blocks here unless
+the user explicitly requests merge in this run; `kb-ship` opening a PR is not
+merge authorization.
 
 ## Preconditions
 

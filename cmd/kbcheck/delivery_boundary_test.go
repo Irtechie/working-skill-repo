@@ -111,14 +111,29 @@ func TestDirtyBaseAuthorityBlocksRelevantWIPAndPreservesUnrelatedDirt(t *testing
 	}
 }
 
-func TestDeliveryOwnerDefaultsLocalAndKeepsPolicyOutsidePlanIntegration(t *testing.T) {
+func TestDeliveryOwnerDefaultsPRReadyAndKeepsPolicyOutsidePlanIntegration(t *testing.T) {
 	root := initWorktreeRepo(t)
-	local, err := resolveKBDeliveryPolicy(root)
+	fallback, err := resolveKBDeliveryPolicy(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if local.Mode != "local" || local.Merge != "manual" || local.Source != "default-absent" {
-		t.Fatalf("absent policy did not default local-only: %#v", local)
+	// PR-ready by default, but never an automatic merge.
+	if fallback.Mode != "pr" || fallback.Merge != "manual" || fallback.Source != "default-absent" {
+		t.Fatalf("absent policy did not default to PR-ready/manual-merge: %#v", fallback)
+	}
+	if fallback.PostMergeSync {
+		t.Fatal("absent policy must never enable post-merge sync")
+	}
+
+	localConfig := filepath.Join(root, "docs", "context", "operations", "kb-routing.yaml")
+	writeFile(t, localConfig, "delivery:\n  mode: local\n  merge: manual\n  post_merge_sync: false\n")
+	localPolicy, err := resolveKBDeliveryPolicy(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An explicit opt-out must still be honored.
+	if localPolicy.Mode != "local" || localPolicy.Source != "project" {
+		t.Fatalf("explicit local opt-out not resolved: %#v", localPolicy)
 	}
 
 	config := filepath.Join(root, "docs", "context", "operations", "kb-routing.yaml")

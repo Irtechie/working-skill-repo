@@ -556,8 +556,11 @@ func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRun
 }
 
 func resolveKBDeliveryPolicy(root string) (kbDeliveryPolicy, error) {
+	// Reviewed work defaults to a pushed PR, not a stranded local branch.
+	// Stopping at "local" is what leaves finished work invisible on disk.
+	// Merge stays manual: PR-ready is automatic, PR acceptance never is.
 	policy := kbDeliveryPolicy{
-		Mode: "local", Merge: "manual", PostMergeSync: false, Source: "default-absent",
+		Mode: "pr", Merge: "manual", PostMergeSync: false, Source: "default-absent",
 	}
 	path := filepath.Join(root, "docs", "context", "operations", "kb-routing.yaml")
 	content, err := os.ReadFile(path)

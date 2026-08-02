@@ -222,8 +222,14 @@ kb-complete <feature-or-plan-or-manifest>
 ```
 
 It recovers the current phase, runs planning, work, and finalization as needed,
-then applies project delivery policy: local-only, PR, or explicitly authorized
-direct integration and post-integration sync.
+then applies project delivery policy: PR by default, or local-only, or
+explicitly authorized direct integration and post-integration sync.
+
+Delivery defaults to `mode: pr` with `merge: manual`. Finished work is
+committed, pushed, and opened as a review-ready PR without asking, then
+`kb-complete` asks once whether to sync now or wait for PR review. Reaching
+PR-ready is automatic; accepting a PR never is. Projects that want work to stay
+on disk opt out with `kb-configure delivery-local`.
 
 For long-lived objectives that may run across days or sessions, use `kb-goal`.
 It keeps the durable objective and terminal proof ledger, then routes each work
@@ -287,8 +293,9 @@ uses DDR to select one qualified same-tier-or-higher subagent by default,
 retaining current execution only through a qualified exception and never
 routing downward automatically. Targeted proof is reused when still valid, one
 exact-tree gate checks the final promotion candidate after review fixes, and
-configured delivery stops at local completion, an open PR, or direct
-integration. Handoffs and restarts return through `kb-start` and `kb-map`.
+configured delivery stops at an open PR by default, or at local completion or
+direct integration when explicitly configured. Handoffs and restarts return
+through `kb-start` and `kb-map`.
 
 ### Request Routing With `kb-start`
 

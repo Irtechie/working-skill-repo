@@ -145,8 +145,12 @@ If blocked, state exactly what was attempted, what command/tool failed, and what
 Durability is not delivery. Conflating them is why sessions end with work
 stranded on disk, invisible to every downstream tool.
 
-Delivery is unchanged: pushing, merging, opening a PR, and committing to a
-shared branch still require explicit user consent.
+Delivery is a separate, policy-owned step. Under `kb-complete`, reviewed work
+defaults to `mode: pr`/`merge: manual`: it is committed, pushed, and opened as
+a PR, and `kb-complete` then asks once whether to sync or wait for review.
+Merging a PR, direct-default integration, and post-merge sync always require
+explicit authorization. Ad-hoc session end is not `kb-complete` and never
+delivers.
 
 Durability is agent-owned. Before a session ends with a dirty tree, run:
 
