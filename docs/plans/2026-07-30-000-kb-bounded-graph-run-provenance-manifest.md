@@ -104,7 +104,7 @@ slices:
       command: "go test ./cmd/kbcheck -run 'GraphRunStorage' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: in_progress
     owner: agent
     blocked_reason: ""
     resume_when: ""
@@ -244,7 +244,7 @@ release proof without creating a new workflow lane.
 
 | # | Slice | Blocked By | Verification | HITL | Status |
 |---|---|---|---|---|---|
-| 1 | Bound graph-run storage and retention | - | tdd | no | pending |
+| 1 | Bound graph-run storage and retention | - | tdd | no | in_progress |
 | 2 | Emit immutable node-attempt receipts | slice-001 | tdd | no | pending |
 | 3 | Link node receipts to manifest gates | slice-002 | tdd | no | pending |
 | 4 | Explain graph-run failure and incompletion | slice-003 | tdd | no | pending |
