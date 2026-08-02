@@ -59,6 +59,7 @@ Usage:
   kbcheck plan-worktree-selftest [--root <path>]
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name> --claim-id <id> --provider <name> --pr-id <id> --pr-url <url> --resume-packet <path>] [--root <path>] [--json]
+  kbcheck session-preserve --action plan|apply --session-id <current-project-session-id> [--worktree <path>] [--branch <expected-branch>] [--root <path>] [--json]
   kbcheck cargo-storage --action resolve|register-temp|finalize|validate-ready|not-applicable|validate --run-id <id> [--cache-root <path>] [--target <path> --temp-root <path> --reason <text>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
@@ -325,6 +326,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runWorktreeCommand(root, opts, stdout, stderr)
 	case "terminal-cleanup":
 		return runTerminalCleanupCommand(root, opts, stdout, stderr)
+	case "session-preserve":
+		return runSessionPreserveCommand(root, opts, stdout, stderr)
 	case "cargo-storage":
 		return runCargoStorageCommand(root, opts, stdout, stderr)
 	case "scope-lease":
@@ -414,7 +417,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-tier-eval": true, "model-routing-release": true,
-		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "cargo-storage": true,
+		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "session-preserve": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-guidance": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -591,7 +594,7 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup" || opts.command == "cargo-storage"
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup" || opts.command == "session-preserve" || opts.command == "cargo-storage"
 	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
 	}
@@ -662,10 +665,31 @@ func parse(args []string) (options, error) {
 		default:
 			return options{}, fmt.Errorf("terminal-cleanup action must be register or sweep")
 		}
+	} else if opts.command == "session-preserve" {
+		if opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" ||
+			opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL ||
+			len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 ||
+			len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 ||
+			opts.baseSHA != "" || opts.repoIdentity != "" {
+			return options{}, fmt.Errorf("lease identity and claim flags are not supported for session-preserve")
+		}
+		switch opts.sliceLeaseAction {
+		case "plan", "apply":
+			if opts.sessionID == "" {
+				return options{}, fmt.Errorf("session-preserve requires --session-id to attribute the preserved commit")
+			}
+		default:
+			return options{}, fmt.Errorf("session-preserve action must be plan or apply")
+		}
+		if opts.workID != "" || opts.claimID != "" || opts.deliveryMode != "" ||
+			opts.remote != "" || opts.resumePacket != "" || opts.provider != "" ||
+			opts.pullRequestID != "" || opts.pullRequestURL != "" || opts.commitSHA != "" {
+			return options{}, fmt.Errorf("session-preserve is a durability gate and accepts only --session-id, --worktree, and --branch as identity")
+		}
 	} else if opts.workID != "" || opts.claimID != "" || opts.sessionID != "" || opts.deliveryMode != "" ||
 		opts.remote != "" || opts.resumePacket != "" || opts.provider != "" ||
 		opts.pullRequestID != "" || opts.pullRequestURL != "" {
-		return options{}, fmt.Errorf("work, session, delivery, PR identity, and resume-packet flags are only supported for terminal-cleanup")
+		return options{}, fmt.Errorf("work, session, delivery, PR identity, and resume-packet flags are only supported for terminal-cleanup and session-preserve")
 	}
 	if opts.command == "cargo-storage" {
 		switch opts.sliceLeaseAction {

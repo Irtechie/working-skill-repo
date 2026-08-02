@@ -140,6 +140,35 @@ Only ask the user to test when verification requires something the agent truly c
 
 If blocked, state exactly what was attempted, what command/tool failed, and what specific human input is needed.
 
+## Session-End Durability
+
+Durability is not delivery. Conflating them is why sessions end with work
+stranded on disk, invisible to every downstream tool.
+
+Delivery is unchanged: pushing, merging, opening a PR, and committing to a
+shared branch still require explicit user consent.
+
+Durability is agent-owned. Before a session ends with a dirty tree, run:
+
+```shell
+go run ./cmd/kbcheck session-preserve --action apply --session-id <session-id> --json
+```
+
+This makes one WIP commit on the session's own branch. It never pushes, never
+merges, never claims completion, and is reversible with `git reset`.
+
+The gate fails closed and refuses on: the resolved default branch, a detached
+HEAD, a branch that does not match `--branch`, an in-progress
+merge/rebase/cherry-pick/revert/bisect, or a missing `--session-id`. A clean
+tree is a no-op, never an empty commit.
+
+Compiled build outputs and files over 5 MB are excluded and reported in
+`excluded[]` rather than committed or silently dropped. Gitignored paths are
+never preserved. Use `--action plan` to forecast without mutating.
+
+A preserved commit is not evidence of completion. Do not cite it as proof, and
+do not let it satisfy a proof gate.
+
 ## Optional Context Providers
 
 MCP search, vector indexes, and similar tools are optional adapters. Do not

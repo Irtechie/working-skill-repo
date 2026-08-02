@@ -43,6 +43,23 @@ On every fresh session or ambiguous work request:
    then classify the user request and route it.
 5. If `kb-map` reports stale work or missing memory, honor that before executing work.
 
+## Session-End Durability
+
+Stranded uncommitted work is the most common form of lost session output. When
+this session ends with a dirty tree, preserve it before exiting:
+
+```shell
+go run ./cmd/kbcheck session-preserve --action apply --session-id <session-id> --json
+```
+
+One WIP commit on the session's own branch. Never pushed, never merged, never a
+completion claim. Refuses on the default branch, detached HEAD, and in-progress
+merge/rebase. Excludes build artifacts and oversized files, reporting them in
+`excluded[]`.
+
+Preservation is durability, not delivery. It never substitutes for `kb-complete`
+and never satisfies a proof gate.
+
 ## Shared Work Queue Gate
 
 Before any mutating route, successor session, plan-run worktree, test wave, or

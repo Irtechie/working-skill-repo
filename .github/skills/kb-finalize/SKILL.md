@@ -115,7 +115,11 @@ the narrowest owning scope.
 ## Step 5: Cleanup and Gate
 
 1. Keep manifests and slice plans.
-2. Remove only exact, run-owned ephemeral artifacts.
+2. Remove only exact, run-owned ephemeral artifacts. If the tree still holds
+   uncommitted work that the run does not intend to deliver, preserve it with
+   `kbcheck session-preserve --action apply --session-id <session-id>` before
+   any cleanup step. A preserved WIP commit is durability only: it is never
+   pushed and never counts as proof, review, or completion evidence.
 3. Preserve stable build caches and use repository cleanup receipts where
    required.
 4. Move the completed feature summary from `todo.md` to `todo-done.md`; retain
