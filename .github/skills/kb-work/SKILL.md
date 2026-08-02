@@ -29,11 +29,16 @@ are plausible.
    A material new product, flow, architecture, scope, or trust decision must
    return to `kb-plan` for one new requirements-wide review.
 5. Run `manifest-contract` and validate required context/impact packets.
-6. Note dirty source work. Prepare/resume the manifest-owned plan-run worktree;
-   never copy, stash, reset, or overwrite unrelated work. Give a new worktree a
+6. Note dirty source work. Resolve the plan-run workspace before mutation. When
+   the coding harness already placed this session in its own linked worktree on
+   a non-default branch, adopt that worktree; never nest a second worktree for
+   the same thread. Prepare a KB-owned worktree only from a shared or primary
+   checkout. Never copy, stash, reset, or overwrite unrelated work. Give a new
+   KB-owned worktree a
    short, task-specific codename with irreverent, self-aware humor that remains
    safe to show at work; reject fandom themes and generic random names. Use the same codename for the worktree directory and plan-run branch, and require that
-   it must relate recognizably to the task.
+   it must relate recognizably to the task. An adopted worktree keeps the
+   harness name it already has.
 7. Acquire the plan-run lease, then a slice lease before board projection or
    mutation. Expand claims before touching discovered paths.
 8. Read relevant active landmines and proof receipts.
@@ -196,7 +201,8 @@ When all slices are done/skipped:
    `allowed_next_action: kb-finalize <manifest>`.
 4. Refresh durable project memory when a slice recorded durable impact.
 5. Archive completed board work.
-6. Complete the plan-worktree receipt and release the plan-run lease.
+6. Complete the plan-worktree receipt and release the plan-run lease. Releasing
+   an adopted receipt returns the worktree to the harness without removing it.
 7. Invoke `kb-finalize <manifest>` automatically.
 8. Successful `kb-finalize` continues automatically to `kb-complete`; `kb-work`
    must not stop after slice completion or finalization.

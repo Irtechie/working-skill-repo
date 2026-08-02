@@ -55,7 +55,7 @@ Usage:
   kbcheck slice-lease-selftest
   kbcheck plan-run-lease --action acquire|status|renew|expand|release|recover [--run-id <id>] [--manifest <path>] [--root <path>] [--state-root <path>] [--json]
   kbcheck plan-run-lease-selftest
-  kbcheck plan-worktree --action prepare|status|advance|complete|release --manifest <path> --owner-token <token> [--commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference>] [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
+  kbcheck plan-worktree --action prepare|adopt|status|advance|complete|release --manifest <path> --owner-token <token> [--commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference>] [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck plan-worktree-selftest [--root <path>]
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name>] [--root <path>] [--json]
@@ -110,7 +110,7 @@ Commands:
 	scope-lease    Validate observed active slice/file write leases.
 	slice-lease    Atomically acquire and release local slice ownership.
 	plan-run-lease Atomically claim manifest paths, domains, and shared resources.
-	plan-worktree  Prepare and inspect a manifest-owned plan-run workspace.
+	plan-worktree  Prepare, adopt, and inspect a manifest-owned plan-run workspace.
 	plan-worktree-selftest  Exercise two isolated plan runs in a disposable repository.
 	worktree       Deprecated compatibility command for legacy isolated slice worktrees.
 	terminal-cleanup  Register and safely reap durably delivered terminal worktrees.
@@ -610,12 +610,13 @@ func parse(args []string) (options, error) {
 		return options{}, fmt.Errorf("worktree is deprecated and requires --legacy-slice-worktree; plan runs use plan-worktree")
 	}
 	if opts.command == "plan-worktree" {
-		if (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") && opts.sliceLeaseAction != "prepare" {
-			return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree prepare")
+		authorizing := opts.sliceLeaseAction == "prepare" || opts.sliceLeaseAction == "adopt"
+		if (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") && !authorizing {
+			return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree prepare and adopt")
 		}
-		if opts.sliceLeaseAction == "prepare" && opts.commitAuthorized &&
+		if authorizing && opts.commitAuthorized &&
 			(opts.commitAuthorizedBy == "" || opts.commitApprovalRef == "") {
-			return options{}, fmt.Errorf("plan-worktree prepare with --commit-authorized requires --commit-authorized-by and --commit-approval-ref")
+			return options{}, fmt.Errorf("plan-worktree %s with --commit-authorized requires --commit-authorized-by and --commit-approval-ref", opts.sliceLeaseAction)
 		}
 		if opts.sliceLeaseAction == "advance" {
 			if opts.runID == "" || opts.sliceID == "" || opts.expectedIntegrationHead == "" || opts.commitSHA == "" || opts.proofReceipt == "" || opts.worktreePath == "" || opts.branchName == "" {

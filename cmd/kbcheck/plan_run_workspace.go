@@ -16,6 +16,11 @@ import (
 
 const planRunWorkspaceSchemaVersion = 1
 
+const (
+	planRunWorkspaceOwnerKB      = "kb"
+	planRunWorkspaceOwnerHarness = "harness"
+)
+
 type planRunWorkspaceOptions struct {
 	Action                  string
 	ManifestPath            string
@@ -45,6 +50,7 @@ type planRunWorkspaceReceipt struct {
 	SourceCheckout       string                 `json:"source_checkout"`
 	SourceDirty          bool                   `json:"source_dirty"`
 	Worktree             string                 `json:"worktree"`
+	WorkspaceOwner       string                 `json:"workspace_owner,omitempty"`
 	BaseRef              string                 `json:"base_ref"`
 	BaseSHA              string                 `json:"base_sha"`
 	IntegrationRef       string                 `json:"integration_ref"`
@@ -162,7 +168,7 @@ func executePlanRunWorkspace(opts planRunWorkspaceOptions) (planRunWorkspaceResu
 	if action == "" {
 		return planRunWorkspaceResult{}, fmt.Errorf("plan-worktree requires --action")
 	}
-	if action != "prepare" && action != "status" && action != "advance" && action != "complete" && action != "release" {
+	if action != "prepare" && action != "adopt" && action != "status" && action != "advance" && action != "complete" && action != "release" {
 		return planRunWorkspaceResult{}, fmt.Errorf("unsupported plan-worktree action %q", opts.Action)
 	}
 	if strings.TrimSpace(opts.OwnerToken) == "" {
@@ -218,8 +224,13 @@ func executePlanRunWorkspace(opts planRunWorkspaceOptions) (planRunWorkspaceResu
 		if issue := validatePlanRunOwnerAndIdentity(opts, existing); issue != "" {
 			return blockedPlanRunWorkspace(action, issue, &existing), nil
 		}
-		if action == "prepare" && !existing.CommitAuthorized {
-			return blockedPlanRunWorkspace(action, "existing receipt has no durable commit approval provenance; recreate through an explicitly authorized plan-run preparation", &existing), nil
+		if action == "prepare" || action == "adopt" {
+			if !existing.CommitAuthorized {
+				return blockedPlanRunWorkspace(action, "existing receipt has no durable commit approval provenance; recreate through an explicitly authorized plan-run preparation", &existing), nil
+			}
+			if requested := requestedPlanRunWorkspaceOwner(action); requested != planRunWorkspaceOwner(existing) {
+				return blockedPlanRunWorkspace(action, fmt.Sprintf("existing plan-run receipt is %s-owned; %s cannot change workspace ownership", planRunWorkspaceOwner(existing), action), &existing), nil
+			}
 		}
 		return planRunWorkspaceResult{OK: true, Action: action, Receipt: &existing}, nil
 	}
@@ -229,7 +240,121 @@ func executePlanRunWorkspace(opts planRunWorkspaceOptions) (planRunWorkspaceResu
 	if !opts.CommitAuthorized || strings.TrimSpace(opts.CommitAuthorizedBy) == "" || strings.TrimSpace(opts.CommitApprovalRef) == "" {
 		return blockedPlanRunWorkspace(action, "explicit local plan-run commit authorization requires --commit-authorized, --commit-authorized-by, and --commit-approval-ref before mutation", nil), nil
 	}
+	if action == "adopt" {
+		return adoptPlanRunWorkspace(opts, kbID)
+	}
 	return preparePlanRunWorkspace(opts, kbID)
+}
+
+// planRunWorkspaceOwner reports which system owns the worktree lifecycle.
+// Receipts written before adoption existed carry no value and remain KB-owned.
+func planRunWorkspaceOwner(receipt planRunWorkspaceReceipt) string {
+	if strings.TrimSpace(receipt.WorkspaceOwner) == planRunWorkspaceOwnerHarness {
+		return planRunWorkspaceOwnerHarness
+	}
+	return planRunWorkspaceOwnerKB
+}
+
+func requestedPlanRunWorkspaceOwner(action string) string {
+	if action == "adopt" {
+		return planRunWorkspaceOwnerHarness
+	}
+	return planRunWorkspaceOwnerKB
+}
+
+// adoptPlanRunWorkspace binds a plan run to the harness-provided worktree the
+// session already occupies. It creates no worktree and no branch, so a coding
+// harness that already isolates each session does not get a nested second
+// worktree for the same logical thread.
+func adoptPlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRunWorkspaceResult, error) {
+	primary, err := terminalCleanupPrimaryCheckout(opts.RepoRoot)
+	if err != nil {
+		return blockedPlanRunWorkspace("adopt", err.Error(), nil), nil
+	}
+	if samePath(primary, opts.RepoRoot) {
+		return blockedPlanRunWorkspace("adopt", "adopt requires an existing harness-owned linked worktree; run prepare from the primary checkout", nil), nil
+	}
+	branch := gitOutput(opts.RepoRoot, "branch", "--show-current")
+	if branch == "" {
+		return blockedPlanRunWorkspace("adopt", "adopted worktree must be on a named branch", nil), nil
+	}
+	if isResolvedDefaultBranch(opts.RepoRoot, branch) {
+		return blockedPlanRunWorkspace("adopt", "integration ref must not be the default branch", nil), nil
+	}
+	if opts.IntegrationRef != "" && opts.IntegrationRef != branch {
+		return blockedPlanRunWorkspace("adopt", fmt.Sprintf("requested integration ref does not match the adopted worktree branch: got %s want %s", opts.IntegrationRef, branch), nil), nil
+	}
+	if strings.TrimSpace(opts.Worktree) != "" {
+		requested, err := filepath.Abs(filepath.Clean(opts.Worktree))
+		if err != nil {
+			return planRunWorkspaceResult{}, err
+		}
+		if !samePath(requested, opts.RepoRoot) {
+			return blockedPlanRunWorkspace("adopt", "adopt records the current worktree; requested worktree path does not match", nil), nil
+		}
+	}
+	if issue := unresolvedRemoteDefaultAuthority(opts.RepoRoot); issue != "" {
+		return blockedPlanRunWorkspace("adopt", issue, nil), nil
+	}
+	head := gitOutput(opts.RepoRoot, "rev-parse", "HEAD")
+	if head == "" {
+		return blockedPlanRunWorkspace("adopt", "adopted worktree head is unavailable", nil), nil
+	}
+	if strings.TrimSpace(opts.BaseSHA) != "" {
+		requested := gitOutput(opts.RepoRoot, "rev-parse", opts.BaseSHA+"^{commit}")
+		if requested != head {
+			return blockedPlanRunWorkspace("adopt", "adoption records the current head as the immutable base; requested base does not match", nil), nil
+		}
+	}
+	dirtyPaths, err := planRunDirtyPaths(opts.RepoRoot)
+	if err != nil {
+		return blockedPlanRunWorkspace("adopt", err.Error(), nil), nil
+	}
+	if len(dirtyPaths) > 0 {
+		return blockedPlanRunWorkspace("adopt", "adopted worktree must be clean before slice commits; preserved paths: "+strings.Join(dirtyPaths, ", "), nil), nil
+	}
+	delivery, err := resolveKBDeliveryPolicy(opts.RepoRoot)
+	if err != nil {
+		return blockedPlanRunWorkspace("adopt", err.Error(), nil), nil
+	}
+	now := opts.Now.Format(time.RFC3339Nano)
+	receipt := planRunWorkspaceReceipt{
+		SchemaVersion:        planRunWorkspaceSchemaVersion,
+		KBID:                 kbID,
+		RunID:                defaultPlanRunID(opts.RunID, kbID),
+		ManifestPath:         opts.ManifestPath,
+		OwnerToken:           opts.OwnerToken,
+		SourceCheckout:       opts.RepoRoot,
+		SourceDirty:          false,
+		Worktree:             opts.RepoRoot,
+		WorkspaceOwner:       planRunWorkspaceOwnerHarness,
+		BaseRef:              branch,
+		BaseSHA:              head,
+		IntegrationRef:       branch,
+		IntegrationHead:      head,
+		CommitAuthorized:     true,
+		CommitAuthorizedBy:   strings.TrimSpace(opts.CommitAuthorizedBy),
+		CommitApprovalRef:    strings.TrimSpace(opts.CommitApprovalRef),
+		CommitAuthorizedAt:   now,
+		DeliveryMode:         delivery.Mode,
+		DeliveryMerge:        delivery.Merge,
+		DeliveryPolicySource: delivery.Source,
+		Status:               "prepared",
+		CleanupState:         "active",
+		CreatedAt:            now,
+		UpdatedAt:            now,
+		Limitations: []string{
+			"worktree and branch lifecycle belong to the coding harness; release never removes them",
+			"plan-run ownership coordinates only worktrees sharing this Git common directory",
+			"default-branch delivery requires a separate authorized delivery phase",
+			"slice commits are authorized only for this adopted harness-owned branch",
+			"cleanup is non-force and requires clean integrated state",
+		},
+	}
+	if err := savePlanRunWorkspaceReceipt(opts, receipt); err != nil {
+		return planRunWorkspaceResult{}, err
+	}
+	return planRunWorkspaceResult{OK: true, Action: "adopt", Receipt: &receipt}, nil
 }
 
 func completePlanRunWorkspace(opts planRunWorkspaceOptions, receipt planRunWorkspaceReceipt) (planRunWorkspaceResult, error) {
@@ -400,6 +525,7 @@ func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRun
 		SourceCheckout:       opts.RepoRoot,
 		SourceDirty:          sourceDirty,
 		Worktree:             worktree,
+		WorkspaceOwner:       planRunWorkspaceOwnerKB,
 		BaseRef:              baseRef,
 		BaseSHA:              baseSHA,
 		IntegrationRef:       opts.IntegrationRef,
@@ -990,12 +1116,19 @@ func releasePlanRunWorkspace(opts planRunWorkspaceOptions, receipt planRunWorksp
 			result = blockedPlanRunWorkspace("release", issue, &current)
 			return nil
 		}
-		if code, out := runGitCommand(opts.RepoRoot, "worktree", "remove", current.Worktree); code != 0 {
-			result = blockedPlanRunWorkspace("release", strings.TrimSpace(out), &current)
-			return nil
+		if planRunWorkspaceOwner(current) == planRunWorkspaceOwnerHarness {
+			// The coding harness created this worktree and owns its teardown.
+			// Releasing returns ownership; it never removes the checkout the
+			// session is still using.
+			current.CleanupState = "harness-owned"
+		} else {
+			if code, out := runGitCommand(opts.RepoRoot, "worktree", "remove", current.Worktree); code != 0 {
+				result = blockedPlanRunWorkspace("release", strings.TrimSpace(out), &current)
+				return nil
+			}
+			current.CleanupState = "released"
 		}
 		current.Status = "released"
-		current.CleanupState = "released"
 		current.ReleasedAt = opts.Now.Format(time.RFC3339Nano)
 		current.UpdatedAt = current.ReleasedAt
 		if err := savePlanRunWorkspaceReceipt(opts, current); err != nil {

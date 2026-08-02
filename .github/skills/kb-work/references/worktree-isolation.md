@@ -1,10 +1,39 @@
 # Manifest-Owned Worktree Reference
 
+## Contents
+
+- Choose Adopt or Prepare
+- Naming
+- Adopt the Harness Workspace
+- Prepare a KB-Owned Plan Run
+- Slice Commit Receipt
+- Accept a Slice Commit
+- Continue and Release
+- Boundaries
+
 The manifest group is the only worktree unit. Every slice for that workstream
 runs and commits on its one plan-run branch. Never create a worktree or branch
 per slice.
 
+## Choose Adopt or Prepare
+
+Resolve the workspace before mutation. A coding harness that gives each session
+its own linked worktree already provides the isolation unit; creating a second
+one nests two worktrees on the same logical thread and leaves strays behind.
+
+| Current checkout | Action | Worktree lifecycle owner |
+|---|---|---|
+| Harness-provided linked worktree on a non-default branch | `adopt` | harness |
+| Shared or primary checkout | `prepare` | KB |
+
+`adopt` creates no worktree and no branch. It fails closed on the primary
+checkout, a detached HEAD, a resolved default branch, a dirty tree, or a
+requested worktree/branch/base that does not match the current one.
+
 ## Naming
+
+A `prepare`d worktree needs a name. An adopted worktree keeps the name the
+harness already gave it.
 
 Choose a short, task-specific worktree codename with irreverent, self-aware,
 absurdly specific humor that remains safe on a shared screen, terminal, PR, or
@@ -27,9 +56,20 @@ is allowed for the branch, but the funny task name must remain intact:
 Do not use a funny name merely because it is funny. It must relate recognizably
 to the work so branch lists and worktree paths remain useful routing evidence.
 
-## Prepare the Plan Run
+## Adopt the Harness Workspace
 
-Before mutation, prepare or resume the manifest-owned workspace:
+```powershell
+go run ./cmd/kbcheck plan-worktree --action adopt --manifest <manifest-path> --run-id <run-id> --owner-token <plan-token> --commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference> --root <current-worktree> --json
+```
+
+The receipt records the current worktree, its existing branch as the integration
+ref, and its current head as the immutable base. Repeating adopt for the same
+identity is idempotent. `prepare` cannot later take over an adopted receipt, and
+adopt cannot take over a KB-owned one.
+
+## Prepare a KB-Owned Plan Run
+
+Before mutation from a shared or primary checkout:
 
 ```powershell
 go run ./cmd/kbcheck plan-worktree --action prepare --manifest <manifest-path> --run-id <run-id> --owner-token <plan-token> --base-sha <reviewed-base-sha> --worktree <parent>\<repo>-<codename> --branch codex/<codename> --json
@@ -89,11 +129,17 @@ Release the slice lease only after acceptance and lifecycle projection.
 Plan-run workspace release remains a separate, non-force final action and
 refuses active, dirty, or unintegrated state.
 
+Release removes a KB-owned worktree. Releasing an adopted receipt returns
+ownership to the harness and records `cleanup_state: harness-owned` without
+removing the worktree or its branch; the harness that created the session owns
+that teardown.
+
 ## Boundaries
 
 - Coordinates only worktrees sharing one Git common directory.
 - Separate clones and machines rely on branch/PR protections.
 - No per-slice worktree, per-slice branch, merge, reset, stash, force cleanup,
   remote push, PR action, or default-branch delivery occurs here.
+- KB never creates or deletes a harness-owned worktree.
 - Ports, databases, generated outputs, and global installs remain unsafe unless
   explicitly claimed and serialized.
