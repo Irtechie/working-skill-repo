@@ -67,6 +67,13 @@ transition.
 Heartbeat the shared work claim after every delegated phase. Publish `done`,
 `blocked`, or `superseded` before terminal output.
 
+At the configured endpoint, register exactly one lifecycle delivery state:
+`local-durable`, `awaiting-review`, or `delivery-integrated`. Keep delivery,
+physical cleanup, ref retirement, and host session retirement as four separate
+authorities and reported dimensions. Release or suspend ownership only after
+lifecycle registration succeeds. A different/later controller performs
+physical cleanup; the current session never deletes its own worktree.
+
 Do not roll a narrow gate up to the whole product. A release-only failure can
 prevent `pr-open` or `landed` while local implementation remains complete. An
 optional provider/platform gate cannot block the configured core product.
@@ -186,6 +193,32 @@ Register cleanup only after the configured endpoint is durably proven:
   commit. Use this integrated endpoint after either a direct push or a proven
   PR merge; `pr` always means PR-only/open and retains feature refs.
 
+Before cleanup registration, record the corresponding lifecycle endpoint:
+
+- `local` -> `local-durable`;
+- open/manual `pr` -> `awaiting-review`;
+- proven integrated `direct` -> `delivery-integrated`.
+
+An `awaiting-review` item may remain open for weeks without consuming active
+WIP. It may suspend ownership and optionally retire only a proven-clean
+worktree, while retaining local and remote refs plus an exact resume packet:
+canonical repository, work/claim/session identities, manifest and requirements,
+plan-run branch, delivered commit, remote topic and observed SHA, PR identity
+and URL, current gate and proof receipts, protected/quarantined paths, and exact
+recreation/resume commands. Missing resume evidence blocks worktree retirement,
+not the already-proven PR delivery.
+
+Write that resume packet as versioned JSON outside the worktree being retired;
+never infer or synthesize missing fields. Bind its immutable packet identity and
+SHA-256 digest into the cleanup receipt. It must explicitly contain the
+canonical delivery repository; work, claim, and session identities; branch;
+delivered SHA; remote/ref/observed SHA; provider, PR identity, and PR URL;
+manifest and requirements pointers; current gate and proof pointers;
+protected and quarantined path arrays (including explicit empty arrays); and
+exact worktree recreation and `kb-start` resume commands. Registration validates
+all identities against live delivery evidence. Sweep rereads the packet and
+blocks retirement if its path, identity, digest, or required contents drift.
+
 When `cmd/kbcheck` provides the guard, register the exact terminal target before
 releasing ownership:
 
@@ -194,10 +227,15 @@ go run ./cmd/kbcheck terminal-cleanup --action register `
   --work-id <work-id> --session-id <project-session-id> `
   --worktree <exact-worktree> --branch <exact-feature-branch> `
   --commit-sha <delivered-commit> --delivery-mode <local|pr|direct> `
-  [--remote <delivery-remote>] --root <project-root>
+  [--remote <delivery-remote>] `
+  [--claim-id <claim-id> --provider <provider> --pr-id <pr-id> `
+   --pr-url <pr-url> --resume-packet <path-for-pr>] `
+  --root <project-root>
 ```
 
-Then release the shared work claim as `done`. Do not register cleanup for
+Then release or suspend the shared work claim with the matching lifecycle state
+(`local-durable`, `awaiting-review`, or `delivery-integrated`), preserving the
+registered endpoint rather than collapsing it to `done`. Do not register cleanup for
 `blocked`, `delivery-blocked`, pending/unverified delivery, or unrelated dirty
 work. Ask a coordinator or later `kb-start` session to run
 `terminal-cleanup --action sweep --session-id <current-project-session-id>`;
@@ -216,6 +254,8 @@ integrated `direct` endpoint deletes the exact matching merged local feature
 ref; squash/rebase integration remains blocked until provider-backed merge
 proof exists. Remote feature-ref deletion remains provider/host-owned because
 plain Git deletion has no race-safe compare-and-swap.
+
+Never release the shared work claim before lifecycle registration succeeds.
 
 If the native guard is unavailable, do not improvise filesystem deletion.
 Report the exact session ID, worktree, branch, commit, delivery proof, and

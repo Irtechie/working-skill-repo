@@ -4,6 +4,15 @@
 
 ## 2026-08-01
 
+- Global cleanup reconciliation autopilot - added global inventory and
+  deterministic classification, bounded decision packets, salvage and exact
+  containment, checked non-force apply/verify, exact-SHA ref CAS, lifecycle
+  registration, optional managed installation, and authoritative semantic
+  writer CAS/fencing contracts. Routine high-confidence cases auto-resolve;
+  ambiguous or unproven unique work fails closed. Proof: final `core` 39/39,
+  `local-release`, real dry-run/plan/apply/verify CLI flow, claim conformance,
+  seven confirmed security fixes, and 129/129 required global skill matches.
+
 - Authenticated private-LAN transport consistency - security review rejected
   plaintext bearer credentials under every approval mode. Shared endpoint
   validation now permits authenticated HTTP only when every resolved address is

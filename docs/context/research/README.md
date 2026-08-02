@@ -14,3 +14,4 @@
 | `2026-07-29-graph-engineering-definition-and-provenance.md` | 2026-07-29 | Defining graph engineering for KB, separating control graphs from org metaphors, and deciding how node provenance supports diagnosis and completion |
 | `2026-07-30-proportional-agent-code-review.md` | 2026-07-30 | Replacing fixed reviewer swarms with one generalist review and risk-triggered specialist escalation |
 | `2026-07-30-current-agent-skill-guidance.md` | 2026-07-30 | Auditing skills against current Anthropic/OpenAI guidance for agent count, context, proof, loops, delegation, and memory |
+| `2026-08-01-agent-dag-concurrency-and-fencing.md` | 2026-08-01 | Preserving DAG/worktree parallelism while serializing semantic writers and fencing publish/deploy effects |

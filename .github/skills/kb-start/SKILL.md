@@ -17,7 +17,11 @@ On every fresh session or ambiguous work request:
 1. Invoke `kb-map lookup <user request>`.
 2. Let `kb-map` decide whether lookup, refresh, or bootstrap is required.
 3. After the project root is resolved, reap eligible terminal work from a
-   different session when the repo provides the native guard:
+   different session. Prefer the globally installed `kbreconcile` when its
+   capability probe succeeds: run a cutoff-bound `plan`, then checked `apply`
+   and `verify`. This is also the scheduled/on-demand portfolio sweep path.
+   When it is absent, unavailable, or incompatible, use the repo-native guard
+   as a safe fallback:
 
    ```powershell
    go run ./cmd/kbcheck terminal-cleanup --action sweep `
@@ -33,6 +37,8 @@ On every fresh session or ambiguous work request:
    uncontained commits, and unresolved paths. A cleanup-only blocker does not
    block unrelated startup work; report it when it overlaps the requested
    branch/worktree or requires host-owned session-record deletion.
+   A reconciler outage is an agent-owned retry state and does not create a human
+   packet. Only unresolved irreversible authority ambiguity may do that.
 4. After `kb-map` returns project context, check or claim the shared work queue,
    then classify the user request and route it.
 5. If `kb-map` reports stale work or missing memory, honor that before executing work.
@@ -50,12 +56,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.copilot\skills\kb-st
   -Branch <branch> `
   -Summary "<one-line outcome>" `
   -Scope "<paths or subsystem>" `
+  -SemanticResources <code:module,publisher:product,release-manifest:product,deploy:environment> `
   -Status in_progress
 ```
 
 The queue lives under the Git common directory, so every worktree sees the same
 claims. A mutating session without a session ID must stop before work. Read-only
 answers do not need a claim.
+
+Every mutating route registers lifecycle identity and declared semantic resources
+before mutation. The helper normalizes declarations, counts distinct active
+owners for repository WIP, and fails closed on a conflicting active writer.
+Its `global_authority: false` result is deliberate: Git-common-directory state
+coordinates only linked local worktrees. A protected writer remains unavailable
+unless `kbreconcile claim-capability` reports a real authoritative adapter,
+scoped authorization verifier, atomic fenced gateway, durable idempotency, and
+sole-path production controls. A local lease, generation number, or queue entry
+never substitutes for authoritative adapter capability.
 
 - Default WIP is three active sessions per repository and one active session per
   `work_id`.
@@ -64,7 +81,10 @@ answers do not need a claim.
   or inspect that session.
 - Heartbeat with `-Action update` at every route/phase boundary and before a
   long test wave.
-- Use statuses `queued`, `in_progress`, `blocked`, `done`, and `superseded`.
+- Use active statuses `queued`, `in_progress`, and `active`; lifecycle release
+  statuses include `paused`, `awaiting-review`, `local-durable`,
+  `delivery-integrated`, `blocked`, `quarantined`, `retired`, `done`, and
+  `superseded`.
 - Mark `blocked` with the exact resume condition. Mark `done` or `superseded`
   before cleanup. Never silently abandon an active claim.
 - `-Action list -StaleMinutes 60` identifies claims whose session may have died;
