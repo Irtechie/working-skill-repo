@@ -58,6 +58,7 @@ Usage:
   kbcheck plan-worktree --action prepare|adopt|status|advance|complete|release --manifest <path> --owner-token <token> [--commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference>] [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck plan-worktree-selftest [--root <path>]
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
+  kbcheck fan-in [--root <path>] [--json] [--require-clear]
   kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name>] [--root <path>] [--json]
   kbcheck cargo-storage --action resolve|register-temp|finalize|validate-ready|not-applicable|validate --run-id <id> [--cache-root <path>] [--target <path> --temp-root <path> --reason <text>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
@@ -208,6 +209,7 @@ type options struct {
 	approved                bool
 	includeUser             bool
 	requireReady            bool
+	requireClear            bool
 	commitAuthorized        bool
 	commitAuthorizedBy      string
 	commitApprovalRef       string
@@ -318,6 +320,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runPlanWorktreeSelftest(root, stdout, stderr)
 	case "worktree":
 		return runWorktreeCommand(root, opts, stdout, stderr)
+	case "fan-in":
+		return runFanInCommand(root, opts, stdout, stderr)
 	case "terminal-cleanup":
 		return runTerminalCleanupCommand(root, opts, stdout, stderr)
 	case "cargo-storage":
@@ -409,7 +413,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-tier-eval": true, "model-routing-release": true,
-		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "cargo-storage": true,
+		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "fan-in": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-guidance": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -500,6 +504,7 @@ func parse(args []string) (options, error) {
 	fs.BoolVar(&opts.approved, "approved", false, "confirm human-approved marketplace promotion")
 	fs.BoolVar(&opts.includeUser, "include-user", false, "include standard user-global provider configs")
 	fs.BoolVar(&opts.requireReady, "require-ready", false, "fail when readiness thresholds are not met")
+	fs.BoolVar(&opts.requireClear, "require-clear", false, "fail when fan-in debt is not zero")
 	fs.BoolVar(&opts.commitAuthorized, "commit-authorized", false, "record explicit authorization for local commits on the manifest-owned plan-run branch")
 	fs.StringVar(&opts.commitAuthorizedBy, "commit-authorized-by", "", "actor that explicitly authorized local plan-run commits")
 	fs.StringVar(&opts.commitApprovalRef, "commit-approval-ref", "", "durable reference to the local commit authorization")
