@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -81,17 +82,26 @@ func TestFanInReportsOrphanDirectoriesBesideLinkedWorktreesOnly(t *testing.T) {
 	root := initWorktreeRepo(t)
 	gitOK(t, root, "branch", "-M", "main")
 
-	// A linked worktree establishes an agent-managed parent directory.
+	// Two linked worktrees mark this parent as a worktree-managed directory.
 	linkedParent := t.TempDir()
 	linked := filepath.Join(linkedParent, "linked")
 	gitOK(t, root, "worktree", "add", "-b", "linked-work", linked)
+	second := filepath.Join(linkedParent, "second")
+	gitOK(t, root, "worktree", "add", "-b", "second-work", second)
 
-	// An untracked sibling of that worktree is unrecoverable work.
+	// An untracked sibling of those worktrees is work with no git record.
 	orphan := filepath.Join(linkedParent, "orphan")
 	if err := os.MkdirAll(orphan, 0o755); err != nil {
 		t.Fatalf("create orphan dir: %v", err)
 	}
 	writeFile(t, filepath.Join(orphan, "stranded.txt"), "stranded\n")
+
+	// Build caches and tool directories are not abandoned work.
+	noise := filepath.Join(linkedParent, "__pycache__")
+	if err := os.MkdirAll(noise, 0o755); err != nil {
+		t.Fatalf("create cache dir: %v", err)
+	}
+	writeFile(t, filepath.Join(noise, "cached.pyc"), "cached\n")
 
 	// A sibling of the PRIMARY checkout is an unrelated project, not debt.
 	unrelated := filepath.Join(filepath.Dir(root), "unrelated-project")
@@ -107,11 +117,14 @@ func TestFanInReportsOrphanDirectoriesBesideLinkedWorktreesOnly(t *testing.T) {
 
 	var found *fanInUnit
 	for index, unit := range report.Units {
-		if unit.State != fanInStateUnrecoverable {
+		if unit.State != fanInStateUntracked {
 			continue
 		}
 		if filepath.Clean(unit.Worktree) == filepath.Clean(unrelated) {
 			t.Fatal("primary checkout sibling must not be reported as orphaned work")
+		}
+		if filepath.Clean(unit.Worktree) == filepath.Clean(noise) {
+			t.Fatal("build cache directory must not be reported as orphaned work")
 		}
 		if filepath.Clean(unit.Worktree) == filepath.Clean(orphan) {
 			found = &report.Units[index]
@@ -123,8 +136,13 @@ func TestFanInReportsOrphanDirectoriesBesideLinkedWorktreesOnly(t *testing.T) {
 	if found.OrphanFiles != 1 {
 		t.Fatalf("expected 1 stranded file, got %d", found.OrphanFiles)
 	}
-	if report.Units[0].State != fanInStateUnrecoverable {
-		t.Fatalf("expected unrecoverable work ranked first, got %q", report.Units[0].State)
+	if report.Units[0].State != fanInStateUntracked {
+		t.Fatalf("expected untracked work ranked first, got %q", report.Units[0].State)
+	}
+	// A live session the harness is still provisioning looks exactly like an
+	// abandoned directory. The report must say so rather than imply a verdict.
+	if !strings.Contains(strings.Join(report.Limitations, " "), "live session") {
+		t.Fatalf("untracked findings must carry a live-session caveat, got %v", report.Limitations)
 	}
 }
 
@@ -152,6 +170,31 @@ func TestFanInIsReadOnlyAndGatesOnlyWhenRequested(t *testing.T) {
 	}
 	if status := gitOutput(root, "status", "--porcelain"); status != "" {
 		t.Fatalf("fan-in dirtied the worktree: %q", status)
+	}
+}
+
+func TestFanInIgnoresOrphansBesideALoneWorktree(t *testing.T) {
+	root := initWorktreeRepo(t)
+	gitOK(t, root, "branch", "-M", "main")
+
+	// One worktree parked in a general-purpose directory does not make that
+	// directory's unrelated siblings abandoned work.
+	shared := t.TempDir()
+	gitOK(t, root, "worktree", "add", "-b", "lone-work", filepath.Join(shared, "lone"))
+	sibling := filepath.Join(shared, "unrelated-temp-data")
+	if err := os.MkdirAll(sibling, 0o755); err != nil {
+		t.Fatalf("create sibling dir: %v", err)
+	}
+	writeFile(t, filepath.Join(sibling, "scratch.txt"), "scratch\n")
+
+	report, err := buildFanInReport(root)
+	if err != nil {
+		t.Fatalf("build fan-in report: %v", err)
+	}
+	for _, unit := range report.Units {
+		if unit.State == fanInStateUntracked {
+			t.Fatalf("lone-worktree parent must not produce orphan findings, got %+v", unit)
+		}
 	}
 }
 

@@ -14,11 +14,11 @@ const fanInSchemaVersion = 1
 
 // Fan-in debt states, ordered most to least severe.
 const (
-	fanInStateUnrecoverable = "unrecoverable"
-	fanInStateUncommitted   = "uncommitted"
-	fanInStateUnmerged      = "unmerged"
-	fanInStatePrunable      = "prunable"
-	fanInStateSettled       = "settled"
+	fanInStateUntracked   = "untracked"
+	fanInStateUncommitted = "uncommitted"
+	fanInStateUnmerged    = "unmerged"
+	fanInStatePrunable    = "prunable"
+	fanInStateSettled     = "settled"
 )
 
 // fanInOrphanScanLimit bounds the file count walk for an untracked directory so
@@ -26,14 +26,18 @@ const (
 const fanInOrphanScanLimit = 5000
 
 var fanInSkipDirs = map[string]bool{
-	".git":         true,
-	"node_modules": true,
-	"target":       true,
-	"dist":         true,
-	"build":        true,
-	"vendor":       true,
-	".venv":        true,
-	"__pycache__":  true,
+	".git":          true,
+	"node_modules":  true,
+	"target":        true,
+	"dist":          true,
+	"build":         true,
+	"vendor":        true,
+	".venv":         true,
+	"__pycache__":   true,
+	".pytest_cache": true,
+	".mypy_cache":   true,
+	"bin":           true,
+	"obj":           true,
 }
 
 type fanInUnit struct {
@@ -160,8 +164,14 @@ func buildFanInReport(root string) (fanInReport, error) {
 		report.Units = append(report.Units, unit)
 	}
 
-	for _, orphan := range findFanInOrphanDirs(worktrees, known, primary) {
-		report.Units = append(report.Units, orphan)
+	orphans := findFanInOrphanDirs(worktrees, known, primary)
+	report.Units = append(report.Units, orphans...)
+	if len(orphans) > 0 {
+		// An untracked directory can be work someone abandoned or a session the
+		// harness is still provisioning. This report cannot tell them apart, and
+		// saying otherwise invites deleting live work.
+		report.Limitations = append(report.Limitations,
+			"untracked directories may belong to a live session; confirm the owner before removing any")
 	}
 
 	sortFanInUnits(report.Units)
@@ -265,9 +275,9 @@ func countFanInDirtyFiles(worktree string) int {
 // worktrees that git has no record of. These are the worst case: git cannot
 // recover them, so they are reported for human triage and never touched.
 //
-// Only parents of linked worktrees are scanned. The primary checkout's parent is
-// deliberately excluded because it is an ordinary user directory whose siblings
-// are unrelated projects, not abandoned work.
+// Only parents that are predominantly worktrees are scanned. A lone worktree
+// placed in a general-purpose directory (a temp dir, a dev folder, the primary
+// checkout's parent) does not make that directory's siblings abandoned work.
 func findFanInOrphanDirs(worktrees []fanInWorktree, known map[string]bool, primary string) []fanInUnit {
 	primaryParent := strings.ToLower(filepath.Dir(filepath.Clean(primary)))
 	parents := map[string]bool{}
@@ -288,13 +298,16 @@ func findFanInOrphanDirs(worktrees []fanInWorktree, known map[string]bool, prima
 		if err != nil {
 			continue
 		}
+		if !fanInParentIsWorktreeManaged(parent, entries, known) {
+			continue
+		}
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
 			path := filepath.Join(parent, entry.Name())
 			key := strings.ToLower(filepath.Clean(path))
-			if known[key] || seen[key] {
+			if known[key] || seen[key] || fanInSkipDirs[entry.Name()] {
 				continue
 			}
 			if _, err := os.Stat(filepath.Join(path, ".git")); err == nil {
@@ -302,14 +315,38 @@ func findFanInOrphanDirs(worktrees []fanInWorktree, known map[string]bool, prima
 			}
 			seen[key] = true
 			units = append(units, fanInUnit{
-				State:       fanInStateUnrecoverable,
+				State:       fanInStateUntracked,
 				Worktree:    path,
 				OrphanFiles: countFanInOrphanFiles(path),
-				Detail:      "no git record; git cannot recover this",
+				Detail:      "no git record; verify owner before touching",
 			})
 		}
 	}
 	return units
+}
+
+// fanInParentIsWorktreeManaged reports whether a directory exists to hold
+// worktrees, evidenced by holding more than one of them. A directory with a
+// single worktree is just where someone put a worktree, so its siblings are
+// unrelated files rather than abandoned work.
+//
+// This deliberately counts worktrees rather than requiring them to outnumber
+// everything else: heavy sprawl means orphans can outnumber live worktrees, and
+// the report must not go quiet at exactly the moment it matters.
+func fanInParentIsWorktreeManaged(parent string, entries []os.DirEntry, known map[string]bool) bool {
+	worktrees := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if known[strings.ToLower(filepath.Clean(filepath.Join(parent, entry.Name())))] {
+			worktrees++
+		}
+		if worktrees > 1 {
+			return true
+		}
+	}
+	return false
 }
 
 func countFanInOrphanFiles(root string) int {
@@ -335,11 +372,11 @@ func countFanInOrphanFiles(root string) int {
 
 func sortFanInUnits(units []fanInUnit) {
 	severity := map[string]int{
-		fanInStateUnrecoverable: 0,
-		fanInStateUncommitted:   1,
-		fanInStateUnmerged:      2,
-		fanInStatePrunable:      3,
-		fanInStateSettled:       4,
+		fanInStateUntracked:   0,
+		fanInStateUncommitted: 1,
+		fanInStateUnmerged:    2,
+		fanInStatePrunable:    3,
+		fanInStateSettled:     4,
 	}
 	sort.SliceStable(units, func(i, j int) bool {
 		left, right := units[i], units[j]
@@ -376,7 +413,7 @@ func writeFanInText(stdout io.Writer, report fanInReport) {
 
 func fanInMeasure(unit fanInUnit) string {
 	switch unit.State {
-	case fanInStateUnrecoverable:
+	case fanInStateUntracked:
 		return fmt.Sprintf("%d file(s), no git record", unit.OrphanFiles)
 	case fanInStateUncommitted:
 		return fmt.Sprintf("%d uncommitted file(s)", unit.DirtyFiles)
