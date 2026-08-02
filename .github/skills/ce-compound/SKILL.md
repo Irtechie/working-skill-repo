@@ -4,7 +4,7 @@ description: Document a recently solved problem to compound your team's knowledg
 argument-hint: "[recently solved problem, bug, or implementation pattern]"
 ---
 
-# /compound
+# /ce-compound
 
 Coordinate multiple subagents working in parallel to document a recently solved problem.
 
@@ -439,23 +439,27 @@ Writes the final learning directly into `docs/solutions/`.
 
 ## Applicable Specialized Agents
 
-Based on problem type, these agents can enhance documentation:
+Based on problem type, these agents can enhance documentation. Select by the
+stack actually in the repo; never assume a language or framework.
 
 ### Code Quality & Review
-- **kieran-rails-reviewer**: Reviews code examples for Rails best practices
 - **code-simplicity-reviewer**: Ensures solution code is minimal and clear
 - **pattern-recognition-specialist**: Identifies anti-patterns or repeating issues
+- **maintainability-reviewer**: Checks the documented fix does not encode churn
 
 ### Specific Domain Experts
 - **performance-oracle**: Analyzes performance_issue category solutions
 - **security-sentinel**: Reviews security_issue solutions for vulnerabilities
-- **cora-test-reviewer**: Creates test cases for prevention strategies
+- **testing-reviewer**: Reviews test coverage behind prevention strategies
 - **data-integrity-guardian**: Reviews database_issue migrations and queries
 
 ### Enhancement & Documentation
 - **best-practices-researcher**: Enriches solution with industry best practices
-- **every-style-editor**: Reviews documentation style and clarity
-- **framework-docs-researcher**: Links to Rails/gem documentation references
+- **framework-docs-researcher**: Links to documentation for the stack in use
+
+### Language-Specific Reviewers
+Choose at most one, matching the repo:
+`kieran-typescript-reviewer`, `kieran-python-reviewer`, `kieran-rails-reviewer`.
 
 ### When to Invoke
 - **Auto-triggered** (optional): Agents can run post-documentation for enhancement
@@ -463,5 +467,5 @@ Based on problem type, these agents can enhance documentation:
 
 ## Related Commands
 
-- `/research [topic]` - Deep investigation (searches docs/solutions/ for patterns)
+- `/kb-research [topic]` - Deep investigation (searches docs/solutions/ for patterns)
 - `/kb-plan` - Planning workflow (references documented solutions)

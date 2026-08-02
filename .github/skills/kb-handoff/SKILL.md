@@ -42,7 +42,9 @@ Invalid targets for project-work handoffs:
 - home folders;
 - global skill folders such as `.copilot`, `.codex`, or `.agents`;
 - a portable skill-bundle repo when the resumed work belongs to another project;
-- `C:\Users\marowe\.copilot\handoffs` or any other global handoff folder.
+- any global handoff folder under a user home directory, such as
+  `<home>/.copilot/handoffs`, `<home>/.codex/handoffs`, or
+  `<home>/.agents/handoffs`.
 
 If the current repo is not the active work repo, ask for the project path before writing. Do not search sibling repos or the whole drive to guess.
 

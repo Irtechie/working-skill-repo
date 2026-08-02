@@ -41,8 +41,6 @@ Proof/pipeline manifest: `docs/plans/archive/2026-05/2026-05-31-000-kb-proof-pip
 Learning/landmines manifest: `docs/plans/archive/2026-05/2026-05-31-010-kb-learning-landmines-manifest.md`
 Routing/trim manifest: `docs/plans/archive/2026-05/2026-05-31-020-kb-routing-trim-manifest.md`
 Lazy-lane manifest: `docs/plans/archive/2026-05/2026-05-31-030-kb-lazy-lane-consolidation-manifest.md`
-ATV resync epic: `docs/context/epics/atv-upstream-resync.md`
-ATV resync manifest: `docs/plans/archive/2026-05/2026-05-31-070-kb-atv-upstream-resync-manifest.md`
 Claude remaining hardening epic: `docs/context/epics/claude-remaining-hardening.md`
 Claude remaining hardening manifest: `docs/plans/archive/2026-06/2026-06-01-080-kb-claude-remaining-hardening-manifest.md`
 Go validator replacement epic: `docs/context/epics/go-native-validator-port.md`
@@ -51,12 +49,13 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 ## Current Truth
 
 - This repo is the working source for portable skills under `.github/skills/`.
-- Personal/global installs and tracked ATV skill roots are expected to match this repo for KB skills.
-- ATV scaffold/plugin copies are no longer intentionally thin for tracked skills.
+- Personal/global installs are expected to match this repo for KB skills. The
+  required sync targets are Codex global, Copilot global, and shared agents
+  global. ATV skill roots are not sync targets.
 - Deterministic skill lint, route-complexity fixtures, captured-result scoring,
   observed trace scoring, claim verification, computed output-quality checks,
   regression reporting, sync drift checks, marketplace firebreak/promotion
-  checks, ATV delta reporting, and Codex/GHCP live adapters exist. Live model
+  checks, and Codex/GHCP live adapters exist. Live model
   calls remain explicit and outside the default `core` gate.
 - `cmd/kbcheck` provides the native Go gate for `core`, `local-release`,
   `live-release`, eval adapters, marketplace promotion, and drift reports.
@@ -66,7 +65,13 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
   dependencies such as `ce-review`, `ce-compound`, `ce-compound-refresh`, and
   `document-review` do not become deletion candidates from static analysis
   alone.
-- ATV upstream resync must be category-merged from original `All-The-Vibes/ATV-StarterKit` `upstream/main`, not the fork. KB is preserved as this repo's overlay; original ATV is a source to mine, not a mirror target. Superseded workflow skills (`lfg`, `slfg`, `workflows-*`, CE workflow aliases replaced by KB lanes) stay out unless the app uses them or a focused porting plan proves value. The useful upstream `ce-review` mechanics are already present in local references.
+- ATV is closed out. This bundle owns its copied and adapted skills outright;
+  no ATV checkout, plugin, or upstream resync is an install, sync, release, or
+  delivery dependency. Attribution stays in README Credits. Superseded workflow
+  skills (`lfg`, `slfg`, `workflows-*`, CE workflow aliases replaced by KB
+  lanes) stay out. The useful upstream `ce-review` mechanics are already present
+  in local references. Historical ATV plans and research under `docs/` are kept
+  as record, not as pending work.
 
 ## Active Work
 

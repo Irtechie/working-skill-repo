@@ -181,7 +181,7 @@ docs/context/history/
    - If `todo_rules.md`, `todo-rules.md`, `docs/todo-rules.md`, or another separate todo rules file exists, inline current board rules at the top of `todo.md`. Delete the separate rules file only after moving any unique project content into `todo.md` or `docs/context/*`.
 
 8. **Starter-kit deltas**
-   - If the app is based on ATV, another starter kit, or a fork, create/update `docs/context/decisions/starter-kit-deltas.md`.
+   - If the app is based on a starter kit or a fork, create/update `docs/context/decisions/starter-kit-deltas.md`.
 
 9. **Review**
    - Run `document-review` on `PROJECT.md` and large architecture docs when available.

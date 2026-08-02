@@ -1,8 +1,17 @@
 # ATV Upstream Resync
 
-Status: active
+Status: closed (superseded 2026-08-02)
 Created: 2026-05-31
-Last refreshed: 2026-05-31
+Last refreshed: 2026-08-02
+
+## Closure
+
+This epic is closed and no resync is planned. The bundle now owns its copied and
+adapted skills outright: no ATV checkout, plugin, or upstream branch is an
+install, sync, release, or delivery dependency, and the required sync targets
+are Codex global, Copilot global, and shared agents global. Attribution for
+prior art stays in README Credits. The content below is kept as historical
+record of the original intent, not as pending work.
 
 ## Intent
 
