@@ -391,9 +391,8 @@ A blocker is a claim about the world, so it needs evidence from the world:
 the exact command run and its actual output. Reasoning, recollection, and the
 absence of a thing you never looked for are not receipts.
 
-The failure mode is a negative asserted from silence - "there is no token",
-"the endpoint is unsupported", "that host is unreachable". Each is cheap to
-test and expensive to assume, and a wrong one can cost a night of work spent
+The failure mode is a negative asserted from silence. Each row below is cheap
+to test and expensive to assume, and a wrong one can cost a night of work spent
 building around a gate that was never there.
 
 | Claim | Not a receipt | Receipt |
