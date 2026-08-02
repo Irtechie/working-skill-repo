@@ -39,22 +39,9 @@ On every fresh session or ambiguous work request:
    branch/worktree or requires host-owned session-record deletion.
    A reconciler outage is an agent-owned retry state and does not create a human
    packet. Only unresolved irreversible authority ambiguity may do that.
-4. Surface fan-in debt before routing new work. Read-only report, not a gate:
-
-   ```powershell
-   go run ./cmd/kbcheck fan-in --root <project-root>
-   ```
-
-   It answers one question: which work was started here and never reached the
-   default branch? Report `debt=` when non-zero, worst first: `unrecoverable`
-   (untracked directories beside linked worktrees; Git cannot recover these),
-   `uncommitted`, `unmerged`, `prunable`. Never delete on the basis of this
-   report. Add `--require-clear` only when the user asks to block on debt.
-   When debt is non-zero, prefer `kb-epic` over another independent unit;
-   only an orchestrator fans work back in.
-5. After `kb-map` returns project context, check or claim the shared work queue,
+4. After `kb-map` returns project context, check or claim the shared work queue,
    then classify the user request and route it.
-6. If `kb-map` reports stale work or missing memory, honor that before executing work.
+5. If `kb-map` reports stale work or missing memory, honor that before executing work.
 
 ## Shared Work Queue Gate
 

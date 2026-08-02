@@ -90,7 +90,25 @@ Before mutation, `kb-start` writes a repository-wide work claim under the Git
 common directory. Every worktree sees the same work ID, project session ID,
 branch, worktree, status, and heartbeat. A second session reports the active
 owner instead of repeating discovery, implementation, or tests. The default is
-one owner per work ID and at most three active work IDs per repository.
+one owner per work ID and at most three distinct active owners per repository.
+Claims declare normalized semantic resources such as `publisher:<product>`,
+`release-manifest:<product>`, and `deploy:<environment>`; conflicting active
+local writers fail closed while disjoint resources remain runnable.
+
+The standalone `kbreconcile` CLI performs portfolio `dry-run`, `plan`, `apply`,
+and `verify`, including repositories without KB files. Its
+`claim-capability --json` and `claim-conformance --json` surfaces expose the
+provider-neutral CAS/fencing contract without pretending a live adapter exists.
+Protected writers require authoritative canonical claims, scoped verified
+authority, endpoint high-water fencing, durable idempotency, and proven
+gateway-only IAM/network paths. Git-common-directory queue and lease state is
+local coordination, never global authority.
+
+Lifecycle completion is independent across delivery, physical cleanup, ref
+retirement, and host session retirement. `local-durable`, `awaiting-review`, and
+`delivery-integrated` are registered before ownership release. An open PR may
+remain awaiting review without consuming active WIP; its refs and exact resume
+packet remain even when a later controller retires a proven-clean worktree.
 
 Verification is mandatory but not replayed at every workflow phase:
 
@@ -235,6 +253,13 @@ installs every runtime skill plus the baseline review/document agents needed by
 the normal KB loop. `full` installs the same skills plus every
 reviewer/specialist agent. The Go gate and marketplace are maintainer tools;
 they are not required to start using the workflow.
+
+The installer also attempts optional managed `kbrouter` and `kbreconcile`
+artifacts under `~/.kb/bin`. Missing artifacts preserve the skill-only install.
+Managed binaries are checksum-pinned, drift-safe, and backed up on authorized
+replacement. No signed `kbreconcile` provenance source or live provider adapter
+is published by this repo today, so an installed binary remains source/dev and
+inventory capable but reports protected-writer capability unavailable.
 
 ## What This Repo Contains
 

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "review_id": "global-cleanup-reconcile-20260801-security-review",
+  "base_commit": "2e231cb269e9e098063aed0b2797582f999775ac",
+  "status": "confirmed",
+  "confirmation": {
+    "profile": "security-reviewer",
+    "mode": "bounded-confirmation",
+    "integrated_tree": "75f47f90fa3eeae4de7c2617c439794b474da176",
+    "finding_counts": {
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "p3": 0
+    },
+    "confirmed_resolutions": 7,
+    "residual_risks": [
+      "Protected mutation remains unavailable until a real authoritative provider adapter and signed privileged provenance exist."
+    ],
+    "result": "All seven P1 fixes were confirmed; no new actionable findings."
+  },
+  "post_completion_confirmation": {
+    "profile": "security-reviewer",
+    "mode": "bounded-confirmation",
+    "base_tree": "0dbbd3288fa55ef04e4a1b8cb2d5b4252dc2ac83",
+    "integrated_tree": "4d4fde32ea77340661fa6b9cdeef41a0658cb088",
+    "finding_counts": {
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "p3": 0
+    },
+    "confirmed_resolutions": 1,
+    "residual_risks": [
+      "Downstream terminal-cleanup registration remains independently checked by its fail-closed queue identity validation."
+    ],
+    "result": "Owned queue updates safely migrate the recorded worktree identity; proof is regression-sensitive and the implementation is minimal."
+  },
+  "findings": [
+    {
+      "id": "P1-1",
+      "title": "Plan execution authorization was unenforced",
+      "fix": "Bind deterministic local-only execution authorization into planning, bundle validation, and apply; protected external actions remain unavailable.",
+      "tests": ["TestApplyEnforcesPlanExecutionAuthorization"]
+    },
+    {
+      "id": "P1-2",
+      "title": "Apply receipts could omit planned actions and verify early",
+      "fix": "Preallocate one immutable pending receipt row per action, require exact plan coverage, and reserve verified state for Verify.",
+      "tests": ["TestApplyReceiptRequiresExactPlanCoverageAndVerification", "TestVerifyKeepsOutcomeDimensionsSeparate"]
+    },
+    {
+      "id": "P1-3",
+      "title": "Subdirectory and empty-session identity bypass",
+      "fix": "Resolve the current Git top-level and require a non-empty session identity for mutation-authorized apply.",
+      "tests": ["TestCurrentWorktreeResolvesGitTopLevelFromSubdirectory", "TestApplyRejectsEmptyCurrentSessionForMutationPlan"]
+    },
+    {
+      "id": "P1-4",
+      "title": "Awaiting-review retirement lacked an R34a resume packet",
+      "fix": "Require a versioned external resume packet, validate all recovery and delivery identities, bind its identity and digest into the receipt, and revalidate before sweep.",
+      "tests": ["TestTerminalCleanupRequiresRemoteContainmentAndRetainsPRRefs", "TestTerminalCleanupResumePacketDigestDriftBlocksAwaitingReviewRetirement", "TestAutomaticDeliveryChainContract"]
+    },
+    {
+      "id": "P1-5",
+      "title": "Cold gateway implicitly initialized high-water state",
+      "fix": "Keep protected mutation unavailable until an authenticated rollback-protected bootstrap seeds explicit current claims; reject unseeded resources.",
+      "tests": ["TestFenceGatewayAuthorizationIdempotencyAndBypass"]
+    },
+    {
+      "id": "P1-6",
+      "title": "Same-epoch claim restore could regress generation and revision",
+      "fix": "Maintain per-resource high-water state outside snapshots and reject missing, lower, or same-generation different-revision restores.",
+      "tests": ["TestSemanticClaimCASTakeoverAndRollbackFence"]
+    },
+    {
+      "id": "P1-7",
+      "title": "Final policy oracle lacked superseding provenance",
+      "fix": "Preserve slice-002 history and explicitly rebind slice-003 to the final reconcile-predicates/v2 SHA-256.",
+      "tests": ["manifest-contract"]
+    }
+  ]
+}

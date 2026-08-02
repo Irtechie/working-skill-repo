@@ -15,8 +15,8 @@ Bootstrap confidence: mixed
 
 - `.github\skills\*\SKILL.md` and `.github\agents\*.agent.md` define the KB,
   CE, review, todo, and learning lanes.
-- `cmd\kbcheck`, `cmd\kbrouter`, and `cmd\amrbench` provide native Go proof,
-  model-routing, and AMR benchmark CLIs.
+- `cmd\kbcheck`, `cmd\kbrouter`, `cmd\kbreconcile`, and `cmd\amrbench` provide
+  native Go proof, model-routing, global reconciliation, and AMR benchmark CLIs.
 - `bin\kb-install.mjs`, `package.json`, and `scripts\install-kb.ps1` provide
   installer and sync surfaces.
 - `packages\universal-ui-skills-contribution\` provides the canonical,
@@ -50,6 +50,7 @@ go test ./cmd/kbcheck -run TerminalCleanup -count=1
 go test ./cmd/kbcheck -run 'CargoStorage|CargoBuildStorage' -count=1
 go run ./cmd/kbcheck local-release
 go run ./cmd/kbrouter --help
+go run ./cmd/kbreconcile claim-capability --json
 go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
 ```
 
@@ -86,6 +87,7 @@ docs are:
 |---|---|---|---|---|
 | Skill system and user-facing lanes | `docs/context/architecture/skills.md` | `.github/skills/<skill>/SKILL.md` | You need a skill purpose, trigger, alias, or workflow owner | [verified] |
 | Deterministic proof and release gates | `docs/context/architecture/kbcheck.md` | `cmd/kbcheck/main.go` | You need canonical checks, selftests, or release-blocking commands | [verified] |
+| Global reconciliation and fenced semantic writers | `docs/context/architecture/kb-workflow.md` | `cmd/kbreconcile/main.go`, `internal/reconcile/claim.go` | You need portfolio convergence, lifecycle states, canonical resources, claims, fencing, or idempotency | [verified] |
 | Model routing and optional private routes | `docs/context/architecture/kbrouter.md` | `cmd/kbrouter/main.go` | You need route discovery, selection, approval, or project/user preference behavior | [verified] |
 | Graph routing packet/eval surface | `docs/context/architecture/graph-routing.md` | `config/graph-route.schema.json` | You need graph packets, graphify rules, lifecycle/eval fixtures, or traversal recipes | [verified] |
 | Eval harness inventory | `docs/context/eval-map.md` | `docs/context/operations/testing.md` | You need existing proof surfaces and exact harness commands | [verified] |
@@ -138,6 +140,11 @@ docs are:
   is gone and all saved branch, receipt, claim, and delivery identities match.
 - [verified] `cmd/amrbench run` remains non-dry blocked until a trusted
   human-approval verifier exists.
+- [verified] `kbreconcile` works independently of repo-native KB files for
+  inventory, plan, apply, and verify. Its claim/fence contract is fail-closed:
+  local queue/lease state is not global authority, and no live protected writer
+  is advertised without a verifier, atomic gateway, durable idempotency,
+  rollback epoch, and sole-path production proof.
 - [verified] Cargo checks share the absolute target returned by `kbcheck
   cargo-storage resolve`; guarded finalization removes only marker-owned
   temporary targets and preserves the shared cache.

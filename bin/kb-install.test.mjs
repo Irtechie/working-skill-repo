@@ -9,6 +9,9 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import {
+  installReconciler,
+  reconcilerArtifactName,
+  uninstallReconciler,
   installRouter,
   routerArtifactName,
   uninstallRouter,
@@ -40,6 +43,89 @@ test("maps supported operating systems and architectures to release assets", () 
   assert.equal(routerArtifactName({ platform: "linux", arch: "x64" }), "kbrouter-linux-amd64");
   assert.throws(() => routerArtifactName({ platform: "freebsd", arch: "x64" }), /unsupported router platform/i);
   assert.throws(() => routerArtifactName({ platform: "linux", arch: "ia32" }), /unsupported router architecture/i);
+});
+
+test("maps reconciler assets and requires explicit provenance capability", () => {
+  assert.equal(reconcilerArtifactName({ platform: "win32", arch: "x64" }), "kbreconcile-windows-amd64.exe");
+  assert.equal(reconcilerArtifactName({ platform: "linux", arch: "arm64" }), "kbreconcile-linux-arm64");
+  assert.throws(() => reconcilerArtifactName({ platform: "freebsd", arch: "x64" }), /unsupported reconciler platform/i);
+});
+
+test("optional reconciler install is checksum managed and reports no privileged provenance", async (t) => {
+  const f = await fixture(t, { bytes: "reconciler-v1" });
+  const asset = reconcilerArtifactName({ platform: f.platform, arch: f.arch });
+  const digest = crypto.createHash("sha256").update(f.bytes).digest("hex");
+  await fs.rm(path.join(f.releaseRoot, f.asset));
+  await fs.writeFile(path.join(f.releaseRoot, asset), f.bytes);
+  await fs.writeFile(path.join(f.releaseRoot, "SHA256SUMS"), `${digest}  ${asset}\n`);
+  const result = await installReconciler(f);
+  assert.equal(result.status, "installed");
+  assert.equal(result.provenance, "checksum-only");
+  assert.equal(result.protectedWriterCapable, false);
+  assert.equal(await fs.readFile(result.binaryPath, "utf8"), f.bytes);
+  const current = await installReconciler(f);
+  assert.equal(current.status, "current");
+});
+
+test("automatic reconciler install preserves skill-only operation when asset is absent", async (t) => {
+  const f = await fixture(t);
+  const result = await installReconciler({ ...f, mode: "auto" });
+  assert.equal(result.status, "unavailable");
+  assert.match(result.reason, /checksum not found|not found/i);
+});
+
+test("CLI installs the optional reconciler when router installation is skipped", async (t) => {
+  const f = await fixture(t, { bytes: "reconciler-cli" });
+  const asset = reconcilerArtifactName({ platform: f.platform, arch: f.arch });
+  const digest = crypto.createHash("sha256").update(f.bytes).digest("hex");
+  await fs.rm(path.join(f.releaseRoot, f.asset));
+  await fs.writeFile(path.join(f.releaseRoot, asset), f.bytes);
+  await fs.writeFile(path.join(f.releaseRoot, "SHA256SUMS"), `${digest}  ${asset}\n`);
+
+  const { stdout } = await execFile(process.execPath, [
+    path.join(testDir, "kb-install.mjs"),
+    "--source", path.resolve(testDir, ".."),
+    "--install-root", f.installRoot,
+    "--target", "codex",
+    "--router", "skip",
+    "--reconciler", "required",
+    "--reconciler-version", f.version,
+    "--reconciler-release", f.releaseRoot,
+    "--yes",
+  ]);
+  assert.match(stdout, /KB reconciler: installed/);
+  assert.equal(
+    await fs.readFile(path.join(f.installRoot, ".kb", "bin", process.platform === "win32" ? "kbreconcile.exe" : "kbreconcile"), "utf8"),
+    f.bytes,
+  );
+});
+
+test("reconciler upgrade, downgrade refusal, and drift-safe uninstall", async (t) => {
+  const first = await fixture(t, { bytes: "reconciler-v1" });
+  let asset = reconcilerArtifactName({ platform: first.platform, arch: first.arch });
+  let digest = crypto.createHash("sha256").update(first.bytes).digest("hex");
+  await fs.rm(path.join(first.releaseRoot, first.asset));
+  await fs.writeFile(path.join(first.releaseRoot, asset), first.bytes);
+  await fs.writeFile(path.join(first.releaseRoot, "SHA256SUMS"), `${digest}  ${asset}\n`);
+  const installed = await installReconciler(first);
+
+  const next = await fixture(t, { version: "1.3.0", bytes: "reconciler-v2" });
+  next.installRoot = first.installRoot;
+  asset = reconcilerArtifactName({ platform: next.platform, arch: next.arch });
+  digest = crypto.createHash("sha256").update(next.bytes).digest("hex");
+  await fs.rm(path.join(next.releaseRoot, next.asset));
+  await fs.writeFile(path.join(next.releaseRoot, asset), next.bytes);
+  await fs.writeFile(path.join(next.releaseRoot, "SHA256SUMS"), `${digest}  ${asset}\n`);
+  const upgraded = await installReconciler(next);
+  assert.equal(upgraded.status, "upgraded");
+  assert.equal(await fs.readFile(upgraded.backupPath, "utf8"), "reconciler-v1");
+
+  await assert.rejects(installReconciler(first), /downgrade/i);
+  await assert.rejects(installReconciler({ ...next, version: "1.3.0-beta.1" }), /downgrade/i);
+  await fs.writeFile(installed.binaryPath, "operator-change");
+  await assert.rejects(uninstallReconciler({ installRoot: first.installRoot }), /changed since/i);
+  const removed = await uninstallReconciler({ installRoot: first.installRoot, yes: true });
+  assert.equal(await fs.readFile(removed.backupPath, "utf8"), "operator-change");
 });
 
 test("native lifecycle fixtures install the native executable basename", async (t) => {

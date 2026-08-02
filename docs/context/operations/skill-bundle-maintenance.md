@@ -44,6 +44,20 @@ go run ./cmd/kbcheck live-release
 orchestration. The current skill-repo quality/release harness is Go-native.
 Remaining `.ps1` files are narrow helper scripts, not the top-level gate.
 
+## Optional Managed Binaries
+
+`bin\kb-install.mjs` manages optional `kbrouter` and `kbreconcile` artifacts
+under `~/.kb/bin`. Automatic mode preserves a skill-only install when either
+asset is absent. Checksums, managed-state hashes, backups, reconciler downgrade
+refusal, and drift-safe uninstall protect existing files.
+
+No signed provenance artifact for `kbreconcile` is published by this repository.
+Its install record therefore says `checksum-only` and
+`protected_writer_capable: false`. Source/dev inventory, planning, apply,
+verify, and reference conformance remain usable. Privileged protected-writer
+operation fails closed until a pinned signed provenance source and a live
+authoritative adapter both exist.
+
 Live model evals are explicit because they shell to authenticated local CLIs.
 Dry-run adapters are part of the local gate; live calls are not implied by a
 local green run.
@@ -183,6 +197,12 @@ Core global install:
 
 ```shell
 npx github:Irtechie/working-skill-repo --target all --profile core
+```
+
+Skills-only install:
+
+```shell
+npx github:Irtechie/working-skill-repo --target all --profile core --router skip --reconciler skip
 ```
 
 Full global install:

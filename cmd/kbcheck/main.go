@@ -55,11 +55,10 @@ Usage:
   kbcheck slice-lease-selftest
   kbcheck plan-run-lease --action acquire|status|renew|expand|release|recover [--run-id <id>] [--manifest <path>] [--root <path>] [--state-root <path>] [--json]
   kbcheck plan-run-lease-selftest
-  kbcheck plan-worktree --action prepare|adopt|status|advance|complete|release --manifest <path> --owner-token <token> [--commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference>] [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
+  kbcheck plan-worktree --action prepare|status|advance|complete|release --manifest <path> --owner-token <token> [--commit-authorized --commit-authorized-by <actor> --commit-approval-ref <reference>] [--run-id <id>] [--worktree <path>] [--branch <integration-ref>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck plan-worktree-selftest [--root <path>]
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
-  kbcheck fan-in [--root <path>] [--json] [--require-clear]
-  kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name>] [--root <path>] [--json]
+  kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name> --claim-id <id> --provider <name> --pr-id <id> --pr-url <url> --resume-packet <path>] [--root <path>] [--json]
   kbcheck cargo-storage --action resolve|register-temp|finalize|validate-ready|not-applicable|validate --run-id <id> [--cache-root <path>] [--target <path> --temp-root <path> --reason <text>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
@@ -111,7 +110,7 @@ Commands:
 	scope-lease    Validate observed active slice/file write leases.
 	slice-lease    Atomically acquire and release local slice ownership.
 	plan-run-lease Atomically claim manifest paths, domains, and shared resources.
-	plan-worktree  Prepare, adopt, and inspect a manifest-owned plan-run workspace.
+	plan-worktree  Prepare and inspect a manifest-owned plan-run workspace.
 	plan-worktree-selftest  Exercise two isolated plan runs in a disposable repository.
 	worktree       Deprecated compatibility command for legacy isolated slice worktrees.
 	terminal-cleanup  Register and safely reap durably delivered terminal worktrees.
@@ -209,15 +208,19 @@ type options struct {
 	approved                bool
 	includeUser             bool
 	requireReady            bool
-	requireClear            bool
 	commitAuthorized        bool
 	commitAuthorizedBy      string
 	commitApprovalRef       string
 	legacySliceWorktree     bool
 	workID                  string
+	claimID                 string
 	sessionID               string
 	deliveryMode            string
 	remote                  string
+	resumePacket            string
+	provider                string
+	pullRequestID           string
+	pullRequestURL          string
 	cargoCacheRoot          string
 	cargoTarget             string
 	cargoTempRoot           string
@@ -320,8 +323,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runPlanWorktreeSelftest(root, stdout, stderr)
 	case "worktree":
 		return runWorktreeCommand(root, opts, stdout, stderr)
-	case "fan-in":
-		return runFanInCommand(root, opts, stdout, stderr)
 	case "terminal-cleanup":
 		return runTerminalCleanupCommand(root, opts, stdout, stderr)
 	case "cargo-storage":
@@ -413,7 +414,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-tier-eval": true, "model-routing-release": true,
-		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "fan-in": true, "cargo-storage": true,
+		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-guidance": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
@@ -504,15 +505,19 @@ func parse(args []string) (options, error) {
 	fs.BoolVar(&opts.approved, "approved", false, "confirm human-approved marketplace promotion")
 	fs.BoolVar(&opts.includeUser, "include-user", false, "include standard user-global provider configs")
 	fs.BoolVar(&opts.requireReady, "require-ready", false, "fail when readiness thresholds are not met")
-	fs.BoolVar(&opts.requireClear, "require-clear", false, "fail when fan-in debt is not zero")
 	fs.BoolVar(&opts.commitAuthorized, "commit-authorized", false, "record explicit authorization for local commits on the manifest-owned plan-run branch")
 	fs.StringVar(&opts.commitAuthorizedBy, "commit-authorized-by", "", "actor that explicitly authorized local plan-run commits")
 	fs.StringVar(&opts.commitApprovalRef, "commit-approval-ref", "", "durable reference to the local commit authorization")
 	fs.BoolVar(&opts.legacySliceWorktree, "legacy-slice-worktree", false, "explicitly enable the deprecated per-slice worktree compatibility command")
 	fs.StringVar(&opts.workID, "work-id", "", "stable KB work queue objective id")
+	fs.StringVar(&opts.claimID, "claim-id", "", "stable awaiting-review lifecycle claim id")
 	fs.StringVar(&opts.sessionID, "session-id", "", "Copilot project session id")
 	fs.StringVar(&opts.deliveryMode, "delivery-mode", "", "delivery mode: local, pr, or direct")
 	fs.StringVar(&opts.remote, "remote", "", "delivery remote name")
+	fs.StringVar(&opts.resumePacket, "resume-packet", "", "versioned awaiting-review resume packet path")
+	fs.StringVar(&opts.provider, "provider", "", "awaiting-review provider identity")
+	fs.StringVar(&opts.pullRequestID, "pr-id", "", "awaiting-review pull request identity")
+	fs.StringVar(&opts.pullRequestURL, "pr-url", "", "awaiting-review pull request URL")
 	fs.StringVar(&opts.cargoCacheRoot, "cache-root", "", "stable Cargo cache root")
 	fs.StringVar(&opts.cargoTarget, "target", "", "run-owned temporary Cargo target")
 	fs.StringVar(&opts.cargoTempRoot, "temp-root", "", "approved parent for a run-owned temporary Cargo target")
@@ -615,13 +620,12 @@ func parse(args []string) (options, error) {
 		return options{}, fmt.Errorf("worktree is deprecated and requires --legacy-slice-worktree; plan runs use plan-worktree")
 	}
 	if opts.command == "plan-worktree" {
-		authorizing := opts.sliceLeaseAction == "prepare" || opts.sliceLeaseAction == "adopt"
-		if (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") && !authorizing {
-			return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree prepare and adopt")
+		if (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") && opts.sliceLeaseAction != "prepare" {
+			return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree prepare")
 		}
-		if authorizing && opts.commitAuthorized &&
+		if opts.sliceLeaseAction == "prepare" && opts.commitAuthorized &&
 			(opts.commitAuthorizedBy == "" || opts.commitApprovalRef == "") {
-			return options{}, fmt.Errorf("plan-worktree %s with --commit-authorized requires --commit-authorized-by and --commit-approval-ref", opts.sliceLeaseAction)
+			return options{}, fmt.Errorf("plan-worktree prepare with --commit-authorized requires --commit-authorized-by and --commit-approval-ref")
 		}
 		if opts.sliceLeaseAction == "advance" {
 			if opts.runID == "" || opts.sliceID == "" || opts.expectedIntegrationHead == "" || opts.commitSHA == "" || opts.proofReceipt == "" || opts.worktreePath == "" || opts.branchName == "" {
@@ -650,14 +654,18 @@ func parse(args []string) (options, error) {
 				return options{}, fmt.Errorf("terminal-cleanup sweep requires --session-id for current-session exclusion")
 			}
 			if opts.workID != "" || opts.worktreePath != "" ||
-				opts.branchName != "" || opts.commitSHA != "" || opts.deliveryMode != "" || opts.remote != "" {
+				opts.branchName != "" || opts.commitSHA != "" || opts.deliveryMode != "" ||
+				opts.remote != "" || opts.resumePacket != "" || opts.claimID != "" ||
+				opts.provider != "" || opts.pullRequestID != "" || opts.pullRequestURL != "" {
 				return options{}, fmt.Errorf("terminal-cleanup sweep reads registered receipts and accepts only --session-id as cleanup identity")
 			}
 		default:
 			return options{}, fmt.Errorf("terminal-cleanup action must be register or sweep")
 		}
-	} else if opts.workID != "" || opts.sessionID != "" || opts.deliveryMode != "" || opts.remote != "" {
-		return options{}, fmt.Errorf("--work-id, --session-id, --delivery-mode, and --remote are only supported for terminal-cleanup")
+	} else if opts.workID != "" || opts.claimID != "" || opts.sessionID != "" || opts.deliveryMode != "" ||
+		opts.remote != "" || opts.resumePacket != "" || opts.provider != "" ||
+		opts.pullRequestID != "" || opts.pullRequestURL != "" {
+		return options{}, fmt.Errorf("work, session, delivery, PR identity, and resume-packet flags are only supported for terminal-cleanup")
 	}
 	if opts.command == "cargo-storage" {
 		switch opts.sliceLeaseAction {
