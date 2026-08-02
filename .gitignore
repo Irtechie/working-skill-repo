@@ -4,6 +4,18 @@
 .gotmp/
 *.test
 *.test.exe
+
+# Compiled Go command binaries (never part of the portable bundle)
+/kbcheck
+/kbcheck.exe
+/kbrouter
+/kbrouter.exe
+/kbreconcile
+/kbreconcile.exe
+/kbbrief
+/kbbrief.exe
+/amrbench
+/amrbench.exe
 __pycache__/
 *.pyc
 kbrouter-routes.local.json
