@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "suite": "ddr-portable-plans",
+  "cases": [
+    {
+      "id": "portable-plan-omits-concrete-models",
+      "category": "model-routing",
+      "prompt": "Plan four independent slices: a README typo, one pure Go parser with table tests, a cross-package cache-aware retry change, and an authentication storage migration. Make the plan portable across Copilot, Codex, and local routes.",
+      "expected": {
+        "behavior": "record-capability-not-route",
+        "must_include": [
+          "model_tier per slice",
+          "model_tier_reason",
+          "model_requirements",
+          "escalation_triggers",
+          "minimum sufficient execution contract",
+          "plan token budget",
+          "no-code leakage check",
+          "work-time route selection"
+        ]
+      },
+      "forbidden_failures": [
+        "stores a concrete model or route alias in the plan",
+        "stores a provider, endpoint, adapter, or transport in the plan",
+        "stores attempt_tier in a normal production plan",
+        "writes patches, function bodies, or fixture answers into the plan",
+        "counts post-failure hints or stronger-model rescue as DDR success",
+        "lets routing evidence replace executable proof"
+      ],
+      "scoring": {
+        "portability": "plan records minimum capability but no concrete route",
+        "ownership": "kb-work retains the current-or-delegated decision at pickup",
+        "proof": "every slice keeps an executable acceptance target",
+        "sufficiency": "the assigned tier can execute the preregistered plan unaided",
+        "economics": "planner and executor costs are both included"
+      }
+    },
+    {
+      "id": "small-slices-stay-small",
+      "category": "model-routing",
+      "prompt": "Classify a one-line README typo and a pure ParsePort function with focused table tests.",
+      "expected": {
+        "behavior": "use-small-minimum-capability",
+        "must_include": [
+          "README typo: small",
+          "ParsePort: small",
+          "delegated owner is the normal execution default",
+          "same-tier route is preferred before a higher tier"
+        ]
+      },
+      "forbidden_failures": [
+        "assigns medium or large merely because those models are available",
+        "pins a named lightweight model in the plan",
+        "retains current execution without a recognized exception reason",
+        "weakens proof because a smaller model executes the slice"
+      ],
+      "scoring": {
+        "economics": "minimum sufficient tier is small",
+        "portability": "the CLI chooses the concrete small route at execution",
+        "correctness": "verification is unchanged by route cost"
+      }
+    },
+    {
+      "id": "mixed-risk-slices-tier-correctly",
+      "category": "model-routing",
+      "prompt": "Classify a cache-aware retry change spanning client, adapter, and integration tests, plus an authentication token storage migration spanning schema, API, authorization, and rollback.",
+      "expected": {
+        "behavior": "tier-by-risk-and-boundary",
+        "must_include": [
+          "cache-aware retry: medium",
+          "authentication migration: large",
+          "no invented dependency between independent slices",
+          "one owner decision per slice"
+        ]
+      },
+      "forbidden_failures": [
+        "routes every slice to the largest model",
+        "routes security or migration work to small",
+        "serializes independent slices by inventing dependencies",
+        "records one worker choice for the entire plan"
+      ],
+      "scoring": {
+        "tiering": "medium and large floors match boundary and risk",
+        "concurrency": "independent slices remain independently dispatchable",
+        "ownership": "each slice gets exactly one work-time owner"
+      }
+    },
+    {
+      "id": "tier-choice-and-plan-sufficiency-diagnose-separately",
+      "category": "model-routing",
+      "prompt": "A medium-tier executor failed a preregistered cross-package task plan. Diagnose whether the tier was too low or the plan was too thin without counting fallback as DDR success.",
+      "expected": {
+        "behavior": "controlled-ddr-failure-diagnosis",
+        "must_include": [
+          "freeze the original plan and protected proof",
+          "same tier plus richer preregistered plan diagnoses plan insufficiency",
+          "next tier plus original plan diagnoses tier underestimation",
+          "no post-failure hint counts as DDR success",
+          "setup and oracle defects stay outside model correctness"
+        ]
+      },
+      "forbidden_failures": [
+        "rewrites the original DDR result after a fallback succeeds",
+        "uses fixture answers discovered after failure",
+        "claims the selected tier was correct merely because a higher tier passed",
+        "omits planner tokens or cost from the economic numerator"
+      ],
+      "scoring": {
+        "diagnosis": "tier correctness and plan sufficiency have separate controlled probes",
+        "integrity": "the original result remains immutable",
+        "economics": "whole-route dollars per accepted result is the primary KPI"
+      }
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "run_id": "ddr-hosted-model-matrix-20260727T042323Z",
+  "recorded_at": "2026-07-27T04:28:30Z",
+  "evidence_class": "live-hosted-controlled-planning-and-delegation",
+  "source_session_id": "c85854ff-c4ce-41d5-a097-d2cb1925842c",
+  "source_turn_index": 9,
+  "cost_authority": {
+    "field": "assistant_usage_events.total_nano_aiu",
+    "conversion": "ai_credits = total_nano_aiu / 1e9; cost_usd = ai_credits * 0.01",
+    "pricing_source": "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing"
+  },
+  "fixture": {
+    "parent_models": [
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "claude-opus-5",
+      "claude-sonnet-5",
+      "claude-haiku-4.5"
+    ],
+    "expected_tiers": {
+      "slice-1": "small",
+      "slice-2": "small",
+      "slice-3": "medium",
+      "slice-4": "large"
+    },
+    "expected_owner": "delegated",
+    "concrete_routes_allowed_in_plan": false,
+    "required_completed_subagents": 2,
+    "allowed_child_models": [
+      "gpt-5.6-luna",
+      "claude-haiku-4.5"
+    ]
+  },
+  "acceptance": {
+    "planner_contract": "all four tiers match, all owners are delegated, proofs and escalation triggers are present, and no concrete route is stored in the plan",
+    "strict_run_contract": "planner_contract plus exactly two completed bounded child tasks, no invented child identifier, and one machine-readable JSON object with no surrounding prose"
+  },
+  "summary": {
+    "planner_contract_passed": 6,
+    "planner_contract_total": 6,
+    "strict_run_passed": 3,
+    "strict_run_total": 6,
+    "model_calls": 125,
+    "input_tokens": 5396923,
+    "output_tokens": 60060,
+    "ai_credits": 392.432422,
+    "cost_usd": 3.924324,
+    "model_duration_ms": 688121,
+    "matrix_cost_per_planner_pass_usd": 0.654054,
+    "matrix_cost_per_strict_pass_usd": 1.308108
+  },
+  "usage_by_model": [
+    {
+      "model": "gpt-5.6-sol",
+      "model_calls": 19,
+      "input_tokens": 2030801,
+      "output_tokens": 10589,
+      "ai_credits": 192.841175,
+      "cost_usd": 1.928412,
+      "model_duration_ms": 158917,
+      "attribution": "parent-only model family; child work used Luna"
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "model_calls": 69,
+      "input_tokens": 2076950,
+      "output_tokens": 29843,
+      "ai_credits": 67.304865,
+      "cost_usd": 0.673049,
+      "model_duration_ms": 329037,
+      "attribution": "pooled Haiku parent and Haiku child work; per-arm cost is not separable"
+    },
+    {
+      "model": "claude-opus-5",
+      "model_calls": 3,
+      "input_tokens": 179870,
+      "output_tokens": 3372,
+      "ai_credits": 57.79705,
+      "cost_usd": 0.577971,
+      "model_duration_ms": 44004,
+      "attribution": "parent-only model family; child work used Haiku and Luna"
+    },
+    {
+      "model": "claude-sonnet-5",
+      "model_calls": 7,
+      "input_tokens": 471139,
+      "output_tokens": 4902,
+      "ai_credits": 31.27866,
+      "cost_usd": 0.312787,
+      "model_duration_ms": 57411,
+      "attribution": "parent-only model family; child work used Haiku and Luna"
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "model_calls": 23,
+      "input_tokens": 501567,
+      "output_tokens": 8838,
+      "ai_credits": 24.542935,
+      "cost_usd": 0.245429,
+      "model_duration_ms": 72582,
+      "attribution": "pooled Luna parent and Luna child work; per-arm cost is not separable"
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "model_calls": 4,
+      "input_tokens": 136596,
+      "output_tokens": 2516,
+      "ai_credits": 18.667738,
+      "cost_usd": 0.186677,
+      "model_duration_ms": 26170,
+      "attribution": "parent-only model family; child work used Luna"
+    }
+  ],
+  "runs": [
+    {
+      "model": "gpt-5.6-sol",
+      "elapsed_ms": 128000,
+      "planner_contract_pass": true,
+      "completed_subagents": 1,
+      "output_contract_pass": true,
+      "strict_run_pass": false,
+      "failure": "rubber-duck was unavailable and no replacement skeptic completed"
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "elapsed_ms": 73000,
+      "planner_contract_pass": true,
+      "completed_subagents": 1,
+      "output_contract_pass": true,
+      "strict_run_pass": false,
+      "failure": "rubber-duck was unavailable and no replacement skeptic completed"
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "elapsed_ms": 135000,
+      "planner_contract_pass": true,
+      "completed_subagents": 2,
+      "output_contract_pass": true,
+      "strict_run_pass": true,
+      "failure": ""
+    },
+    {
+      "model": "claude-opus-5",
+      "elapsed_ms": 266000,
+      "planner_contract_pass": true,
+      "completed_subagents": 2,
+      "output_contract_pass": true,
+      "strict_run_pass": true,
+      "failure": ""
+    },
+    {
+      "model": "claude-sonnet-5",
+      "elapsed_ms": 144000,
+      "planner_contract_pass": true,
+      "completed_subagents": 2,
+      "output_contract_pass": true,
+      "strict_run_pass": true,
+      "failure": ""
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "elapsed_ms": 241000,
+      "planner_contract_pass": true,
+      "completed_subagents": 2,
+      "output_contract_pass": false,
+      "strict_run_pass": false,
+      "failure": "surrounding prose and a fenced JSON block violated the output contract; placeholder child IDs were invented"
+    }
+  ],
+  "comparisons": {
+    "sonnet_parent_cost_reduction_vs_opus_percent": 45.88,
+    "terra_parent_cost_reduction_vs_sol_percent": 90.32,
+    "warning": "Terra and Sol both failed strict delegation, so their parent-cost difference is not a cost-per-accepted-result win."
+  },
+  "limitations": [
+    "The task runtime did not expose foreground child-agent IDs, so dispatch evidence is usage-corroborated rather than route-receipt-proven.",
+    "Luna and Haiku were both parent and child models; their individual parent-arm costs cannot be separated from the shared child pool.",
+    "This is one controlled planning/delegation sample per parent, not a production-quality power study.",
+    "Token totals are diagnostic only; billed AI credits and cost per accepted result are the economic metrics."
+  ]
+}
