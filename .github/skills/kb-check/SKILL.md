@@ -12,6 +12,13 @@ Prefer executable truth over model judgment. If a script can check it, run the s
 
 LLM review can find risks, but it does not prove behavior. A slice is not verified until deterministic checks pass or a clear reason is recorded.
 
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Every `go run ./cmd/kbcheck ...` command below is therefore
+conditional: run it when the repo provides it, and otherwise substitute the
+project's own equivalent test, lint, typecheck, or build command and record
+which command produced the proof. A missing harness never lowers the bar — it
+changes which command you run, not whether you prove the slice.
+
 When a slice declares protected oracles, deterministic proof must include the
 oracle integrity check: the test, fixture, scorer, snapshot, schema, or contract
 file used as the behavior target must still match the recorded SHA unless the

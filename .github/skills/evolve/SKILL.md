@@ -147,3 +147,11 @@ Remaining instincts: X active (run /instincts to see)
   approval before commit or sync
 - Evolved instincts are archived, not deleted, so history is preserved
 - If a generated skill doesn't feel right, delete it and the instincts will re-accumulate
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command in this skill as
+conditional: run it when the repo provides it, otherwise substitute the
+project's own equivalent check and record which command produced the proof.
+A missing harness changes which command you run, never whether you prove the work.

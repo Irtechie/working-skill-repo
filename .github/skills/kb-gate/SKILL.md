@@ -174,3 +174,11 @@ If the user asks not to fix findings:
 Lead with whether the next phase is allowed and whether the user must respond.
 Then report actions taken, remaining blockers, deferred items, and severity
 counts. Do not ask the user to choose among agent-owned fixes.
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command in this skill as
+conditional: run it when the repo provides it, otherwise substitute the
+project's own equivalent check and record which command produced the proof.
+A missing harness changes which command you run, never whether you prove the work.

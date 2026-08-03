@@ -360,3 +360,11 @@ Route(s): <routes actually run>
 Proof: <commands/artifacts/gates>
 Next: <exact next action, resume command, or none>
 ```
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command in this skill as
+conditional: run it when the repo provides it, otherwise substitute the
+project's own equivalent check and record which command produced the proof.
+A missing harness changes which command you run, never whether you prove the work.

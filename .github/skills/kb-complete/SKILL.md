@@ -317,3 +317,11 @@ open a PR, clean up, or retire a worktree: those are agent-owned.
 
 - Older prompts that say "kb finish" or "full KB pipeline" route here directly.
 - `kb-finalize`, `kb-ship`, and `kb-land` remain internal phase skills.
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command in this skill as
+conditional: run it when the repo provides it, otherwise substitute the
+project's own equivalent check and record which command produced the proof.
+A missing harness changes which command you run, never whether you prove the work.

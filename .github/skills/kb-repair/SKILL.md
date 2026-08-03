@@ -165,3 +165,11 @@ If stuck or ceiling hit:
 - **Returns to:** `kb-qa` (pass or stuck)
 - **Scope constraint:** respects the slice scope forecast and records justified discoveries
 - **Context:** same agent, no handoff — repair keeps the full execution context
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command in this skill as
+conditional: run it when the repo provides it, otherwise substitute the
+project's own equivalent check and record which command produced the proof.
+A missing harness changes which command you run, never whether you prove the work.

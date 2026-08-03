@@ -143,3 +143,11 @@ that teardown.
 - KB never creates or deletes a harness-owned worktree.
 - Ports, databases, generated outputs, and global installs remain unsafe unless
   explicitly claimed and serialized.
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command above as
+conditional: run it when the repo provides it, otherwise perform the equivalent
+git worktree step directly and record what you ran. A missing harness changes
+which command you run, never whether the worktree is verified.

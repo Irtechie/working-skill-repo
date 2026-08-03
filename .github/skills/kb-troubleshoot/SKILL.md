@@ -139,3 +139,11 @@ Exact human input needed:
 - **Uses:** `kb-map`, `kb-check`, `kb-functional-test`, `kb-qa`, `kb-repair`, `kb-fix`, browser transports, repo run/test commands.
 - **Escalates to:** `kb-plan` when the fix becomes multi-slice; `kb-research` when external/framework behavior is uncertain; `kb-handoff` only when work must resume later.
 - **Does not replace:** `kb-work`/`kb-finalize` for planned feature execution. It is for diagnosing and self-correcting broken behavior.
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command in this skill as
+conditional: run it when the repo provides it, otherwise substitute the
+project's own equivalent check and record which command produced the proof.
+A missing harness changes which command you run, never whether you prove the work.
