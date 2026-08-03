@@ -94,6 +94,12 @@ func validateSkillGuidance(root string, config skillGuidanceConfig) ([]string, e
 	hotPath := setOf(config.HotPath...)
 	deprecated := setOf(config.DeprecatedSkills...)
 	removedSet := setOf(removed...)
+	skillNames := map[string]bool{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			skillNames[entry.Name()] = true
+		}
+	}
 	seenSkills := map[string]bool{}
 	failures := []string{}
 
@@ -129,6 +135,9 @@ func validateSkillGuidance(root string, config skillGuidanceConfig) ([]string, e
 		} else if reason := invalidAuditRow(rows[0]); reason != "" {
 			failures = append(failures, "audit-row-invalid: "+name+" "+reason)
 		}
+		if len(rows) == 1 {
+			failures = append(failures, impossibleSkillCallers(name, string(content), rows[0], skillNames)...)
+		}
 		failures = append(failures, validateSkillReferences(name, filepath.Join(skillRoot, name), string(content))...)
 	}
 	for name := range auditByName {
@@ -143,6 +152,25 @@ func validateSkillGuidance(root string, config skillGuidanceConfig) ([]string, e
 	}
 	sort.Strings(failures)
 	return uniqueStrings(failures), nil
+}
+
+// impossibleSkillCallers reports audit rows that claim a skill caller for a
+// skill the model can never invoke. Such a claim cannot be stale-but-true; it
+// is unsatisfiable by construction.
+func impossibleSkillCallers(name, content string, row skillGuidanceAuditRow, skillNames map[string]bool) []string {
+	frontmatter := extractFrontmatter(content)
+	if strings.TrimSpace(frontmatterValue(frontmatter, "disable-model-invocation")) != "true" {
+		return nil
+	}
+	failures := []string{}
+	for _, caller := range row.Callers {
+		caller = strings.TrimSpace(caller)
+		if caller == name || !skillNames[caller] {
+			continue
+		}
+		failures = append(failures, fmt.Sprintf("audit-caller-impossible: %s caller=%s disable-model-invocation=true", name, caller))
+	}
+	return failures
 }
 
 func loadSkillGuidanceAudit(path string) ([]skillGuidanceAuditRow, error) {

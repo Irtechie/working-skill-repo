@@ -114,3 +114,61 @@ func writeGuidanceFile(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
+
+func TestSkillGuidanceRejectsSkillCallerOnUserOnlySkill(t *testing.T) {
+	t.Parallel()
+	config := `{
+  "max_skill_lines": 40,
+  "max_hot_path_lines": 40,
+  "hot_path": [],
+  "deprecated_skills": [],
+  "audit_path": "config/skill-guidance-audit.json",
+  "removed_skill_inventory_path": "config/removed-skills.json"
+}`
+	userOnly := "---\nname: beta\ndescription: focused skill\ndisable-model-invocation: true\n---\nbody\n"
+	invocable := "---\nname: alpha\ndescription: focused skill\n---\nbody\n"
+
+	cases := []struct {
+		name       string
+		betaHeader string
+		callers    string
+		wantFail   bool
+	}{
+		{"user-only skill claiming a skill caller is impossible", userOnly, `["alpha","user"]`, true},
+		{"user-only skill claiming only user is fine", userOnly, `["user"]`, false},
+		{"model-invocable skill may claim a skill caller", invocable, `["alpha","user"]`, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			writeGuidanceFile(t, filepath.Join(root, ".github", "skills", "alpha", "SKILL.md"), invocable)
+			writeGuidanceFile(t, filepath.Join(root, ".github", "skills", "beta", "SKILL.md"), tc.betaHeader)
+			writeGuidanceFile(t, filepath.Join(root, "config", "skill-guidance.json"), config)
+			writeGuidanceFile(t, filepath.Join(root, "config", "skill-guidance-audit.json"), `[
+  {"name":"alpha","purpose":"lane","callers":["user"],"routing_evidence":"trigger","retained_capability":"runs","disposition":"keep","proof":"fixture"},
+  {"name":"beta","purpose":"lane","callers":`+tc.callers+`,"routing_evidence":"trigger","retained_capability":"runs","disposition":"keep","proof":"fixture"}
+]`)
+			writeGuidanceFile(t, filepath.Join(root, "config", "removed-skills.json"), `[]`)
+
+			var stdout, stderr bytes.Buffer
+			code := runSkillGuidanceCommand(root, options{}, &stdout, &stderr)
+			if tc.wantFail {
+				if code == 0 {
+					t.Fatalf("expected failure, got pass; stdout=%s", stdout.String())
+				}
+				if !strings.Contains(stderr.String(), "audit-caller-impossible: beta caller=alpha") {
+					t.Fatalf("missing expected failure, stderr=%s", stderr.String())
+				}
+				return
+			}
+			if code != 0 {
+				t.Fatalf("expected pass, code=%d stderr=%s", code, stderr.String())
+			}
+			if strings.Contains(stderr.String(), "audit-caller-impossible") {
+				t.Fatalf("check fired when it should not: %s", stderr.String())
+			}
+		})
+	}
+}
