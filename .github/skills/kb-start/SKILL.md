@@ -63,10 +63,15 @@ and never satisfies a proof gate.
 ## Shared Work Queue Gate
 
 Before any mutating route, successor session, plan-run worktree, test wave, or
-delegated worker starts, publish an early repository-wide work claim:
+delegated worker starts, publish an early repository-wide work claim.
+
+`<skill-dir>` below is the directory containing the `kb-start` SKILL.md you
+loaded. Resolve it from that path. Do not assume a fixed install root:
+`.github/skills/`, `~/.copilot/skills/`, `~/.codex/skills/`, and
+`~/.agents/skills/` are all valid locations for this bundle.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.copilot\skills\kb-start\scripts\work_queue.ps1" `
+powershell -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>/scripts/work_queue.ps1" `
   -Action claim `
   -WorkId <stable-kebab-case-objective> `
   -SessionId <project-session-id> `
@@ -311,3 +316,11 @@ If the route is obvious and safe, proceed into the chosen skill workflow. Also
 name the exact command before or as you invoke it, so users on hosts that do not
 auto-chain skills can continue manually. If the host cannot invoke the target
 skill, stop with: `Next command: <skill> <artifact-or-request>`.
+
+## Tooling Availability
+
+`cmd/kbcheck` belongs to this bundle's source repo and does not ship with an
+installed skill. Treat every `go run ./cmd/kbcheck ...` command in this skill as
+conditional: run it when the repo provides it, otherwise substitute the
+project's own equivalent check and record which command produced the proof.
+A missing harness changes which command you run, never whether you prove the work.

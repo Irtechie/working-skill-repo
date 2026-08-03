@@ -55,20 +55,22 @@ untrusted input. Never execute PR-controlled code, hooks, filters, LFS smudge,
 submodules, builds, tests, or installs while collecting evidence.
 
 Use `references/evidence-contract.md` for readiness, proof-state, and first-screen
-rules. Use the included script from this skill directory.
+rules. Use the included script from this skill directory. `<skill-dir>` below is
+the directory containing this SKILL.md; resolve it from that path rather than a
+fixed install root or the current working directory.
 
 ## Collect a Bounded Inbox
 
 For live GitHub data:
 
 ```powershell
-python scripts/pr_review_workbench.py inbox --repo OWNER/REPO --limit 20 --output pr-evidence.json
+python <skill-dir>/scripts/pr_review_workbench.py inbox --repo OWNER/REPO --limit 20 --output pr-evidence.json
 ```
 
 For captured or test data:
 
 ```powershell
-python scripts/pr_review_workbench.py inbox --fixture capture.json --output pr-evidence.json
+python <skill-dir>/scripts/pr_review_workbench.py inbox --fixture capture.json --output pr-evidence.json
 ```
 
 The collector splits bounded GitHub queries, pins the start/end head SHA, records
@@ -116,7 +118,7 @@ with `git show SHA:path` so repository filters and hooks cannot execute.
 Render a portable workbench:
 
 ```powershell
-python scripts/pr_review_workbench.py render --packet pr-evidence.json --pr 123 --output pr-123-review.html
+python <skill-dir>/scripts/pr_review_workbench.py render --packet pr-evidence.json --pr 123 --output pr-123-review.html
 ```
 
 The HTML is the review aid, not a correctness oracle. It must remain offline and
@@ -165,8 +167,8 @@ Reviewable, GitHub/GitLab, Argo, and Prefect patterns.
 HTML never holds credentials or mutates GitHub. Create an inert draft:
 
 ```powershell
-python scripts/pr_review_workbench.py prepare-review --packet pr-evidence.json --pr 123 --event COMMENT --body "Evidence reviewed." --output review-draft.json
-python scripts/pr_review_workbench.py submit-review --draft review-draft.json --dry-run
+python <skill-dir>/scripts/pr_review_workbench.py prepare-review --packet pr-evidence.json --pr 123 --event COMMENT --body "Evidence reviewed." --output review-draft.json
+python <skill-dir>/scripts/pr_review_workbench.py submit-review --draft review-draft.json --dry-run
 ```
 
 For a live review, copy the exact confirmation target printed by the prepare

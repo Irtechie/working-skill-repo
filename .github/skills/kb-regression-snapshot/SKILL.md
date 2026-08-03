@@ -18,12 +18,14 @@ comparison across eval runs.
 
 ## Runner
 
-Use:
+`<skill-dir>` is the directory containing this SKILL.md. Resolve it from that
+path rather than a fixed install root: `.github/skills/`, `~/.copilot/skills/`,
+`~/.codex/skills/`, and `~/.agents/skills/` are all valid locations.
 
 ```powershell
-.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 capture -SliceId <id> -SpecPath <spec.json>
-.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 verify -SnapshotId <impacted-id>
-.github/skills/kb-regression-snapshot/scripts/kb-regression-snapshot.ps1 verify -MilestoneId <manifest-or-release-id>
+<skill-dir>/scripts/kb-regression-snapshot.ps1 capture -SliceId <id> -SpecPath <spec.json>
+<skill-dir>/scripts/kb-regression-snapshot.ps1 verify -SnapshotId <impacted-id>
+<skill-dir>/scripts/kb-regression-snapshot.ps1 verify -MilestoneId <manifest-or-release-id>
 ```
 
 Store snapshots at:
