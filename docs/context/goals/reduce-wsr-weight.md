@@ -2,7 +2,7 @@
 
 Status: active
 Created: 2026-08-02
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Objective
 
@@ -153,9 +153,10 @@ The remaining lever found by this loop is correctness, tracked as follow-up work
 
 | Follow-up | Evidence | Status |
 |---|---|---|
-| 30 unguarded `cmd/kbcheck` references in 11 skills | portability scan; `kb-ship` L17 shows the correct pattern | open |
-| `kb-start` L69 hardcodes `$HOME\.copilot\...` | wrong for `~/.codex`, `~/.agents`, and in-repo | open |
-| `kb-regression-snapshot` L24-26 uses repo-relative script paths | opposite convention to `kb-start`; one must be chosen | open |
+| Unguarded `cmd/kbcheck` references | portability scan; `kb-ship` L17 shows the correct pattern | fixed (`ebb331d`) - skills with zero guards 7 -> 0 |
+| `kb-start` L69 hardcodes `$HOME\.copilot\...` | wrong for `~/.codex`, `~/.agents`, and in-repo | fixed (`67039c4`) |
+| `kb-regression-snapshot` L24-26 uses repo-relative script paths | opposite convention to `kb-start`; one must be chosen | fixed (`67039c4`) - unified on `<skill-dir>` |
+| `kb-map-bootstrap` used `$PSCommandPath` | always empty unless a `.ps1` is executing, so it never resolved | fixed (`67039c4`) |
 | README L598/L599 overclaim the installed surface | installer never copies `.github/instructions/*`; `AGENTS.md` only on `--target repo` | open |
 | README skill count drifted (46 -> 44) | no check guarded it | fixed |
 | 3 impossible caller claims in `skill-guidance-audit.json` | `disable-model-invocation: true` makes a skill caller unsatisfiable | fixed + guarded by `audit-caller-impossible` |
@@ -165,3 +166,37 @@ evidence. Three of four "CRITICAL" findings were still false and each was
 falsified in under a minute. Deterministic scans survived verification; agent
 prose did not. Re-run the cheapest owning check before accepting any delegated
 finding into a plan.
+
+## Delivery (2026-08-03)
+
+Merged and synced at the user's explicit instruction ("check everything, merge
+last, then sync").
+
+| Step | Evidence |
+|---|---|
+| Full gate | `kbcheck core` ok checks=38; `go vet` clean; `go test ./cmd/kbcheck` ok **111.1 s** |
+| Release/sync gate | `kbcheck local-release` **ok=true**, all 4 required checks pass |
+| Merged | `10c6618..ebb331d`, then `ebb331d..982ec9d`; divergence `0 0`, tree clean |
+| Synced | `kb-install --target all`: copied=56 skipped=92 backups=56, exit 0 |
+
+Pre-sync clobber safety was verified before overwriting anything: 42 comparisons
+(14 skills x 3 install roots) all matched this repo's pre-session state, so the
+drift was entirely this session's edits.
+
+**Correction recorded:** the first clobber check reported all 13 globals as
+having independent changes. That was a false positive from piping `git show`
+through `Set-Content -NoNewline`, not a real finding. It was caught by
+re-verifying with a byte-level comparison before acting. This is the same
+failure mode found in the subagents, reproduced by the author of the note - so
+the verification rule applies to first-party scans too, not just delegated ones.
+
+Binary-artifact check before merge: the only changed binary was a pre-existing
+tracked release tarball regenerated when `kb-simplify` was added; its SHA256
+matches `universal-ui.release-lock.json` exactly, and no new build artifacts
+were added. Skill count agrees across all three surfaces (dirs 44 / catalog 44 /
+README 44).
+
+Orphan check before sync: no retired reviewer agents remained in any install
+root, and the orphan skills present are the user's own unrelated installs, which
+the installer replaces rather than prunes.
+
