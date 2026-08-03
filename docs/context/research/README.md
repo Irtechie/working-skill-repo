@@ -16,3 +16,4 @@
 | `2026-07-30-current-agent-skill-guidance.md` | 2026-07-30 | Auditing skills against current Anthropic/OpenAI guidance for agent count, context, proof, loops, delegation, and memory |
 | `2026-08-01-agent-dag-concurrency-and-fencing.md` | 2026-08-01 | Preserving DAG/worktree parallelism while serializing semantic writers and fencing publish/deploy effects |
 | `2026-08-02-simplification-maintenance-pass.md` | 2026-08-02 | Ranking maintenance targets by churn, deciding extract vs inline, and keeping a simplification sweep reviewable |
+| `2026-08-02-test-weight-audit.md` | 2026-08-02 | Deciding which tests are safe to remove or restructure, using per-test unique-coverage measurement and its known blind spots |
