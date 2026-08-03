@@ -17,7 +17,7 @@ Supporting reviewer/specialist agents live under `.github\agents\*.agent.md`.
 | Execution / repair | `kb-work`, `kb-fix`, `kb-troubleshoot`, `kb-repair`, `tdd` |
 | Verification / eval | `kb-check`, `kb-functional-test`, `kb-qa`, `kb-regression-snapshot`, `kb-eval-map` |
 | Completion / delivery | `kb-complete`, `kb-finalize`, `kb-review`, `kb-ship`, `kb-land` |
-| Learning / maintenance | `learn`, `evolve`, `kb-compact`, `kb-configure`, `kb-models`, `kb-handoff`, `kb-architecture-deepening` |
+| Learning / maintenance | `learn`, `evolve`, `kb-compact`, `kb-configure`, `kb-models`, `kb-handoff`, `kb-architecture-deepening`, `kb-simplify` |
 | Compound / document review | `document-review`, `ce-compound`, `ce-compound-refresh`, `repo-critic` |
 | Todo / utility | `todo-create`, `todo-triage`, `safe-shell-quoting` |
 
@@ -64,6 +64,7 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-research` | Reusable research lane | Use when external docs/prior art may change direction |
 | `kb-review` | KB-specific structured code review | Use before KB completion or PR-ready delivery |
 | `kb-ship` | Checked-in PR delivery lane | Usually invoked by `kb-complete` after review |
+| `kb-simplify` | User-invoked maintenance sweep of committed code | Use only on explicit request to simplify, deslop, or de-duplicate; never automatic |
 | `kb-start` | Default KB router | Use for fresh sessions, ambiguous work, or “kb” requests |
 | `kb-task` | First-principles autonomous task runner | Use for a bounded task to complete end-to-end without choosing a lane |
 | `kb-troubleshoot` | Autonomous debugging/self-correction lane | Use when behavior is broken but cause is unclear |

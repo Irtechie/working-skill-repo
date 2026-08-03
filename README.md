@@ -315,6 +315,7 @@ project. This table is the human reference; the current
 | Runnable slices are done; review, learning, and cleanup remain | `kb-finalize` | Completion gate |
 | Broken behavior needs reproduction and iterative repair | `kb-troubleshoot` | Reproduction plus regression proof |
 | Architecture needs deeper boundaries or simpler test seams | `kb-architecture-deepening` | Evidence-backed tradeoff |
+| Committed code has accumulated duplication, wrong abstractions, or dead surface | `kb-simplify` | Up to six ranked targets, executed one at a time |
 | External docs, prior art, or framework behavior may change direction | `kb-research` | Cited note |
 | Large migration, rewrite, or multiple independent workstreams | `kb-epic` | Multiple requirements/manifests before work |
 | Skills, scripts, evals, or proof surfaces must change together | `kb-epic` or a coded pipeline manifest | Cross-surface proof before integration |
@@ -765,6 +766,7 @@ This is a command index. For the ordered lane decision, see
 | `kb-brainstorm` | Product or technical framing is still unclear |
 | `kb-research` | External docs, prior art, or framework/market behavior matters |
 | `kb-architecture-deepening` | Explore where a codebase should get deeper, simpler, or more modular |
+| `kb-simplify` | User-invoked maintenance sweep of committed code; max six ranked targets, one change at a time |
 | `kb-plan` | Requirements exist and need vertical slices |
 | `kb-work` | A manifest exists and should be executed |
 | `kb-review` | One integrated broad or replacement specialist code review |

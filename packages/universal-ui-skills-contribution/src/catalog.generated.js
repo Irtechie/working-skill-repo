@@ -289,6 +289,15 @@ export const skillCatalog = Object.freeze([
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-ship/SKILL.md"
   },
   {
+    "id": "kb-simplify",
+    "name": "kb-simplify",
+    "description": "Explicitly invoked maintenance pass over already-committed code. Ranks at most six simplification targets by change frequency and code health, then executes one at a time in a confirm loop. Use when the user asks to simplify, deslop, de-duplicate, remove dead surface, or pay down accumulated maintenance debt. Never automatic and never part of a build, work, or completion loop.",
+    "argumentHint": "[path, module, or subsystem to sweep]",
+    "category": "Learning and maintenance",
+    "sourcePath": ".github/skills/kb-simplify/SKILL.md",
+    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-simplify/SKILL.md"
+  },
+  {
     "id": "kb-start",
     "name": "kb-start",
     "description": "Default KB start/router. Use when the user says \"kb\", gives an idea or ambiguous work request, starts a fresh session, asks what to do next, or wants the workflow to choose the right lane without making the user pick ceremony. Delegates project-memory setup and lookup to kb-map before choosing a lane.",

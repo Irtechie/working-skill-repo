@@ -14,9 +14,9 @@ const categories = new Map([
   ["Requirements and planning", new Set(["kb-brainstorm", "kb-plan", "kb-gate", "kb-research", "kb-first-principles", "kb-architecture-deepening"])],
   ["Execution and repair", new Set(["kb-work", "kb-fix", "kb-troubleshoot", "kb-repair", "tdd"])],
   ["Verification and eval", new Set(["kb-check", "kb-functional-test", "kb-qa", "kb-regression-snapshot", "kb-eval-map"])],
-  ["Completion and delivery", new Set(["kb-complete", "kb-finalize", "kb-review", "kb-ship", "kb-land", "kb-finish", "klfg"])],
-  ["Learning and maintenance", new Set(["learn", "evolve", "kb-compact", "kb-configure", "kb-models", "kb-handoff", "kb-executive-brief"])],
-  ["Review and compound", new Set(["ce-review", "document-review", "ce-compound", "ce-compound-refresh", "repo-critic", "pr-review-workbench"])],
+  ["Completion and delivery", new Set(["kb-complete", "kb-finalize", "kb-review", "kb-ship", "kb-land"])],
+  ["Learning and maintenance", new Set(["learn", "evolve", "kb-compact", "kb-configure", "kb-models", "kb-handoff", "kb-executive-brief", "kb-simplify"])],
+  ["Review and compound", new Set(["document-review", "ce-compound", "ce-compound-refresh", "repo-critic", "pr-review-workbench"])],
   ["Utilities", new Set(["todo-create", "todo-triage", "safe-shell-quoting"])]
 ]);
 

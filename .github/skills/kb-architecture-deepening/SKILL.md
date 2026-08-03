@@ -23,7 +23,7 @@ bug fixes, generic cleanup, or review of a specific diff.
 ## Do Not Use For
 
 - AI residue cleanup, dead comments, debug prints, placeholder code, or style
-  polish. That is cleanup/deslop territory.
+  polish. That is `kb-simplify` territory.
 - `kb-review` of a specific diff. The thermo-nuclear reviewer handles structural
   findings against an actual change.
 - `kb-map` memory coverage. Map records architecture truth; this lane evaluates
