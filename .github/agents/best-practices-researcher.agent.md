@@ -37,14 +37,12 @@ Before going online, check if curated knowledge already exists in skills:
    - Use the platform's native file-read capability to examine skill descriptions and understand what each covers
 
 2. **Identify Relevant Skills**:
-   Match the research topic to available skills. Common mappings:
-   - Rails/Ruby → `dhh-rails-style`, `andrew-kane-gem-writer`, `dspy-ruby`
-   - Frontend/Design → `frontend-design`, `swiss-design`
-   - TypeScript/React → `react-best-practices`
-   - AI/Agents → `agent-native-architecture`
-  - Documentation → `ce-compound`, `every-style-editor`
-   - File operations → `rclone`, `git-worktree`
-   - Image generation → `gemini-imagegen`
+   Match the research topic to skills that actually exist in this repo and to
+   the stack actually in use. Do not assume a language or framework.
+   - Documentation and prior solutions → `ce-compound`, `docs/solutions/`
+   - Prior research notes → `kb-research`, `docs/context/research/`
+   - Architecture direction → `kb-architecture-deepening`
+   - Shell quoting and cross-platform command safety → `safe-shell-quoting`
 
 3. **Extract Patterns from Skills**:
    - Read the full content of relevant SKILL.md files

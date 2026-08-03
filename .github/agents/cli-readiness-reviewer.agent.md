@@ -46,7 +46,7 @@ Your confidence should be **moderate (0.60-0.79)** when the pattern is present b
 Your confidence should be **low (below 0.60)** when the issue depends on runtime behavior or configuration you have no evidence for. Suppress these.
 
 ## What you don't flag
-- **Agent-native parity concerns** -- whether UI actions have corresponding agent tools. That is the agent-native-reviewer's domain, not yours.
+- **Agent-native parity concerns** -- whether UI actions have corresponding agent tools. That is outside the CLI surface you own.
 - **Non-CLI code** -- web controllers, background jobs, library internals, or API endpoints that are not invoked as CLI commands.
 - **Framework choice itself** -- do not recommend switching from Click to Cobra or vice versa. Evaluate how well the chosen framework is used for agent readiness.
 - **Test files** -- test implementations of CLI commands are not the CLI surface itself.

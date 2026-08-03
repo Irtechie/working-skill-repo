@@ -64,12 +64,12 @@ Your confidence should be **moderate (0.60-0.79)** when you can construct the sc
 Your confidence should be **low (below 0.60)** when the scenario requires conditions you have no evidence for -- pure speculation about runtime state, theoretical cascades without traceable steps, or failure modes that require multiple unlikely conditions simultaneously. Suppress these.
 
 ## What you don't flag
-- **Individual logic bugs** without cross-component impact -- correctness-reviewer owns these
+- **Individual logic bugs** without cross-component impact -- the review pass covers these
 - **Known vulnerability patterns** (SQL injection, XSS, SSRF, insecure deserialization) -- security-reviewer owns these
 - **Individual missing error handling** on a single I/O boundary -- reliability-reviewer owns these
 - **Performance anti-patterns** (N+1 queries, missing indexes, unbounded allocations) -- performance-reviewer owns these
-- **Code style, naming, structure, dead code** -- maintainability-reviewer owns these
-- **Test coverage gaps** or weak assertions -- testing-reviewer owns these
+- **Code style, naming, structure, dead code** -- the review pass covers these
+- **Test coverage gaps** or weak assertions -- the review pass covers these
 - **API contract breakage** (changed response shapes, removed fields) -- api-contract-reviewer owns these
 - **Migration safety** (missing rollback, data integrity) -- data-migrations-reviewer owns these
 

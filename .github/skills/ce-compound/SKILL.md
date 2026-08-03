@@ -264,8 +264,7 @@ Based on problem type, optionally invoke specialized agents to review the docume
 - **performance_issue** → `performance-oracle`
 - **security_issue** → `security-sentinel`
 - **database_issue** → `data-integrity-guardian`
-- **test_failure** → `cora-test-reviewer`
-- Any code-heavy issue → `kieran-rails-reviewer` + `code-simplicity-reviewer`
+- Any code-heavy issue → `kb-review` (one profile, all four dimensions)
 
 </parallel_tasks>
 
@@ -375,9 +374,7 @@ Subagent Results:
 
 Specialized Agent Reviews (Auto-Triggered):
   ✓ performance-oracle: Validated query optimization approach
-  ✓ kieran-rails-reviewer: Code examples meet Rails standards
-  ✓ code-simplicity-reviewer: Solution is appropriately minimal
-  ✓ every-style-editor: Documentation style verified
+  ✓ kb-review: Solution is correct and appropriately minimal
 
 File created:
 - docs/solutions/performance-issues/n-plus-one-brief-generation.md
@@ -443,14 +440,12 @@ Based on problem type, these agents can enhance documentation. Select by the
 stack actually in the repo; never assume a language or framework.
 
 ### Code Quality & Review
-- **code-simplicity-reviewer**: Ensures solution code is minimal and clear
+- **kb-review**: One review profile covering intent, tests, correctness, and code health
 - **pattern-recognition-specialist**: Identifies anti-patterns or repeating issues
-- **maintainability-reviewer**: Checks the documented fix does not encode churn
 
 ### Specific Domain Experts
 - **performance-oracle**: Analyzes performance_issue category solutions
 - **security-sentinel**: Reviews security_issue solutions for vulnerabilities
-- **testing-reviewer**: Reviews test coverage behind prevention strategies
 - **data-integrity-guardian**: Reviews database_issue migrations and queries
 
 ### Enhancement & Documentation

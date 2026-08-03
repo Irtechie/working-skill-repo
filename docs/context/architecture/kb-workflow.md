@@ -565,27 +565,37 @@ RED-before-GREEN proof when the check is expressible as JSON.
 
 ## Review Agents
 
-`kb-review` uses a layered persona model.
+`kb-review` selects **exactly one** profile per review boundary. A specialist
+replaces the broad profile rather than adding to it; every profile inherits the
+same four invariant dimensions defined in
+`.github/skills/kb-review/references/subagent-template.md`:
 
-Always-on:
+1. Intent/spec alignment.
+2. Whether tests detect relevant breakage.
+3. Correctness, failure paths, and edge cases.
+4. Code health, boundaries, and avoidable complexity.
 
-- `correctness-reviewer`
-- `testing-reviewer`
-- `thermo-nuclear-code-quality-reviewer`
-- `project-standards-reviewer`
+Profiles, selected by dominant risk:
 
-Conditional:
-
+- `code-review` — general or unknown risk
 - `security-reviewer`
-- `performance-reviewer`
-- `api-contract-reviewer`
 - `data-migrations-reviewer`
+- `performance-reviewer`
 - `reliability-reviewer`
-- `adversarial-reviewer`
+- `api-contract-reviewer`
 - `cli-readiness-reviewer`
-- `previous-comments-reviewer`
-- language and framework reviewers
-- schema/deployment/agent-native reviewers
+- `thermo-nuclear-code-quality-reviewer` — structural simplification dominates
+
+Unknown classification reviews with the broad profile rather than skipping.
+When multiple domains apply, choose the highest-consequence risk and fold the
+secondary concern into that single review prompt.
+
+The earlier layered model, which ran four always-on personas plus conditional
+additions, was retired on 2026-07-30. See
+`docs/context/research/2026-07-30-proportional-agent-code-review.md` for the
+cost and effectiveness evidence, and
+`docs/plans/2026-07-30-012-skill-proportional-review-lifecycle-plan.md` for the
+implementing plan.
 
 Document review has a separate lens-agent set for coherence, feasibility,
 product, design, security, scope, and adversarial review.

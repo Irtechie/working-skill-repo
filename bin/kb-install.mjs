@@ -10,14 +10,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const CORE_AGENTS = [
   "adversarial-document-reviewer",
   "coherence-reviewer",
-  "correctness-reviewer",
   "design-lens-reviewer",
   "feasibility-reviewer",
   "product-lens-reviewer",
-  "project-standards-reviewer",
   "scope-guardian-reviewer",
   "security-lens-reviewer",
-  "testing-reviewer",
   "thermo-nuclear-code-quality-reviewer",
 ];
 
