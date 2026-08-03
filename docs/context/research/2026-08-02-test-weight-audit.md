@@ -634,5 +634,3 @@ behavioural assertions in the repo. Listed for completeness.
 | 0.06 | 85 | 59 | TestSemanticClaimCASTakeoverAndRollbackFence | internal/reconcile |
 | 0.05 | 190 | 0 | TestPlanStableJSONAndDedupVocabulary | internal/reconcile |
 | 0.05 | 28 | 2 | TestPlanRequiresOutput | cmd/kbreconcile |
-
-
