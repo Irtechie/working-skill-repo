@@ -10,6 +10,7 @@ import (
 )
 
 func TestReadySetParallelSlices(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 type: kb-manifest
@@ -42,6 +43,7 @@ slices:
 }
 
 func TestCrossManifestSchedulerReadySetRequiresLiveManifestAuthority(t *testing.T) {
+	t.Parallel()
 	manifest := writeManifest(t, `
 ---
 slices:
@@ -72,6 +74,7 @@ slices:
 }
 
 func TestCrossManifestSchedulerSerializesOneManifestOwnedWorktree(t *testing.T) {
+	t.Parallel()
 	legacyManifest := `
 ---
 slices:
@@ -117,6 +120,7 @@ slices:
 }
 
 func TestPlanRunLeaseCommandReportsClaimOwner(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	manifest := filepath.Join(root, "manifest.md")
 	writeFile(t, manifest, "---\ntype: kb-manifest\nslices: []\n---\n")
@@ -156,6 +160,7 @@ func TestPlanRunLeaseCommandReportsClaimOwner(t *testing.T) {
 }
 
 func TestReadySetSerialExclusionAndSingleSerial(t *testing.T) {
+	t.Parallel()
 	serial := writeManifest(t, `
 ---
 slices:
@@ -201,6 +206,7 @@ slices:
 }
 
 func TestReadySetFiltersStatusesAndDetectsCycles(t *testing.T) {
+	t.Parallel()
 	states := writeManifest(t, `
 ---
 slices:
@@ -260,6 +266,7 @@ slices:
 }
 
 func TestScopeLeaseCollisionAndRelease(t *testing.T) {
+	t.Parallel()
 	disjoint := writeLedger(t, []scopeLeaseEntry{
 		{SliceID: "slice-001", Path: "src/a.ts", Status: "active"},
 		{SliceID: "slice-002", Path: "src/b.ts", Status: "active"},
@@ -311,6 +318,7 @@ func TestScopeLeaseCollisionAndRelease(t *testing.T) {
 }
 
 func TestReadySetAndScopeLeaseCommands(t *testing.T) {
+	t.Parallel()
 	manifest := writeManifest(t, `
 ---
 slices:

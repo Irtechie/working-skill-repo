@@ -10,6 +10,7 @@ import (
 )
 
 func TestProofExecutionBudgetRunsOnceThenReuses(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofExecutionRegistry(t, root, "focused", "cli")
 	receiptDir := filepath.Join(root, "receipts")
@@ -35,6 +36,7 @@ func TestProofExecutionBudgetRunsOnceThenReuses(t *testing.T) {
 }
 
 func TestProofExecutionBudgetBlocksIdenticalFailedReplayUntilInputChanges(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofExecutionRegistry(t, root, "full", "cli")
 	receiptDir := filepath.Join(root, "receipts")
@@ -62,6 +64,7 @@ func TestProofExecutionBudgetBlocksIdenticalFailedReplayUntilInputChanges(t *tes
 }
 
 func TestProofExecutionBlocksAutomaticGUIClassesBeforeSpawn(t *testing.T) {
+	t.Parallel()
 	for _, executionClass := range []string{"visible-browser", "native-gui"} {
 		t.Run(executionClass, func(t *testing.T) {
 			root := t.TempDir()
@@ -82,6 +85,7 @@ func TestProofExecutionBlocksAutomaticGUIClassesBeforeSpawn(t *testing.T) {
 }
 
 func TestProofGovernorCLIRemovesApprovalSurface(t *testing.T) {
+	t.Parallel()
 	if _, err := parse([]string{"proof-approve"}); err == nil || !strings.Contains(err.Error(), "unknown command") {
 		t.Fatalf("proof-approve should be removed, got %v", err)
 	}
@@ -98,6 +102,7 @@ func TestProofGovernorCLIRemovesApprovalSurface(t *testing.T) {
 }
 
 func TestProofExecutionWritesTimeoutReceiptAndNoGlobalPass(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofExecutionRegistry(t, root, "slow", "cli")
 	receiptDir := filepath.Join(root, "receipts")
@@ -116,6 +121,7 @@ func TestProofExecutionWritesTimeoutReceiptAndNoGlobalPass(t *testing.T) {
 }
 
 func TestRepairPolicyRejectsUnconditionalReplayLanguage(t *testing.T) {
+	t.Parallel()
 	root := proofExecutionRepoRoot(t)
 	files := map[string][]string{
 		".github/skills/kb-repair/SKILL.md": {
@@ -146,36 +152,27 @@ func TestRepairPolicyRejectsUnconditionalReplayLanguage(t *testing.T) {
 }
 
 func TestProofCadencePolicyRequiresReuseAndBatchBoundaries(t *testing.T) {
+	t.Parallel()
 	root := proofExecutionRepoRoot(t)
-	required := map[string][]string{
+	requireDocContract(t, root, "proof cadence rule", map[string][]contractMatcher{
 		".github/skills/kb-check/SKILL.md": {
-			"Slice-local proof",
-			"Proof-batch aggregate",
-			"Final exact-tree proof",
-			"`REUSE` is proof",
+			docAnchor("Slice-local proof"),
+			docAnchor("Proof-batch aggregate"),
+			docAnchor("Final exact-tree proof"),
+			docAnchor("`REUSE` is proof"),
 		},
 		".github/skills/kb-work/SKILL.md": {
-			"Proof Batch Cadence",
-			"Do not run the manifest aggregate after each slice",
+			docAnchor("Proof Batch Cadence"),
+			docConcept("Do not run the manifest aggregate after each slice"),
 		},
 		".github/skills/kb-ship/SKILL.md": {
-			"Reuse a matching passing final receipt",
+			docConcept("Reuse a matching passing final receipt"),
 		},
-	}
-	for relative, phrases := range required {
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, phrase := range phrases {
-			if !strings.Contains(string(content), phrase) {
-				t.Errorf("%s is missing proof cadence rule %q", relative, phrase)
-			}
-		}
-	}
+	})
 }
 
 func TestSnapshotSelectionRequiresScopeAndReusesMilestone(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "windows" {
 		t.Skip("PowerShell snapshot contract is Windows-specific")
 	}

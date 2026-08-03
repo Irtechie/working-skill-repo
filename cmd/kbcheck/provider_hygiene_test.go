@@ -7,6 +7,7 @@ import (
 )
 
 func TestProviderHygieneAllowsUnrelatedProvider(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	home := t.TempDir()
 	path := filepath.Join(root, ".mcp.json")
@@ -20,6 +21,7 @@ func TestProviderHygieneAllowsUnrelatedProvider(t *testing.T) {
 }
 
 func TestProviderHygieneRejectsPhoenix(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	home := t.TempDir()
 	path := filepath.Join(home, ".copilot", "mcp-config.json")
@@ -36,6 +38,7 @@ func TestProviderHygieneRejectsPhoenix(t *testing.T) {
 }
 
 func TestProviderHygieneIgnoresDisabledPhoenix(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	home := t.TempDir()
 	path := filepath.Join(root, ".mcp.json")
@@ -48,6 +51,7 @@ func TestProviderHygieneIgnoresDisabledPhoenix(t *testing.T) {
 }
 
 func TestProviderHygieneDecodesEscapedPhoenix(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	home := t.TempDir()
 	path := filepath.Join(root, ".mcp.json")
@@ -61,6 +65,7 @@ func TestProviderHygieneDecodesEscapedPhoenix(t *testing.T) {
 }
 
 func TestProviderHygieneIgnoresDisabledTomlPhoenix(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	home := t.TempDir()
 	path := filepath.Join(home, ".codex", "config.toml")

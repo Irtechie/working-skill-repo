@@ -6,6 +6,7 @@ import (
 )
 
 func TestContextPacketValidation(t *testing.T) {
+	t.Parallel()
 	packet := contextPacket{
 		SchemaVersion:      1,
 		PacketID:           "p1",
@@ -35,6 +36,7 @@ func TestContextPacketValidation(t *testing.T) {
 }
 
 func TestContextPacketCommandUsesFixtures(t *testing.T) {
+	t.Parallel()
 	var out, errOut strings.Builder
 	code := run([]string{"context-packet", "--root", ".", "--packet", "testdata/context-packet-valid.json"}, &out, &errOut)
 	if code != 0 || !strings.Contains(out.String(), "context packet: ok") {
@@ -49,6 +51,7 @@ func TestContextPacketCommandUsesFixtures(t *testing.T) {
 }
 
 func TestContextPacketJSONReadErrorIsStructured(t *testing.T) {
+	t.Parallel()
 	var out, errOut strings.Builder
 	code := run([]string{"context-packet", "--root", ".", "--packet", "missing.json", "--json"}, &out, &errOut)
 	if code != 1 || !strings.Contains(out.String(), `"ok": false`) || errOut.Len() != 0 {
@@ -57,6 +60,7 @@ func TestContextPacketJSONReadErrorIsStructured(t *testing.T) {
 }
 
 func TestContextPacketRequiresAuthorityBounds(t *testing.T) {
+	t.Parallel()
 	packet := contextPacket{
 		SchemaVersion:      1,
 		PacketID:           "p1",
@@ -77,6 +81,7 @@ func TestContextPacketRequiresAuthorityBounds(t *testing.T) {
 }
 
 func TestContextPacketRejectsBroadGlobWhenSearchBounded(t *testing.T) {
+	t.Parallel()
 	packet := contextPacket{
 		SchemaVersion: 1, PacketID: "p1", TaskID: "t1", Objective: "bounded",
 		SourceFiles: []string{"**/*"}, Constraints: []string{"bounded"},
@@ -92,6 +97,7 @@ func TestContextPacketRejectsBroadGlobWhenSearchBounded(t *testing.T) {
 }
 
 func TestContextPacketRejectsRepoRootAndBlankMemoryPath(t *testing.T) {
+	t.Parallel()
 	packet := contextPacket{
 		SchemaVersion: 1, PacketID: "p1", TaskID: "t1", Objective: "bounded",
 		MemoryFiles: []string{""}, SourceFiles: []string{"."},

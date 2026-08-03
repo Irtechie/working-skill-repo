@@ -13,6 +13,7 @@ import (
 )
 
 func TestPlanRunAdvanceAcceptsSequentialSliceCommitsWithIntegrationHeadCAS(t *testing.T) {
+	t.Parallel()
 	root, manifest, worktree, opts, receipt := prepareAdvanceTestRun(t, "kb-advance-sequential")
 	previous := receipt.IntegrationHead
 	archives := []string{}
@@ -138,6 +139,7 @@ func TestPlanRunAdvanceAcceptsSequentialSliceCommitsWithIntegrationHeadCAS(t *te
 }
 
 func TestPlanRunAdvanceRejectsWrongIdentityDirtyStateAndStaleIntegrationHead(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		mutate func(t *testing.T, root, manifest, worktree string, receipt *planRunWorkspaceReceipt) planRunWorkspaceOptions
@@ -232,6 +234,7 @@ func TestPlanRunAdvanceRejectsWrongIdentityDirtyStateAndStaleIntegrationHead(t *
 }
 
 func TestSliceCommitRequiresCoordinatorProofReplayAndAggregateSuccess(t *testing.T) {
+	t.Parallel()
 	root, manifest, worktree, _, receipt := prepareAdvanceTestRun(t, "kb-advance-proof")
 	commit := commitPlanRunSlice(t, worktree, "slice.txt", "slice\n", "slice")
 	acquireAdvanceTestSliceLease(t, receipt, "slice-001", "slice.txt")
@@ -276,6 +279,7 @@ func TestSliceCommitRequiresCoordinatorProofReplayAndAggregateSuccess(t *testing
 }
 
 func TestPlanRunAdvanceRejectsMissingOrFalseClaimEvidence(t *testing.T) {
+	t.Parallel()
 	t.Run("no active slice lease", func(t *testing.T) {
 		root, manifest, worktree, _, receipt := prepareAdvanceTestRun(t, "kb-advance-no-slice-lease")
 		commit := commitPlanRunSlice(t, worktree, "a.txt", "a\n", "slice")

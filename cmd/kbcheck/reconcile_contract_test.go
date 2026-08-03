@@ -9,6 +9,7 @@ import (
 )
 
 func TestReconcileTerminalCleanupPredicateContract(t *testing.T) {
+	t.Parallel()
 	policy, err := reconcile.LoadPolicy(filepath.Join("..", "..", "config", "reconcile-predicates.json"))
 	if err != nil {
 		t.Fatal(err)

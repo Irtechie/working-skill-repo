@@ -9,77 +9,71 @@ import (
 )
 
 func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) {
+	t.Parallel()
 	root := ddrTestRepoRoot(t)
-	required := map[string][]string{
+	// One policy, one requirement. kb-work, kb-workflow, and README each phrase the
+	// single-local-route rule differently, so the contract tracks the policy term
+	// rather than three sentences that drift independently.
+	noSecondLocalRoute := docConcept("second local route")
+
+	requireDocContract(t, root, "production DDR contract", map[string][]contractMatcher{
 		".github/skills/kb-work/SKILL.md": {
-			"### Step 2.6: Orchestrator Ownership Decision (DDR)",
-			"**Native host delegation:**",
-			"**CLI or user-local delegation:**",
-			"normal work uses delegation-first DDR",
-			"The current-owner exception gate accepts only",
-			"`no-qualified-route` is valid only after inspecting both",
-			"Default `execution_owner` to `delegated`",
-			"\"Exactly one\" is per slice, not per plan.",
-			"dispatch those subagents in parallel",
-			"Resolve that portable tier when the plan is picked up.",
-			"AMR remains an unpromoted experimental benchmark.",
-			"App-only aliases with CLI-only aliases.",
-			"DDR route: <current|subagent> | primary:",
-			"After the ownership decision and, when delegated, route selection, emit exactly",
-			"one compact user-visible line before mutation or worker dispatch",
-			"The orchestrator is the sole emitter",
-			"otherwise use `current orchestrator`",
-			"parent-on-first-local-failure",
-			"Do not select a second local route.",
-			"This preview rule never suppresses the mandatory per-slice DDR route line.",
+			docAnchor("### Step 2.6: Orchestrator Ownership Decision (DDR)"),
+			docAnchor("**Native host delegation:**"),
+			docAnchor("**CLI or user-local delegation:**"),
+			docAnchor("DDR route: <current|subagent> | primary:"),
+			docAnchor("parent-on-first-local-failure"),
+			docConcept("delegation-first DDR"),
+			docConcept("current-owner exception gate"),
+			docConcept("no-qualified-route"),
+			docConcept("execution_owner", "delegated"),
+			docConcept("per slice, not per plan"),
+			docConcept("subagents in parallel"),
+			docConcept("portable tier"),
+			docConcept("unpromoted experimental benchmark"),
+			docConcept("App-only aliases with CLI-only aliases"),
+			docConcept("emit exactly"),
+			docConcept("compact user-visible line before mutation"),
+			docConcept("sole emitter"),
+			docConcept("current orchestrator"),
+			docConcept("per-slice DDR route line"),
+			noSecondLocalRoute,
 		},
 		".github/skills/kb-work/references/execution-prompt.md": {
-			"Do not invoke AMR or pass `attempt_tier` during normal KB work.",
-			"Route announcement:",
-			"Router receipt:",
-			"immutable orchestration receipts",
-			"Do not re-decide ownership, discover or select a route, dispatch, or delegate",
-			"never replace an evidence-backed",
-			"Do not emit or repeat it",
+			docAnchor("Route announcement:"),
+			docAnchor("Router receipt:"),
+			docConcept("attempt_tier", "normal KB work"),
+			docConcept("immutable orchestration receipts"),
+			docConcept("re-decide ownership"),
+			docConcept("evidence-backed"),
+			docConcept("emit or repeat"),
 		},
 		".github/skills/kb-configure/references/kb-routing-example.yaml": {
-			"experimental_amr:",
-			"affects_normal_work: false",
+			docAnchor("experimental_amr:"),
+			docAnchor("affects_normal_work: false"),
 		},
 		"docs/context/architecture/kb-workflow.md": {
-			"One qualified same-tier-or-higher subagent normally owns",
-			"one owner per slice, not one worker per plan",
-			"The tier is portable across hosts.",
-			"recognized reason gate",
-			"The active host's callable schema is authoritative for native targets.",
-			"`kbrouter` is authoritative",
-			"for CLI and user-local routes",
-			"Normal work never passes `attempt_tier`",
-			"route announcement is evidence-bound",
-			"parent-on-first-local-failure",
-			"do not select a second local route",
+			docAnchor("parent-on-first-local-failure"),
+			docConcept("same-tier-or-higher subagent"),
+			docConcept("one owner per slice, not one worker per plan"),
+			docConcept("portable across hosts"),
+			docConcept("recognized reason gate"),
+			docConcept("callable schema is authoritative"),
+			docConcept("kbrouter` is authoritative"),
+			docConcept("CLI and user-local routes"),
+			docConcept("never passes `attempt_tier`"),
+			docConcept("route announcement is evidence-bound"),
+			noSecondLocalRoute,
 		},
 		"README.md": {
-			"A planned tier is portable",
-			"one qualified subagent normally executes each bounded slice",
-			"one owner per slice, not one worker per plan",
-			"semi-gated exception",
-			"DDR route: <current|subagent> | primary:",
-			"No second local route is selected.",
+			docAnchor("DDR route: <current|subagent> | primary:"),
+			docConcept("planned tier is portable"),
+			docConcept("qualified subagent normally executes each bounded slice"),
+			docConcept("one owner per slice, not one worker per plan"),
+			docConcept("semi-gated exception"),
+			noSecondLocalRoute,
 		},
-	}
-	for path, needles := range required {
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
-		}
-		text := string(content)
-		for _, needle := range needles {
-			if !strings.Contains(text, needle) {
-				t.Errorf("%s missing production DDR contract %q", path, needle)
-			}
-		}
-	}
+	})
 
 	canonicalAnnouncement := "DDR route: <current|subagent> | primary: <current orchestrator|evidence-backed-route> | return: <none|parent-on-first-local-failure|required-alias-block> | tier: <small|medium|large> | proof: <short-proof-target>"
 	skillText := readDDRContractFile(t, root, ".github/skills/kb-work/SKILL.md")
@@ -93,7 +87,7 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 		prompt string
 	}{
 		"worker becomes an emitter": {
-			skill:  strings.Replace(skillText, "The orchestrator is the sole emitter", "The orchestrator or delegated worker may emit", 1),
+			skill:  mustMutateContract(t, skillText, "sole emitter", "an emitter alongside the delegated worker"),
 			prompt: executionPrompt,
 		},
 		"worker prompt adds an emission instruction": {
@@ -105,12 +99,7 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			prompt: executionPrompt + "\nDiscover or select a route and dispatch it.\n",
 		},
 		"announcement moves after mutation": {
-			skill: strings.Replace(
-				skillText,
-				"one compact user-visible line before mutation or worker dispatch",
-				"one compact user-visible line after mutation or worker dispatch",
-				1,
-			),
+			skill:  mustMutateContract(t, skillText, "line before mutation", "line after mutation"),
 			prompt: executionPrompt,
 		},
 		"authoritative grammar is duplicated": {
@@ -118,12 +107,7 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			prompt: executionPrompt,
 		},
 		"parent return permits a second local route": {
-			skill: strings.Replace(
-				skillText,
-				"Do not select a second local route.",
-				"Select another local route before returning to the parent.",
-				1,
-			),
+			skill:  mustMutateContract(t, skillText, "second local route", "second remote route"),
 			prompt: executionPrompt,
 		},
 	}
@@ -165,17 +149,18 @@ func validateDDREmissionContract(skillText, executionPrompt, canonicalAnnounceme
 	if count := strings.Count(executionPrompt, canonicalAnnouncement); count != 1 {
 		return fmt.Errorf("delegated execution prompt must carry the populated DDR receipt exactly once; got %d", count)
 	}
-	for _, required := range []string{
-		"After the ownership decision and, when delegated, route selection, emit exactly",
-		"one compact user-visible line before mutation or worker dispatch",
-		"The orchestrator is the sole emitter",
-		"Do not select a second local route.",
+	normalizedSkill := normalizeContractText(skillText)
+	for _, invariant := range []contractMatcher{
+		docConcept("emit exactly"),
+		docConcept("compact user-visible line before mutation"),
+		docConcept("sole emitter"),
+		docConcept("second local route"),
 	} {
-		if !strings.Contains(skillText, required) {
-			return fmt.Errorf("kb-work skill missing DDR emission invariant %q", required)
+		if what, absent := invariant.missing(normalizedSkill); absent {
+			return fmt.Errorf("kb-work skill missing DDR emission invariant: %s", what)
 		}
 	}
-	if !strings.Contains(executionPrompt, "The route announcement above was already emitted by the orchestrator before") {
+	if !strings.Contains(normalizeContractText(executionPrompt), normalizeContractText("The route announcement above was already emitted by the orchestrator before")) {
 		return fmt.Errorf("delegated execution prompt must identify the orchestrator as the prior emitter")
 	}
 	lowerPrompt := strings.ToLower(executionPrompt)

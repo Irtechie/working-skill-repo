@@ -13,6 +13,7 @@ import (
 )
 
 func TestModelRoutingReleaseAcceptsHonestNoPaidArtifactWithoutPromotion(t *testing.T) {
+	t.Parallel()
 	root, evidence := writeValidModelRoutingReleaseFixture(t)
 	code, stdout, stderr := runModelRoutingReleaseForTest(root, evidence)
 	if code != 0 {
@@ -24,6 +25,7 @@ func TestModelRoutingReleaseAcceptsHonestNoPaidArtifactWithoutPromotion(t *testi
 }
 
 func TestModelRoutingReleaseRejectsSelfAuthoredLiveSupportWithoutExternalVerifier(t *testing.T) {
+	t.Parallel()
 	root, evidencePath := writeValidModelRoutingReleaseFixture(t)
 	receiptPath := filepath.Join(root, "docs", "results", "live-receipt.json")
 	installPath := filepath.Join(root, "docs", "results", "install-proof.json")
@@ -58,6 +60,7 @@ func TestModelRoutingReleaseRejectsSelfAuthoredLiveSupportWithoutExternalVerifie
 }
 
 func TestModelRoutingReleaseRejectsDishonestOrUnsafeEvidence(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		mutate func(t *testing.T, root string, evidence map[string]any)
@@ -193,6 +196,7 @@ func TestModelRoutingReleaseRejectsDishonestOrUnsafeEvidence(t *testing.T) {
 }
 
 func TestModelRoutingReleaseRejectsSymlinkFixture(t *testing.T) {
+	t.Parallel()
 	root, evidencePath := writeValidModelRoutingReleaseFixture(t)
 	target := filepath.Join(root, "evals", "model-routing", "initial-pilot-target.json")
 	link := filepath.Join(root, "evals", "model-routing", "initial-pilot-link.json")
@@ -211,6 +215,7 @@ func TestModelRoutingReleaseRejectsSymlinkFixture(t *testing.T) {
 }
 
 func TestModelRoutingReleaseProofRunnerIsFixedNoPaidAndFailurePropagates(t *testing.T) {
+	t.Parallel()
 	root, evidencePath := writeValidModelRoutingReleaseFixture(t)
 	calls := [][]string{}
 	runner := func(_ context.Context, _ string, command []string) modelRoutingProofResult {
@@ -237,6 +242,7 @@ func TestModelRoutingReleaseProofRunnerIsFixedNoPaidAndFailurePropagates(t *test
 }
 
 func TestModelRoutingPromotionRequiresMeasuredNonzeroPrimaryMetric(t *testing.T) {
+	t.Parallel()
 	confidence := 1.0
 	improvement := 20.0
 	evidence := modelRoutingReleaseEvidence{

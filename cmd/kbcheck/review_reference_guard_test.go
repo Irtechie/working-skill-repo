@@ -6,6 +6,7 @@ import (
 )
 
 func TestReviewReferenceGuardPassesForMatchingSharedPair(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
   "review_reference_guard": {
@@ -33,6 +34,7 @@ func TestReviewReferenceGuardPassesForMatchingSharedPair(t *testing.T) {
 }
 
 func TestReviewReferenceGuardAllowsSingleOwnerWithoutSharedPairs(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
   "review_reference_guard": {
@@ -55,6 +57,7 @@ func TestReviewReferenceGuardAllowsSingleOwnerWithoutSharedPairs(t *testing.T) {
 }
 
 func TestReviewReferenceGuardRejectsSharedDrift(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
   "review_reference_guard": {
@@ -79,6 +82,7 @@ func TestReviewReferenceGuardRejectsSharedDrift(t *testing.T) {
 }
 
 func TestReviewReferenceGuardRejectsUndocumentedFork(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
   "review_reference_guard": {
@@ -112,6 +116,7 @@ func TestReviewReferenceGuardRejectsUndocumentedFork(t *testing.T) {
 }
 
 func TestReviewReferenceGuardSweepPassesForClassifiedCommonReference(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
   "review_reference_guard": {
@@ -137,6 +142,7 @@ func TestReviewReferenceGuardSweepPassesForClassifiedCommonReference(t *testing.
 }
 
 func TestReviewReferenceGuardSweepRejectsUnclassifiedCommonReference(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
   "review_reference_guard": {

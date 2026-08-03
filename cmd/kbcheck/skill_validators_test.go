@@ -7,6 +7,7 @@ import (
 )
 
 func TestSkillLintPassesValidSkillAndFailsBadFrontmatter(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
 	  "lint": {
@@ -53,6 +54,7 @@ func assertLintIssue(t *testing.T, issues []lintIssue, path, message string) {
 }
 
 func TestSkillSyncReportFindsRequiredDrift(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	source := filepath.ToSlash(filepath.Join(root, "source"))
 	required := filepath.ToSlash(filepath.Join(root, "required"))
@@ -76,6 +78,7 @@ func TestSkillSyncReportFindsRequiredDrift(t *testing.T) {
 }
 
 func TestSkillHashIgnoresRuntimeCachesButDetectsSourceChanges(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	source := filepath.Join(root, "source")
 	target := filepath.Join(root, "target")
@@ -108,6 +111,7 @@ func TestSkillHashIgnoresRuntimeCachesButDetectsSourceChanges(t *testing.T) {
 }
 
 func TestDoctorRepairsMarkedStaleRequiredTarget(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	source := filepath.Join(root, "source", "demo")
 	requiredRoot := filepath.Join(root, "required")
@@ -146,6 +150,7 @@ func TestDoctorRepairsMarkedStaleRequiredTarget(t *testing.T) {
 }
 
 func TestDoctorRefusesUnknownRequiredDrift(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	sourceRoot := filepath.Join(root, "source")
 	requiredRoot := filepath.Join(root, "required")
@@ -163,6 +168,7 @@ func TestDoctorRefusesUnknownRequiredDrift(t *testing.T) {
 }
 
 func TestResolveRepoPathExpandsHome(t *testing.T) {
+	t.Parallel()
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		t.Skip("home directory unavailable")
@@ -187,6 +193,7 @@ func doctorTestConfig(t *testing.T, root, source, required string) string {
 }
 
 func TestMarketplaceFirebreakFailsQuarantineActiveRoot(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	market := filepath.ToSlash(filepath.Join(root, "market"))
 	writeFile(t, filepath.Join(root, "config", "skill-marketplace.json"), `{

@@ -7,6 +7,7 @@ import (
 )
 
 func TestPlanWorktreeSelftestExercisesDisposableLifecycle(t *testing.T) {
+	t.Parallel()
 	realRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("resolve real repository root: %v", err)
@@ -70,6 +71,7 @@ func TestPlanWorktreeSelftestExercisesDisposableLifecycle(t *testing.T) {
 }
 
 func TestPlanWorktreeSelftestRealRepoFirebreakCannotBeForced(t *testing.T) {
+	t.Parallel()
 	realRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("resolve real repository root: %v", err)

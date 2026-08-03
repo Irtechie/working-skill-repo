@@ -10,6 +10,7 @@ import (
 )
 
 func TestProofCoverageReceiptReusesPassingSuperset(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeProofGovernorFixture(t, root, "src/rust.go", "package demo\n")
 	writeProofGovernorFixture(t, root, "registry.json", `{"checks":["full","rust","cli","checksum","browser"]}`)
@@ -46,6 +47,7 @@ func TestProofCoverageReceiptReusesPassingSuperset(t *testing.T) {
 }
 
 func TestRelevantInputFingerprintRejectsChangedDirtyAndUntrackedContent(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeProofGovernorFixture(t, root, "tracked.txt", "before\n")
 	writeProofGovernorFixture(t, root, "new-untracked.txt", "candidate\n")
@@ -80,6 +82,7 @@ func TestRelevantInputFingerprintRejectsChangedDirtyAndUntrackedContent(t *testi
 }
 
 func TestProofReceiptRejectsFailedPartialUnknownCoverageAndSemanticDrift(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeProofGovernorFixture(t, root, "input.txt", "stable\n")
 	writeProofGovernorFixture(t, root, "oracle.txt", "assertion\n")
@@ -133,6 +136,7 @@ func TestProofReceiptRejectsFailedPartialUnknownCoverageAndSemanticDrift(t *test
 }
 
 func TestProofReceiptRejectsMissingInputsRegistryDriftAndExpiry(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeProofGovernorFixture(t, root, "input.txt", "stable\n")
 	writeProofGovernorFixture(t, root, "registry.json", `{"checks":["focused"]}`)
@@ -172,6 +176,7 @@ func TestProofReceiptRejectsMissingInputsRegistryDriftAndExpiry(t *testing.T) {
 }
 
 func TestProofReceiptFileValidationRejectsTampering(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeProofGovernorFixture(t, root, "input.txt", "stable\n")
 	writeProofGovernorFixture(t, root, "registry.json", `{"checks":["focused"]}`)
@@ -209,6 +214,7 @@ func TestProofReceiptFileValidationRejectsTampering(t *testing.T) {
 }
 
 func TestManifestContractValidatesProofReceiptContents(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeProofGovernorFixture(t, root, "go.mod", "module example.test/proof\n")
 	writeProofGovernorFixture(t, root, "input.txt", "stable\n")
@@ -247,6 +253,7 @@ func TestManifestContractValidatesProofReceiptContents(t *testing.T) {
 }
 
 func TestProofReceiptValidateCommand(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeProofGovernorFixture(t, root, "input.txt", "stable\n")
 	writeProofGovernorFixture(t, root, "registry.json", `{"checks":["focused"]}`)

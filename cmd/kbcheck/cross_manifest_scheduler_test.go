@@ -8,6 +8,7 @@ import (
 )
 
 func TestCrossManifestSchedulerSerializesNormalizedClaimsAndAdmitsDisjointRuns(t *testing.T) {
+	t.Parallel()
 	stateRoot := t.TempDir()
 	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	first := mustExecutePlanRunLease(t, planRunLeaseCommandOptions{
@@ -78,6 +79,7 @@ func TestCrossManifestSchedulerSerializesNormalizedClaimsAndAdmitsDisjointRuns(t
 }
 
 func TestCrossManifestSchedulerObservedExpansionRequeuesBeforeStateMutation(t *testing.T) {
+	t.Parallel()
 	stateRoot := t.TempDir()
 	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	first := mustExecutePlanRunLease(t, planRunLeaseCommandOptions{
@@ -114,6 +116,7 @@ func TestCrossManifestSchedulerObservedExpansionRequeuesBeforeStateMutation(t *t
 }
 
 func TestPlanRunLeaseOwnerGenerationLifecycleFailsClosed(t *testing.T) {
+	t.Parallel()
 	stateRoot := t.TempDir()
 	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	acquired := mustExecutePlanRunLease(t, planRunLeaseCommandOptions{
@@ -160,6 +163,7 @@ func TestPlanRunLeaseOwnerGenerationLifecycleFailsClosed(t *testing.T) {
 }
 
 func TestPlanRunLeaseComposesWithSliceClaimsAndStatesLocalLimitation(t *testing.T) {
+	t.Parallel()
 	stateRoot := t.TempDir()
 	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	plan := mustExecutePlanRunLease(t, planRunLeaseCommandOptions{
@@ -212,6 +216,7 @@ func TestPlanRunLeaseComposesWithSliceClaimsAndStatesLocalLimitation(t *testing.
 }
 
 func TestPlanRunLeaseStateRootSharesWorktreesButNotSeparateClone(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	worktree := filepath.Join(t.TempDir(), "sibling")
 	runGitForSliceLease(t, root, "worktree", "add", worktree)

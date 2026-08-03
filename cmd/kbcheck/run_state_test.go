@@ -7,6 +7,7 @@ import (
 )
 
 func TestRunStateDetectsRouteOscillation(t *testing.T) {
+	t.Parallel()
 	path := writeRouteHistory(t, `
 {"route":"kb-plan","confidence":0.80}
 {"route":"kb-work","confidence":0.80}
@@ -23,6 +24,7 @@ func TestRunStateDetectsRouteOscillation(t *testing.T) {
 }
 
 func TestRunStateDetectsLowConfidenceNoProgress(t *testing.T) {
+	t.Parallel()
 	path := writeRouteHistory(t, `
 {"route":"kb-start","confidence":0.40}
 {"route":"kb-brainstorm","confidence":0.42}
@@ -38,6 +40,7 @@ func TestRunStateDetectsLowConfidenceNoProgress(t *testing.T) {
 }
 
 func TestRunStateAllowsProgressBetweenRoutes(t *testing.T) {
+	t.Parallel()
 	path := writeRouteHistory(t, `
 {"route":"kb-start","confidence":0.42}
 {"route":"kb-plan","confidence":0.43,"progress_key":"manifest-created"}
@@ -53,6 +56,7 @@ func TestRunStateAllowsProgressBetweenRoutes(t *testing.T) {
 }
 
 func TestRunStateCommandRequiresHistory(t *testing.T) {
+	t.Parallel()
 	var out, errOut strings.Builder
 	code := run([]string{"run-state"}, &out, &errOut)
 	if code == 0 || !strings.Contains(errOut.String(), "run-state requires --history") {

@@ -119,7 +119,7 @@ func TestCoreListPrintsNativeChecks(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected list to pass, got %d", code)
 	}
-	if !strings.Contains(out.String(), "go-test") || !strings.Contains(out.String(), "go test -buildvcs=false ./...") || strings.Contains(out.String(), "kb-check.ps1 -All") {
+	if !strings.Contains(out.String(), "go-test") || !strings.Contains(out.String(), "go test -buildvcs=false "+goTestParallelFlag()+" ./...") || strings.Contains(out.String(), "kb-check.ps1 -All") {
 		t.Fatalf("unexpected core list: %q", out.String())
 	}
 }
@@ -220,9 +220,22 @@ func TestRunProcessCheckFailsClosedOnOversizedOutput(t *testing.T) {
 	}
 }
 
+// Timing contract: the sentinel write must land after the timeout fires but
+// before the survival check runs. Otherwise a surviving grandchild is simply
+// still sleeping at check time and the assertion passes for the wrong reason.
+//
+//	grandchildWrite > timeout            -- not written before containment kills it
+//	grandchildWrite < timeout + settle   -- a survivor is actually observable
+const (
+	grandchildTimeout    = 4 * time.Second
+	grandchildWriteDelay = 7 * time.Second
+	grandchildSettle     = 6 * time.Second
+	grandchildParentHold = 12 * time.Second
+)
+
 func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
 	if os.Getenv("KBCHECK_GRANDCHILD_CHILD") == "1" {
-		time.Sleep(25 * time.Second)
+		time.Sleep(grandchildWriteDelay)
 		if err := os.WriteFile(os.Getenv("KBCHECK_GRANDCHILD_SENTINEL"), []byte("survived"), 0o600); err != nil {
 			os.Exit(2)
 		}
@@ -237,7 +250,7 @@ func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
 		if err := os.WriteFile(os.Getenv("KBCHECK_GRANDCHILD_READY"), []byte("started"), 0o600); err != nil {
 			os.Exit(4)
 		}
-		time.Sleep(30 * time.Second)
+		time.Sleep(grandchildParentHold)
 		return
 	}
 
@@ -249,7 +262,7 @@ func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
 	result := runProcessCheck(t.TempDir(), Check{
 		Name:    "grandchild-timeout-helper",
 		Args:    []string{os.Args[0], "-test.run=^TestRunProcessCheckTimeoutKillsGrandchild$"},
-		Timeout: 15 * time.Second,
+		Timeout: grandchildTimeout,
 	})
 	if result.ExitCode != 124 {
 		t.Fatalf("grandchild helper did not time out: %+v", result)
@@ -257,7 +270,7 @@ func TestRunProcessCheckTimeoutKillsGrandchild(t *testing.T) {
 	if _, err := os.Stat(ready); err != nil {
 		t.Fatalf("grandchild helper never proved it started: %v", err)
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(grandchildSettle)
 	if _, err := os.Stat(sentinel); err == nil {
 		t.Fatalf("grandchild survived proof-gate containment and wrote %s", sentinel)
 	} else if !os.IsNotExist(err) {

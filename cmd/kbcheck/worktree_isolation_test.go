@@ -9,6 +9,7 @@ import (
 )
 
 func TestWorktreePreparePreservesDirtySourceAndWritesReceipt(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	writeFile(t, filepath.Join(root, "dirty.txt"), "source-only\n")
 	base := gitOutput(root, "rev-parse", "HEAD")
@@ -35,6 +36,7 @@ func TestWorktreePreparePreservesDirtySourceAndWritesReceipt(t *testing.T) {
 }
 
 func TestWorktreeIntegrateRequiresOwnerAndStableBase(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	gitOK(t, root, "switch", "-c", "codex/test-coordinator")
 	base := gitOutput(root, "rev-parse", "HEAD")
@@ -73,6 +75,7 @@ func TestWorktreeIntegrateRequiresOwnerAndStableBase(t *testing.T) {
 }
 
 func TestWorktreeIntegrateAndReleaseRequiresCleanIntegratedWorktree(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	gitOK(t, root, "switch", "-c", "codex/test-coordinator")
 	base := gitOutput(root, "rev-parse", "HEAD")
@@ -132,6 +135,7 @@ func TestWorktreeIntegrateAndReleaseRequiresCleanIntegratedWorktree(t *testing.T
 }
 
 func TestWorktreeCommandStatusJSON(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	base := gitOutput(root, "rev-parse", "HEAD")
 	owner := "owner-command"

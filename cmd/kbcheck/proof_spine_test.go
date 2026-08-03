@@ -9,6 +9,7 @@ import (
 )
 
 func TestProofAcceptsRedThenGreenTrace(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	tracePath := filepath.Join(root, ".kb", "trace.jsonl")
 	statePath := filepath.Join(root, "state.txt")
@@ -50,6 +51,7 @@ func TestProofAcceptsRedThenGreenTrace(t *testing.T) {
 }
 
 func TestProofRejectsVacuousGreenTrace(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	tracePath := filepath.Join(root, ".kb", "trace.jsonl")
 	check := helperCommandCheck("pass")
@@ -75,6 +77,7 @@ func TestProofRejectsVacuousGreenTrace(t *testing.T) {
 }
 
 func TestProofRejectsTamperedTrace(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	tracePath := filepath.Join(root, ".kb", "trace.jsonl")
 	check := helperCommandCheck("pass")
@@ -117,6 +120,7 @@ func TestProofRejectsTamperedTrace(t *testing.T) {
 }
 
 func TestProofDigestChangesWhenCheckerScriptChanges(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	checker := filepath.Join(root, "checker.txt")
 	if err := os.WriteFile(checker, []byte("v1"), 0o644); err != nil {
@@ -140,6 +144,7 @@ func TestProofDigestChangesWhenCheckerScriptChanges(t *testing.T) {
 }
 
 func TestProofDigestChangesWhenTimeoutChanges(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	check := helperCommandCheck("pass")
 	first, err := proofCheckDigest(root, check)
@@ -157,12 +162,14 @@ func TestProofDigestChangesWhenTimeoutChanges(t *testing.T) {
 }
 
 func TestProofRejectsFractionalExpectedExit(t *testing.T) {
+	t.Parallel()
 	if _, err := proofExpectedExit(float64(1.5)); err == nil {
 		t.Fatal("expected fractional exit code to be rejected")
 	}
 }
 
 func TestProofSenseTimeoutFailsCleanly(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	check := helperCommandCheck("sleep")
 	check.TimeoutMS = 25
@@ -189,6 +196,7 @@ func helperStateCheck(path string) ProofCheck {
 }
 
 func TestProofSpineHelperProcess(t *testing.T) {
+	t.Parallel()
 	mode := ""
 	modeArg := ""
 	for i, arg := range os.Args {

@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -80,10 +82,52 @@ func TestGoTestPackagePartitionIsolatesOnlyChildProcessOwners(t *testing.T) {
 
 func TestIsolatedGoTestArgsBoundThePackageTestBinary(t *testing.T) {
 	args := isolatedGoTestArgs("example.test/fixture/cmd/kbcheck")
-	if len(args) != 4 || args[0] != "test" || args[1] != "-buildvcs=false" ||
+	if len(args) != 5 || args[0] != "test" || args[1] != "-buildvcs=false" ||
 		args[2] != "-timeout="+(defaultProcessCheckTimeout-processCheckTerminationWait).String() ||
-		args[3] != "example.test/fixture/cmd/kbcheck" {
+		args[3] != goTestParallelFlag() ||
+		args[4] != "example.test/fixture/cmd/kbcheck" {
 		t.Fatalf("isolated args=%v", args)
+	}
+}
+
+func TestGoTestParallelismTracksMemoryHeadroomNotCPUCount(t *testing.T) {
+	// Go defaults -parallel to GOMAXPROCS. These suites fork git subprocesses
+	// per test, so concurrency must follow memory available to new processes.
+	got := goTestParallelism()
+	cpus := runtime.NumCPU()
+	if got < 1 || got > cpus {
+		t.Fatalf("parallelism %d outside [1,%d]", got, cpus)
+	}
+
+	available, known := availableProcessMemoryBytes()
+	if !known {
+		if want := min(cpus, goTestFallbackParallelism); got != want {
+			t.Fatalf("unknown headroom should fall back to %d, got %d", want, got)
+		}
+	} else {
+		affordable := int(available / goTestMemoryBudgetPerTest)
+		if affordable < 1 {
+			affordable = 1
+		}
+		if want := min(cpus, affordable); got != want {
+			t.Fatalf("headroom %d bytes implies %d, got %d", available, want, got)
+		}
+	}
+
+	if flag := goTestParallelFlag(); flag != "-parallel="+strconv.Itoa(got) {
+		t.Fatalf("flag %q does not carry parallelism %d", flag, got)
+	}
+}
+
+func TestAvailableProcessMemoryIsPlausibleWhenReported(t *testing.T) {
+	available, known := availableProcessMemoryBytes()
+	if !known {
+		t.Skip("platform does not report process memory headroom")
+	}
+	// A host that reports headroom but claims less than 16 MiB is returning
+	// junk, which would silently pin the suite to -parallel=1 forever.
+	if available < 16<<20 {
+		t.Fatalf("implausible headroom %d bytes", available)
 	}
 }
 
@@ -159,7 +203,6 @@ func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 		"kb-work-ready-set-selftest",
 		"kb-work-scope-lease-selftest",
 		"kb-work-slice-lease-selftest",
-		"kbrouter-catalog-tests",
 		"manifest-contract-selftest",
 		"marketplace-promotion-selftest",
 		"plan-worktree-lifecycle-selftest",

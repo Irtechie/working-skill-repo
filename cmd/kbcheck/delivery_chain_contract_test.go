@@ -9,78 +9,66 @@ import (
 )
 
 func TestAutomaticDeliveryChainContract(t *testing.T) {
+	t.Parallel()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	required := map[string][]string{
+	requireDocContract(t, root, "automatic delivery contract", map[string][]contractMatcher{
 		".github/skills/kb-work/SKILL.md": {
-			"Invoke `kb-finalize <manifest>` automatically.",
-			"Successful `kb-finalize` continues automatically to `kb-complete`; `kb-work` must not stop after slice completion or finalization.",
-			"`kb-work` never merges or pushes a resolved default branch.",
+			docConcept("Invoke `kb-finalize <manifest>` automatically"),
+			docConcept("continues automatically to `kb-complete`"),
+			docConcept("must not stop after slice completion"),
+			docConcept("`kb-work` never merges or pushes a resolved default branch"),
 		},
 		".github/skills/kb-finalize/SKILL.md": {
-			"Invoke `kb-complete <manifest>` automatically.",
-			"`kb-finalize` does not commit, push, open a PR, merge, or integrate the resolved remote default branch.",
-			"Register completion state and evidence",
-			"never deletes the current worktree",
+			docConcept("Invoke `kb-complete <manifest>` automatically"),
+			docConcept("`kb-finalize` does not commit, push, open a PR, merge, or integrate"),
+			docConcept("Register completion state and evidence"),
+			docConcept("never deletes the current worktree"),
 		},
 		".github/skills/kb-complete/SKILL.md": {
-			"Successful delegated phases return to this state-driven loop automatically.",
-			"Invoke `kb-ship <manifest>`",
-			"invoke `kb-land <manifest>`",
-			"configured delivery policy or explicit run-scoped user authorization",
-			"`local-durable`",
-			"`awaiting-review`",
-			"`delivery-integrated`",
-			"delivery, physical cleanup, ref retirement, and host session retirement",
-			"Release or suspend ownership only after lifecycle registration succeeds",
-			"versioned JSON outside the worktree being retired",
-			"SHA-256 digest into the cleanup receipt",
-			"--resume-packet <path-for-pr>",
+			docAnchor("Invoke `kb-ship <manifest>`"),
+			docAnchor("invoke `kb-land <manifest>`"),
+			docAnchor("`local-durable`"),
+			docAnchor("`awaiting-review`"),
+			docAnchor("`delivery-integrated`"),
+			docAnchor("--resume-packet <path-for-pr>"),
+			docConcept("delegated phases return to this state-driven loop"),
+			docConcept("configured delivery policy or explicit run-scoped user authorization"),
+			docConcept("delivery, physical cleanup, ref retirement, and host session retirement"),
+			docConcept("only after lifecycle registration succeeds"),
+			docConcept("versioned JSON outside the worktree being retired"),
+			docConcept("SHA-256 digest into the cleanup receipt"),
 		},
 		".github/skills/kb-ship/SKILL.md": {
-			"`kb-ship` never merges it",
-			"Return the shipped PR evidence to `kb-complete`",
+			docConcept("`kb-ship` never merges it"),
+			docConcept("Return the shipped PR evidence to `kb-complete`"),
 		},
 		".github/skills/kb-land/SKILL.md": {
-			"only KB skill authorized to integrate the resolved remote default branch",
-			"Prove fetched remote-default containment before post-integration sync.",
+			docConcept("authorized to integrate the resolved remote default branch"),
+			docConcept("remote-default containment before post-integration sync"),
 		},
 		"docs/context/architecture/kb-workflow.md": {
-			"kb-work -> kb-finalize -> kb-complete -> kb-ship -> authorized kb-land",
-			"`kb-work` and `kb-ship` return durable evidence to `kb-complete` instead of ending the run",
-			"Only `kb-land` may integrate the resolved remote default branch.",
+			docAnchor("kb-work -> kb-finalize -> kb-complete -> kb-ship -> authorized kb-land"),
+			docConcept("return durable evidence to `kb-complete`"),
+			docConcept("Only `kb-land` may integrate"),
 		},
 		"evals/route-complexity/finish-plan-flow.json": {
-			`"remote default containment"`,
-			`"installed skill sync"`,
+			docAnchor(`"remote default containment"`),
+			docAnchor(`"installed skill sync"`),
 		},
 		"evals/skill-eval/selftest/pass-finish-plan-flow.json": {
-			`"kb-land"`,
-			`"remote default containment"`,
-			`"installed skill sync"`,
+			docAnchor(`"kb-land"`),
+			docAnchor(`"remote default containment"`),
+			docAnchor(`"installed skill sync"`),
 		},
-	}
-
-	for relative, phrases := range required {
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
-		if err != nil {
-			t.Fatalf("read %s: %v", relative, err)
-		}
-		text := string(content)
-		normalizedText := strings.Join(strings.Fields(text), " ")
-		for _, phrase := range phrases {
-			normalizedPhrase := strings.Join(strings.Fields(phrase), " ")
-			if !strings.Contains(normalizedText, normalizedPhrase) {
-				t.Errorf("%s missing automatic delivery contract %q", relative, phrase)
-			}
-		}
-	}
+	})
 }
 
 func TestDeliveryAuthorityLedger(t *testing.T) {
+	t.Parallel()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
@@ -126,6 +114,7 @@ func TestDeliveryAuthorityLedger(t *testing.T) {
 }
 
 func TestDeliveryAuthorityLedgerRejectsContradictoryGrants(t *testing.T) {
+	t.Parallel()
 	workWant := map[string]bool{
 		"push_topic": false, "open_pr": false,
 		"merge_remote_default": false, "push_remote_default": false,

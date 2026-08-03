@@ -73,7 +73,6 @@ kb-run-state-selftest
 kb-work-ready-set-selftest
 kb-work-scope-lease-selftest
 kb-work-slice-lease-selftest
-kbrouter-catalog-tests
 manifest-contract-selftest
 marketplace-promotion-selftest
 plan-worktree-lifecycle-selftest

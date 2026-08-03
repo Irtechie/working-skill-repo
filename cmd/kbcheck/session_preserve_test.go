@@ -42,6 +42,7 @@ func preserveOpts(root, action string) sessionPreserveOptions {
 }
 
 func TestSessionPreserveRefusesOnDefaultBranch(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	writePreserveFile(t, root, "src/feature.go", "package src\n")
 
@@ -61,6 +62,7 @@ func TestSessionPreserveRefusesOnDefaultBranch(t *testing.T) {
 }
 
 func TestSessionPreserveCommitsOnSessionBranchWithoutPushing(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	writePreserveFile(t, root, "src/feature.go", "package src\n")
@@ -95,6 +97,7 @@ func TestSessionPreserveCommitsOnSessionBranchWithoutPushing(t *testing.T) {
 }
 
 func TestSessionPreserveExcludesBuildArtifactsButKeepsSource(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	writePreserveFile(t, root, "src/feature.go", "package src\n")
@@ -122,6 +125,7 @@ func TestSessionPreserveExcludesBuildArtifactsButKeepsSource(t *testing.T) {
 }
 
 func TestSessionPreserveExcludesOversizedFiles(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	writePreserveFile(t, root, "huge.log", strings.Repeat("x", int(sessionPreserveMaxBytes)+1))
@@ -143,6 +147,7 @@ func TestSessionPreserveExcludesOversizedFiles(t *testing.T) {
 }
 
 func TestSessionPreserveIgnoresGitignoredFiles(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	writePreserveFile(t, root, ".gitignore", "secrets/\n")
@@ -163,6 +168,7 @@ func TestSessionPreserveIgnoresGitignoredFiles(t *testing.T) {
 }
 
 func TestSessionPreserveIsNoOpOnCleanTree(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 
@@ -179,6 +185,7 @@ func TestSessionPreserveIsNoOpOnCleanTree(t *testing.T) {
 }
 
 func TestSessionPreservePlanDoesNotMutate(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	writePreserveFile(t, root, "src/feature.go", "package src\n")
@@ -200,6 +207,7 @@ func TestSessionPreservePlanDoesNotMutate(t *testing.T) {
 }
 
 func TestSessionPreserveRefusesDetachedHead(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "--detach", "HEAD")
 	writePreserveFile(t, root, "src/feature.go", "package src\n")
@@ -214,6 +222,7 @@ func TestSessionPreserveRefusesDetachedHead(t *testing.T) {
 }
 
 func TestSessionPreserveRefusesBranchMismatch(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	writePreserveFile(t, root, "src/feature.go", "package src\n")
@@ -230,6 +239,7 @@ func TestSessionPreserveRefusesBranchMismatch(t *testing.T) {
 }
 
 func TestSessionPreserveRefusesMidMerge(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	writePreserveFile(t, root, "conflict.txt", "session side\n")
@@ -253,6 +263,7 @@ func TestSessionPreserveRefusesMidMerge(t *testing.T) {
 }
 
 func TestSessionPreserveRequiresSessionIdentity(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 
@@ -268,6 +279,7 @@ func TestSessionPreserveRequiresSessionIdentity(t *testing.T) {
 }
 
 func TestSessionPreserveHandlesDeletions(t *testing.T) {
+	t.Parallel()
 	root := newPreserveRepo(t)
 	gitOK(t, root, "checkout", "-b", "session-work")
 	if err := os.Remove(filepath.Join(root, "README.md")); err != nil {

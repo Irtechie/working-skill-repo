@@ -3,6 +3,7 @@ package main
 import "testing"
 
 func TestGHCPFollowOnNoPaidEvidenceStaysNotPromoted(t *testing.T) {
+	t.Parallel()
 	evidence := ghcpFollowOnEvidence{
 		SchemaVersion:         1,
 		Cohort:                "ghcp-follow-on",
@@ -20,6 +21,7 @@ func TestGHCPFollowOnNoPaidEvidenceStaysNotPromoted(t *testing.T) {
 }
 
 func TestGHCPFollowOnRefusesPromotionWithoutIndependentVerifier(t *testing.T) {
+	t.Parallel()
 	evidence := validGHCPFollowOnEvidence()
 	decision, err := validateGHCPFollowOn(evidence)
 	if err == nil || decision != "not-promoted" {
@@ -32,6 +34,7 @@ func TestGHCPFollowOnRefusesPromotionWithoutIndependentVerifier(t *testing.T) {
 }
 
 func TestGHCPFollowOnCannotRewriteInitialCohort(t *testing.T) {
+	t.Parallel()
 	evidence := validGHCPFollowOnEvidence()
 	evidence.InitialCohortDecision = "promoted"
 	if _, err := validateGHCPFollowOn(evidence); err == nil {

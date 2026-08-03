@@ -9,6 +9,7 @@ import (
 )
 
 func TestSkillGuidanceAcceptsCompleteCompactSurface(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeGuidanceFixture(t, root, "alpha", 4, "Use references/process.md when executing.")
 	writeGuidanceFile(t, filepath.Join(root, ".github", "skills", "alpha", "references", "process.md"), "# Process\n\nShort.")
@@ -35,6 +36,7 @@ func TestSkillGuidanceAcceptsCompleteCompactSurface(t *testing.T) {
 }
 
 func TestSkillGuidanceRejectsOversizeMissingAuditAndDeprecatedSkill(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeGuidanceFixture(t, root, "alpha", 12, "")
 	writeGuidanceFixture(t, root, "old-alias", 3, "")
@@ -64,6 +66,7 @@ func TestSkillGuidanceRejectsOversizeMissingAuditAndDeprecatedSkill(t *testing.T
 }
 
 func TestSkillGuidanceRejectsNestedAndUnnavigableReferences(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeGuidanceFixture(t, root, "alpha", 4, "Load references/deep/process.md.")
 	longReference := "# Process\n\n" + strings.Repeat("detail\n", 105)

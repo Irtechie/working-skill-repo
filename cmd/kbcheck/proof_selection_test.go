@@ -11,6 +11,7 @@ import (
 )
 
 func TestProofSelectionReusesPassingSuperset(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofSelectionFixtureRegistry(t, root)
 	now := time.Now().UTC()
@@ -27,6 +28,7 @@ func TestProofSelectionReusesPassingSuperset(t *testing.T) {
 }
 
 func TestProofSelectionRunsOnlyInvalidatedChecksAndExplainsPaths(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofSelectionFixtureRegistry(t, root)
 	now := time.Now().UTC()
@@ -49,6 +51,7 @@ func TestProofSelectionRunsOnlyInvalidatedChecksAndExplainsPaths(t *testing.T) {
 }
 
 func TestImpactInvalidationFansOutAcrossSharedDependency(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofSelectionFixtureRegistry(t, root)
 	now := time.Now().UTC()
@@ -69,6 +72,7 @@ func TestImpactInvalidationFansOutAcrossSharedDependency(t *testing.T) {
 }
 
 func TestCoverageSubsumptionCollapsesCompositeAndDuplicates(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofSelectionFixtureRegistry(t, root)
 
@@ -82,6 +86,7 @@ func TestCoverageSubsumptionCollapsesCompositeAndDuplicates(t *testing.T) {
 }
 
 func TestProofSelectionBlocksUnknownCheck(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofSelectionFixtureRegistry(t, root)
 
@@ -92,6 +97,7 @@ func TestProofSelectionBlocksUnknownCheck(t *testing.T) {
 }
 
 func TestProofSelectionRejectsPreIntegrationNamespaceReceipt(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofSelectionFixtureRegistry(t, root)
 	now := time.Now().UTC()
@@ -107,6 +113,7 @@ func TestProofSelectionRejectsPreIntegrationNamespaceReceipt(t *testing.T) {
 }
 
 func TestProofPlanCommandIsReadOnlyAndMachineReadable(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	registry := proofSelectionFixtureRegistry(t, root)
 	registryPath := filepath.Join(root, "registry.json")
@@ -135,6 +142,7 @@ func TestProofPlanCommandIsReadOnlyAndMachineReadable(t *testing.T) {
 }
 
 func TestReleaseProfileDoesNotRepeatCoreChildCheck(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
 	writeFile(t, filepath.Join(root, ".github", "skills", "demo", "SKILL.md"), "---\nname: demo\ndescription: demo\n---\n")

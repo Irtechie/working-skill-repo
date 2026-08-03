@@ -12,6 +12,7 @@ import (
 )
 
 func TestSliceLeaseTwoProcessSameSliceRace(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("KBCHECK_SLICE_LEASE_HELPER") == "1" {
 		var out, errOut strings.Builder
 		code := run([]string{
@@ -62,6 +63,7 @@ func TestSliceLeaseTwoProcessSameSliceRace(t *testing.T) {
 }
 
 func TestSliceLeaseOwnerTokenRenewReleaseAndRecovery(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	now := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
 	acquired, err := executeSliceLease(sliceLeaseCommandOptions{
@@ -125,6 +127,7 @@ func TestSliceLeaseOwnerTokenRenewReleaseAndRecovery(t *testing.T) {
 }
 
 func TestSliceLeasePathAndResourceConflictNormalization(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	now := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
 	first, err := executeSliceLease(sliceLeaseCommandOptions{
@@ -161,6 +164,7 @@ func TestSliceLeasePathAndResourceConflictNormalization(t *testing.T) {
 }
 
 func TestSliceLeaseGitCommonDirCoordinatesWorktreesButNotClones(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git unavailable")
 	}
@@ -197,6 +201,7 @@ func TestSliceLeaseGitCommonDirCoordinatesWorktreesButNotClones(t *testing.T) {
 }
 
 func TestSliceLeaseCommandStatusJSON(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	var out, errOut strings.Builder
 	code := run([]string{
@@ -219,6 +224,7 @@ func TestSliceLeaseCommandStatusJSON(t *testing.T) {
 }
 
 func TestPlanRunLeaseAllowsRunQualifiedSiblingSliceIDsInsideOneWorkstreamEach(t *testing.T) {
+	t.Parallel()
 	stateRoot := t.TempDir()
 	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	for _, plan := range []planRunLeaseCommandOptions{
@@ -260,6 +266,7 @@ func TestPlanRunLeaseAllowsRunQualifiedSiblingSliceIDsInsideOneWorkstreamEach(t 
 }
 
 func TestPlanRunLeaseRecoveryRechecksContentionAndReleaseWaitsForSlices(t *testing.T) {
+	t.Parallel()
 	stateRoot := t.TempDir()
 	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	first, err := executePlanRunLease(planRunLeaseCommandOptions{
@@ -310,6 +317,7 @@ func TestPlanRunLeaseRecoveryRechecksContentionAndReleaseWaitsForSlices(t *testi
 }
 
 func TestPlanRunLeaseTwoProcessClaimRaceHasOneMutationAuthority(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("KBCHECK_PLAN_RUN_LEASE_HELPER") == "1" {
 		var out, errOut strings.Builder
 		code := run([]string{

@@ -14,6 +14,7 @@ import (
 )
 
 func TestNormalizeExecutionTelemetryDowngradesForgedFieldsWithoutReceipt(t *testing.T) {
+	t.Parallel()
 	usage, err := normalizeExecutionTelemetry(map[string]any{
 		"packet_id": "p1", "run_id": "run-1", "project_id": "project-a", "slice_id": "slice-1", "context_packet_hash": "sha256:packet", "session_id": "forged-session",
 		"runtime": "ghcp", "requested_route": "medium-a", "actual_route": "forged-route",
@@ -32,6 +33,7 @@ func TestNormalizeExecutionTelemetryDowngradesForgedFieldsWithoutReceipt(t *test
 }
 
 func TestNormalizeExecutionTelemetryWithCreditedReceiptOverridesForgedAssertions(t *testing.T) {
+	t.Parallel()
 	evidence, err := evaluateExecutionTelemetryEvidence(exactExecutionTelemetryReceipt(time.Now().UTC()))
 	if err != nil || evidence == nil {
 		t.Fatalf("evidence=%#v err=%v", evidence, err)
@@ -53,6 +55,7 @@ func TestNormalizeExecutionTelemetryWithCreditedReceiptOverridesForgedAssertions
 }
 
 func TestNormalizeExecutionTelemetryObservationOnlyForProofUnknown(t *testing.T) {
+	t.Parallel()
 	receipt, envelope := exactExecutionTelemetryReceipt(time.Now().UTC())
 	receipt.WorkProof.Result = modelrouting.ProofUnknown
 	evidence, err := evaluateExecutionTelemetryEvidence(receipt, envelope)
@@ -65,6 +68,7 @@ func TestNormalizeExecutionTelemetryObservationOnlyForProofUnknown(t *testing.T)
 }
 
 func TestNormalizeExecutionTelemetryDoesNotTreatLegacyModelAsActual(t *testing.T) {
+	t.Parallel()
 	usage, err := normalizeExecutionTelemetry(map[string]any{
 		"packet_id": "p1", "runtime": "codex", "model": "legacy-advisory-model",
 		"requested_route": "codex.large", "receipt_status": "unavailable",
@@ -81,18 +85,21 @@ func TestNormalizeExecutionTelemetryDoesNotTreatLegacyModelAsActual(t *testing.T
 }
 
 func TestNormalizeExecutionTelemetryRejectsInvalidCounters(t *testing.T) {
+	t.Parallel()
 	if _, err := normalizeExecutionTelemetry(map[string]any{"input_tokens": -1}, nil); err == nil {
 		t.Fatal("negative telemetry passed")
 	}
 }
 
 func TestNormalizeExecutionTelemetryRequiresPacketID(t *testing.T) {
+	t.Parallel()
 	if _, err := normalizeExecutionTelemetry(map[string]any{"input_tokens": 1}, nil); err == nil {
 		t.Fatal("telemetry without packet_id passed")
 	}
 }
 
 func TestNormalizeExecutionTelemetryKeepsExactGHCPAccountingProofNeutral(t *testing.T) {
+	t.Parallel()
 	usage, err := normalizeExecutionTelemetry(map[string]any{
 		"packet_id": "p1",
 		"runtime":   "ghcp",
@@ -250,6 +257,7 @@ func TestDispatchAttestationRootRejectsSymlinkedProjectContainment(t *testing.T)
 }
 
 func TestExecutionTelemetryCommandDowngradesMismatchedEnvelope(t *testing.T) {
+	t.Parallel()
 	root := privateTelemetryProjectRoot(t)
 	projectID := canonicalTelemetryProjectID(t, root)
 	writeExecutionTelemetryFixture(t, root, "telemetry.json", map[string]any{
@@ -282,6 +290,7 @@ func TestExecutionTelemetryCommandDowngradesMismatchedEnvelope(t *testing.T) {
 }
 
 func TestExecutionTelemetryRejectsForgedProjectEvidenceUnderPrivateRun(t *testing.T) {
+	t.Parallel()
 	root := privateTelemetryProjectRoot(t)
 	projectID := canonicalTelemetryProjectID(t, root)
 	writeExecutionTelemetryFixture(t, root, "telemetry.json", exactTelemetryPayload(projectID))
@@ -299,6 +308,7 @@ func TestExecutionTelemetryRejectsForgedProjectEvidenceUnderPrivateRun(t *testin
 }
 
 func TestExecutionTelemetryRejectsCrossRunAndPacketReplay(t *testing.T) {
+	t.Parallel()
 	root := privateTelemetryProjectRoot(t)
 	projectID := canonicalTelemetryProjectID(t, root)
 	writeExecutionTelemetryFixture(t, root, "telemetry.json", exactTelemetryPayload(projectID))
@@ -320,6 +330,7 @@ func TestExecutionTelemetryRejectsCrossRunAndPacketReplay(t *testing.T) {
 }
 
 func TestExecutionTelemetryRejectsOmittedRunBindingWithEvidence(t *testing.T) {
+	t.Parallel()
 	root := privateTelemetryProjectRoot(t)
 	projectID := canonicalTelemetryProjectID(t, root)
 	payload := exactTelemetryPayload(projectID)
@@ -339,6 +350,7 @@ func TestExecutionTelemetryRejectsOmittedRunBindingWithEvidence(t *testing.T) {
 }
 
 func TestExecutionTelemetryRejectsCallerMaxAgeExtensionByStrictSchema(t *testing.T) {
+	t.Parallel()
 	root := privateTelemetryProjectRoot(t)
 	projectID := canonicalTelemetryProjectID(t, root)
 	writeExecutionTelemetryFixture(t, root, "telemetry.json", exactTelemetryPayload(projectID))
@@ -366,6 +378,7 @@ func TestExecutionTelemetryRejectsCallerMaxAgeExtensionByStrictSchema(t *testing
 }
 
 func TestExecutionTelemetryRejectsProofArtifactMismatch(t *testing.T) {
+	t.Parallel()
 	root := privateTelemetryProjectRoot(t)
 	projectID := canonicalTelemetryProjectID(t, root)
 	writeExecutionTelemetryFixture(t, root, "telemetry.json", exactTelemetryPayload(projectID))

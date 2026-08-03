@@ -8,6 +8,7 @@ import (
 )
 
 func TestDefaultBranchBoundaryRejectsLocalAndRemoteDefaultInternalTargets(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	current := gitOutput(root, "branch", "--show-current")
 	if current == "" {
@@ -49,6 +50,7 @@ func TestDefaultBranchBoundaryRejectsLocalAndRemoteDefaultInternalTargets(t *tes
 }
 
 func TestPlanRunPrepareBlocksWhenRemoteDefaultAuthorityIsUnresolved(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	remote := filepath.Join(t.TempDir(), "remote.git")
 	runGitForSliceLease(t, "", "init", "--bare", remote)
@@ -71,6 +73,7 @@ func TestPlanRunPrepareBlocksWhenRemoteDefaultAuthorityIsUnresolved(t *testing.T
 }
 
 func TestDirtyBaseAuthorityBlocksRelevantWIPAndPreservesUnrelatedDirt(t *testing.T) {
+	t.Parallel()
 	requiredRoot, requiredManifest := writeDirtyAuthorityRepo(t, "required")
 	requiredPath := filepath.Join(requiredRoot, "src", "required.txt")
 	writeFile(t, requiredPath, "user required wip\n")
@@ -112,6 +115,7 @@ func TestDirtyBaseAuthorityBlocksRelevantWIPAndPreservesUnrelatedDirt(t *testing
 }
 
 func TestDeliveryOwnerDefaultsPRReadyAndKeepsPolicyOutsidePlanIntegration(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	fallback, err := resolveKBDeliveryPolicy(root)
 	if err != nil {

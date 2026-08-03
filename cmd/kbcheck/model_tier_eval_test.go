@@ -27,6 +27,7 @@ type modelTierEvalFixtureCase struct {
 }
 
 func TestModelTierEvalDeterministicCorpus(t *testing.T) {
+	t.Parallel()
 	content, err := os.ReadFile(filepath.Join("..", "..", "evals", "model-tier-qualification", "fixtures.json"))
 	if err != nil {
 		t.Fatalf("read fixture corpus: %v", err)
@@ -81,6 +82,7 @@ func TestModelTierEvalDeterministicCorpus(t *testing.T) {
 }
 
 func TestModelTierEvalTextOutputIsScoped(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	evidence := validModelTierEvalEvidence()
 	materializeModelTierEvalArtifacts(t, root, evidence)
@@ -98,6 +100,7 @@ func TestModelTierEvalTextOutputIsScoped(t *testing.T) {
 }
 
 func TestModelTierEvalRejectsEscapedSymlinkAndOversizeInput(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "outside.json")
 	writeJSONFixture(t, outside, validModelTierEvalEvidence())

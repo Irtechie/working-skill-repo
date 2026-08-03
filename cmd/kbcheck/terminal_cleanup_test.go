@@ -14,6 +14,7 @@ import (
 )
 
 func TestTerminalCleanupDefersCurrentActiveAndDirtyWorktree(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "local-guards")
 	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
@@ -84,6 +85,7 @@ func TestTerminalCleanupDefersCurrentActiveAndDirtyWorktree(t *testing.T) {
 }
 
 func TestTerminalCleanupPreservesIgnoredFiles(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	writeFile(t, filepath.Join(root, ".gitignore"), "private.env\n")
 	runGitForSliceLease(t, root, "add", ".gitignore")
@@ -120,6 +122,7 @@ func TestTerminalCleanupPreservesIgnoredFiles(t *testing.T) {
 }
 
 func TestTerminalCleanupPreservesCurrentSessionByIdentity(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "same-session")
 	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
@@ -148,6 +151,7 @@ func TestTerminalCleanupPreservesCurrentSessionByIdentity(t *testing.T) {
 }
 
 func TestTerminalCleanupSweepTextReportsPartialMutation(t *testing.T) {
+	t.Parallel()
 	var output strings.Builder
 	writeTerminalCleanupSweepText(&output, terminalCleanupResult{
 		OK: false, Action: "sweep", Issue: "active queue claim",
@@ -163,6 +167,7 @@ func TestTerminalCleanupSweepTextReportsPartialMutation(t *testing.T) {
 }
 
 func TestTerminalCleanupRequiresRemoteContainmentAndRetainsPRRefs(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	remote := filepath.Join(t.TempDir(), "remote.git")
 	runGitForSliceLease(t, "", "init", "--bare", remote)
@@ -229,6 +234,7 @@ func TestTerminalCleanupRequiresRemoteContainmentAndRetainsPRRefs(t *testing.T) 
 }
 
 func TestTerminalCleanupResumePacketDigestDriftBlocksAwaitingReviewRetirement(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	configureTerminalCleanupRemote(t, root)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "resume-drift")
@@ -275,6 +281,7 @@ func TestTerminalCleanupResumePacketDigestDriftBlocksAwaitingReviewRetirement(t 
 }
 
 func TestTerminalCleanupDirectIntegrationDeletesOnlyMergedLocalRef(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	remote := filepath.Join(t.TempDir(), "remote.git")
 	runGitForSliceLease(t, "", "init", "--bare", remote)
@@ -313,6 +320,7 @@ func TestTerminalCleanupDirectIntegrationDeletesOnlyMergedLocalRef(t *testing.T)
 }
 
 func TestTerminalCleanupSweepUsesStableRootWhenRootEqualsTarget(t *testing.T) {
+	t.Parallel()
 	root, worktree, branch, _ := prepareDirectTerminalCleanup(t, "root-target")
 
 	result, err := executeTerminalCleanup(terminalCleanupOptions{
@@ -334,6 +342,7 @@ func TestTerminalCleanupSweepUsesStableRootWhenRootEqualsTarget(t *testing.T) {
 }
 
 func TestTerminalCleanupReconcilesEmptyPartialRemoval(t *testing.T) {
+	t.Parallel()
 	root, worktree, branch, _ := prepareDirectTerminalCleanup(t, "partial-empty")
 	runGitForSliceLease(t, root, "worktree", "remove", worktree)
 	if err := os.Mkdir(worktree, 0o755); err != nil {
@@ -356,6 +365,7 @@ func TestTerminalCleanupReconcilesEmptyPartialRemoval(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsNonEmptyPartialResidual(t *testing.T) {
+	t.Parallel()
 	root, worktree, branch, commit := prepareDirectTerminalCleanup(t, "partial-nonempty")
 	runGitForSliceLease(t, root, "worktree", "remove", worktree)
 	writeFile(t, filepath.Join(worktree, "preserve.txt"), "local data\n")
@@ -376,6 +386,7 @@ func TestTerminalCleanupRejectsNonEmptyPartialResidual(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsPartialBranchIdentityMismatch(t *testing.T) {
+	t.Parallel()
 	root, worktree, branch, commit := prepareDirectTerminalCleanup(t, "partial-mismatch")
 	runGitForSliceLease(t, root, "worktree", "remove", worktree)
 	if err := os.Mkdir(worktree, 0o755); err != nil {
@@ -400,6 +411,7 @@ func TestTerminalCleanupRejectsPartialBranchIdentityMismatch(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsPartialReceiptIdentityMismatch(t *testing.T) {
+	t.Parallel()
 	root, worktree, branch, commit := prepareDirectTerminalCleanup(t, "partial-receipt-mismatch")
 	runGitForSliceLease(t, root, "worktree", "remove", worktree)
 	if err := os.Mkdir(worktree, 0o755); err != nil {
@@ -431,6 +443,7 @@ func TestTerminalCleanupRejectsPartialReceiptIdentityMismatch(t *testing.T) {
 }
 
 func TestMatchingTerminalCleanupClaimFindsExactDuplicateIdentity(t *testing.T) {
+	t.Parallel()
 	receipt := terminalCleanupReceipt{
 		WorkID: "duplicate-work", SessionID: "duplicate-session",
 		Branch: "feature/exact", Worktree: filepath.Join(t.TempDir(), "exact"),
@@ -453,6 +466,7 @@ func TestMatchingTerminalCleanupClaimFindsExactDuplicateIdentity(t *testing.T) {
 }
 
 func TestTerminalCleanupSerializesAgainstQueueClaims(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "queue-lock")
 	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
@@ -490,6 +504,7 @@ func TestTerminalCleanupSerializesAgainstQueueClaims(t *testing.T) {
 }
 
 func TestTerminalCleanupLockIsCompatibleWithPowerShell(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "windows" {
 		t.Skip("PowerShell FileShare lock compatibility is Windows-specific")
 	}
@@ -540,6 +555,7 @@ func TestTerminalCleanupLockIsCompatibleWithPowerShell(t *testing.T) {
 }
 
 func TestTerminalCleanupUsesAuthoritativeRemoteDefault(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	base := gitOutput(root, "rev-parse", "HEAD")
 	remote := filepath.Join(t.TempDir(), "remote.git")
@@ -579,6 +595,7 @@ func TestTerminalCleanupUsesAuthoritativeRemoteDefault(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsNewAuthoritativeRemoteDefaultTarget(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	remote := filepath.Join(t.TempDir(), "remote.git")
 	runGitForSliceLease(t, "", "init", "--bare", remote)
@@ -616,6 +633,7 @@ func TestTerminalCleanupRejectsNewAuthoritativeRemoteDefaultTarget(t *testing.T)
 }
 
 func TestTerminalCleanupRejectsMovedWorktree(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "moved")
 	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
@@ -646,6 +664,7 @@ func TestTerminalCleanupRejectsMovedWorktree(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsReplacedWorktreeGeneration(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "replaced")
 	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
@@ -675,6 +694,7 @@ func TestTerminalCleanupRejectsReplacedWorktreeGeneration(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsBrokenAdminRoundTrip(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	worktree, branch, commit := createTerminalCleanupWorktree(t, root, "broken-roundtrip")
 	writeTerminalCleanupQueue(t, root, terminalCleanupQueueEntry{
@@ -705,6 +725,7 @@ func TestTerminalCleanupRejectsBrokenAdminRoundTrip(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsLockedAndMissingWorktrees(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name      string
 		mutate    func(*testing.T, string, string)
@@ -756,6 +777,7 @@ func TestTerminalCleanupRejectsLockedAndMissingWorktrees(t *testing.T) {
 }
 
 func TestTerminalCleanupRejectsRewrittenRemoteDefaultEvidence(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	remote := filepath.Join(t.TempDir(), "remote.git")
 	runGitForSliceLease(t, "", "init", "--bare", remote)
@@ -795,6 +817,7 @@ func TestTerminalCleanupRejectsRewrittenRemoteDefaultEvidence(t *testing.T) {
 }
 
 func TestTerminalCleanupRefreshesRemoteEvidenceBetweenReceipts(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	configureTerminalCleanupRemote(t, root)
 	defaultBranch := gitOutput(root, "branch", "--show-current")
@@ -854,6 +877,7 @@ func TestTerminalCleanupRefreshesRemoteEvidenceBetweenReceipts(t *testing.T) {
 }
 
 func TestTerminalCleanupChecksEveryAuthoritativeRemoteDefault(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	origin := filepath.Join(t.TempDir(), "origin.git")
 	upstream := filepath.Join(t.TempDir(), "upstream.git")
@@ -894,6 +918,7 @@ func TestTerminalCleanupChecksEveryAuthoritativeRemoteDefault(t *testing.T) {
 }
 
 func TestTerminalCleanupKeepsBlockedReceiptAssociation(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	blockedWorktree, blockedBranch, blockedCommit := createTerminalCleanupWorktree(t, root, "blocked-first")
 	cleanWorktree, cleanBranch, cleanCommit := createTerminalCleanupWorktree(t, root, "clean-second")
@@ -941,6 +966,7 @@ func TestTerminalCleanupKeepsBlockedReceiptAssociation(t *testing.T) {
 }
 
 func TestTerminalCleanupFailsClosedWhenRemoteDefaultIsUnresolved(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	remote := filepath.Join(t.TempDir(), "remote.git")
 	runGitForSliceLease(t, "", "init", "--bare", remote)
@@ -966,6 +992,7 @@ func TestTerminalCleanupFailsClosedWhenRemoteDefaultIsUnresolved(t *testing.T) {
 }
 
 func TestTerminalCleanupRefusesPrimaryAndDefaultTargets(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	branch := gitOutput(root, "branch", "--show-current")
 	commit := gitOutput(root, "rev-parse", "HEAD")
@@ -989,6 +1016,7 @@ func TestTerminalCleanupRefusesPrimaryAndDefaultTargets(t *testing.T) {
 }
 
 func TestTerminalCleanupFailsClosedWithoutAuthoritativeDefault(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	runGitForSliceLease(t, root, "init", "-b", "trunk")
 	runGitForSliceLease(t, root, "config", "core.fsmonitor", "false")

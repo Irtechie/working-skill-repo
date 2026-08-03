@@ -13,6 +13,7 @@ import (
 )
 
 func TestManifestContractRequiresDoneGate(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 slices:
@@ -31,6 +32,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRejectsBadPassedGate(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 slices:
@@ -57,6 +59,7 @@ gate_ledger:
 }
 
 func TestManifestContractPassesValidDoneAndParkedGates(t *testing.T) {
+	t.Parallel()
 	proof := filepath.Join(t.TempDir(), "proof.md")
 	writeFile(t, proof, "# proof\n")
 	path := writeManifest(t, `
@@ -95,6 +98,7 @@ gate_ledger:
 }
 
 func TestPreSliceReviewContractAcceptsRequirementsWideReceipt(t *testing.T) {
+	t.Parallel()
 	path := writePreSliceReviewManifest(t, validPreSliceReviewReceipt())
 	result, err := validateManifestContract(path)
 	if err != nil {
@@ -106,6 +110,7 @@ func TestPreSliceReviewContractAcceptsRequirementsWideReceipt(t *testing.T) {
 }
 
 func TestPreSliceReviewContractAcceptsNotRequiredReceipt(t *testing.T) {
+	t.Parallel()
 	path := writePreSliceReviewManifest(t, `
 pre_slice_review:
   status: not-required
@@ -123,6 +128,7 @@ pre_slice_review:
 }
 
 func TestPreSliceReviewContractRejectsInvalidReceipts(t *testing.T) {
+	t.Parallel()
 	valid := validPreSliceReviewReceipt()
 	tests := map[string][2]string{
 		"missing-source":            {"source: docs/brainstorms/feature.md", "source: docs/brainstorms/missing.md"},
@@ -169,6 +175,7 @@ func TestPreSliceReviewContractRejectsInvalidReceipts(t *testing.T) {
 }
 
 func TestPreSliceReviewContractRejectsDuplicateReceiptFields(t *testing.T) {
+	t.Parallel()
 	receipt := strings.Replace(
 		validPreSliceReviewReceipt(),
 		"  status: passed",
@@ -186,6 +193,7 @@ func TestPreSliceReviewContractRejectsDuplicateReceiptFields(t *testing.T) {
 }
 
 func TestPreSliceReviewContractRejectsDuplicateSectionOrOptIn(t *testing.T) {
+	t.Parallel()
 	for name, mutate := range map[string]func(string) string{
 		"section": func(receipt string) string {
 			return receipt + "\npre_slice_review:\n  status: not-required\n  mode: requirements-wide\n  not_required_reason: duplicate\n"
@@ -208,6 +216,7 @@ func TestPreSliceReviewContractRejectsDuplicateSectionOrOptIn(t *testing.T) {
 }
 
 func TestPreSliceReviewContractAcceptsInlineComments(t *testing.T) {
+	t.Parallel()
 	receipt := strings.Replace(validPreSliceReviewReceipt(), "  status: passed", "  status: passed # reviewed", 1)
 	receipt = strings.Replace(receipt, "  mode: requirements-wide", "  mode: requirements-wide # whole document", 1)
 	path := writePreSliceReviewManifest(t, receipt)
@@ -221,6 +230,7 @@ func TestPreSliceReviewContractAcceptsInlineComments(t *testing.T) {
 }
 
 func TestPreSliceReviewContractRejectsSourceSymlinkOutsideRepository(t *testing.T) {
+	t.Parallel()
 	path := writePreSliceReviewManifest(t, validPreSliceReviewReceipt())
 	root := filepath.Dir(filepath.Dir(filepath.Dir(path)))
 	sourcePath := filepath.Join(root, "docs", "brainstorms", "feature.md")
@@ -242,6 +252,7 @@ func TestPreSliceReviewContractRejectsSourceSymlinkOutsideRepository(t *testing.
 }
 
 func TestManifestSchemaTwoRequiresPreSliceReviewContract(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 manifest_schema: 2
@@ -261,6 +272,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRejectsQuotedOrDuplicateSchema(t *testing.T) {
+	t.Parallel()
 	for name, schema := range map[string]string{
 		"quoted":    `manifest_schema: "2"`,
 		"duplicate": "manifest_schema: 1\nmanifest_schema: 2",
@@ -286,6 +298,7 @@ gate_ledger: []
 }
 
 func TestLegacyManifestWithoutSchemaDoesNotRequirePreSliceReview(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 slices:
@@ -304,6 +317,7 @@ gate_ledger: []
 }
 
 func TestQualificationPlanContractAcceptsSpecificGuidance(t *testing.T) {
+	t.Parallel()
 	path := writeQualificationPlanManifest(t, nil)
 	result, err := validateManifestContract(path)
 	if err != nil {
@@ -315,6 +329,7 @@ func TestQualificationPlanContractAcceptsSpecificGuidance(t *testing.T) {
 }
 
 func TestQualificationPlanContractAcceptsExplicitTierRaise(t *testing.T) {
+	t.Parallel()
 	path := writeQualificationPlanManifest(t, func(record map[string]any) {
 		invariant := record["invariants"].([]any)[0].(map[string]any)
 		delete(invariant, "guidance")
@@ -334,6 +349,7 @@ func TestQualificationPlanContractAcceptsExplicitTierRaise(t *testing.T) {
 }
 
 func TestQualificationPlanContractRejectsWeakOrStaleRecords(t *testing.T) {
+	t.Parallel()
 	tests := map[string]func(map[string]any){
 		"restated-requirement": func(record map[string]any) {
 			invariant := record["invariants"].([]any)[0].(map[string]any)
@@ -380,6 +396,7 @@ func TestQualificationPlanContractRejectsWeakOrStaleRecords(t *testing.T) {
 }
 
 func TestQualificationPlanContractRejectsStaleReviewBinding(t *testing.T) {
+	t.Parallel()
 	path := writeQualificationPlanManifest(t, func(record map[string]any) {
 		record["review"].(map[string]any)["sha256"] = strings.Repeat("0", 64)
 	})
@@ -393,6 +410,7 @@ func TestQualificationPlanContractRejectsStaleReviewBinding(t *testing.T) {
 }
 
 func TestQualificationPlanContractRejectsEscapedOrStaleRecord(t *testing.T) {
+	t.Parallel()
 	for name, mutate := range map[string]func(string) string{
 		"escaped-path": func(manifest string) string {
 			return strings.Replace(manifest, "record_path: docs/plans/qualification-plan-record.json", "record_path: ../../qualification-plan-record.json", 1)
@@ -416,6 +434,7 @@ func TestQualificationPlanContractRejectsEscapedOrStaleRecord(t *testing.T) {
 }
 
 func TestQualificationPlanContractRejectsDuplicateJSONKeys(t *testing.T) {
+	t.Parallel()
 	mutations := map[string]func(string) string{
 		"top-level": func(record string) string {
 			return strings.Replace(record, `"schema_version": 1,`, `"schema_version": 1,`+"\n  "+`"schema_version": 1,`, 1)
@@ -583,6 +602,7 @@ gate_ledger: []
 }
 
 func TestGateLedgerCommandValidatesAllowedNext(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 slices:
@@ -609,6 +629,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractAcceptsScopedHumanAndExternalGates(t *testing.T) {
+	t.Parallel()
 	checkedAt := time.Now().UTC().Format(time.RFC3339)
 	path := writeManifest(t, `
 ---
@@ -659,6 +680,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractRejectsMisownedStaleAndOverpropagatedGates(t *testing.T) {
+	t.Parallel()
 	stale := time.Now().UTC().Add(-96 * time.Hour).Format(time.RFC3339)
 	path := writeManifest(t, `
 ---
@@ -705,6 +727,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractRejectsPauseAsGateStatus(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 blocker_lifecycle_contract: true
@@ -728,6 +751,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractParsesInlineBlockerLists(t *testing.T) {
+	t.Parallel()
 	checkedAt := time.Now().UTC().Format(time.RFC3339)
 	path := writeManifest(t, `
 ---
@@ -759,6 +783,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractRejectsInvalidBooleanAndDuplicateGateIDs(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 blocker_lifecycle_contract: ture
@@ -783,6 +808,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractRequiresQuarantineBoundary(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 blocker_lifecycle_contract: true
@@ -836,6 +862,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractRejectsStalePassAndDateOnlyCheck(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 blocker_lifecycle_contract: true
@@ -873,6 +900,7 @@ gate_ledger:
 }
 
 func TestBlockerLifecycleContractPreservesColonAndCommaListItems(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 blocker_lifecycle_contract: true
@@ -907,6 +935,7 @@ gate_ledger:
 }
 
 func TestManifestContractValidatesOptInModelTiers(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 model_tier_contract:
@@ -932,6 +961,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRequiresDoneCheckWhenObjectiveContractEnabled(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -954,6 +984,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRequiresProofCheckOrExceptionWhenObjectiveContractEnabled(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -977,6 +1008,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRejectsFalseProofCheck(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -1000,6 +1032,7 @@ gate_ledger: []
 }
 
 func TestManifestContractAllowsExplicitNoCheckException(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -1023,6 +1056,7 @@ gate_ledger: []
 }
 
 func TestManifestContractModelRouteAllowsLegacyHintOutsideTierRoutes(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -1053,6 +1087,7 @@ gate_ledger: []
 }
 
 func TestManifestContractModelRouteAllowsRouteFreeObjectiveContract(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -1082,6 +1117,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRequiresModelSelectionMetadataWhenEnabled(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -1113,6 +1149,7 @@ gate_ledger: []
 }
 
 func TestManifestContractAcceptsOrchestratorDirectedModelSelectionContract(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 model_tier_contract:
@@ -1147,6 +1184,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRejectsForcedAMROrCrossOwnerFallback(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 model_selection_contract:
@@ -1173,6 +1211,7 @@ gate_ledger: []
 }
 
 func TestManifestContractRejectsEachUnsafeRoutingMutation(t *testing.T) {
+	t.Parallel()
 	validContract := `
 ---
 model_selection_contract:
@@ -1211,6 +1250,7 @@ gate_ledger: []
 }
 
 func TestManifestContractValidatesWorkspaceIsolationIntent(t *testing.T) {
+	t.Parallel()
 	valid := writeManifest(t, `
 ---
 workspace_isolation_contract:
@@ -1252,6 +1292,7 @@ gate_ledger: []
 }
 
 func TestPlanRunManifestContractRejectsIncompleteWorkspaceIntent(t *testing.T) {
+	t.Parallel()
 	valid := writeManifest(t, `
 ---
 workspace_isolation_contract:
@@ -1290,6 +1331,7 @@ gate_ledger: []
 }
 
 func TestManifestContractModelRouteDoesNotSubstituteForProofCheck(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 objective_contract: true
@@ -1321,6 +1363,7 @@ gate_ledger: []
 }
 
 func TestManifestContractTreatsLegacyDDRMetadataAsInertTelemetry(t *testing.T) {
+	t.Parallel()
 	proof := filepath.Join(t.TempDir(), "proof.md")
 	writeFile(t, proof, "# proof\n")
 	path := writeManifest(t, `
@@ -1351,6 +1394,7 @@ slices:
 }
 
 func TestManifestContractRequiresPacketForPendingSliceWhenEnabled(t *testing.T) {
+	t.Parallel()
 	path := writeManifest(t, `
 ---
 context_packet_contract: true
@@ -1370,6 +1414,7 @@ gate_ledger: []
 }
 
 func TestManifestContractValidatesPacketFileWhenEnabled(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), "{}")
 	writeFile(t, filepath.Join(root, "packet.json"), `{
@@ -1409,6 +1454,7 @@ gate_ledger: []
 }
 
 func TestManifestContractValidatesOptionalImpactPacketContract(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), "{}")
 	writeFile(t, filepath.Join(root, "impact.json"), `{

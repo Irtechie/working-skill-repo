@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -51,7 +53,7 @@ func DiscoverChecks(root string) ([]Check, error) {
 	if exists(root, "go.mod") {
 		checks = append(checks, Check{
 			Name:       "go-test",
-			Args:       []string{"go", "test", "-buildvcs=false", "./..."},
+			Args:       []string{"go", "test", "-buildvcs=false", goTestParallelFlag(), "./..."},
 			Reason:     "Go module detected",
 			Required:   true,
 			Confidence: "deterministic-local",
@@ -80,7 +82,7 @@ func runGoTestsWithProcessIsolation(root string) CheckResult {
 	regular, isolated := partitionGoTestPackages(strings.Fields(list.Stdout))
 	var stdout, stderr strings.Builder
 	if len(regular) > 0 {
-		args := append([]string{"go", "test", "-buildvcs=false"}, regular...)
+		args := append([]string{"go", "test", "-buildvcs=false", goTestParallelFlag()}, regular...)
 		result := runProcessCheck(root, Check{Args: args})
 		stdout.WriteString(result.Stdout)
 		stderr.WriteString(result.Stderr)
@@ -116,7 +118,41 @@ func partitionGoTestPackages(packages []string) (regular, isolated []string) {
 
 func isolatedGoTestArgs(pkg string) []string {
 	timeout := defaultProcessCheckTimeout - processCheckTerminationWait
-	return []string{"test", "-buildvcs=false", "-timeout=" + timeout.String(), pkg}
+	return []string{"test", "-buildvcs=false", "-timeout=" + timeout.String(), goTestParallelFlag(), pkg}
+}
+
+// goTestParallelism derives concurrency from memory headroom rather than CPU
+// count. Go defaults -parallel to GOMAXPROCS, but these suites fork git
+// subprocesses per test, so the binding constraint is memory available to new
+// processes, not cores. A 20-core host with an exhausted commit charge fails
+// with "not enough memory resources" instead of reporting a real defect, and
+// the gate must produce the same verdict regardless of host memory.
+const (
+	// goTestMemoryBudgetPerTest is the observed footprint of one parallel test
+	// plus the short-lived git processes it forks.
+	goTestMemoryBudgetPerTest = 512 << 20
+	// goTestFallbackParallelism applies when memory headroom is unknown.
+	goTestFallbackParallelism = 4
+)
+
+func goTestParallelism() int {
+	cpus := runtime.NumCPU()
+	if cpus < 1 {
+		cpus = 1
+	}
+	available, known := availableProcessMemoryBytes()
+	if !known {
+		return min(cpus, goTestFallbackParallelism)
+	}
+	affordable := int(available / goTestMemoryBudgetPerTest)
+	if affordable < 1 {
+		return 1
+	}
+	return min(cpus, affordable)
+}
+
+func goTestParallelFlag() string {
+	return "-parallel=" + strconv.Itoa(goTestParallelism())
 }
 
 func runGoCommandWithoutOuterContainment(root string, args ...string) CheckResult {
@@ -244,7 +280,9 @@ func skillRepoChecks(root string) ([]Check, error) {
 		{"kb-work-ready-set-selftest", "KB work ready-set dispatch selftest detected"},
 		{"kb-work-slice-lease-selftest", "KB work atomic slice lease selftest detected"},
 		{"kb-work-scope-lease-selftest", "KB work scope lease overlap selftest detected"},
-		{"kbrouter-catalog-tests", "KB model route catalog CLI conformance tests detected"},
+		// kbrouter-catalog-tests intentionally absent: it ran
+		// `go test ./cmd/kbrouter -run Catalog|Doctor|Policy`, a strict subset of
+		// what the go-test check already runs via ./..., for ~5s of no new signal.
 		{"plan-worktree-lifecycle-selftest", "manifest-owned plan worktree lifecycle selftest detected"},
 		{"kb-pipeline-selftest", "KB coded pipeline spike selftest detected"},
 		{"skill-surface-report", "skill loaded-surface report detected"},
@@ -362,13 +400,6 @@ func skillRepoChecks(root string) ([]Check, error) {
 				Name: pc.Name, Args: append([]string{"kbcheck"}, command...),
 				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
 				Run: func(root string) CheckResult { return runNativeCommand(root, command) },
-			})
-			continue
-		}
-		if pc.Name == "kbrouter-catalog-tests" {
-			checks = append(checks, Check{
-				Name: pc.Name, Args: []string{"go", "test", "./cmd/kbrouter", "-run", "Catalog|Doctor|Policy"},
-				Reason: pc.Reason, Required: true, Confidence: "deterministic-local",
 			})
 			continue
 		}

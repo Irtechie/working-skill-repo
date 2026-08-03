@@ -9,6 +9,7 @@ import (
 const testModelRoutingInitialPilotEvidence = "docs/results/2026-07-10-session-model-routing-initial-pilot.json"
 
 func TestReleaseChecksUseNativeCoreNotPSGate(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
 
@@ -29,6 +30,7 @@ func TestReleaseChecksUseNativeCoreNotPSGate(t *testing.T) {
 }
 
 func TestReleaseReportsCheckStartBeforeRunnerReturns(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
 	var stdout, stderr strings.Builder
@@ -44,6 +46,7 @@ func TestReleaseReportsCheckStartBeforeRunnerReturns(t *testing.T) {
 }
 
 func TestLiveReleaseUsesNativeLiveCorpus(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
 	writeFile(t, filepath.Join(root, "evals", "route-complexity", "fixture.json"), "{}")
@@ -68,6 +71,7 @@ func TestLiveReleaseUsesNativeLiveCorpus(t *testing.T) {
 }
 
 func TestReleaseSkipsSyncForGenericRepoWithoutSkillConfig(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n")
 
@@ -93,6 +97,7 @@ func TestReleaseSkipsSyncForGenericRepoWithoutSkillConfig(t *testing.T) {
 }
 
 func TestReleaseRequiresNativeSyncForSkillRepo(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, ".github", "skills", "demo", "SKILL.md"), "---\nname: demo\ndescription: demo\n---\n")
 	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
@@ -120,6 +125,7 @@ func TestReleaseRequiresNativeSyncForSkillRepo(t *testing.T) {
 }
 
 func TestLocalReleaseRequiresNativeModelRoutingGateWhenPilotEvidenceExists(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, filepath.FromSlash(testModelRoutingInitialPilotEvidence)), "{}\n")
 
@@ -146,6 +152,7 @@ func TestLocalReleaseRequiresNativeModelRoutingGateWhenPilotEvidenceExists(t *te
 }
 
 func TestModelRoutingReleaseFailureBlocksLocalRelease(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, filepath.FromSlash(testModelRoutingInitialPilotEvidence)), "{}\n")
 
@@ -169,6 +176,7 @@ func TestModelRoutingReleaseFailureBlocksLocalRelease(t *testing.T) {
 }
 
 func TestGenericReleaseOmitsModelRoutingGateWhenFeatureIsAbsent(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	for _, profile := range []string{"local-release", "live-release"} {
 		checks, err := releaseChecks(root, profile, func(root string, check Check) CheckResult {
@@ -186,6 +194,7 @@ func TestGenericReleaseOmitsModelRoutingGateWhenFeatureIsAbsent(t *testing.T) {
 }
 
 func TestModelRoutingFeatureMarkerRequiresGateWhenEvidenceIsMissing(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, filepath.FromSlash(modelRoutingFeatureMarker)), "package modelrouting\n")
 
@@ -211,6 +220,7 @@ func TestModelRoutingFeatureMarkerRequiresGateWhenEvidenceIsMissing(t *testing.T
 }
 
 func TestLiveReleaseIncludesModelRoutingGateExactlyOnce(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, filepath.FromSlash(testModelRoutingInitialPilotEvidence)), "{}\n")
 

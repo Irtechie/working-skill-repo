@@ -11,41 +11,36 @@ import (
 )
 
 func TestSemanticClaimRepoContract(t *testing.T) {
+	t.Parallel()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	required := map[string][]string{
+	requireDocContract(t, root, "semantic claim contract", map[string][]contractMatcher{
 		".github/skills/kb-start/scripts/work_queue.ps1": {
-			"semantic_resources", "active_owner", "global_authority", "resource_conflict",
+			docAnchor("semantic_resources"), docAnchor("active_owner"),
+			docAnchor("global_authority"), docAnchor("resource_conflict"),
 		},
 		".github/skills/kb-start/SKILL.md": {
-			"kbreconcile", "declared semantic resources", "authoritative adapter capability",
+			docAnchor("kbreconcile"),
+			docConcept("declared semantic resources"),
+			docConcept("authoritative adapter capability"),
 		},
 		".github/skills/kb-finalize/SKILL.md": {
-			"register completion state and evidence", "never deletes the current worktree",
+			docConcept("register completion state and evidence"),
+			docConcept("never deletes the current worktree"),
 		},
 		".github/skills/kb-complete/SKILL.md": {
-			"`local-durable`", "`awaiting-review`", "`delivery-integrated`",
-			"delivery, physical cleanup, ref retirement, and host session retirement",
+			docAnchor("`local-durable`"), docAnchor("`awaiting-review`"),
+			docAnchor("`delivery-integrated`"),
+			docConcept("delivery, physical cleanup, ref retirement, and host session retirement"),
 		},
-	}
-	for relative, phrases := range required {
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		normalized := strings.ToLower(strings.Join(strings.Fields(string(content)), " "))
-		for _, phrase := range phrases {
-			if !strings.Contains(normalized, strings.ToLower(strings.Join(strings.Fields(phrase), " "))) {
-				t.Errorf("%s weakens semantic claim contract: missing %q", relative, phrase)
-			}
-		}
-	}
+	})
 }
 
 func TestDeliveryChainLifecycleStatesRemainSeparate(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		status, mode string
 		want         bool
@@ -63,6 +58,7 @@ func TestDeliveryChainLifecycleStatesRemainSeparate(t *testing.T) {
 }
 
 func TestWorkQueueUpdateMigratesOwnedWorktreeIdentity(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "windows" {
 		t.Skip("PowerShell work queue helper is Windows-only")
 	}

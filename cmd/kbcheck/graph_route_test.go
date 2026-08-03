@@ -11,6 +11,7 @@ import (
 )
 
 func TestGraphRouteCommandValidatesImpactPacket(t *testing.T) {
+	t.Parallel()
 	var out, errOut strings.Builder
 	code := run([]string{"graph-route", "--root", filepath.Join("..", ".."), "--packet", filepath.Join("evals", "graph-routing", "impact-packet-valid.json")}, &out, &errOut)
 	if code != 0 {
@@ -22,6 +23,7 @@ func TestGraphRouteCommandValidatesImpactPacket(t *testing.T) {
 }
 
 func TestGraphRouteCommandRejectsStalePacket(t *testing.T) {
+	t.Parallel()
 	var out, errOut strings.Builder
 	code := run([]string{"graph-route", "--root", filepath.Join("..", ".."), "--packet", filepath.Join("evals", "graph-routing", "impact-packet-stale.json")}, &out, &errOut)
 	if code != 2 {
@@ -33,12 +35,14 @@ func TestGraphRouteCommandRejectsStalePacket(t *testing.T) {
 }
 
 func TestGraphRouteParseRequiresPacket(t *testing.T) {
+	t.Parallel()
 	if _, err := parse([]string{"graph-route"}); err == nil {
 		t.Fatal("graph-route without --packet passed")
 	}
 }
 
 func TestGraphifyAnnotationRejectsExactStructuralProvider(t *testing.T) {
+	t.Parallel()
 	tempDir := t.TempDir()
 	packetPath := filepath.Join(tempDir, "packet.json")
 	packet := graphrouting.Packet{

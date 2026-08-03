@@ -3,6 +3,7 @@ package main
 import "testing"
 
 func TestLearningAdoptionAcceptsMeasuredGain(t *testing.T) {
+	t.Parallel()
 	result := evaluateLearningAdoption(learningAdoptionInput{
 		Cases: adoptionCases(20, map[int]bool{0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true}, map[int]bool{0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, 10: true, 11: true}),
 	})
@@ -12,6 +13,7 @@ func TestLearningAdoptionAcceptsMeasuredGain(t *testing.T) {
 }
 
 func TestLearningAdoptionRejectsRightToWrongRegression(t *testing.T) {
+	t.Parallel()
 	baseline := map[int]bool{}
 	candidate := map[int]bool{}
 	for i := 0; i < 10; i++ {
@@ -29,6 +31,7 @@ func TestLearningAdoptionRejectsRightToWrongRegression(t *testing.T) {
 }
 
 func TestLearningAdoptionRejectsLowSampleCount(t *testing.T) {
+	t.Parallel()
 	result := evaluateLearningAdoption(learningAdoptionInput{
 		Cases: adoptionCases(19, map[int]bool{}, map[int]bool{0: true, 1: true, 2: true}),
 	})
@@ -38,6 +41,7 @@ func TestLearningAdoptionRejectsLowSampleCount(t *testing.T) {
 }
 
 func TestLearningAdoptionRejectsMemorizedHoldoutString(t *testing.T) {
+	t.Parallel()
 	result := evaluateLearningAdoption(learningAdoptionInput{
 		CandidateInstruction: "Always answer omega-secret-case with green.",
 		HoldoutStrings:       []string{"omega-secret-case"},

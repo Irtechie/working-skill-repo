@@ -7,6 +7,7 @@ import (
 )
 
 func TestGraphRoutingEvalRequireReadyPasses(t *testing.T) {
+	t.Parallel()
 	var out, errOut strings.Builder
 	code := run([]string{"graph-routing-eval", "--root", filepath.Join("..", ".."), "--require-ready"}, &out, &errOut)
 	if code != 0 {
@@ -18,6 +19,7 @@ func TestGraphRoutingEvalRequireReadyPasses(t *testing.T) {
 }
 
 func TestGraphRoutingEvalFailsMissedImpact(t *testing.T) {
+	t.Parallel()
 	fixture := symbolImpactFixture{
 		SchemaVersion:   1,
 		ExpectedImpact:  []string{"src/api/payments.go", "src/payments/charge.go"},
@@ -32,6 +34,7 @@ func TestGraphRoutingEvalFailsMissedImpact(t *testing.T) {
 }
 
 func TestGraphRoutingEvalFailsStaleAuthoritativeIndex(t *testing.T) {
+	t.Parallel()
 	failures, _ := scoreStaleIndex(staleIndexFixture{
 		SchemaVersion:           1,
 		IndexRevision:           "old",
@@ -46,6 +49,7 @@ func TestGraphRoutingEvalFailsStaleAuthoritativeIndex(t *testing.T) {
 }
 
 func TestGraphRoutingEvalFailsMultiWinnerRace(t *testing.T) {
+	t.Parallel()
 	failures, _ := scoreMultiSessionRace(multiSessionRaceFixture{
 		SchemaVersion: 1,
 		SameSliceClaims: []raceClaim{

@@ -9,6 +9,7 @@ import (
 )
 
 func TestPlanRunWorkspaceRequiresExplicitLocalCommitAuthorization(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	manifest := writePlanRunTestManifest(t, root, "kb-plan-run-authorization")
 	worktree := filepath.Join(t.TempDir(), "plan-run-authorization")
@@ -27,6 +28,7 @@ func TestPlanRunWorkspaceRequiresExplicitLocalCommitAuthorization(t *testing.T) 
 }
 
 func TestPlanRunWorkspacePrepareIsIdempotentAndPreservesDirtySource(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	manifest := writePlanRunTestManifest(t, root, "kb-plan-run-one")
 	baseSHA := gitOutput(root, "rev-parse", "HEAD")
@@ -75,6 +77,7 @@ func TestPlanRunWorkspacePrepareIsIdempotentAndPreservesDirtySource(t *testing.T
 }
 
 func TestPlanRunWorkspaceRejectsDefaultBranchOwnerMismatchAndUnsafeRelease(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	manifest := writePlanRunTestManifest(t, root, "kb-plan-run-two")
 	baseSHA := gitOutput(root, "rev-parse", "HEAD")
@@ -117,6 +120,7 @@ func TestPlanRunWorkspaceRejectsDefaultBranchOwnerMismatchAndUnsafeRelease(t *te
 }
 
 func TestPlanRunWorkspaceAdoptsHarnessWorktreeWithoutNesting(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	writePlanRunTestManifest(t, root, "kb-plan-run-adopt")
 	session := adoptTestHarnessWorktree(t, root, "codex/harness-session")
@@ -162,6 +166,7 @@ func TestPlanRunWorkspaceAdoptsHarnessWorktreeWithoutNesting(t *testing.T) {
 }
 
 func TestPlanRunWorkspaceAdoptRejectsPrimaryDefaultAndDirtyCheckouts(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	manifest := writePlanRunTestManifest(t, root, "kb-plan-run-adopt-guard")
 	base := planRunWorkspaceOptions{
@@ -208,6 +213,7 @@ func TestPlanRunWorkspaceAdoptRejectsPrimaryDefaultAndDirtyCheckouts(t *testing.
 }
 
 func TestPlanRunWorkspaceReleaseKeepsHarnessOwnedWorktree(t *testing.T) {
+	t.Parallel()
 	root := initWorktreeRepo(t)
 	writePlanRunTestManifest(t, root, "kb-plan-run-adopt-release")
 	session := adoptTestHarnessWorktree(t, root, "codex/release-session")

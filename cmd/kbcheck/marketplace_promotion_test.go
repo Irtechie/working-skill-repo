@@ -7,6 +7,7 @@ import (
 )
 
 func TestUpdateApprovedCatalogPreservesMixedEvidenceAndPromotionException(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "approved-skills.json")
 	existing := `{
   "schemaVersion": 1,

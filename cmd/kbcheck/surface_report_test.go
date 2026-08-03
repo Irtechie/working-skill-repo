@@ -8,6 +8,7 @@ import (
 )
 
 func TestSurfaceReportComparisonShowsAddedAndRemovedRoutes(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, ".github", "skills", "kb-start", "SKILL.md"), "# start\n")
 	writeFile(t, filepath.Join(root, ".github", "skills", "kb-map", "SKILL.md"), "# map\n")
