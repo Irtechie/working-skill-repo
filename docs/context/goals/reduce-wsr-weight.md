@@ -100,13 +100,26 @@ Two measured caveats that stopped bad deletions:
 |---|---|---|
 | `go test ./...` | 164.4 s | 139.5 s |
 | `cmd/kbcheck` package | 160.4 s | 137.7 s |
-| `kbcheck core` | 467.7 s | 454.9 s (exit 0, 38 checks) |
+| `kbcheck core` | 467.7 s | 264.4 s warm / 454.9 s cold, exit 0, 38 checks |
 
-The gate moved only 13 s because its dominant cost is structural, not per-test:
-`go test ./...` is 139.5 s standalone but ~207 s inside the gate, because
-`runGoTestsWithProcessIsolation` runs it as three sequential invocations. Per-test
-reductions cannot fix that; the remaining levers are the fixture refactor and
-gate concurrency.
+**Read the gate number with care.** Two runs of the identical committed tree
+measured 454.9 s and 264.4 s. The difference is Go build-cache warmth, not the
+reductions. Any gate-level before/after that does not control for cache state is
+not evidence. The `go test ./...` figures are the more trustworthy comparison
+because the same command was run both times with a populated cache.
+
+Attributable, directly measured savings so far are modest and honest:
+
+- 4.9 s from removing the duplicate `kbrouter-catalog-tests` check.
+- 6.6 s from the grandchild timing-contract rewrite.
+- ~25 s from `go test ./...` (164.4 s -> 139.5 s), largely parallelism.
+
+The gate's dominant cost remains structural: `go test` is 139.5 s standalone but
+runs as three sequential invocations inside the gate. Per-test reductions cannot
+fix that; the remaining levers are the fixture refactor and gate concurrency.
+
+Before claiming any future gate improvement, measure warm-vs-warm: run the gate
+twice and compare the second runs.
 
 ## Blockers
 
