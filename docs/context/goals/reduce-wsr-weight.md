@@ -158,6 +158,7 @@ The remaining lever found by this loop is correctness, tracked as follow-up work
 | `kb-regression-snapshot` L24-26 uses repo-relative script paths | opposite convention to `kb-start`; one must be chosen | fixed (`67039c4`) - unified on `<skill-dir>` |
 | `kb-map-bootstrap` used `$PSCommandPath` | always empty unless a `.ps1` is executing, so it never resolved | fixed (`67039c4`) |
 | README L598/L599 overclaim the installed surface | installer never copies `.github/instructions/*`; `AGENTS.md` only on `--target repo` | open |
+| `git diff --check` in `local-release` is a no-op on a clean tree | it inspects only unstaged changes, so at release time it passes precisely when there is nothing to inspect; it never sees committed whitespace defects (6 tracked `.md` files currently have blank lines at EOF) | open |
 | README skill count drifted (46 -> 44) | no check guarded it | fixed |
 | 3 impossible caller claims in `skill-guidance-audit.json` | `disable-model-invocation: true` makes a skill caller unsatisfiable | fixed + guarded by `audit-caller-impossible` |
 
@@ -199,4 +200,3 @@ README 44).
 Orphan check before sync: no retired reviewer agents remained in any install
 root, and the orphan skills present are the user's own unrelated installs, which
 the installer replaces rather than prunes.
-
