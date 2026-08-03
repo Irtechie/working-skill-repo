@@ -589,7 +589,7 @@ development harness. The repository is intentionally larger than the installed
 runtime surface.
 
 The installed runtime surface is intentionally smaller than the repository:
-46 skills plus the reviewer/specialist agent catalog.
+44 skills plus the reviewer/specialist agent catalog.
 
 Installed/runtime surface:
 

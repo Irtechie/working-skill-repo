@@ -135,3 +135,33 @@ judgment that a test "looks redundant".
 Prefer deterministic evidence over model opinion. Unique-coverage measurement
 per test is the primary signal; semantic review only adjudicates what the
 measurement flags.
+
+## Skill loop result (semantic pass)
+
+The per-skill loop is complete. Text-overlap measurement (Part 1 of the skill
+audit) found a null and was nearly worthless; the semantic + portability pass
+(Part 2) found the real result.
+
+**Consolidation is not available, and that is a finding, not a gap.** The
+bundle installs skills standalone to `~/.codex`, `~/.copilot`, and `~/.agents`.
+Neither `AGENTS.md` nor `cmd/kbcheck` ships on the default `--target all`.
+Repeated policy across skills is therefore what makes each skill survive alone.
+Measured true bloat is ~150-250 lines of ~7,500 (2-3%) and is not worth the risk.
+
+**The weight goal is largely answered: WSR is not carrying meaningful skill fat.**
+The remaining lever found by this loop is correctness, tracked as follow-up work:
+
+| Follow-up | Evidence | Status |
+|---|---|---|
+| 30 unguarded `cmd/kbcheck` references in 11 skills | portability scan; `kb-ship` L17 shows the correct pattern | open |
+| `kb-start` L69 hardcodes `$HOME\.copilot\...` | wrong for `~/.codex`, `~/.agents`, and in-repo | open |
+| `kb-regression-snapshot` L24-26 uses repo-relative script paths | opposite convention to `kb-start`; one must be chosen | open |
+| README L598/L599 overclaim the installed surface | installer never copies `.github/instructions/*`; `AGENTS.md` only on `--target repo` | open |
+| README skill count drifted (46 -> 44) | no check guarded it | fixed |
+| 3 impossible caller claims in `skill-guidance-audit.json` | `disable-model-invocation: true` makes a skill caller unsatisfiable | fixed + guarded by `audit-caller-impossible` |
+
+**Method note carried forward:** four subagents were required to cite file:line
+evidence. Three of four "CRITICAL" findings were still false and each was
+falsified in under a minute. Deterministic scans survived verification; agent
+prose did not. Re-run the cheapest owning check before accepting any delegated
+finding into a plan.
