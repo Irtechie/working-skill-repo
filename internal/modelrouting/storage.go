@@ -616,6 +616,12 @@ func rejectSymlinkAncestors(root, path string) error {
 	root = filepath.Clean(root)
 	dir := filepath.Dir(filepath.Clean(path))
 	for {
+		// The root itself may legitimately be a symlink or junction; containment is
+		// already proven lexically by safeStoragePath. Only directories strictly
+		// between the target and the root can redirect resolution outside it.
+		if samePath(dir, root) {
+			return nil
+		}
 		info, err := os.Lstat(dir)
 		if err == nil {
 			if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
@@ -623,9 +629,6 @@ func rejectSymlinkAncestors(root, path string) error {
 			}
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
-		}
-		if samePath(dir, root) {
-			return nil
 		}
 		next := filepath.Dir(dir)
 		if next == dir {
