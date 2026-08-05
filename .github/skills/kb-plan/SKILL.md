@@ -51,8 +51,10 @@ Each slice must:
 4. Forecast `expected_files` without pretending it is a write allowlist.
 5. Declare `test_level`, `functional_risk`, and `execution_class`.
 6. Declare `model_tier` as minimum capability, never a provider/model name.
-7. Carry `proof_check` or a narrow `no_check_reason`.
-8. Mark HITL only for authority, private input, irreversible risk, or
+7. Carry `model_requirements`, `escalation_triggers`, and `token_budget` at the
+   precision the declared tier requires.
+8. Carry `proof_check` or a narrow `no_check_reason`.
+9. Mark HITL only for authority, private input, irreversible risk, or
    subjective judgment.
 
 Choose the lowest tier that satisfies reasoning, context, tools, trust, and
@@ -66,6 +68,37 @@ risk:
 
 The tier classifies minimum execution capability. `kb-work` resolves the actual
 callable route from live evidence; planning never hard-codes a model.
+
+### Execution Contract Precision
+
+A slice must be executable **unaided** by the tier it names: that tier reaches
+the acceptance criteria without asking a question, inventing an unstated
+decision, or being rescued by a stronger model. A plan that only a stronger
+model could execute is misclassified, not merely terse.
+
+Precision scales inversely with tier. The lower the tier, the more the plan
+must say:
+
+| Tier | The slice must hand the executor |
+|---|---|
+| `large` | Objective, constraints, acceptance criteria, proof command. Approach is the executor's to choose. |
+| `medium` | The above, plus ordered steps and the pass criterion for each step, plus the files and boundaries in play. Implementation detail stays open. |
+| `small` | The above, plus the exact edit sites, the precise expected observable output, and one unambiguous proof command. No judgment call may remain. |
+
+Assigning a lower tier is not a saving; it is a promise to do more
+specification work. If a slice cannot be specified to that level, the tier is
+wrong - raise it rather than thinning the contract.
+
+Every slice therefore records, in the slice itself:
+
+- `model_requirements` - capabilities the tier must have (tool use, context
+  size, structured output, long-horizon reasoning), never a model name;
+- `escalation_triggers` - the observable conditions under which the executor
+  must stop and escalate instead of guessing;
+- `token_budget` - the output budget the executor is expected to work within.
+
+State the budget to the executor. Scoring work against a budget, criterion, or
+step it was never shown is not a measurement; it measures the plan.
 
 Enabling slices are allowed only when they are the smallest prerequisite for a
 named downstream slice. Prefer behavior-first slices over schema/service/UI
@@ -192,6 +225,10 @@ Load `references/manifest-template.md` only while writing the manifest and
 
 - Do not slice unresolved product intent.
 - Do not put model names, aliases, adapters, endpoints, or transports in plans.
+- Do not write patches, function bodies, or fixture answers into a plan. Name
+  the target and the proof; the executor writes the code.
+- Do not score an executor against a criterion, budget, or step the plan did
+  not state.
 - Do not require reviewer fan-out.
 - Do not mark `plan-to-work` passed from prose confidence.
 - Do not commit unless the user authorized local commits.
