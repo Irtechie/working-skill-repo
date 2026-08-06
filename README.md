@@ -1171,13 +1171,19 @@ Current state:
 
 - Go owns the quality, release, eval, marketplace, and drift-report gates.
 - Windows parity smoke proof is recorded in `docs/reports/go-gate-parity-2026-06-01.md`.
-- CI runs `go test ./...` and `go run ./cmd/kbcheck core` on Windows, macOS,
-  and Linux.
-- The npx installer runs on Windows, macOS, and Linux and does not require Go.
-- Release workflows are configured to build six checksum-covered binaries and
-  GitHub build-provenance attestations. That configuration is not evidence that
-  a tag was published, a download was verified in the wild, a binary was signed,
-  or a live adapter cohort qualified.
+- There is no hosted CI, by design. `.github/workflows/` is intentionally empty.
+  Gates run locally and on demand: `go test ./...` and `go run ./cmd/kbcheck core`.
+  `kbcheck` is the release authority, not a hosted runner.
+- Only Windows is machine-verified. Platform-specific code is split
+  `_unix`/`_windows` with no darwin-suffixed files and no darwin build tags, so
+  the `_unix` branch covers Linux and macOS alike — but it has no recorded proof
+  run, so treat it as unexercised until someone records one.
+- The npx installer does not require Go.
+- The release gate lives in `cmd/kbcheck/release.go` and is configured to build
+  six checksum-covered binaries. There is no release workflow, so nothing here is
+  evidence that a tag was published, a download was verified in the wild, a binary
+  was signed, or a live adapter cohort qualified. Build-provenance attestation is
+  a GitHub Actions feature and is therefore not in effect.
 
 ## Marketplace And Security
 

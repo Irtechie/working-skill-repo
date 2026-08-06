@@ -20,7 +20,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 |---|---|---|---|---|
 | Skill docs/frontmatter stay valid | `.github/skills/**/SKILL.md` | `go run ./cmd/kbcheck skill-lint` | Some inherited long skills still warn instead of failing | P1 |
 | Route selection stays calibrated | `evals/route-complexity/*.json` | `go run ./cmd/kbcheck route-eval` | Deterministic fixtures only; not live prompt runs | P0 |
-| Installer surface stays healthy | `package.json`, `bin/kb-install.mjs`, `scripts/install-kb.ps1` | `npm run test`; `npm run test:install:core`; `npm run test:install:full` | No checked-in CI workflow runs these automatically | P1 |
+| Installer surface stays healthy | `package.json`, `bin/kb-install.mjs`, `scripts/install-kb.ps1` | `npm run test`; `npm run test:install:core`; `npm run test:install:full` | Runs on demand by design (no hosted CI); depends on the maintainer invoking it before release | P1 |
 | UniversalUI Skills projection stays safe and packable | `packages/universal-ui-skills-contribution/**`, `.github/skills/**/SKILL.md` | `npm run test:universal-ui-skills`; `npm run pack:universal-ui-skills` | Browser smoke uses a local UniversalUI checkout through `UNIVERSAL_UI_ROOT` | P0 |
 | Required skill copies stay synced | working repo + global skill roots | `go run ./cmd/kbcheck local-release`; `go run ./cmd/kbcheck skill-sync-report`; `go run ./cmd/kbcheck doctor` | Depends on local install availability | P1 |
 | Skill edits do not regress routing/proof behavior | `evals/skill-eval/**` | `go run ./cmd/kbcheck skill-eval`; `skill-eval-claims`; `skill-eval-quality`; `skill-eval-regression` | Live corpus is still narrow | P0 |
@@ -171,7 +171,9 @@ exporters/adapters, not the current judges.
 
 - Broaden the live Codex/GHCP corpus beyond the current route fixture set.
 - Capture normalized real token/cache/turn usage from live adapters.
-- Decide whether release/install proof should stay local-only or gain checked-in
-  CI workflows; `.github/workflows/` is currently empty.
+- Decided 2026-08-05: release/install proof stays **local-only by design**;
+  `.github/workflows/` is intentionally empty and `kbcheck` is the release
+  authority. No longer an open gap. The residual gap is that the `_unix` branch
+  has no recorded proof run — only Windows is machine-verified.
 - Make `manifest-contract` optionally execute recorded `proof_check` commands
   once the schema is stable.
