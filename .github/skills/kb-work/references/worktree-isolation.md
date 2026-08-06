@@ -3,6 +3,7 @@
 ## Contents
 
 - Choose Adopt or Prepare
+- Concurrency Ceiling
 - Naming
 - Adopt the Harness Workspace
 - Prepare a KB-Owned Plan Run
@@ -29,6 +30,33 @@ one nests two worktrees on the same logical thread and leaves strays behind.
 `adopt` creates no worktree and no branch. It fails closed on the primary
 checkout, a detached HEAD, a resolved default branch, a dirty tree, or a
 requested worktree/branch/base that does not match the current one.
+
+## Concurrency Ceiling
+
+At most two KB-owned plan-run worktrees may be live in one repository. That is
+two concurrent manifest groups, not two slices; slices stay serial inside their
+group. `prepare` fails closed at the ceiling and names the live runs. The third
+workstream gets no tree and no branch — it queues until a slot frees, or it
+belongs on an existing plan-run branch as more slices.
+
+Never resolve a ceiling block by checking out a third branch in an existing
+tree. That preempts the run in flight instead of parallelizing it.
+
+Harness-created session worktrees are not counted and never removed by KB.
+Gating on them would fail closed on state KB cannot remediate.
+
+`adopt` creates nothing and is never capped.
+
+Raise or lower the ceiling only with evidence, in
+`docs/context/operations/kb-routing.yaml`:
+
+```yaml
+execution:
+  max_plan_run_worktrees: 2
+```
+
+The claim DAG, not the tree count, is the concurrency control. Extra trees buy
+merge cost and disk rather than throughput.
 
 ## Naming
 

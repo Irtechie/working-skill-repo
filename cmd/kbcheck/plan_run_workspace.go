@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,6 +21,11 @@ const (
 	planRunWorkspaceOwnerKB      = "kb"
 	planRunWorkspaceOwnerHarness = "harness"
 )
+
+// Parallel worktrees are not the throughput control; the claim DAG already
+// serializes colliding slices. Extra trees buy merge cost and disk, so the
+// ceiling counts harness-created trees too.
+const defaultMaxLinkedWorktrees = 2
 
 type planRunWorkspaceOptions struct {
 	Action                  string
@@ -473,6 +479,15 @@ func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRun
 	if isDefaultIntegrationRef(opts.RepoRoot, baseRef, opts.IntegrationRef) {
 		return blockedPlanRunWorkspace("prepare", "integration ref must not be the default branch", nil), nil
 	}
+	limit, err := resolvePlanRunWorktreeLimit(opts.RepoRoot)
+	if err != nil {
+		return blockedPlanRunWorkspace("prepare", err.Error(), nil), nil
+	}
+	if live := activePlanRunWorktrees(opts, kbID); len(live) >= limit {
+		return blockedPlanRunWorkspace("prepare", fmt.Sprintf(
+			"plan-run worktree limit %d reached; queue behind or release a live run before preparing another (live: %s)",
+			limit, strings.Join(live, ", ")), nil), nil
+	}
 	if opts.Worktree == "" {
 		opts.Worktree = defaultPlanRunWorktreePath(opts.RepoRoot, kbID)
 	}
@@ -553,6 +568,80 @@ func preparePlanRunWorkspace(opts planRunWorkspaceOptions, kbID string) (planRun
 		return planRunWorkspaceResult{}, err
 	}
 	return planRunWorkspaceResult{OK: true, Action: "prepare", Receipt: &receipt}, nil
+}
+
+// activePlanRunWorktrees lists KB-owned plan-run worktrees still live on disk.
+// Harness session trees are deliberately excluded: KB neither creates nor
+// removes them, so gating on them would fail closed on state KB cannot
+// remediate.
+func activePlanRunWorktrees(opts planRunWorkspaceOptions, excludeKBID string) []string {
+	dir, err := planRunWorkspaceReceiptDir(opts)
+	if err != nil {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	live := []string{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		content, readErr := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if readErr != nil {
+			continue
+		}
+		var receipt planRunWorkspaceReceipt
+		if json.Unmarshal(content, &receipt) != nil {
+			continue
+		}
+		if receipt.KBID == excludeKBID ||
+			receipt.WorkspaceOwner != planRunWorkspaceOwnerKB ||
+			receipt.CleanupState != "active" ||
+			!pathExists(receipt.Worktree) {
+			continue
+		}
+		live = append(live, receipt.Worktree)
+	}
+	return sortedWorktreeStrings(live)
+}
+
+func resolvePlanRunWorktreeLimit(root string) (int, error) {
+	limit := defaultMaxLinkedWorktrees
+	path := filepath.Join(root, "docs", "context", "operations", "kb-routing.yaml")
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return limit, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read execution policy: %w", err)
+	}
+	inExecution := false
+	for _, line := range strings.Split(string(content), "\n") {
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if indent == 0 {
+			inExecution = trimmed == "execution:"
+			continue
+		}
+		if !inExecution {
+			continue
+		}
+		key, value, ok := splitYAMLKeyValue(trimmed)
+		if !ok || key != "max_plan_run_worktrees" {
+			continue
+		}
+		parsed, convErr := strconv.Atoi(cleanYAMLScalar(value))
+		if convErr != nil || parsed < 1 {
+			return 0, fmt.Errorf("execution.max_plan_run_worktrees must be a positive integer")
+		}
+		limit = parsed
+	}
+	return limit, nil
 }
 
 func resolveKBDeliveryPolicy(root string) (kbDeliveryPolicy, error) {
@@ -1251,12 +1340,20 @@ func planRunManifestID(path string) (string, error) {
 	return "", fmt.Errorf("manifest requires kb_id")
 }
 
-func planRunWorkspaceReceiptPath(opts planRunWorkspaceOptions, kbID string) (string, error) {
+func planRunWorkspaceReceiptDir(opts planRunWorkspaceOptions) (string, error) {
 	stateRoot, err := resolveSliceLeaseStateRoot(sliceLeaseCommandOptions{RepoRoot: opts.RepoRoot})
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(filepath.Dir(stateRoot), "plan-runs", safePathPart(kbID)+".json"), nil
+	return filepath.Join(filepath.Dir(stateRoot), "plan-runs"), nil
+}
+
+func planRunWorkspaceReceiptPath(opts planRunWorkspaceOptions, kbID string) (string, error) {
+	dir, err := planRunWorkspaceReceiptDir(opts)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, safePathPart(kbID)+".json"), nil
 }
 
 func loadPlanRunWorkspaceReceipt(opts planRunWorkspaceOptions, kbID string) (planRunWorkspaceReceipt, error) {

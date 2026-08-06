@@ -62,7 +62,17 @@ delivery:
   mode: pr
   merge: manual
   post_merge_sync: false
+
+execution:
+  max_plan_run_worktrees: 2
 ```
+
+`execution.max_plan_run_worktrees` caps live KB-owned plan-run worktrees per
+repository, so it bounds concurrent manifest groups. `kbcheck plan-worktree
+--action prepare` fails closed at the ceiling; `adopt` creates nothing and is
+never capped. Harness-created session worktrees are not counted and never
+removed by KB. Raise it only with evidence that merge cost stayed lower than the
+wall-clock saved.
 
 These safety rules are fixed rather than configurable:
 

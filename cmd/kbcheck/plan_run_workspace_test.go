@@ -253,6 +253,131 @@ func TestPlanRunWorkspaceReleaseKeepsHarnessOwnedWorktree(t *testing.T) {
 	}
 }
 
+func TestPlanRunPrepareEnforcesLinkedWorktreeCeiling(t *testing.T) {
+	t.Parallel()
+	root := initWorktreeRepo(t)
+	manifests := []string{
+		writePlanRunTestManifest(t, root, "kb-ceiling-one"),
+		writePlanRunTestManifest(t, root, "kb-ceiling-two"),
+		writePlanRunTestManifest(t, root, "kb-ceiling-three"),
+	}
+	baseSHA := gitOutput(root, "rev-parse", "HEAD")
+	parent := t.TempDir()
+	prepare := func(index int, name string) planRunWorkspaceResult {
+		t.Helper()
+		result, err := executePlanRunWorkspace(planRunWorkspaceOptions{
+			Action: "prepare", ManifestPath: manifests[index], OwnerToken: "owner-" + name,
+			CommitAuthorized:   true,
+			CommitAuthorizedBy: "test-user", CommitApprovalRef: "test:" + name,
+			BaseSHA: baseSHA, Worktree: filepath.Join(parent, name),
+			IntegrationRef: "codex/" + name, RepoRoot: root, Now: time.Now().UTC(),
+		})
+		if err != nil {
+			t.Fatalf("prepare %s errored: %v", name, err)
+		}
+		return result
+	}
+
+	if first := prepare(0, "ceiling-one"); !first.OK {
+		t.Fatalf("first prepare was blocked: %#v", first)
+	}
+	if second := prepare(1, "ceiling-two"); !second.OK {
+		t.Fatalf("second prepare was blocked: %#v", second)
+	}
+
+	third := prepare(2, "ceiling-three")
+	if third.OK || !strings.Contains(third.Issue, "plan-run worktree limit 2") {
+		t.Fatalf("third prepare was not capped: %#v", third)
+	}
+	if pathExists(filepath.Join(parent, "ceiling-three")) ||
+		gitOutput(root, "show-ref", "--verify", "refs/heads/codex/ceiling-three") != "" {
+		t.Fatal("capped prepare still created a worktree or branch")
+	}
+
+	gitOK(t, root, "worktree", "remove", filepath.Join(parent, "ceiling-one"))
+	if retry := prepare(2, "ceiling-three"); !retry.OK {
+		t.Fatalf("prepare stayed blocked after a worktree was released: %#v", retry)
+	}
+}
+
+func TestPlanRunWorktreeLimitHonorsExecutionPolicy(t *testing.T) {
+	t.Parallel()
+	root := initWorktreeRepo(t)
+	policy := filepath.Join(root, "docs", "context", "operations", "kb-routing.yaml")
+	if err := os.MkdirAll(filepath.Dir(policy), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writePolicy := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(policy, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if limit, err := resolvePlanRunWorktreeLimit(root); err != nil || limit != defaultMaxLinkedWorktrees {
+		t.Fatalf("absent policy did not default to %d: limit=%d err=%v", defaultMaxLinkedWorktrees, limit, err)
+	}
+	writePolicy("execution:\n  max_plan_run_worktrees: 1\n")
+	if limit, err := resolvePlanRunWorktreeLimit(root); err != nil || limit != 1 {
+		t.Fatalf("configured limit was ignored: limit=%d err=%v", limit, err)
+	}
+	writePolicy("execution:\n  max_plan_run_worktrees: 0\n")
+	if _, err := resolvePlanRunWorktreeLimit(root); err == nil {
+		t.Fatal("non-positive limit was accepted")
+	}
+
+	writePolicy("execution:\n  max_plan_run_worktrees: 1\n")
+	manifests := []string{
+		writePlanRunTestManifest(t, root, "kb-policy-one"),
+		writePlanRunTestManifest(t, root, "kb-policy-two"),
+	}
+	baseSHA := gitOutput(root, "rev-parse", "HEAD")
+	parent := t.TempDir()
+	prepare := func(index int, name string) planRunWorkspaceResult {
+		t.Helper()
+		result, err := executePlanRunWorkspace(planRunWorkspaceOptions{
+			Action: "prepare", ManifestPath: manifests[index], OwnerToken: "owner-" + name,
+			CommitAuthorized:   true,
+			CommitAuthorizedBy: "test-user", CommitApprovalRef: "test:" + name,
+			BaseSHA: baseSHA, Worktree: filepath.Join(parent, name),
+			IntegrationRef: "codex/" + name, RepoRoot: root, Now: time.Now().UTC(),
+		})
+		if err != nil {
+			t.Fatalf("prepare %s errored: %v", name, err)
+		}
+		return result
+	}
+
+	if first := prepare(0, "policy-one"); !first.OK {
+		t.Fatalf("first prepare was blocked: %#v", first)
+	}
+	second := prepare(1, "policy-two")
+	if second.OK || !strings.Contains(second.Issue, "plan-run worktree limit 1") {
+		t.Fatalf("configured ceiling was not enforced: %#v", second)
+	}
+}
+
+func TestLiveHarnessWorktreesDoNotBlockPlanRunPrepare(t *testing.T) {
+	t.Parallel()
+	root := initWorktreeRepo(t)
+	manifest := writePlanRunTestManifest(t, root, "kb-harness-neighbour")
+	baseSHA := gitOutput(root, "rev-parse", "HEAD")
+	adoptTestHarnessWorktree(t, root, "harness/session-one")
+	adoptTestHarnessWorktree(t, root, "harness/session-two")
+	adoptTestHarnessWorktree(t, root, "harness/session-three")
+
+	result, err := executePlanRunWorkspace(planRunWorkspaceOptions{
+		Action: "prepare", ManifestPath: manifest, OwnerToken: "owner-neighbour",
+		CommitAuthorized:   true,
+		CommitAuthorizedBy: "test-user", CommitApprovalRef: "test:harness-neighbour",
+		BaseSHA: baseSHA, Worktree: filepath.Join(t.TempDir(), "harness-neighbour"),
+		IntegrationRef: "codex/harness-neighbour", RepoRoot: root, Now: time.Now().UTC(),
+	})
+	if err != nil || !result.OK {
+		t.Fatalf("harness-owned trees blocked a KB prepare: result=%#v err=%v", result, err)
+	}
+}
+
 func adoptTestHarnessWorktree(t *testing.T, root, branch string) string {
 	t.Helper()
 	return adoptTestHarnessWorktreeAt(t, root, branch, safePathPart(branch))

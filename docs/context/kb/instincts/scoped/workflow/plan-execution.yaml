@@ -12,3 +12,31 @@ instincts:
       - "user correction 2026-07-26: worktrees belong to groups of plans, not each slice"
       - "docs/solutions/workflow-issues/plan-run-worktree-isolation-2026-07-26.md"
       - "cmd/kbcheck/plan_worktree_selftest_test.go proves two isolated manifest groups with shared-serial slice commits"
+  - id: cap-live-worktrees-at-two
+    scope: workflow/plan-execution
+    trigger: "when adding worktrees or widening fan-out to go faster on a repo that already declares per-slice file claims"
+    behavior: "cap live KB-owned plan-run worktrees at two per repository, treat the claim DAG rather than tree count as the concurrency control, and queue the third workstream instead of checking out another branch in a live tree"
+    confidence: 0.7
+    domain: workflow
+    observations: 2
+    first_seen: 2026-08-02
+    last_seen: 2026-08-03
+    evidence:
+      - "user report 2026-08-02: eight-wide worktrees ran ~50 agents and cost more merge time than the wall clock saved"
+      - "user report 2026-08-03: strays left the local environment unusable; both live trees were fully merged with nothing to rescue"
+      - "prior argument 2026-07: worktrees only help when decomposition is too weak to prevent collisions, which the claim DAG already handles"
+      - "cmd/kbcheck/plan_run_workspace.go enforces the ceiling in preparePlanRunWorkspace"
+      - "cmd/kbcheck/plan_run_workspace_test.go TestPlanRunPrepareEnforcesLinkedWorktreeCeiling"
+  - id: never-gate-on-unremediable-foreign-state
+    scope: workflow/plan-execution
+    trigger: "when a fail-closed gate would count resources created and owned by another system such as harness session worktrees"
+    behavior: "scope the gate to state this system can itself release, and report foreign state as context instead of blocking on it"
+    confidence: 0.6
+    domain: workflow
+    observations: 1
+    first_seen: 2026-08-03
+    last_seen: 2026-08-03
+    evidence:
+      - "counting harness session worktrees would have deadlocked prepare behind two app sessions KB cannot remove"
+      - "the proposed remedy was an auto-reclaim GC that breached the stated boundary that KB never deletes a harness-owned worktree"
+      - "cmd/kbcheck/plan_run_workspace_test.go TestLiveHarnessWorktreesDoNotBlockPlanRunPrepare"
