@@ -167,6 +167,91 @@ func TestDoctorRefusesUnknownRequiredDrift(t *testing.T) {
 	}
 }
 
+func TestDoctorRefreshesStaleMarkerOnMatchingTarget(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	sourceRoot := filepath.Join(root, "source")
+	source := filepath.Join(sourceRoot, "demo")
+	requiredRoot := filepath.Join(root, "required")
+	required := filepath.Join(requiredRoot, "demo")
+	config := doctorTestConfig(t, root, sourceRoot, requiredRoot)
+
+	// A target synced by some route that does not maintain the marker: content
+	// is in step with source, but the marker still records an older source.
+	writeFile(t, filepath.Join(source, "SKILL.md"), "v0\n")
+	staleHash, err := skillHash(source)
+	if err != nil {
+		t.Fatalf("hash v0 source: %v", err)
+	}
+	writeFile(t, filepath.Join(source, "SKILL.md"), "v1\n")
+	writeFile(t, filepath.Join(required, "SKILL.md"), "v1\n")
+	if err := writeSyncMarker(requiredRoot, "demo", staleHash); err != nil {
+		t.Fatalf("write stale marker: %v", err)
+	}
+
+	matched, err := computeDoctor(root, config, true)
+	if err != nil {
+		t.Fatalf("computeDoctor match returned error: %v", err)
+	}
+	if !matched.OK {
+		t.Fatalf("expected matching target to pass, got %#v", matched)
+	}
+	v1Hash, err := skillHash(source)
+	if err != nil {
+		t.Fatalf("hash v1 source: %v", err)
+	}
+	if got := readSyncMarker(requiredRoot, "demo"); got != v1Hash {
+		t.Fatalf("marker was not refreshed on match: got %s, want %s", got, v1Hash)
+	}
+
+	// The refreshed marker is what lets the next source advance be recognized as
+	// a safe forward sync rather than unknown downstream drift.
+	writeFile(t, filepath.Join(source, "SKILL.md"), "v2\n")
+	fixed, err := computeDoctor(root, config, true)
+	if err != nil {
+		t.Fatalf("computeDoctor fix returned error: %v", err)
+	}
+	if !fixed.OK || fixed.Fixed != 1 || fixed.Refused != 0 {
+		t.Fatalf("expected safe repair after marker refresh, got %#v", fixed)
+	}
+	sourceHash, _ := skillHash(source)
+	targetHash, _ := skillHash(required)
+	if targetHash != sourceHash {
+		t.Fatalf("target hash %s did not match source %s", targetHash, sourceHash)
+	}
+}
+
+func TestDoctorStillRefusesRealDownstreamDriftDespiteMarkerRefresh(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	sourceRoot := filepath.Join(root, "source")
+	source := filepath.Join(sourceRoot, "demo")
+	requiredRoot := filepath.Join(root, "required")
+	required := filepath.Join(requiredRoot, "demo")
+	config := doctorTestConfig(t, root, sourceRoot, requiredRoot)
+
+	writeFile(t, filepath.Join(source, "SKILL.md"), "v1\n")
+	writeFile(t, filepath.Join(required, "SKILL.md"), "v1\n")
+	if _, err := computeDoctor(root, config, true); err != nil {
+		t.Fatalf("computeDoctor seed returned error: %v", err)
+	}
+
+	// Both sides move: the marker now matches neither, which is genuine
+	// two-sided drift and must still be refused rather than overwritten.
+	writeFile(t, filepath.Join(source, "SKILL.md"), "v2\n")
+	writeFile(t, filepath.Join(required, "SKILL.md"), "downstream-only\n")
+	result, err := computeDoctor(root, config, true)
+	if err != nil {
+		t.Fatalf("computeDoctor returned error: %v", err)
+	}
+	if result.OK || result.Refused != 1 || result.Fixed != 0 {
+		t.Fatalf("expected refusal on two-sided drift, got %#v", result)
+	}
+	if got, _ := os.ReadFile(filepath.Join(required, "SKILL.md")); string(got) != "downstream-only\n" {
+		t.Fatalf("refused repair still overwrote the target: %q", string(got))
+	}
+}
+
 func TestResolveRepoPathExpandsHome(t *testing.T) {
 	t.Parallel()
 	home, err := os.UserHomeDir()

@@ -403,7 +403,7 @@ func computeDoctor(root, configPath string, fix bool) (doctorResult, error) {
 				row.Status = "match"
 				row.Action = "none"
 				if target.Required {
-					ensureMarker(root, targetRoot, skill, sourceHash, fix, &row, &result)
+					ensureMarker(targetRoot, skill, sourceHash, markerHash, fix, &row)
 				}
 			case hashErr != nil:
 				if target.Required {
@@ -469,8 +469,14 @@ func sourceSyncTarget(config skillQualityConfig) (syncTarget, error) {
 	return syncTarget{}, fmt.Errorf("no source sync target configured")
 }
 
-func ensureMarker(root, targetRoot, skill, sourceHash string, fix bool, row *doctorRow, result *doctorResult) {
-	if !fix || row.MarkerHash != "" {
+// ensureMarker refreshes the sync marker for a target whose content already
+// matches source. The marker is rewritten even when one is present: a matching
+// target holds the source content by definition, so the marker is provably
+// correct at sourceHash. Leaving a stale marker in place is what makes the next
+// legitimate source advance look like unknown downstream drift, which refuses a
+// safe repair.
+func ensureMarker(targetRoot, skill, sourceHash, markerHash string, fix bool, row *doctorRow) {
+	if !fix || markerHash == sourceHash {
 		return
 	}
 	if err := writeSyncMarker(targetRoot, skill, sourceHash); err == nil {
