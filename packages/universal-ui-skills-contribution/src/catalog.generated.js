@@ -37,6 +37,15 @@ export const skillCatalog = Object.freeze([
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/evolve/SKILL.md"
   },
   {
+    "id": "gh-copilot-cost-ops",
+    "name": "gh-copilot-cost-ops",
+    "description": ">",
+    "argumentHint": "[what to build or diagnose]",
+    "category": "Other",
+    "sourcePath": ".github/skills/gh-copilot-cost-ops/SKILL.md",
+    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/gh-copilot-cost-ops/SKILL.md"
+  },
+  {
     "id": "kb-architecture-deepening",
     "name": "kb-architecture-deepening",
     "description": "Lazy architecture exploration lane. Use when the user asks where a codebase should get deeper, simpler to test, or more modular, not for ordinary cleanup or diff review.",
