@@ -352,6 +352,15 @@ export const skillCatalog = Object.freeze([
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/learn/SKILL.md"
   },
   {
+    "id": "p2d",
+    "name": "p2d",
+    "description": "Plan to done. Takes a feature description, requirements source, or slice plan through kb-plan and straight into w2d, ending at an accepted PR when permissions and required checks allow. Use when the user says p2d, 'plan to done', or wants an unplanned idea carried all the way without staged confirmations.",
+    "argumentHint": "[feature description, requirements path, or plan path]",
+    "category": "Other",
+    "sourcePath": ".github/skills/p2d/SKILL.md",
+    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/p2d/SKILL.md"
+  },
+  {
     "id": "pr-review-workbench",
     "name": "pr-review-workbench",
     "description": "Turn a GitHub repository pull-request inbox or one pull request into a terse, visual, self-contained HTML review workbench that shows the minimum sufficient evidence for a responsible human decision, separates major behavioral impact from mechanical churn, preserves source anchors and proof states, and optionally prepares a SHA-pinned review for explicit foreground confirmation. Use when the user asks to simplify PRs, make a PR ADHD-friendly, create a PR walkthrough, summarize repository PRs visually, reduce review cognitive load, or prepare a review decision.",
@@ -404,6 +413,15 @@ export const skillCatalog = Object.freeze([
     "category": "Utilities",
     "sourcePath": ".github/skills/todo-triage/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/todo-triage/SKILL.md"
+  },
+  {
+    "id": "w2d",
+    "name": "w2d",
+    "description": "Work to done. Post-plan command that executes a validated manifest, finalizes it, opens a PR, and merges that PR when permissions and required checks allow. Use after kb-plan, or when the user says w2d, 'work to done', 'take it all the way', or 'land it'.",
+    "argumentHint": "[manifest path, or blank to resume the active manifest]",
+    "category": "Other",
+    "sourcePath": ".github/skills/w2d/SKILL.md",
+    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/w2d/SKILL.md"
   }
 ].map((skill) => Object.freeze(skill)));
 

@@ -218,10 +218,13 @@ Load `references/manifest-template.md` only while writing the manifest and
 3. Run `manifest-contract` when available.
 4. Write `plan-to-work: passed` only with objective evidence and
    `allowed_next_action: kb-work <manifest>`.
-5. Once `plan-to-work` passes, invoke `kb-work <manifest>` directly. Passing the
+5. Once `plan-to-work` passes, invoke `w2d <manifest>` directly. Passing the
    gate is the authorization; do not ask the user to confirm execution. Stop and
    return the exact command only when the gate fails or a hard question blocks
    the plan.
+   - `w2d` carries the manifest through work, finalization, and PR delivery.
+   - When the caller was `kb-complete`, return control to it instead so stored
+     delivery policy still owns the endpoint.
 
 ## Stop Rules
 
