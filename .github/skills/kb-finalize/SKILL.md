@@ -28,7 +28,9 @@ alone is not terminal.
 6. Reuse valid slice receipts and run one aggregate proof for the integrated
    tree. Use `kb-check proof-plan` to avoid replaying unchanged checks.
 7. Require matching functional proof for UI, API, CLI, persistence, auth,
-   streaming, or integration behavior.
+   streaming, or integration behavior. If web/UI changes are involved, Playwright
+   verification is mandatory and its screenshots must be presented to the user
+   to prove the work was done accurately.
 
 Do not enter semantic review with failing or missing integrated proof.
 
@@ -50,7 +52,8 @@ Pass:
 - base and integrated tree;
 - aggregate proof receipt and hash;
 - exact scope-verified paths;
-- manifest path.
+- manifest path;
+- Playwright screenshot paths (for web/UI changes, presented as visual evidence).
 
 `kb-review` chooses one broad or replacement specialist profile. Never invoke
 another reviewer at this boundary. Record the review/skip receipt fingerprint,
@@ -173,6 +176,7 @@ Report:
 ```text
 KB <name> finalized.
 - Proof: <exact-tree receipt>
+- Visual Evidence: <Playwright screenshot paths or N/A>
 - Review: <profile or conservative skip>; P0=N P1=N P2=N P3=N
 - Follow-up: resolved N, logged M, blocked K
 - Knowledge/memory: <actions or skip reasons>

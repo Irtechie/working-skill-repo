@@ -280,6 +280,7 @@ Commit: <sha or none>
 PR: <url or none>
 Integration: <not-requested|pending-review|merged|direct>
 Sync: <not-configured|done|blocked>
+Visual Evidence: <Playwright screenshot paths or N/A>
 Build storage: <done retained_bytes=N removed_bytes=N|not-applicable|blocked>
 Cleanup: <registered|deferred-current-session|deferred-host|blocked>
 Next: none|<exact resume action>
