@@ -218,8 +218,10 @@ Load `references/manifest-template.md` only while writing the manifest and
 3. Run `manifest-contract` when available.
 4. Write `plan-to-work: passed` only with objective evidence and
    `allowed_next_action: kb-work <manifest>`.
-5. If execution was requested, invoke `kb-work <manifest>` without another
-   confirmation. Otherwise return the exact command.
+5. Once `plan-to-work` passes, invoke `kb-work <manifest>` directly. Passing the
+   gate is the authorization; do not ask the user to confirm execution. Stop and
+   return the exact command only when the gate fails or a hard question blocks
+   the plan.
 
 ## Stop Rules
 
