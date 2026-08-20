@@ -1,6 +1,6 @@
 ---
 name: kb-check
-description: Deterministic verification harness for KB workflows. Use when code should be tested, linted, typechecked, built, security-checked, or validated by scripts instead of relying on LLM judgment; also use before kb-complete, kb-ship, or after kb-work slices.
+description: Deterministic verification harness for KB workflows. Use when code should be tested, linted, typechecked, built, security-checked, or validated by scripts instead of relying on LLM judgment; also use before kb-complete, kb-ship, or after kb-work slices. Also use before reporting a factual claim about repo, system, or deployment state as fact, especially a claim that something exists, is missing, changed, was lost, or is already deployed.
 argument-hint: "[optional scope, changed files, or command]"
 ---
 
@@ -24,6 +24,39 @@ oracle integrity check: the test, fixture, scorer, snapshot, schema, or contract
 file used as the behavior target must still match the recorded SHA unless the
 plan explicitly updated the oracle. This prevents the model from moving the
 target after implementation starts.
+
+## Claim Proof
+
+Executable truth applies to claims, not only to code. A statement about what
+exists, what changed, what was lost, or what is deployed is a check target. If a
+command can settle it, run the command before asserting it.
+
+Single-probe claims are unreliable for two specific reasons:
+
+- **A tool answers the question you asked, not the question you meant.** A diff
+  reporting no common lines can mean a rewrite, or can mean CRLF against LF. A
+  structural diff reporting missing functions can mean deleted, or can mean
+  re-signatured. The output is correct and the conclusion is wrong.
+- **Absence is a property of the search, not of the system.** "Not on this
+  branch", "no source in this repo", and "no match" describe where you looked. A
+  module absent from the application layer may be present in another layer.
+
+Rules:
+
+1. Existence and absence claims need a second, independent probe before they are
+   stated as fact. Confirm a missing symbol by searching for its definition
+   directly, not only by reading a diff that summarized it as missing.
+2. Normalize before comparing. Line endings, ordering, and whitespace produce
+   false diffs that read as total rewrites.
+3. Report an unproven claim as `unverified` with the probe that would settle it.
+   An unverified claim is a valid deliverable. A confident wrong one is not.
+4. Never change behavior to satisfy a check. When production semantics and a
+   test disagree, prove which is wrong before editing either. Selecting the
+   variant with fewer failures optimizes the metric, not the behavior.
+
+This gate is not conditional on the user challenging the claim. A model cannot
+detect its own guessing, so a discipline that activates on pushback activates
+after the wrong claim has already been delivered and acted on.
 
 ## Proof Cadence
 
@@ -196,3 +229,7 @@ deterministically.
 Report commands run, pass/fail status, failures fixed or parked, checks added, and remaining manual-only verification with why it cannot be automated.
 
 For every check, include machine proof: command or test file path, exit code, timestamp, and log/artifact path when available. Do not summarize as "tests pass" without the executable proof fields.
+
+Report factual claims the same way. Any existence, absence, drift, or deployment
+claim carries the command that settled it, or is labeled `unverified` with the
+probe that would settle it.

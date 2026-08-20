@@ -66,7 +66,7 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-check",
     "name": "kb-check",
-    "description": "Deterministic verification harness for KB workflows. Use when code should be tested, linted, typechecked, built, security-checked, or validated by scripts instead of relying on LLM judgment; also use before kb-complete, kb-ship, or after kb-work slices.",
+    "description": "Deterministic verification harness for KB workflows. Use when code should be tested, linted, typechecked, built, security-checked, or validated by scripts instead of relying on LLM judgment; also use before kb-complete, kb-ship, or after kb-work slices. Also use before reporting a factual claim about repo, system, or deployment state as fact, especially a claim that something exists, is missing, changed, was lost, or is already deployed.",
     "argumentHint": "[optional scope, changed files, or command]",
     "category": "Verification and eval",
     "sourcePath": ".github/skills/kb-check/SKILL.md",

@@ -708,7 +708,11 @@ The pipeline is built around task shape, not a fixed ceremony:
 automatically require a human; the agent fixes actionable issues itself and asks
 for help only for product decisions, credentials, unsafe operations, or genuine
 ambiguity. `kb-check` and `kb-functional-test` push verification into executable
-checks instead of letting the model re-inspect behavior by hand.
+checks instead of letting the model re-inspect behavior by hand. `kb-check` also
+owns claim proof: existence, absence, drift, and deployment claims need a second
+independent probe before they are stated as fact, or they ship labeled
+`unverified`. That gate is unconditional rather than triggered by user pushback,
+because a model cannot detect its own guessing.
 
 `kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-epic`, and `kb-complete` share a workflow
 governor contract: unresolved `ask-now` or `research-first` questions block
@@ -848,7 +852,7 @@ optional, explicitly authorized view over the same artifact branch.
 
 Verification and gates:
 
-- `kb-check` - deterministic verification harness
+- `kb-check` - deterministic verification harness, and claim proof for existence/absence/drift assertions
 - `kb-functional-test` - functional/e2e/browser test strategy and audit
 - `kb-gate` - shared P0/P1/P2/P3/P4 phase-gate policy
 - `kb-qa` - per-slice QA gate
