@@ -25,7 +25,7 @@ the slice touches user-visible behavior.
 | `integration` | wiring between modules, persistence, callbacks, service boundaries, API contract internals | integration test using real collaborating code where practical |
 | `functional-api` | HTTP/API workflow, action/tool endpoint, command handler, data contract visible to callers | API smoke/test through public surface |
 | `functional-cli` | CLI command or script behavior users/operators invoke | CLI smoke script/test with real arguments and observable output |
-| `functional-browser` | UI flow, DOM state, navigation, visual interaction, browser-only behavior, or major functionality exposed through the UI | headless Playwright/Cypress/CDP/agent-browser probe that drives the behavior through the UI with observable assertions |
+| `functional-browser` | UI flow, DOM state, navigation, visual interaction, browser-only behavior, or major functionality exposed through the UI | headless browser-automation probe that drives the behavior through the rendered UI with observable assertions (see Browser Transport) |
 | `full` | release/high-risk flow touching auth, persistence, integration, UI, or multiple critical paths | targeted functional checks plus broader suite/smoke |
 
 `functional_risk` is the execution breadth: `none`, `narrow`, `broad`, or `full`.
@@ -41,13 +41,43 @@ Also set `test_level: functional-browser` when non-UI files change behavior whos
 `functional-browser` means:
 
 1. Start or connect to the running app.
-2. Use Playwright to navigate to the actual feature route/screen in the rendered UI.
+2. Drive the actual feature route/screen in the rendered UI through a qualifying
+   browser-automation transport.
 3. Exercise the happy path with real clicks, keyboard input, form input, navigation, or other user-visible controls.
 4. Assert observable rendered outcomes after the interaction; do not assert only backend calls, component handlers, mocked requests, or internal state.
 5. Capture screenshots of key pass/fail states as evidence.
 6. Clean up any artifacts, test data, screenshots, traces, temp files, or browser state created during testing according to the repo's QA cleanup rules.
 
-If Playwright cannot access the target because the route requires an existing authenticated corporate browser session, use the repo/platform's authenticated browser transport (for example CDP) and record why Playwright was not viable. This is still `functional-browser`; it is not backend/API verification.
+## Browser Transport
+
+The transport is not fixed. Any browser-automation tool the repo or platform
+provides is valid — Playwright, Cypress, CDP, WebDriver, an agent browser, or a
+successor that does not exist yet. Naming one tool as the requirement dates the
+skill and makes new transports read as non-compliant.
+
+A transport qualifies when it can do all of the following:
+
+- load the real application route in a real browser engine;
+- perform genuine user interaction against rendered elements;
+- read back observable rendered state after that interaction;
+- capture a screenshot of the resulting state;
+- exit nonzero on assertion failure.
+
+A transport does not qualify when it only fetches HTML over HTTP, parses markup
+without a browser engine, renders components in isolation outside the app's
+routing, or cannot fail programmatically. Convenience is not a qualification.
+
+Validity is proven by the receipt, not by the tool's name. Record the transport
+actually used and why, especially when the first choice was unavailable. If a
+route requires an existing authenticated session, use the platform's
+authenticated transport and record why the default was not viable. That is still
+`functional-browser`; it is not backend/API verification.
+
+Screenshots are evidence, not assertions. A vision model asserting against a
+screenshot is model judgment, not deterministic proof, so it carries the same
+burden as any other model claim: it must be observed failing against the broken
+state before it is accepted as passing. An unfalsified vision assertion is
+`unverified`, not proof.
 
 ## Behavioral Assertions
 
@@ -114,7 +144,7 @@ Good mini-model tasks:
 
 - classify `test_level` and `functional_risk` from a slice plan;
 - audit whether existing tests are meaningful or mocked theater;
-- suggest the narrowest deterministic command or Playwright/API/CLI probe;
+- suggest the narrowest deterministic command or browser/API/CLI probe;
 - summarize required test inputs.
 
 Do not use a mini model as the final proof of behavior. The proof is the command, test, browser probe, screenshot, or failing/passing output. Escalate to a stronger model when classification depends on architecture, auth/security, flaky async behavior, complex UI state, or repeated failures.
@@ -157,7 +187,7 @@ If a test mostly asserts mocks were called, snapshots noise, or duplicates imple
   checks automatically; it denies them before spawning. If the user explicitly
   requests an attended GUI check, the host/user runs that bounded session
   outside `proof-run` and records its evidence separately.
-- Prefer programmatic probes: Playwright locators, API checks, DOM text extraction, screenshot assertions, or CLI commands.
+- Prefer programmatic probes: browser-automation locators, API checks, DOM text extraction, screenshot assertions, or CLI commands.
 - UI-reachable behavior must be exercised through the rendered UI route/control that a user uses. API calls, backend logs, unit tests, direct state inspection, calling a React/Vue/Svelte component method, invoking a button handler directly, or mocking the request the UI would send are supporting evidence only.
 - A passing UI functional test must include at least one real navigation/open, one real user interaction when the feature is interactive, and one observable rendered assertion after the action. For display-only changes, assert the rendered screen state directly.
 - Map every changed UI file and every UI-visible acceptance criterion to at least one route, screen, or interaction. If a changed component appears on multiple important routes, test the affected route set, not just one convenient page.
@@ -176,7 +206,7 @@ If a test mostly asserts mocks were called, snapshots noise, or duplicates imple
 
 If a functional check will be repeated, turn it into a script or test:
 
-- Playwright/Cypress test for UI flows.
+- Browser-automation test for UI flows, in whichever transport the repo provides.
 - API smoke script for endpoints.
 - CLI smoke script for commands.
 - Small HTML/DOM extractor only when a full browser test is overkill.

@@ -5,7 +5,7 @@ kb_id: kb-2026-08-20-runtime-state-contract
 source: docs/brainstorms/2026-08-20-kb-runtime-cognitive-routing-requirements.md
 source_sha256: 7407e7b016730501bac24e4d73361e408ef22eb8c2078736c533681beb2117f3
 created: 2026-08-20
-status: draft
+status: active
 workflow_shape: pipeline-change
 objective_contract: true
 model_tier_contract: true
@@ -52,7 +52,7 @@ versioned, deterministic runtime contract while preserving thin phase adapters.
 | Gate | Status | Evidence required | Next action |
 |---|---|---|---|
 | brainstorm-to-plan | passed | user requirements source; no open product decision | `kb-plan` complete |
-| plan-to-work | needs-human | approval of this manifest; context packets; contract validation | `kb-work <manifest>` |
+| plan-to-work | passed | user approved the epic and W2D on 2026-08-20; manifest contract previously passed | `kb-work <manifest>` |
 
 ## Slices
 

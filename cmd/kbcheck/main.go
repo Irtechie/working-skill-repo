@@ -32,6 +32,7 @@ Usage:
   kbcheck gate-ledger --manifest <path> --gate <gate-id> [--allowed-next <text>] [--allow-quarantine]
   kbcheck run-state --history <path> [--json]
   kbcheck run-state-selftest
+  kbcheck delivery-state --delivery-receipt <path> [--json]
   kbcheck sense --check <path> [--trace <path>] [--root <path>]
   kbcheck trace-verify [--trace <path>] [--root <path>]
   kbcheck accept --check <path> [--trace <path>] [--root <path>]
@@ -179,6 +180,7 @@ type options struct {
 	packetPath              string
 	telemetryPath           string
 	receiptPath             string
+	deliveryReceiptPath     string
 	receiptDir              string
 	proofRegistryPath       string
 	proofRequest            string
@@ -272,6 +274,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runRunStateCommand(root, opts, stdout, stderr)
 	case "run-state-selftest":
 		return runRunStateSelftest(stdout, stderr)
+	case "delivery-state":
+		return runDeliveryStateCommand(root, opts, stdout, stderr)
 	case "sense":
 		return runProofSenseCommand(root, opts, stdout, stderr)
 	case "trace-verify":
@@ -412,7 +416,7 @@ func parse(args []string) (options, error) {
 	knownCommands := map[string]bool{
 		"core": true, "local-release": true, "live-release": true,
 		"ready-set": true, "ready-set-selftest": true, "manifest-contract": true, "manifest-contract-selftest": true, "gate-ledger": true,
-		"run-state": true, "run-state-selftest": true,
+		"run-state": true, "run-state-selftest": true, "delivery-state": true,
 		"sense": true, "trace-verify": true, "accept": true, "proof-receipt-validate": true, "proof-plan": true, "proof-run": true, "proof-governor-selftest": true, "learning-adoption": true,
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
@@ -493,6 +497,7 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.packetPath, "packet", "", "context packet JSON path")
 	fs.StringVar(&opts.telemetryPath, "telemetry", "", "execution telemetry JSON path")
 	fs.StringVar(&opts.receiptPath, "receipt", "", "routing receipt JSON path")
+	fs.StringVar(&opts.deliveryReceiptPath, "delivery-receipt", "", "delivery state receipt JSON path")
 	fs.StringVar(&opts.receiptDir, "receipt-dir", "", "proof receipt directory")
 	fs.StringVar(&opts.proofRegistryPath, "registry", "", "proof check registry JSON path")
 	fs.StringVar(&opts.proofRequest, "request", "", "comma-separated proof check IDs")
@@ -553,6 +558,12 @@ func parse(args []string) (options, error) {
 	}
 	if opts.command == "run-state" && opts.history == "" {
 		return options{}, fmt.Errorf("run-state requires --history")
+	}
+	if opts.command != "delivery-state" && opts.deliveryReceiptPath != "" {
+		return options{}, fmt.Errorf("--delivery-receipt is only supported for delivery-state")
+	}
+	if opts.command == "delivery-state" && opts.deliveryReceiptPath == "" {
+		return options{}, fmt.Errorf("delivery-state requires --delivery-receipt")
 	}
 	if opts.command != "scope-lease" && opts.ledger != "" {
 		return options{}, fmt.Errorf("--ledger is only supported for scope-lease")
