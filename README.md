@@ -231,6 +231,26 @@ committed, pushed, and opened as a review-ready PR without asking, then
 PR-ready is automatic; accepting a PR never is. Projects that want work to stay
 on disk opt out with `kb-configure delivery-local`.
 
+### Solo-owner delivery: `p2d` and `w2d`
+
+Use `p2d` and `w2d` when you own the project and want the planned change taken
+through its permitted delivery endpoint without staged confirmations:
+
+- `p2d <idea-or-requirements>` plans first, then invokes `w2d`.
+- `w2d <validated-manifest>` runs work, finalization, PR delivery, and attempts
+  merge only when the authenticated account, required checks, and branch
+  protection allow it.
+
+They are intent-driven solo-owner paths. `kb-complete` remains the
+policy-driven collaborative path: it creates a reviewable PR and normally stops
+at `awaiting-review` until merge authority is separately supplied. Neither path
+bypasses protections, approvals, or repository delivery policy.
+
+P2D/W2D do not ask whether to merge after opening the PR: their invocation
+already supplies solo-owner acceptance intent. Their terminal response reports
+the PR URL, merged commit or exact unmet merge condition, proof summary, and
+selected Playwright/host-browser screenshots for UI-visible changes.
+
 For long-lived objectives that may run across days or sessions, use `kb-goal`.
 It keeps the durable objective and terminal proof ledger, then routes each work
 unit through the normal KB lanes. `kb-complete` is one state-aware completion

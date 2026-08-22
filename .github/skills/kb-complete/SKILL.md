@@ -257,15 +257,69 @@ rewritten, or renamed default blocks and requires re-registration. Local-only co
 retains its durable branch ref. `pr` completion retains feature refs even if the
 commit later appears on default. Only a receipt registered as the proven
 integrated `direct` endpoint deletes the exact matching merged local feature
-ref; squash/rebase integration remains blocked until provider-backed merge
-proof exists. Remote feature-ref deletion remains provider/host-owned because
-plain Git deletion has no race-safe compare-and-swap.
+ref. Squash/rebase integration is proven by provider-backed merge evidence or
+by portable patch-equivalence; absent both, it remains blocked. Remote
+feature-ref deletion remains provider/host-owned because plain Git deletion has
+no race-safe compare-and-swap.
+
+### Patch-Equivalent Merge Proof
+
+Ancestry is not a valid merge test under squash or rebase integration. A
+squash-merged branch is never an ancestor of the default branch, so
+`rev-list <default>..<branch>` returns a nonzero count permanently. Reading that
+count as "unmerged" makes every successfully delivered branch accumulate
+forever and reports a backlog that can only grow.
+
+Portable merge proof is patch equivalence against the fetched authoritative
+default:
+
+```powershell
+git -C <root> fetch <remote> --prune
+git -C <root> cherry <remote>/<default> <branch>
+```
+
+Lines prefixed `-` are already upstream. Zero `+` lines is `merge-equivalent`
+and satisfies the integrated `direct` endpoint for local ref deletion. One or
+more `+` lines is `unmerged`: retain, never delete.
+
+Patch equivalence compares patch-ids, so a conflict-resolved or amended merge
+can report `+` when the work did land. That error direction is safe because it
+retains. Never invert the test to delete on `+`.
 
 Never release the shared work claim before lifecycle registration succeeds.
 
-If the native guard is unavailable, do not improvise filesystem deletion.
-Report the exact session ID, worktree, branch, commit, delivery proof, and
-`cleanup: deferred-host` for an external owner.
+If the native guard is unavailable, do not improvise filesystem deletion outside
+the bounded portable sweep below. Report the exact session ID, worktree, branch,
+commit, and delivery proof.
+
+### Portable Cleanup Sweep
+
+`cleanup: deferred-host` names an owner that may not exist. When no host owner
+is configured, run this bounded sweep instead of deferring indefinitely; an
+unowned deferral is how merged worktrees and delivered refs accumulate without
+limit.
+
+Delete only when every condition holds:
+
+- `git status --porcelain` is empty — no tracked or untracked dirt;
+- the worktree is not the current executing session's worktree;
+- no active claim, lease, or queue entry references it;
+- `git cherry <remote>/<default> <branch>` reports zero `+` lines;
+- the branch is not the checked-out branch of its primary checkout.
+
+Order matters: remove the worktree, run `git worktree prune`, then delete the
+local ref. Local ref deletion is reflog-recoverable; uncommitted files are not,
+which is why dirt disqualifies before anything is removed.
+
+Never in scope: remote refs, any primary checkout, the stable shared Cargo
+target, build caches shared across linked worktrees, and any worktree failing a
+single condition. Report each skipped item with the exact failing condition
+rather than a count.
+
+Orphaned directories under the worktree root that carry no `.git` entry are
+unregistered husks. They are outside Git's guard entirely, so evaluate them by
+content: delete only when empty or when every file is reproducible build output.
+Never delete a husk containing non-reproducible files.
 
 ## Terminal Outcomes
 

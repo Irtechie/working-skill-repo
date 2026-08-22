@@ -93,6 +93,10 @@ Prove fetched remote-default containment before post-integration sync.
   `direct` whether integration came from an authorized PR merge or direct push.
 - Delete topic branches/worktrees only through the terminal cleanup guard when
   merged, clean, unclaimed, outside the current executing session, and safe.
+  "Merged" means patch-equivalent to the fetched authoritative default, not an
+  ancestor of it. Under squash or rebase integration the ancestry test is
+  permanently false, so an ancestry-gated guard never fires and sprawl is the
+  guaranteed outcome. See `kb-complete` Patch-Equivalent Merge Proof.
 - Do not switch branches in a dirty shared checkout merely for cosmetic cleanup.
 
 ```yaml
