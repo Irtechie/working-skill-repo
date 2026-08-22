@@ -56,7 +56,7 @@ For each signal in `docs/context/memory-maintenance.md`, classify the action:
 | `contradiction` | reconcile docs; add/update decision note when both sides had a reason |
 | `overlap` | consolidate, cross-link, or clarify scope boundaries |
 | `stale-doc` | run `kb-map refresh` or edit affected docs directly |
-| `bloat` | run `kb-compact` on the specific doc/section |
+| `bloat` | run `kb-cognitive` on the specific doc/section |
 | `repeated-rediscovery` | promote the fact into `PROJECT.md`, architecture, research, decisions, `docs/solutions/`, or a learned skill candidate |
 | `landmine-stale` | verify whether the owner surface is fixed; archive if verified, otherwise keep active or mark stale-review |
 
@@ -82,7 +82,7 @@ Do not fix by deleting useful context blindly. Preserve exact paths, commands, d
    - Landmine drift: update `docs/context/landmines.md`; resolved entries need
      proof, while unfixed stale entries stay visible for future sessions.
    - Solution-learning drift: invoke `ce-compound-refresh` with the narrowest scope.
-   - Bloat only: invoke `kb-compact` on the specific artifact.
+   - Bloat only: invoke `kb-cognitive` on the specific artifact.
    - Repeated rediscovery: add one durable pointer where future sessions will actually find it.
 
 4. **Edit**
@@ -107,7 +107,7 @@ Report:
 - Scope reviewed.
 - Signals resolved, left open, or converted to follow-up.
 - Files edited.
-- Skills invoked (`kb-map refresh`, `kb-compact`, `ce-compound-refresh`, `document-review`).
+- Skills invoked (`kb-map refresh`, `kb-cognitive`, `ce-compound-refresh`, `document-review`).
 - Whether fresh-session lookup now points to the right docs.
 
 End with one of:

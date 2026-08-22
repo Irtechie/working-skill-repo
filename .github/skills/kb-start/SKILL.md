@@ -225,7 +225,7 @@ reconcile it with a second shape or complexity table.
 | 15 | Skill-bundle change with sync/docs/eval/standard gate implications | `kb-plan` | `kb-check -All` and sync report |
 | 16 | Fuzzy idea, product direction, or high path dependency | `kb-brainstorm` | answered questions before planning |
 | 17 | Small known bug, typo, narrow cleanup, or one skill/doc edit with no sync/eval/proof-harness implications | `kb-fix` or bounded direct edit | targeted proof plus `kb-check` when relevant |
-| 18 | Memory/docs/responses are too verbose | `kb-compact` | preserve commands, paths, dates, blockers |
+| 18 | Memory/docs/responses are too verbose | `kb-cognitive` | preserve commands, paths, dates, blockers |
 | 19 | Legacy full-pipeline or finish wording | `kb-complete` | full state-aware pipeline |
 
 A commit-required plan-run manifest without explicit local check-in authority
@@ -296,7 +296,7 @@ Minimize visible ceremony:
 
 Every token must pay rent. Keep startup output short and load only pointed-to files.
 
-Route to `kb-compact` when:
+Route to `kb-cognitive` when:
 
 - `todo.md`, handoffs, research notes, or architecture docs carry repeated history instead of current signal.
 - A skill draft repeats rules already in `AGENTS.md` or `.github/copilot-instructions.md`.

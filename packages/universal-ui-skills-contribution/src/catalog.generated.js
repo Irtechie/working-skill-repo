@@ -73,13 +73,13 @@ export const skillCatalog = Object.freeze([
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-check/SKILL.md"
   },
   {
-    "id": "kb-compact",
-    "name": "kb-compact",
-    "description": "Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Select the smallest useful presentation: plain language, ranked bullets, a comparison table, a decision block, or a workflow diagram when relationships matter. Use when the user says 'compact', 'fewer words', 'make this terse', 'organize the response', 'talk to me like a person', 'limited time', 'low cognitive burden', 'make this easy to understand', 'show me visually', 'token diet', 'every token pays rent', or when KB docs are getting too large for routine session startup.",
-    "argumentHint": "[file path, response, or doc area to compact]",
+    "id": "kb-cognitive",
+    "name": "kb-cognitive",
+    "description": "Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Select the smallest useful presentation: plain language, ranked bullets, a comparison table, a decision block, or a workflow diagram when relationships matter. Use when the user says 'cognitive', 'cognitive burden', 'compact', 'fewer words', 'make this terse', 'organize the response', 'talk to me like a person', 'limited time', 'low cognitive burden', 'make this easy to understand', 'easy to read', 'show me visually', 'token diet', 'every token pays rent', or when KB docs are getting too large for routine session startup.",
+    "argumentHint": "[file path, response, or doc area to make easier to read]",
     "category": "Learning and maintenance",
-    "sourcePath": ".github/skills/kb-compact/SKILL.md",
-    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-compact/SKILL.md"
+    "sourcePath": ".github/skills/kb-cognitive/SKILL.md",
+    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-cognitive/SKILL.md"
   },
   {
     "id": "kb-complete",

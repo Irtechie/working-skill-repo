@@ -1,10 +1,10 @@
 ---
-name: kb-compact
-description: "Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Select the smallest useful presentation: plain language, ranked bullets, a comparison table, a decision block, or a workflow diagram when relationships matter. Use when the user says 'compact', 'fewer words', 'make this terse', 'organize the response', 'talk to me like a person', 'limited time', 'low cognitive burden', 'make this easy to understand', 'show me visually', 'token diet', 'every token pays rent', or when KB docs are getting too large for routine session startup."
-argument-hint: "[file path, response, or doc area to compact]"
+name: kb-cognitive
+description: "Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Select the smallest useful presentation: plain language, ranked bullets, a comparison table, a decision block, or a workflow diagram when relationships matter. Use when the user says 'cognitive', 'cognitive burden', 'compact', 'fewer words', 'make this terse', 'organize the response', 'talk to me like a person', 'limited time', 'low cognitive burden', 'make this easy to understand', 'easy to read', 'show me visually', 'token diet', 'every token pays rent', or when KB docs are getting too large for routine session startup."
+argument-hint: "[file path, response, or doc area to make easier to read]"
 ---
 
-# KB Compact
+# KB Cognitive
 
 Reduce comprehension and decision effort without deleting meaning. Shorter is
 useful only when it makes the artifact easier to act on. This is not a style

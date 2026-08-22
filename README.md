@@ -343,7 +343,7 @@ project. This table is the human reference; the current
 | Skill-bundle change has sync, docs, eval, or standards implications | `kb-plan` | Contributor checks plus release/sync drift report when propagation is authorized |
 | Fuzzy idea or high-path-dependency product direction | `kb-brainstorm` | Planning questions resolved |
 | Small known bug, typo, or narrow contained edit | `kb-fix` | Targeted proof |
-| Memory, docs, or output are too hard to scan | `kb-compact` | Technical truth preserved with lower reading burden |
+| Memory, docs, or output are too hard to scan | `kb-cognitive` | Technical truth preserved with lower reading burden |
 | Full idea-to-endpoint completion request | `kb-complete` | Same state-aware completion gates |
 
 Handoffs re-enter through `kb-start` and `kb-map`; durable goals route each work
@@ -800,7 +800,7 @@ This is a command index. For the ordered lane decision, see
 | `kb-ship` | Internal commit, push, and PR delivery phase |
 | `kb-land` | Internal merge/direct integration and post-integration sync phase |
 | `kb-epic` | Large migration, rewrite, or multi-brainstorm initiative |
-| `kb-compact` | Memory, docs, or output need low-burden organization with the smallest useful prose, table, decision block, or workflow view |
+| `kb-cognitive` | Memory, docs, or output need low-burden organization with the smallest useful prose, table, decision block, or workflow view |
 | `kb-executive-brief` | Generate an executive first screen and an optional evidence-backed Mermaid flow |
 | `pr-review-workbench` | Generate a commit-pinned, offline visual PR review after a PR exists |
 | `repo-critic` | Claims-vs-code evidence review before a claim ships |
@@ -814,7 +814,7 @@ Routing and memory:
 - `kb-goal` - durable objective lane across sessions and KB routes
 - `kb-map` - project-memory lookup, refresh, and project-root anchoring
 - `kb-map-bootstrap` - expensive deep index plus standard memory layout
-- `kb-compact` - lower comprehension and decision effort without losing
+- `kb-cognitive` - lower comprehension and decision effort without losing
   technical truth; choose prose, ranked bullets, a table, a decision block, or
   one useful workflow diagram based on the information shape
 - `kb-executive-brief` - generate responsibility-first Markdown and only render a visual when relationships justify it
