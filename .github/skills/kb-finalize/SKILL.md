@@ -109,7 +109,7 @@ merely because finalization occurred.
 | Mature instincts meet the configured cadence/threshold | Invoke `evolve` |
 | Durable behavior, architecture, commands, integration, or sharp edge changed | Invoke `kb-map refresh` |
 | Recorded contradiction, overlap, stale-doc, rediscovery, or bloat threshold | Update maintenance signals; invoke `kb-memory-review` only when due |
-| A specific startup document is too large | Invoke `kb-compact` for that path |
+| A specific startup document is too large | Invoke `kb-cognitive` for that path |
 
 Otherwise record a specific skip reason. Never create lessons from routine
 success, style preferences, or generic advice. Keep workflow/domain lessons at
@@ -192,5 +192,5 @@ Continuing automatically to kb-complete <manifest>.
 - Semantic review: `kb-review`
 - Decisions: `kb-gate`
 - Conditional knowledge: `ce-compound`, `learn`, `evolve`
-- Conditional memory: `kb-map`, `kb-memory-review`, `kb-compact`
+- Conditional memory: `kb-map`, `kb-memory-review`, `kb-cognitive`
 - Delivery owner: `kb-complete`

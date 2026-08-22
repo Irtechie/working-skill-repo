@@ -26,7 +26,7 @@ must not trigger it.
   and avoidable complexity.
 - Whether the architecture should change. That is `kb-architecture-deepening`.
 - A failing test or reported bug. That is `kb-fix` or `kb-troubleshoot`.
-- Doc, memory, or response compaction. That is `kb-compact`.
+- Doc, memory, or response compaction. That is `kb-cognitive`.
 
 ## Step 1 — Rank By Churn First, Not Ugliness
 

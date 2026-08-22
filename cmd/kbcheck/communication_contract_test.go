@@ -20,7 +20,7 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			docConcept("table for repeated-field comparison"),
 			docConcept("visual must remove mental reconstruction"),
 		},
-		".github/skills/kb-compact/SKILL.md": {
+		".github/skills/kb-cognitive/SKILL.md": {
 			docAnchor("## Format Selection"),
 			docAnchor("## Response Responsibility"),
 			docAnchor("references/response-patterns.md"),
@@ -32,7 +32,7 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			docConcept("default and continue unless overridden"),
 			docConcept("plain human language"),
 		},
-		".github/skills/kb-compact/references/response-patterns.md": {
+		".github/skills/kb-cognitive/references/response-patterns.md": {
 			docAnchor("## 1. Simple Outcome: Use Plain Language"),
 			docAnchor("## 3. Hard Decision: Keep the Ask Together"),
 			docAnchor("## 4. Repeated Fields: Use a Table"),
