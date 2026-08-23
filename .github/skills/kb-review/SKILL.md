@@ -102,8 +102,26 @@ agent is available, perform one local structured pass and record
 
 ## Findings
 
-Use P0-P3 severity. Keep only actionable, evidenced findings. Verify cited code
-before reporting and suppress formatter/linter output.
+Use P0-P3 severity. Keep only actionable, evidenced findings. Suppress
+formatter/linter output.
+
+Every finding carries a concrete evidence anchor, and the reviewer reads that
+anchor before reporting it:
+
+| Anchor | `evidence_kind` |
+|---|---|
+| Inspected `path:line` or `path:start-end` plus the verbatim snippet | `read` |
+| Command actually run plus its real output | `executed` |
+| Quoted requirement, spec, or contract text | `spec` |
+| Reasoning only; no anchor exists | `inferred` |
+
+If an anchor exists but was not read, read it or drop the finding. A paraphrase,
+a remembered API, or a pattern description is not an anchor.
+
+An `inferred` finding is provisional. Route it `advisory`, state the
+disconfirmer that would show it is wrong, and name the cheapest check that would
+promote it to `read` or `executed`. Never report a provisional judgment as a
+verified defect.
 
 | Class | Route |
 |---|---|
@@ -113,7 +131,8 @@ before reporting and suppress formatter/linter output.
 | `advisory` | Report residual risk without pretending it is implementation work |
 
 P0/P1 block completion until resolved. P2/P3 do not block by severity alone,
-but fix cheap and clearly correct issues.
+but fix cheap and clearly correct issues. A provisional finding never blocks on
+severity alone; run its named check first, then re-severity it.
 
 ## Receipt
 
@@ -126,6 +145,7 @@ Write or return one review receipt containing:
 - risk classification and selected profile;
 - review mode and reviewer provenance;
 - finding counts, resolutions, and residual risks;
+- provisional (`inferred`) finding count and the checks that would settle them;
 - changed-path scope and skip reason when review was skipped.
 
 The caller owns receipt storage. `kb-finalize` normally stores it with the
@@ -133,6 +153,7 @@ manifest proof artifacts.
 
 ## Stop Rules
 
+- `mode:autofix` never applies a fix to a provisional finding.
 - Do not dispatch without deterministic integrated proof.
 - Do not dispatch a second reviewer because the first found nothing.
 - Do not add a specialist after the broad profile.

@@ -114,12 +114,37 @@ progress remains. Do not convert them into review work for the user.
 
 ## Phase Gates
 
-- **Brainstorm -> plan:** block on unresolved P0/P1 requirements, contradictions, missing core behavior, unsafe assumptions, missing verification inputs, unresolved `ask-now` items, unresolved `research-first` items, or unlabeled material assumptions.
-- **Plan -> work:** block on broken DAG, missing acceptance criteria, missing verification mode, missing expected files, weak functional coverage, unsafe HITL, missing objective `done_check` when `objective_contract: true`, missing per-slice `proof_check`/valid `no_check_reason`, invalid `model_route`, or unresolved architecture/security risk.
+- **Brainstorm -> plan:** block on unresolved P0/P1 requirements, contradictions, missing core behavior, unsafe assumptions, missing verification inputs, unresolved `ask-now` items, unresolved `research-first` items, unlabeled material assumptions, or unsettled factual premises.
+- **Plan -> work:** block on broken DAG, missing acceptance criteria, missing verification mode, missing expected files, weak functional coverage, unsafe HITL, missing objective `done_check` when `objective_contract: true`, missing per-slice `proof_check`/valid `no_check_reason`, invalid `model_route`, unsettled factual premises, or unresolved architecture/security risk.
 - **Work -> complete:** block on failing deterministic checks, failed functional flows, scope violations, unresolved durable memory refresh, objective-contract validation failure, missing slice proof-check evidence, or blocked slices not explicitly parked.
 - **Complete -> ship:** block on unresolved P0/P1 review findings, failed checks, missing objective `done_check` result, missing proof/demo evidence, release risk, or unrecorded human-only blockers.
 
 P2/P3/P4 do not block by severity alone. Before moving on, fix the cheap/actionable ones that improve the artifact. Defer only when the finding is genuinely non-blocking and logging it will not cause avoidable rework.
+
+## Premise Verification
+
+A factual premise is a load-bearing claim about repo, code, tool, runtime,
+dependency, or deployment state that would invalidate a slice if false. Product
+intent, priorities, and taste are user-owned and are not premises.
+
+Before a plan is written, every factual premise it rests on must be either:
+
+- verified this session with a cited file, command, or tool result; or
+- explicitly marked provisional in the plan.
+
+There is no third option. A premise that is neither is a P1 blocker. A
+provisional premise must name the later proof that would catch it if wrong,
+which makes it a `safe-assumption` below; without that proof hook it is
+`research-first` and still blocks.
+
+Apply this only where a wrong premise is expensive: `kb-brainstorm`, `kb-plan`,
+`kb-work`, `kb-epic`, `kb-goal`, and the planning path of `kb-task`. Do not
+apply it in `kb-fix`, `kb-repair`, or `kb-troubleshoot`, where diagnosis is the
+evidence and the blast radius is one contained change.
+
+`kb-work` preflight already requires `plan-to-work: passed`, so this check lands
+at plan time. When an in-scope lane is about to edit without a plan, run the
+same check against the assumptions the edit depends on before the first edit.
 
 ## Question Gate Classes
 
