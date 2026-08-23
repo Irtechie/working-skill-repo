@@ -27,6 +27,8 @@ Before slicing, perform the main-agent requirements check:
 - goals, non-goals, and acceptance criteria are explicit;
 - no contradictions or unresolved `ask-now` or `research-first` items remain;
 - dependencies are evidenced or labeled assumptions;
+- every load-bearing factual premise is cited or marked provisional, per the
+  `kb-gate` premise-verification rule;
 - failure, recovery, trust, migration, and integration behavior is sufficient;
 - verification can detect the stated failure modes.
 
