@@ -25,6 +25,8 @@
           "requires_verification",
           "confidence",
           "evidence",
+          "evidence_kind",
+          "disconfirmer",
           "pre_existing"
         ],
         "properties": {
@@ -77,15 +79,38 @@
           },
           "evidence": {
             "type": "array",
-            "description": "Code-grounded evidence: snippets, line references, or pattern descriptions. At least 1 item.",
+            "description": "Concrete anchors the reviewer actually read: 'path:line' or 'path:start-end' with the verbatim snippet, a command with its real output, or quoted spec text. A paraphrase, remembered API, or pattern description is not an anchor. At least 1 item.",
             "items": { "type": "string" },
             "minItems": 1
+          },
+          "evidence_kind": {
+            "type": "string",
+            "enum": ["read", "executed", "spec", "inferred"],
+            "description": "How the evidence was obtained. 'read' = inspected file/line. 'executed' = command output. 'spec' = quoted authoritative requirement. 'inferred' = reasoning only, no anchor exists; the finding is provisional."
+          },
+          "disconfirmer": {
+            "type": ["string", "null"],
+            "description": "Required non-null when evidence_kind is 'inferred': the observation that would show this finding is wrong, plus the cheapest check that would settle it. Null is allowed only for anchored findings."
           },
           "pre_existing": {
             "type": "boolean",
             "description": "True if this issue exists in unchanged code unrelated to the current diff"
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "evidence_kind": { "const": "inferred" } },
+              "required": ["evidence_kind"]
+            },
+            "then": {
+              "properties": {
+                "disconfirmer": { "type": "string", "minLength": 1 },
+                "autofix_class": { "const": "advisory" }
+              }
+            }
+          }
+        ]
       }
     },
     "residual_risks": {
@@ -101,6 +126,12 @@
     },
 
   "_meta": {
+    "evidence_kinds": {
+      "read": "Reviewer opened the cited path and line range and quoted it verbatim.",
+      "executed": "Reviewer ran the cited command and reports its real output.",
+      "spec": "Reviewer quoted authoritative requirement, contract, or manifest text.",
+      "inferred": "Reasoning only, no anchor exists. Provisional: route advisory, do not block on severity alone, and supply a disconfirmer plus the cheapest check that would settle it."
+    },
     "confidence_thresholds": {
       "suppress": "Below 0.60 -- do not report. Finding is speculative noise. Exception: P0 findings at 0.50+ may be reported.",
       "flag": "0.60-0.69 -- include only when the issue is clearly actionable with concrete evidence.",

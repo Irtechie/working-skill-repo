@@ -19,7 +19,9 @@ Counts: P0=N P1=N P2=N P3=N
 ## Findings
 
 For each finding provide severity, title, file and line, concrete evidence,
-impact, specific fix, routing class, owner, confidence, and verification need.
+evidence kind, impact, specific fix, routing class, owner, confidence, and
+verification need. Mark `inferred` findings provisional and show the
+disconfirmer and the check that would settle them.
 
 ## Evidence
 
