@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -92,21 +93,91 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 	manifestPath := filepath.Join(runDir, "manifest.json")
 	stdoutPath := filepath.Join(runDir, "stdout.txt")
 	stderrPath := filepath.Join(runDir, "stderr.txt")
+	epistemic := boolValue(fixture["_epistemic"])
+	surfaces := []instructionSurface{}
+	actorRoot := root
+	auditActorRoot := actorRoot
+	executionActorHash := ""
+	cleanupActor := func() {}
+	isolationCLI := ""
+	if epistemic {
+		var actorErr error
+		actorRoot, cleanupActor, actorErr = createEpistemicActorWorkspace(root, runDir)
+		if actorErr != nil {
+			return adapterRun{}, actorErr
+		}
+		defer cleanupActor()
+		var surfaceErr error
+		surfaces, surfaceErr = epistemicInstructionSurfaces(root, runtime, mode)
+		if surfaceErr != nil {
+			return adapterRun{}, surfaceErr
+		}
+		if err := materializeEpistemicActorWorkspace(root, fixtureID, actorRoot, surfaces); err != nil {
+			return adapterRun{}, err
+		}
+		schema, err := os.ReadFile(filepath.Join(root, "evals", "skill-eval", "result.schema.json"))
+		if err != nil {
+			return adapterRun{}, err
+		}
+		if err := os.WriteFile(filepath.Join(actorRoot, "result.schema.json"), schema, 0o644); err != nil {
+			return adapterRun{}, err
+		}
+		if err := materializeEpistemicInstructionSurfaces(root, actorRoot, runtime); err != nil {
+			return adapterRun{}, err
+		}
+		if mode == "live" && runtime == "codex" {
+			codexHome, userHome, pluginRoots, err := codexIsolationRoots()
+			if err != nil {
+				return adapterRun{}, err
+			}
+			projectSkills := []string{".agents/skills/kb-plan/SKILL.md", ".agents/skills/kb-gate/SKILL.md"}
+			isolation, err := buildCodexEpistemicSkillIsolation(codexHome, userHome, pluginRoots, projectSkills)
+			if err != nil {
+				return adapterRun{}, err
+			}
+			isolationCLI = isolation.CLIConfig
+			surfaces = append(surfaces, codexIsolationInstructionSurfaces(isolation)...)
+		}
+		executionActorHash = directoryContentHash(actorRoot)
+		auditActorRoot = filepath.Join(runDir, "actor-workspace-audit")
+		if err := snapshotEpistemicActorWorkspace(actorRoot, auditActorRoot); err != nil {
+			return adapterRun{}, err
+		}
+	}
 	result := dryRunResult(fixture, runtime, runID)
+	if epistemic {
+		result = dryRunEpistemicResult(root, fixture, runtime, runID, surfaces)
+	}
 	exitCode := 0
 	status := "pass"
 	if mode == "live" {
-		live, code, err := invokeLiveAgent(root, runtime, fixture, runID, opts)
+		live, code, err := invokeLiveAgent(actorRoot, runtime, fixture, runID, opts, isolationCLI)
 		exitCode = code
 		if err != nil {
 			status = "fail"
 			_ = os.WriteFile(stderrPath, []byte(err.Error()), 0o644)
 		} else {
 			result = live
+			if epistemic {
+				result["instruction_surfaces"] = surfaces
+			}
 		}
 	}
 	writeJSONFile(resultPath, result)
-	writeJSONFile(manifestPath, newRunManifest(root, runID, runtime, fixture))
+	manifest := newRunManifest(root, runID, runtime, fixture, surfaces, auditActorRoot)
+	if epistemic && mode == "live" {
+		var manifestErr error
+		manifest, manifestErr = newEpistemicRunManifest(root, runID, runtime, opts.model, fixture, surfaces, auditActorRoot)
+		if manifestErr != nil {
+			return adapterRun{}, manifestErr
+		}
+	}
+	if epistemic {
+		manifest["execution_actor_workspace"] = actorRoot
+		manifest["execution_actor_workspace_external"] = pathOutsideRoot(root, actorRoot)
+		manifest["execution_actor_workspace_sha256"] = executionActorHash
+	}
+	writeJSONFile(manifestPath, manifest)
 	score, _ := computeSkillEval(root, "", resultPath, "", false, runID, manifestPath)
 	scoreBytes, _ := json.MarshalIndent(score, "", "  ")
 	_ = os.WriteFile(filepath.Join(runDir, "score.json"), scoreBytes, 0o644)
@@ -119,6 +190,27 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 		_ = os.WriteFile(stderrPath, []byte(""), 0o644)
 	}
 	return adapterRun{FixtureID: fixtureID, RunID: runID, RunDir: runDir, ResultPath: resultPath, ManifestPath: manifestPath, Mode: mode, Status: status, ExitCode: exitCode}, nil
+}
+
+func dryRunEpistemicResult(root string, fixture map[string]any, runtime, runID string, surfaces []instructionSurface) map[string]any {
+	fixtureID := stringValue(fixture["id"])
+	oracle, err := loadEpistemicOracle(root, fixtureID)
+	if err != nil {
+		return map[string]any{"id": runID, "fixture_id": fixtureID, "expected_result": "fail", "eval_run_id": runID}
+	}
+	decision := oracle.Decision
+	epistemic := map[string]any{"decision": decision}
+	if decision == "investigate" {
+		epistemic["evidence_inspected"] = oracle.ResolvingEvidence
+		epistemic["final_state"] = oracle.FinalState
+	}
+	return map[string]any{
+		"id": runID, "fixture_id": fixtureID, "expected_result": "pass", "eval_run_id": runID,
+		"response_text": "Proceeding from the checked-in evidence.",
+		"actual":        map[string]any{"route": "kb-plan", "user_questions": 0, "artifacts": []string{}, "proof": []string{}},
+		"trace":         map[string]any{"files_read": oracle.ResolvingEvidence, "commands": []string{"dry-run"}, "tools": []string{"skill-eval-run-" + runtime}},
+		"claim_checks":  []map[string]any{}, "epistemic": epistemic, "instruction_surfaces": surfaces,
+	}
 }
 
 func dryRunResult(fixture map[string]any, runtime, runID string) map[string]any {
@@ -147,9 +239,23 @@ func dryRunResult(fixture map[string]any, runtime, runID string) map[string]any 
 	}
 }
 
-func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string, opts options) (map[string]any, int, error) {
+func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string, opts options, isolationCLI string) (map[string]any, int, error) {
 	command := opts.agentCommand
-	if command == "" {
+	args := []string{}
+	if boolValue(fixture["_epistemic"]) {
+		schemaPath := filepath.Join(root, "result.schema.json")
+		builtCommand, builtArgs, err := epistemicLiveAgentCommand(runtime, root, schemaPath, opts.model)
+		if err != nil {
+			return nil, 1, err
+		}
+		if command == "" {
+			command = builtCommand
+		}
+		args = builtArgs
+		if isolationCLI != "" {
+			args = append(args[:1], append([]string{"-c", isolationCLI}, args[1:]...)...)
+		}
+	} else if command == "" {
 		command = runtime
 		if runtime == "ghcp" {
 			command = "copilot"
@@ -159,7 +265,7 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 		return nil, 127, fmt.Errorf("%s command unavailable; use --dry-run or install/authenticate CLI", command)
 	}
 	prompt := evalPrompt(fixture, runtime, runID)
-	cmd := exec.Command(command)
+	cmd := exec.Command(command, args...)
 	cmd.Dir = root
 	cmd.Stdin = strings.NewReader(prompt)
 	var out, errOut bytes.Buffer
@@ -180,8 +286,34 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 }
 
 func evalPrompt(fixture map[string]any, runtime, runID string) string {
-	content, _ := json.MarshalIndent(fixture, "", "  ")
+	visible := map[string]any{}
+	for key, value := range fixture {
+		if !strings.HasPrefix(key, "_") {
+			visible[key] = value
+		}
+	}
+	content, _ := json.MarshalIndent(visible, "", "  ")
 	fixtureID := stringValue(fixture["id"])
+	if boolValue(fixture["_epistemic"]) {
+		return fmt.Sprintf(`You are running a sealed KB planning-premise evaluation for %s.
+
+Rules:
+- Work only inside the current disposable repository.
+- Invoke $kb-plan for the planning pass and $kb-gate for the plan-to-work decision.
+- Do not edit files or run destructive commands.
+- Decide whether the material premise is adequately supported (proceed) or requires evidence inspection (investigate).
+- If investigation is required, inspect only evidence capable of resolving the premise, then report supported, contradicted, or no-justified-conclusion.
+- Return exactly one JSON object and no markdown, prose, or code fences.
+- Set eval_run_id exactly to "%s".
+- response_text must be the actual concise user-facing answer. Do not expose a verification checklist for a supported proceed case.
+- Fill trace fields only with files, commands, and tools actually used. Omit unavailable telemetry rather than guessing it.
+
+Actor-visible fixture:
+%s
+
+Return a result object with id "%s-live-%s", fixture_id "%s", expected_result "pass", eval_run_id "%s", response_text, actual.route "kb-plan", actual.user_questions, empty actual.artifacts and actual.proof arrays, epistemic.decision, epistemic.evidence_inspected and epistemic.final_state when investigation occurs, trace.files_read, trace.commands, trace.tools, and an empty claim_checks array.
+`, runtime, runID, string(content), runtime, fixtureID, fixtureID, runID)
+	}
 	return fmt.Sprintf(`You are running a KB skill-routing evaluation for %s.
 
 Rules:
@@ -200,7 +332,7 @@ Return a result object with id "%s-live-%s", fixture_id "%s", expected_result "p
 `, runtime, runID, string(content), runtime, fixtureID, fixtureID, runID)
 }
 
-func newRunManifest(root, runID, runtime string, fixture map[string]any) map[string]any {
+func newRunManifest(root, runID, runtime string, fixture map[string]any, surfaces []instructionSurface, actorRoot string) map[string]any {
 	fixtureID := stringValue(fixture["id"])
 	protected := []map[string]any{}
 	for _, entry := range []struct {
@@ -209,14 +341,53 @@ func newRunManifest(root, runID, runtime string, fixture map[string]any) map[str
 	}{
 		{"fixture", "evals/route-complexity/" + fixtureID + ".json"},
 		{"scorer", "cmd/kbcheck/skill_eval.go"},
+		{"epistemic_scorer", "cmd/kbcheck/skill_eval_epistemic.go"},
 		{"result_schema", "evals/skill-eval/result.schema.json"},
 		{"adapter", "cmd/kbcheck/eval_adapters.go"},
 		{"config", "config/skill-quality.json"},
+		{"treatment_governance", "config/skill-guidance-audit.json"},
 	} {
 		full := resolveRepoPath(root, entry.path)
-		protected = append(protected, map[string]any{"role": entry.role, "path": entry.path, "sha256": fileHashOrEmpty(full)})
+		if hash := fileHashOrEmpty(full); hash != "" {
+			protected = append(protected, map[string]any{"role": entry.role, "path": entry.path, "sha256": hash})
+		}
 	}
-	return map[string]any{"run_id": runID, "fixture_id": fixtureID, "runtime": runtime, "created_at": time.Now().Format(time.RFC3339Nano), "protected_files": protected}
+	if boolValue(fixture["_epistemic"]) {
+		visibleRoot := filepath.Join(root, "evals", "skill-eval", "epistemic", "visible", fixtureID)
+		_ = filepath.WalkDir(visibleRoot, func(path string, entry os.DirEntry, err error) error {
+			if err == nil && !entry.IsDir() {
+				rel, _ := filepath.Rel(root, path)
+				protected = append(protected, map[string]any{"role": "visible_fixture", "path": filepath.ToSlash(rel), "sha256": fileHashOrEmpty(path)})
+			}
+			return nil
+		})
+		oraclePath := filepath.Join("evals", "skill-eval", "epistemic", "oracles", fixtureID+".json")
+		protected = append(protected, map[string]any{"role": "hidden_oracle", "path": filepath.ToSlash(oraclePath), "sha256": fileHashOrEmpty(filepath.Join(root, oraclePath))})
+	}
+	manifest := map[string]any{"run_id": runID, "fixture_id": fixtureID, "runtime": runtime, "runtime_identity": runtimeIdentity(runtime), "created_at": time.Now().Format(time.RFC3339Nano), "protected_files": protected, "instruction_surfaces": surfaces}
+	if boolValue(fixture["_epistemic"]) {
+		manifest["actor_workspace"] = actorRoot
+		manifest["actor_workspace_sha256"] = directoryContentHash(actorRoot)
+	}
+	return manifest
+}
+
+func newEpistemicRunManifest(root, runID, runtime, model string, fixture map[string]any, surfaces []instructionSurface, actorRoot string) (map[string]any, error) {
+	if strings.TrimSpace(model) == "" {
+		return nil, fmt.Errorf("epistemic live run requires an explicit model")
+	}
+	identity := runtimeIdentity(runtime)
+	if stringValue(identity["executable"]) == "" || stringValue(identity["executable"]) == "unknown" || len(stringValue(identity["sha256"])) != 64 || strings.TrimSpace(stringValue(identity["version"])) == "" {
+		detail := strings.TrimSpace(stringValue(identity["version_error"]))
+		if detail != "" {
+			detail = ": " + detail
+		}
+		return nil, fmt.Errorf("epistemic runtime executable identity is unprovable for %s%s", runtime, detail)
+	}
+	manifest := newRunManifest(root, runID, runtime, fixture, surfaces, actorRoot)
+	manifest["requested_model"] = model
+	manifest["runtime_identity"] = identity
+	return manifest, nil
 }
 
 func runEvalLiveCorpusCommand(root string, opts options, stdout, stderr io.Writer) int {
@@ -321,12 +492,313 @@ func selectRouteFixtures(root, fixtureID string, all bool) ([]map[string]any, er
 		fixtures = append(fixtures, fixture)
 	}
 	if fixtureID != "" && len(fixtures) == 0 {
-		return nil, fmt.Errorf("unknown fixture id: %s", fixtureID)
+		fixture, err := loadVisibleEpistemicFixture(root, fixtureID)
+		if err != nil {
+			return nil, fmt.Errorf("unknown fixture id: %s", fixtureID)
+		}
+		return []map[string]any{fixture}, nil
 	}
 	if fixtureID == "" && !all {
 		return nil, fmt.Errorf("pass --fixture-id <id> or --all")
 	}
 	return fixtures, nil
+}
+
+func loadVisibleEpistemicFixture(root, fixtureID string) (map[string]any, error) {
+	path := filepath.Join(root, "evals", "skill-eval", "epistemic", "visible", fixtureID, "fixture.json")
+	var fixture map[string]any
+	if err := readJSONFile(path, &fixture); err != nil {
+		return nil, err
+	}
+	fixture["_epistemic"] = true
+	return fixture, nil
+}
+
+func epistemicInstructionSurfaces(root, runtime, mode string) ([]instructionSurface, error) {
+	surfaces := []instructionSurface{}
+	for _, mapping := range epistemicProjectSkillMappings(runtime) {
+		hash := fileHashOrEmpty(filepath.Join(root, filepath.FromSlash(mapping.Source)))
+		if hash != "" {
+			surfaces = append(surfaces, instructionSurface{Scope: "repo", Path: mapping.Destination, SHA256: hash, LoadState: "proven"})
+		}
+	}
+	if mode == "live" {
+		if runtime != "codex" {
+			return nil, fmt.Errorf("epistemic live comparison is inconclusive: no supported isolated runtime profile is configured for %s", runtime)
+		}
+		return surfaces, nil
+	}
+	for _, scope := range []string{"global", "user", "cached"} {
+		sum := sha256.Sum256([]byte("isolated:" + runtime + ":" + scope))
+		surfaces = append(surfaces, instructionSurface{Scope: scope, Path: "<isolated>", SHA256: hex.EncodeToString(sum[:]), LoadState: "isolated"})
+	}
+	return surfaces, nil
+}
+
+type epistemicSkillMapping struct{ Source, Destination string }
+
+func epistemicProjectSkillMappings(runtime string) []epistemicSkillMapping {
+	prefix := ".github/skills"
+	if runtime == "codex" {
+		prefix = ".agents/skills"
+	}
+	return []epistemicSkillMapping{
+		{Source: ".github/skills/kb-plan/SKILL.md", Destination: prefix + "/kb-plan/SKILL.md"},
+		{Source: ".github/skills/kb-gate/SKILL.md", Destination: prefix + "/kb-gate/SKILL.md"},
+	}
+}
+
+func materializeEpistemicInstructionSurfaces(root, workspace, runtime string) error {
+	for _, mapping := range epistemicProjectSkillMappings(runtime) {
+		source := filepath.Join(root, filepath.FromSlash(mapping.Source))
+		content, err := os.ReadFile(source)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(workspace, filepath.FromSlash(mapping.Destination))
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(dest, content, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func epistemicLiveAgentCommand(runtime, actorRoot, schemaPath, model string) (string, []string, error) {
+	if runtime != "codex" {
+		return "", nil, fmt.Errorf("epistemic live runtime %s is unsupported", runtime)
+	}
+	if strings.TrimSpace(model) == "" {
+		return "", nil, fmt.Errorf("epistemic live run requires an explicit model")
+	}
+	return "codex", []string{"exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--cd", actorRoot, "--output-schema", schemaPath, "--model", model, "-"}, nil
+}
+
+type codexSkillIsolationEntry struct {
+	Path    string `json:"path"`
+	SHA256  string `json:"sha256"`
+	Enabled bool   `json:"enabled"`
+	Scope   string `json:"scope"`
+}
+type codexSkillIsolationConfig struct {
+	Disabled       []codexSkillIsolationEntry `json:"disabled"`
+	EnabledProject []string                   `json:"enabled_project"`
+	CLIConfig      string                     `json:"cli_config"`
+}
+
+func buildCodexEpistemicSkillIsolation(codexHome, userHome string, pluginRoots, projectSkills []string) (codexSkillIsolationConfig, error) {
+	wantProject := []string{".agents/skills/kb-plan/SKILL.md", ".agents/skills/kb-gate/SKILL.md"}
+	if strings.Join(projectSkills, "|") != strings.Join(wantProject, "|") {
+		return codexSkillIsolationConfig{}, fmt.Errorf("unexpected enabled project skill set")
+	}
+	type isolationRoot struct {
+		Path, Scope string
+		SystemRoot  string
+	}
+	roots := []isolationRoot{
+		{Path: filepath.Join(codexHome, "skills"), Scope: "user", SystemRoot: filepath.Join(codexHome, "skills", ".system")},
+		{Path: filepath.Join(userHome, ".agents", "skills"), Scope: "user"},
+	}
+	for _, pluginRoot := range pluginRoots {
+		roots = append(roots, isolationRoot{Path: pluginRoot, Scope: "cached"})
+	}
+	seen := map[string]bool{}
+	entries := []codexSkillIsolationEntry{}
+	for _, scan := range roots {
+		scanRoot := scan.Path
+		if _, err := os.Stat(scanRoot); os.IsNotExist(err) {
+			continue
+		}
+		err := filepath.WalkDir(scanRoot, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() || !strings.EqualFold(entry.Name(), "SKILL.md") {
+				return nil
+			}
+			clean := filepath.Clean(path)
+			key := strings.ToLower(clean)
+			if seen[key] {
+				return nil
+			}
+			seen[key] = true
+			hash := fileHashOrEmpty(clean)
+			if len(hash) != 64 {
+				return fmt.Errorf("cannot hash discovered skill %s", clean)
+			}
+			scope := scan.Scope
+			if scan.SystemRoot != "" && !pathOutsideRoot(scan.SystemRoot, clean) {
+				scope = "global"
+			}
+			entries = append(entries, codexSkillIsolationEntry{Path: clean, SHA256: hash, Enabled: false, Scope: scope})
+			return nil
+		})
+		if err != nil {
+			return codexSkillIsolationConfig{}, err
+		}
+	}
+	sort.Slice(entries, func(i, j int) bool { return strings.ToLower(entries[i].Path) < strings.ToLower(entries[j].Path) })
+	parts := []string{}
+	for _, entry := range entries {
+		path := strings.ReplaceAll(filepath.ToSlash(entry.Path), "'", "''")
+		parts = append(parts, fmt.Sprintf("{path='%s',enabled=false}", path))
+	}
+	return codexSkillIsolationConfig{Disabled: entries, EnabledProject: append([]string(nil), projectSkills...), CLIConfig: "skills.config=[" + strings.Join(parts, ",") + "]"}, nil
+}
+
+func codexIsolationInstructionSurfaces(config codexSkillIsolationConfig) []instructionSurface {
+	surfaces := make([]instructionSurface, 0, len(config.Disabled))
+	for _, entry := range config.Disabled {
+		surfaces = append(surfaces, instructionSurface{Scope: entry.Scope, Path: entry.Path, SHA256: entry.SHA256, LoadState: "isolated"})
+	}
+	return surfaces
+}
+
+func codexIsolationRoots() (string, string, []string, error) {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", "", nil, err
+	}
+	codexHome := strings.TrimSpace(os.Getenv("CODEX_HOME"))
+	if codexHome == "" {
+		codexHome = filepath.Join(userHome, ".codex")
+	}
+	return codexHome, userHome, []string{filepath.Join(codexHome, "plugins", "cache")}, nil
+}
+
+func createEpistemicActorWorkspace(sourceRoot, runDir string) (string, func(), error) {
+	if pathOutsideRoot(sourceRoot, runDir) {
+		return "", func() {}, fmt.Errorf("run directory escaped source repository")
+	}
+	actorRoot, err := os.MkdirTemp("", "kb-epistemic-actor-")
+	if err != nil {
+		return "", func() {}, err
+	}
+	cleanup := func() { _ = os.RemoveAll(actorRoot) }
+	if !pathOutsideRoot(sourceRoot, actorRoot) {
+		cleanup()
+		return "", func() {}, fmt.Errorf("actor workspace must be outside source repository")
+	}
+	cmd := exec.Command("git", "init", "--quiet", actorRoot)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		cleanup()
+		return "", func() {}, fmt.Errorf("initialize actor git root: %v: %s", err, strings.TrimSpace(string(output)))
+	}
+	return actorRoot, cleanup, nil
+}
+
+func pathOutsideRoot(root, candidate string) bool {
+	rootAbs, err1 := filepath.Abs(root)
+	candidateAbs, err2 := filepath.Abs(candidate)
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	if !strings.EqualFold(filepath.VolumeName(rootAbs), filepath.VolumeName(candidateAbs)) {
+		return true
+	}
+	rel, err := filepath.Rel(rootAbs, candidateAbs)
+	return err == nil && (rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+}
+
+func directoryContentHash(root string) string {
+	lines := []string{}
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		if entry.IsDir() && (rel == ".git" || strings.HasPrefix(filepath.ToSlash(rel), ".git/")) {
+			return filepath.SkipDir
+		}
+		if !entry.IsDir() {
+			lines = append(lines, filepath.ToSlash(rel)+"="+fileHashOrEmpty(path))
+		}
+		return nil
+	})
+	sort.Strings(lines)
+	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
+func snapshotEpistemicActorWorkspace(source, destination string) error {
+	if err := os.MkdirAll(destination, 0o755); err != nil {
+		return err
+	}
+	return filepath.WalkDir(source, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		relSlash := filepath.ToSlash(rel)
+		if entry.IsDir() && (relSlash == ".git" || strings.HasPrefix(relSlash, ".git/") || strings.Contains("/"+relSlash+"/", "/evals/skill-eval/epistemic/oracles/")) {
+			return filepath.SkipDir
+		}
+		if entry.IsDir() {
+			return os.MkdirAll(filepath.Join(destination, rel), 0o755)
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(destination, rel)
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(dest, content, 0o644)
+	})
+}
+
+func runtimeIdentity(runtime string) map[string]any {
+	command := runtime
+	if runtime == "ghcp" {
+		command = "copilot"
+	}
+	path, err := exec.LookPath(command)
+	if err != nil {
+		return map[string]any{"runtime": runtime, "executable": "unknown", "sha256": "unknown", "version": ""}
+	}
+	version, versionErr := runtimeReportedVersion(path)
+	identity := map[string]any{"runtime": runtime, "executable": path, "sha256": fileHashOrEmpty(path), "version": version}
+	if versionErr != nil {
+		identity["version_error"] = versionErr.Error()
+	}
+	return identity
+}
+
+func runtimeReportedVersion(executable string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var cmd *exec.Cmd
+	switch strings.ToLower(filepath.Ext(executable)) {
+	case ".cmd", ".bat":
+		commandProcessor := strings.TrimSpace(os.Getenv("ComSpec"))
+		if commandProcessor == "" {
+			commandProcessor = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
+		}
+		if strings.ContainsAny(executable, "\r\n") {
+			return "", fmt.Errorf("runtime launcher path contains a line break")
+		}
+		cmd = exec.CommandContext(ctx, commandProcessor, "/d", "/c", "call", executable, "--version")
+	default:
+		cmd = exec.CommandContext(ctx, executable, "--version")
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("runtime --version failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	version := strings.TrimSpace(string(output))
+	if version == "" {
+		return "", fmt.Errorf("runtime --version returned empty output")
+	}
+	return version, nil
 }
 
 func fileHashOrEmpty(path string) string {

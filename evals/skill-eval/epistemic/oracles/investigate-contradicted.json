@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "fixture_id": "investigate-contradicted",
+  "decision": "investigate",
+  "final_state": "contradicted",
+  "resolving_evidence": ["evidence/config.json"],
+  "scored": true,
+  "provenance": {
+    "decision_rule": "task-unsupported-assumption",
+    "rule": "json-pointer-equals",
+    "path": "evidence/config.json",
+    "pointer": "/feature/enabled",
+    "value": false
+  }
+}

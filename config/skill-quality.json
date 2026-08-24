@@ -102,6 +102,19 @@
   "skill_eval": {
     "selftest_result_root": "evals/skill-eval/selftest",
     "result_schema_version": 1,
+    "epistemic": {
+      "visible_fixture_root": "evals/skill-eval/epistemic/visible",
+      "hidden_oracle_root": "evals/skill-eval/epistemic/oracles",
+      "scored_oracle_provenance": [
+        "json-pointer-equals",
+        "json-pointer-absent"
+      ],
+      "decision_provenance": [
+        "task-cites-source-value",
+        "task-unsupported-assumption"
+      ],
+      "live_runtime_policy": "inconclusive-until-supported-isolation-profile"
+    },
     "claim_check_types": [
       "file_exists",
       "command_ran",

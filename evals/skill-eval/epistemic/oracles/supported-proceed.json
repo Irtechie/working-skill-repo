@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "fixture_id": "supported-proceed",
+  "decision": "proceed",
+  "final_state": "supported",
+  "resolving_evidence": ["evidence/config.json"],
+  "scored": true,
+  "provenance": {
+    "decision_rule": "task-cites-source-value",
+    "rule": "json-pointer-equals",
+    "path": "evidence/config.json",
+    "pointer": "/feature/enabled",
+    "value": true
+  }
+}

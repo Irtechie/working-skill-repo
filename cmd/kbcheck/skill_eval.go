@@ -17,16 +17,17 @@ type evalIssue struct {
 }
 
 type evalRow struct {
-	File            string `json:"file"`
-	FixtureID       string `json:"fixture_id,omitempty"`
-	CaseID          string `json:"case_id,omitempty"`
-	ExpectedResult  string `json:"expected_result"`
-	ActualResult    string `json:"actual_result"`
-	IssueCount      int    `json:"issue_count"`
-	WarningCount    int    `json:"warning_count,omitempty"`
-	TraceConfidence string `json:"trace_confidence,omitempty"`
-	Computed        bool   `json:"computed,omitempty"`
-	AmbiguousCount  int    `json:"ambiguous_count,omitempty"`
+	File            string            `json:"file"`
+	FixtureID       string            `json:"fixture_id,omitempty"`
+	CaseID          string            `json:"case_id,omitempty"`
+	ExpectedResult  string            `json:"expected_result"`
+	ActualResult    string            `json:"actual_result"`
+	IssueCount      int               `json:"issue_count"`
+	WarningCount    int               `json:"warning_count,omitempty"`
+	TraceConfidence string            `json:"trace_confidence,omitempty"`
+	Computed        bool              `json:"computed,omitempty"`
+	AmbiguousCount  int               `json:"ambiguous_count,omitempty"`
+	Epistemic       *epistemicMetrics `json:"epistemic,omitempty"`
 }
 
 func runSkillEvalCommand(root string, opts options, stdout, stderr io.Writer) int {
@@ -90,7 +91,25 @@ func computeSkillEval(root, resultRoot, resultPath, baselinePath string, updateB
 			out.Issues = append(out.Issues, evalIssue{Result: filepath.Base(file), Message: err.Error()})
 			continue
 		}
-		issues, warnings, confidence := scoreSkillEvalResult(root, result, fixtures)
+		var epistemic *epistemicMetrics
+		var issues, warnings []evalIssue
+		confidence := "self-reported"
+		if _, present := result["epistemic"]; present {
+			oracle, oracleErr := loadEpistemicOracle(root, stringValue(result["fixture_id"]))
+			if oracleErr != nil {
+				issues = append(issues, evalIssue{Result: filepath.Base(file), Message: oracleErr.Error()})
+			} else {
+				metrics, scoreIssues := scoreEpistemicResult(result, oracle)
+				epistemic = &metrics
+				issues = append(issues, validateEpistemicCorpus(root)...)
+				issues = append(issues, scoreIssues...)
+			}
+			if observed, _ := result["observed_trace"].(map[string]any); boolValue(observed["captured"]) {
+				confidence = "observed"
+			}
+		} else {
+			issues, warnings, confidence = scoreSkillEvalResult(root, result, fixtures)
+		}
 		expectedOutcome := expectedResult(result)
 		actualPass := len(issues) == 0
 		expectedPass := expectedOutcome == "pass"
@@ -105,7 +124,7 @@ func computeSkillEval(root, resultRoot, resultPath, baselinePath string, updateB
 			out.Issues = append(out.Issues, issues...)
 		}
 		out.Warnings = append(out.Warnings, warnings...)
-		out.Results = append(out.Results, evalRow{File: filepath.Base(file), FixtureID: stringValue(result["fixture_id"]), ExpectedResult: expectedOutcome, ActualResult: passFail(actualPass), IssueCount: len(issues), WarningCount: len(warnings), TraceConfidence: confidence})
+		out.Results = append(out.Results, evalRow{File: filepath.Base(file), FixtureID: stringValue(result["fixture_id"]), ExpectedResult: expectedOutcome, ActualResult: passFail(actualPass), IssueCount: len(issues), WarningCount: len(warnings), TraceConfidence: confidence, Epistemic: epistemic})
 	}
 	if baselinePath != "" {
 		baseFull := resolveRepoPath(root, baselinePath)
@@ -369,6 +388,9 @@ func runSkillEvalRegressionCommand(root string, opts options, stdout, stderr io.
 		fmt.Fprintf(stdout, "Skill eval regression report: rows=%d pass=%d non_pass=%d\n", intValue(report["row_count"]), intValue(report["pass_count"]), intValue(report["non_pass_count"]))
 		fmt.Fprintf(stdout, "Report: %s\n", stringValue(report["output_path"]))
 	}
+	if decision := stringValue(report["epistemic_decision"]); decision != "" && decision != "promote" {
+		return 1
+	}
 	return 0
 }
 
@@ -419,12 +441,19 @@ func computeSkillEvalRegression(root, runRoot, baselinePath, outputPath string) 
 		totalResultBytes += int64(intValue(row["result_bytes"]))
 	}
 	report := map[string]any{"generated_at": time.Now().Format(time.RFC3339Nano), "run_root": fullRoot, "row_count": len(rows), "pass_count": passCount, "non_pass_count": len(rows) - passCount, "status_counts": statusCounts, "total_result_bytes": totalResultBytes, "rows": rows, "comparison": nil}
+	epistemicTotals := aggregateEpistemicRegression(root, rows)
+	if epistemicTotals != nil {
+		report["epistemic"] = epistemicTotals
+	}
 	if baselinePath != "" {
 		var baseline map[string]any
 		if err := readJSONFile(resolveRepoPath(root, baselinePath), &baseline); err != nil {
 			return nil, fmt.Errorf("BaselinePath does not exist: %s", baselinePath)
 		}
 		report["comparison"] = map[string]any{"baseline": resolveRepoPath(root, baselinePath), "row_count_delta": len(rows) - intValue(baseline["row_count"]), "pass_count_delta": passCount - intValue(baseline["pass_count"]), "non_pass_count_delta": (len(rows) - passCount) - intValue(baseline["non_pass_count"]), "total_result_bytes_delta": totalResultBytes - int64(intValue(baseline["total_result_bytes"]))}
+		if epistemicTotals != nil {
+			report["epistemic_decision"] = compareEpistemicRegression(baseline["epistemic"], epistemicTotals)
+		}
 	}
 	if outputPath == "" {
 		outputPath = filepath.Join(fullRoot, "reports", "skill-eval-regression-"+time.Now().Format("20060102-150405")+".json")
@@ -583,6 +612,47 @@ func validateRunManifest(root, manifestPath, requiredRunID string) []evalIssue {
 		}
 		if actual != expected {
 			issues = append(issues, evalIssue{Result: "manifest", Message: fmt.Sprintf("Protected file '%s' changed for role '%s': expected %s but got %s.", pathValue, role, expected, actual)})
+		}
+	}
+	if surfaces := arrayValue(manifest["instruction_surfaces"]); len(surfaces) > 0 {
+		for _, raw := range surfaces {
+			surface, _ := raw.(map[string]any)
+			state, hash := stringValue(surface["load_state"]), strings.ToLower(stringValue(surface["sha256"]))
+			if !contains([]string{"proven", "isolated"}, state) || len(hash) != 64 {
+				issues = append(issues, evalIssue{Result: "manifest", Message: fmt.Sprintf("Instruction surface '%s' has unprovable load state or hash.", stringValue(surface["path"]))})
+				continue
+			}
+			if stringValue(surface["scope"]) == "repo" {
+				actual := fileHashOrEmpty(resolveRepoPath(root, stringValue(surface["path"])))
+				if actual == "" {
+					actual = fileHashOrEmpty(filepath.Join(stringValue(manifest["actor_workspace"]), filepath.FromSlash(stringValue(surface["path"]))))
+				}
+				if actual == "" {
+					for _, mapping := range epistemicProjectSkillMappings(stringValue(manifest["runtime"])) {
+						if mapping.Destination == stringValue(surface["path"]) {
+							actual = fileHashOrEmpty(resolveRepoPath(root, mapping.Source))
+							break
+						}
+					}
+				}
+				if actual != hash {
+					issues = append(issues, evalIssue{Result: "manifest", Message: fmt.Sprintf("Repo instruction surface '%s' changed or is unavailable.", stringValue(surface["path"]))})
+				}
+			}
+		}
+		actorWorkspace := stringValue(manifest["actor_workspace"])
+		if actorWorkspace == "" {
+			issues = append(issues, evalIssue{Result: "manifest", Message: "Epistemic run manifest is missing actor_workspace."})
+		} else if _, err := os.Stat(filepath.Join(actorWorkspace, "evals", "skill-eval", "epistemic", "oracles")); !os.IsNotExist(err) {
+			issues = append(issues, evalIssue{Result: "manifest", Message: "Hidden oracle is reachable from the actor workspace."})
+		}
+		auditHash := stringValue(manifest["actor_workspace_sha256"])
+		runDir := filepath.Dir(full)
+		if actorWorkspace == "" || pathOutsideRoot(runDir, actorWorkspace) || samePath(runDir, actorWorkspace) || len(auditHash) != 64 || directoryContentHash(actorWorkspace) != auditHash {
+			issues = append(issues, evalIssue{Result: "manifest", Message: "Durable actor audit workspace/hash binding is missing or invalid."})
+		}
+		if !boolValue(manifest["execution_actor_workspace_external"]) || len(stringValue(manifest["execution_actor_workspace_sha256"])) != 64 || !pathOutsideRoot(root, stringValue(manifest["execution_actor_workspace"])) {
+			issues = append(issues, evalIssue{Result: "manifest", Message: "External execution actor workspace/hash binding is missing."})
 		}
 	}
 	return issues

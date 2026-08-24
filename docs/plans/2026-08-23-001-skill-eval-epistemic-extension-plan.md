@@ -47,17 +47,17 @@ expected_files:
 protected_oracles:
   - path: cmd/kbcheck/skill_eval_epistemic_test.go
     role: Compatibility and epistemic scoring behavior oracle.
-    sha256: filled by kb-work after RED/protection
+    sha256: 09093c97bac7cbd482fa90ef63cad95d81088f39b3959482067995d430901b61
     update_policy: Protect before implementation; later semantic changes require explicit plan review.
   - path: evals/skill-eval/epistemic/oracles/
     role: Hidden decision and evidence labels.
-    sha256: filled by kb-work from a corpus manifest
+    sha256: 961d5f83d4323e1db65b7cea70804d74fec4df58a4a143f9c3c0e6bd29c12270
     update_policy: Freeze before baseline; any later change invalidates the comparison.
-status: pending
+status: completed
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: Recheck live worktree/lease overlap, write protected tests, prove RED, then extend existing owners.
+next_agent_action: Generate the exact no-run live baseline preview and request the user's separate approval.
 human_action: ""
 can_continue_other_slices: false
 ---
@@ -120,3 +120,35 @@ One end-to-end epistemic result path through the existing result schema,
 ## Scope Boundary
 
 No live model call, instruction treatment, global sync, or delivery.
+
+## Implementation Evidence
+
+- The protected test was amended after RED to cover deterministic decision
+  provenance, actual runtime-surface mapping, Windows cross-volume isolation,
+  a durable actor audit, explicit treatment-skill invocation, and runtime
+  version binding. These amendments closed failures discovered during the
+  implementation rather than weakening an expected result.
+- RED was observed with unrestricted targeted Go tests for the incorrect
+  instruction surfaces, incomplete comparison evidence, Codex skill placement,
+  interactive invocation, source-tree leakage, missing exact model identity,
+  ambient skill leakage, governance exposure, lost scope labels, deleted audit
+  workspaces, merely available rather than invoked treatment skills, and an
+  unbound runtime version. Worker-sandbox `TestMain` skips were not accepted as
+  proof.
+- GREEN: `go test ./cmd/kbcheck -run
+  'SkillEvalEpistemic|SkillEvalBaseline' -count=1`.
+- Integration checks passed through `skill-eval-manifest-selftest`,
+  `skill-eval-baseline-selftest`, Codex `supported-proceed` dry run, and GHCP
+  `investigate-contradicted` dry run. Live GHCP epistemic execution remains
+  explicitly excluded/inconclusive rather than implied supported.
+- `skill-lint` passed with zero errors and nine pre-existing warnings;
+  `git diff --check` and `gofmt -d` were clean. Browser QA is not applicable to
+  this non-UI CLI slice.
+- A full `go test ./cmd/kbcheck -count=1` stress run did not pass. Failures were
+  in unrelated temporary Git/worktree tests and included the host error "The
+  paging file is too small for this operation to complete." This is retained as
+  environmental/non-slice evidence, not represented as a green aggregate run.
+- The hidden-oracle directory hash is SHA-256 over sorted UTF-8 lines in the
+  form `filename=file_sha256`, joined with LF and no trailing LF.
+- README was deliberately left unchanged; its promoted-behavior update remains
+  conditional on the matched replay returning `promote`.

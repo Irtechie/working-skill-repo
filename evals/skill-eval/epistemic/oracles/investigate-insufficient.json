@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "fixture_id": "investigate-insufficient",
+  "decision": "investigate",
+  "final_state": "no-justified-conclusion",
+  "resolving_evidence": ["evidence/config.json"],
+  "scored": true,
+  "provenance": {
+    "decision_rule": "task-unsupported-assumption",
+    "rule": "json-pointer-absent",
+    "path": "evidence/config.json",
+    "pointer": "/feature/enabled"
+  }
+}

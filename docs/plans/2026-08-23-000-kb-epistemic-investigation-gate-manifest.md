@@ -99,11 +99,11 @@ slices:
       command: "go test ./cmd/kbcheck -run 'SkillEvalEpistemic|SkillEvalBaseline' -count=1"
       expect: 0
     hitl: false
-    status: pending
+    status: completed
     owner: agent
     blocked_reason: ""
     resume_when: ""
-    next_agent_action: "Recheck worktree/lease overlap, write protected compatibility and epistemic tests, prove RED, then extend the existing owners."
+    next_agent_action: "Slice proof accepted locally; generate the exact no-run live baseline preview and request the user's separate approval."
     human_action: ""
     can_continue_other_slices: false
   - id: epistemic-002
@@ -196,7 +196,7 @@ slices:
     model_requirements: [Go contract design, backward compatibility, skill workflow design, hash-bound receipt validation]
     escalation_triggers: [matched replay is not promote, legacy manifests fail, self-referential hashing appears, ordinary supported plans require user interaction]
     workspace_mode: shared-serial
-    conflict_domains: [skill:kb-plan, skill:kb-work, namespace:manifest-contract, path:.github/skills/kb-plan/references]
+    conflict_domains: [skill:kb-plan, skill:kb-work, namespace:manifest-contract, path:.github/skills/kb-plan/references, file:readme.md]
     shared_resources: [git:integration-owner, gate:plan-to-work]
     proof_check:
       kind: command_exit

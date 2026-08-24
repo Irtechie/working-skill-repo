@@ -1,0 +1,6 @@
+{
+  "id": "investigate-insufficient",
+  "task": "Assume the checked-in feature flag is enabled and plan the dependent rollout.",
+  "premise": "feature.enabled is true",
+  "files": ["evidence/config.json"]
+}

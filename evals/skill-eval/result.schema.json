@@ -3,11 +3,59 @@
   "type": "object",
   "required": ["id", "fixture_id", "expected_result", "eval_run_id", "actual", "trace", "claim_checks"],
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "required": ["epistemic"] },
+      "then": { "required": ["response_text"] }
+    }
+  ],
   "properties": {
     "id": { "type": "string" },
     "fixture_id": { "type": "string" },
     "expected_result": { "type": "string", "enum": ["pass", "fail"] },
     "eval_run_id": { "type": "string" },
+    "response_text": { "type": "string" },
+    "epistemic": {
+      "type": "object",
+      "required": ["decision"],
+      "additionalProperties": false,
+      "properties": {
+        "decision": { "type": "string", "enum": ["proceed", "investigate"] },
+        "evidence_inspected": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "final_state": {
+          "type": "string",
+          "enum": ["supported", "contradicted", "no-justified-conclusion"]
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tool_calls": { "type": "integer", "minimum": 0 },
+        "turns": { "type": "integer", "minimum": 0 },
+        "elapsed_ms": { "type": "integer", "minimum": 0 },
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "output_tokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "instruction_surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scope", "path", "sha256", "load_state"],
+        "additionalProperties": false,
+        "properties": {
+          "scope": { "type": "string", "enum": ["repo", "global", "user", "cached"] },
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "load_state": { "type": "string", "enum": ["proven", "isolated"] }
+        }
+      }
+    },
     "actual": {
       "type": "object",
       "required": ["route", "user_questions", "artifacts", "proof"],
