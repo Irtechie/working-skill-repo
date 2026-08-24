@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "packet_id": "epistemic-001",
+  "task_id": "kb-2026-08-23-epistemic-investigation-gate",
+  "objective": "Extend the existing skill-eval path with sealed planning-premise detection, evidence-resolution, revision, and workflow-cost scoring without changing current fixture behavior.",
+  "memory_files": [
+    "todo.md",
+    "docs/context/eval-map.md",
+    "docs/context/operations/testing.md"
+  ],
+  "source_files": [
+    "docs/brainstorms/2026-08-23-epistemic-investigation-gate-requirements.md",
+    "docs/plans/2026-08-23-001-skill-eval-epistemic-extension-plan.md",
+    "cmd/kbcheck/skill_eval.go",
+    "cmd/kbcheck/eval_adapters.go",
+    "evals/skill-eval/result.schema.json",
+    "config/skill-quality.json"
+  ],
+  "prefetch": [
+    "rg -n skillEval cmd/kbcheck/skill_eval.go cmd/kbcheck/eval_adapters.go",
+    "rg -n skill-eval-regression cmd/kbcheck",
+    "rg --files evals/skill-eval"
+  ],
+  "constraints": [
+    "Extend the existing skill-eval command family; a new top-level evaluator command requires a prior RED necessity proof.",
+    "Keep hidden oracle labels and expected evidence outside the actor prompt and disposable actor workspace.",
+    "Preserve all existing result fixtures and scores when optional epistemic fields are absent.",
+    "Report detection, resolution, revision, user questions, visible ceremony, and available telemetry separately.",
+    "Make no live model call and do not edit instruction-treatment surfaces in this slice."
+  ],
+  "out_of_scope": [
+    "Live baseline or treatment replay",
+    "kb-plan or kb-gate instruction treatment",
+    "Planning-assurance manifest enforcement",
+    "Global skill synchronization or remote delivery"
+  ],
+  "acceptance_criteria": [
+    "Legacy results remain valid and score identically.",
+    "Epistemic results distinguish proceed and investigate detection outcomes.",
+    "Correct evidence resolution and final revision are scored independently.",
+    "Supported proceed cases detect visible investigation ceremony.",
+    "Actor isolation fails closed on oracle or unprovable instruction-surface leakage.",
+    "Regression output can return promote, reject, or inconclusive without combining protected metrics."
+  ],
+  "proof_targets": [
+    "go test ./cmd/kbcheck -run 'SkillEvalEpistemic|SkillEvalBaseline' -count=1"
+  ],
+  "model_tier": "large",
+  "model_tier_reason": "The slice changes strict schema, scoring, live-adapter isolation, and baseline compatibility contracts together.",
+  "allowed_tools": [
+    "read",
+    "rg",
+    "apply_patch",
+    "go test",
+    "go run ./cmd/kbcheck"
+  ],
+  "broad_search_policy": "bounded",
+  "escalation_triggers": [
+    "Existing version-one fixtures or scores change.",
+    "Oracle content becomes reachable from the actor context or workspace.",
+    "A new top-level command appears necessary.",
+    "Required behavior expands into kb-plan, kb-gate, kb-work, or manifest-contract treatment."
+  ]
+}

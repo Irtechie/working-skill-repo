@@ -77,6 +77,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 
 | Workstream | Status | Priority | Link |
 |---|---|---|---|
+| Epistemic investigation gate and calibration eval | 🔧 in_progress | P0 | Planning-specific loop and post-promotion enforcement approved; live baseline/replay remain exact-preview HITL. Manifest: `docs/plans/2026-08-23-000-kb-epistemic-investigation-gate-manifest.md` |
 | KB runtime, cognitive routing, and surface reduction | 🔧 in_progress | P0 | Epic: `docs/context/epics/kb-runtime-cognitive-routing.md`; manifests: `docs/plans/2026-08-20-000-kb-runtime-state-contract-manifest.md`, `docs/plans/2026-08-20-010-kb-routing-cognitive-delivery-manifest.md`, `docs/plans/2026-08-20-020-kb-surface-retirement-manifest.md`; user authorized W2D on 2026-08-20; one serial delivery train, runtime contract first. |
 | Deepseek4 DDR evaluation rerun | ⬜ pending | P0 | Session `df9c6b72-4785-40db-a649-81f41febf905`; installed kbrouter now reports `approval_mode=disabled`, local routing enabled, and configured `deepseek-local` project-selectable without `trust.json`. Resume the bounded rerun in its owning session; deterministic proof remains required. |
 | Bounded graph-run provenance | 🔧 in_progress | P0 | Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md`; next: `kb-work` |
