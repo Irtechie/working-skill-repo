@@ -56,6 +56,8 @@ open PR when any is missing.
 - Delegated phases keep their own gates and authority. `p2d` never grants a
   phase a permission that phase does not hold.
 - Do not duplicate planning when a valid manifest already exists.
+- `w2d` can now plan its own way out of a missing manifest. Use `p2d` when
+  planning is the expected main event, not to rescue a `w2d` run.
 - Do not stage, commit, revert, or overwrite unrelated dirty work.
 - Speed is not permission to skip planning. A fuzzy request still earns a
   manifest before any code is written.

@@ -1,6 +1,6 @@
 ---
 name: w2d
-description: "Work to done. Post-plan command that executes a validated manifest, finalizes it, opens a PR, and merges that PR when permissions and required checks allow. Use after kb-plan, or when the user says w2d, 'work to done', 'take it all the way', or 'land it'."
+description: "Work to done. Post-plan command that executes a validated manifest, planning proportionally when none exists, then finalizes it, opens a PR, and merges that PR when permissions and required checks allow. Use after kb-plan, or when the user says w2d, 'work to done', 'take it all the way', or 'land it'."
 argument-hint: "[manifest path, or blank to resume the active manifest]"
 ---
 
@@ -9,7 +9,7 @@ argument-hint: "[manifest path, or blank to resume the active manifest]"
 Carry a planned manifest to an accepted PR in one command.
 
 ```text
-validated manifest
+durable manifest        (resolved, or planned on the spot)
   -> kb-work
   -> kb-finalize
   -> kb-ship        (push topic branch, open PR)
@@ -19,6 +19,9 @@ validated manifest
 
 `w2d` is the post-plan endpoint. `kb-plan` chains here once `plan-to-work`
 passes. It orchestrates existing phases and never reimplements them.
+
+When no durable manifest exists, `w2d` recovers by planning proportionally
+rather than dead-ending. Planning is the recovery step, not the main event.
 
 ## Authorization
 
@@ -45,10 +48,52 @@ bypass an unsatisfied protection rule.
 1. Run `kb-map lookup <request>` and resolve the active project root.
 2. Claim or resume the objective in the shared `kb-start` work queue before any
    mutating phase. Stop successor creation if another live session owns it.
-3. Require a validated manifest with `plan-to-work: passed`. With no manifest,
-   route to `kb-plan` first; `w2d` never executes unplanned work.
-4. If input is blank, resume the single active manifest from `todo.md`. Ask only
-   when multiple active manifests are genuinely plausible.
+3. Resolve a validated manifest with `plan-to-work: passed` from durable state.
+4. With no durable manifest, take the unplanned entry route below. `w2d` never
+   executes unplanned work and never authors a manifest itself.
+
+## Manifest Resolution
+
+Resolve from durable state only, in order, stopping at the first hit:
+
+1. an explicit manifest path argument;
+2. the `todo.md` Active Work manifest pointer for this objective;
+3. a `docs/plans/` manifest whose gate ledger records `plan-to-work: passed`
+   and whose status is not archived or superseded.
+
+Session context is not a source. A plan that exists only in conversation is an
+unverified premise, not a manifest: it has no hash-bound source, no gate ledger,
+and nothing for `kb-ship` to validate. Never reconstruct a manifest from chat
+memory to satisfy this gate.
+
+When several candidates are genuinely plausible, ask which one. Do not pick.
+
+## Unplanned Entry
+
+With no durable manifest, size the request and invoke `kb-plan <input>`. Planning
+owns manifest creation; `w2d` resumes the Phase Loop once `plan-to-work` passes.
+
+Treat a request as bounded only when every one of these holds:
+
+- one owning surface or conflict domain;
+- no new public contract, schema, migration, or CLI surface;
+- no dependency ordering that separates into more than one slice;
+- existing deterministic checks already cover the change;
+- reversible in a single commit.
+
+| Sizing | Planning shape |
+|---|---|
+| Bounded, and a reproducible defect with a known failing signal | `kb-plan` at `small` tier; one slice whose verification reproduces that signal before the fix |
+| Bounded | `kb-plan` at `small` tier; one slice, no brainstorm, no user-facing planning session |
+| Not bounded, or sizing is uncertain | `kb-plan` at its own classification; brainstorm first when product intent is unresolved |
+
+A `small`-tier manifest is still a real manifest with a hash-bound source, a gate
+ledger, and a `done_check`. Bounded changes the planning ceremony, never the gate.
+
+Fail closed. Do not call a request bounded because the user asked for speed,
+because a manifest feels heavy, or because the diff looks short. Line count is
+not size; owned contract surface is. `kb-plan` may escalate bounded to full;
+`w2d` never downgrades full to bounded.
 
 ## Phase Loop
 
@@ -57,6 +102,7 @@ memory, chooses the next action.
 
 | Current state | Action |
 |---|---|
+| no durable manifest resolved | size, then `kb-plan <input>` per Unplanned Entry |
 | runnable slices remain | `kb-work <manifest>` |
 | `work-to-complete: passed` | `kb-finalize <manifest>` |
 | `complete-to-ship: passed\|quarantined` | `kb-ship <manifest>` |
@@ -77,6 +123,7 @@ identity, or delivery tree.
 
 - Delegated phases keep their own gates and authority. `w2d` selects the phase
   owner; it never grants a phase a permission that phase does not hold.
+- `kb-plan` owns manifest creation, including the `small`-tier single-slice form.
 - `kb-land` remains the only skill that integrates the remote default branch.
 - Do not stage, commit, revert, or overwrite unrelated dirty work.
 - The reviewed manifest-owned plan-run branch is the only delivery candidate.
@@ -94,6 +141,10 @@ an open PR unless that policy or a separate authorization permits merge.
 Use `kb-complete` when stored project policy should decide the endpoint. Use
 `w2d` when the user wants planned work accepted now.
 
+`p2d` remains the entrypoint when planning is the expected main event: the user
+has an idea and no plan yet. `w2d` plans only to recover from a missing
+manifest.
+
 `w2d` still honors a stored `delivery.mode: local`. That is an explicit opt-out
 from publishing, so report the reviewed manifest and stop rather than pushing.
 `delivery.mode: direct` stays owned by `kb-complete` and `kb-land`; `w2d`
@@ -101,6 +152,9 @@ always delivers through a PR.
 
 ## Stop Rules
 
+- Do not author, edit, or backfill a manifest or gate ledger to satisfy a
+  precondition.
+- Do not treat a chat-only plan as a validated manifest.
 - Do not merge without a satisfied protection, check, and approval state.
 - Do not merge a PR whose head is not the exact audited `kb-ship` commit.
 - Do not execute a manifest that has not passed `plan-to-work`.

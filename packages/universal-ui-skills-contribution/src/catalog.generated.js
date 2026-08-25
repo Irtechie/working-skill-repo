@@ -417,7 +417,7 @@ export const skillCatalog = Object.freeze([
   {
     "id": "w2d",
     "name": "w2d",
-    "description": "Work to done. Post-plan command that executes a validated manifest, finalizes it, opens a PR, and merges that PR when permissions and required checks allow. Use after kb-plan, or when the user says w2d, 'work to done', 'take it all the way', or 'land it'.",
+    "description": "Work to done. Post-plan command that executes a validated manifest, planning proportionally when none exists, then finalizes it, opens a PR, and merges that PR when permissions and required checks allow. Use after kb-plan, or when the user says w2d, 'work to done', 'take it all the way', or 'land it'.",
     "argumentHint": "[manifest path, or blank to resume the active manifest]",
     "category": "Other",
     "sourcePath": ".github/skills/w2d/SKILL.md",
