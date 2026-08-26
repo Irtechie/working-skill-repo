@@ -1293,7 +1293,13 @@ It also borrows useful ideas from:
 - [G-Stack](https://github.com/garrytan/gstack), especially persistent workflow
   memory, QA ownership, and operating-system-style orchestration
 - [Shyam Sridhar's kevin-copilot](https://github.com/shyamsridhar123/kevin-copilot),
-  especially the Copilot-first token-saver / terse-response instruction surface
+  especially the Copilot-first token-saver / terse-response instruction surface,
+  and `kevin-merit`'s cost-approval ladder, which KB adapts from a post-hoc diff
+  audit into a default self-check: tiers 1-2 as a requirement-level gate in
+  `kb-brainstorm`, the full ladder as a per-slice `cost_tier` in `kb-plan`. KB
+  keeps its rule that trust boundaries, data-loss handling, security controls,
+  and accessibility are funded at every tier, and extends tier 2 to prior art in
+  sibling repos the user operates.
 - [Shyam Sridhar's TokenMasterX](https://github.com/shyamsridhar123/TokenMasterX),
   especially graph/token-aware repo orientation ideas that informed the
   graphify/TokenMasterX map-bootstrap path

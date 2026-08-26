@@ -2,7 +2,8 @@
 
 Record ID, title, blockers, verification mode, test level, functional risk,
 execution class, minimum model tier and reason, `model_requirements`,
-`escalation_triggers`, `token_budget`, expected files, conflict domains, shared
+`escalation_triggers`, `token_budget`, `cost_tier` with the cheaper option ruled
+out, expected files, conflict domains, shared
 resources, proof check, HITL classification, acceptance criteria, test
 scenarios, scope boundary, status, and blocker lifecycle fields.
 
