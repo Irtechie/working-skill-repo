@@ -60,6 +60,30 @@ Ask one question at a time through the platform question tool. Questions must
 change behavior, scope, priority, risk, acceptance, or verification. Do not ask
 the user to choose among agent-owned implementation fixes.
 
+## Cheapest Sufficient Outcome
+
+Establish that the need is real and unmet before writing requirements for it.
+The two cheapest answers are requirement-level, not implementation detail:
+
+| Tier | Answer |
+|---|---|
+| 1 | Nothing. The requirement does not survive contact with the problem - cut it. |
+| 2 | Prior art already satisfies it. Point at the artifact instead of restating it. |
+
+Prior art is not only local. When the topic touches a system the user already
+operates, check sibling project memory and prior sessions before proposing new
+behavior. Requirements written over unread prior art are the most expensive
+rework in this workflow, because planning, slicing, and review all inherit the
+mistake before anything reveals it.
+
+Record the resolved tier and its evidence in the artifact. New behavior enters
+requirements only after tiers 1 and 2 fail, and the ruled-out prior art must be
+named specifically - "nothing existing covers this" without naming what was
+checked is not evidence.
+
+Trust boundaries, data-loss handling, security controls, and accessibility are
+never charged to this ladder. They are funded at every tier.
+
 ## Requirements Work
 
 Resolve:

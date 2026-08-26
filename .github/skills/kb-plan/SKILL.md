@@ -30,7 +30,9 @@ Before slicing, perform the main-agent requirements check:
 - every load-bearing factual premise is cited or marked provisional, per the
   `kb-gate` premise-verification rule;
 - failure, recovery, trust, migration, and integration behavior is sufficient;
-- verification can detect the stated failure modes.
+- verification can detect the stated failure modes;
+- the cheapest sufficient outcome was established and the ruled-out cheaper
+  option is named, per Cost Of New Code.
 
 Fix clear document defects.
 Write or update the `brainstorm-to-plan` gate as `blocked` or `needs-human`
@@ -58,6 +60,7 @@ Each slice must:
 8. Carry `proof_check` or a narrow `no_check_reason`.
 9. Mark HITL only for authority, private input, irreversible risk, or
    subjective judgment.
+10. Declare `cost_tier` and the cheaper option ruled out.
 
 Choose the lowest tier that satisfies reasoning, context, tools, trust, and
 risk:
@@ -70,6 +73,37 @@ risk:
 
 The tier classifies minimum execution capability. `kb-work` resolves the actual
 callable route from live evidence; planning never hard-codes a model.
+
+### Cost Of New Code
+
+A slice that adds code must clear the cheapest tier that could deliver its
+outcome:
+
+| Tier | Source of the behavior |
+|---|---|
+| 1 | Nothing - the outcome is not needed; cut the slice |
+| 2 | Prior art already in this repo, or in a sibling repo the user operates |
+| 3 | The standard library |
+| 4 | The runtime, browser, or OS |
+| 5 | A dependency already in the manifest |
+| 6 | New code, smallest version that passes |
+
+A new dependency is not a tier. Planning never approves one; it is an `ask-now`
+decision returned to the user.
+
+Each slice records `cost_tier` and the specific cheaper option ruled out.
+Naming the cheaper option is what makes this checkable - "nothing cheaper
+exists" with nothing named is neither a finding nor a justification. Read what
+the slice would touch before assigning a tier; this judges the solution, never
+the effort of understanding the problem.
+
+A plan whose slices all land at tier 6 is a signal to re-check tier 2 before
+`plan-to-work`, not evidence of an ambitious feature. Disproportion is easiest
+to see at plan time and hardest to unwind after execution.
+
+Trust-boundary validation, data-loss handling, security controls, and
+accessibility affordances are funded at every tier and are never cut by this
+rule.
 
 ### Execution Contract Precision
 
@@ -237,6 +271,7 @@ Load `references/manifest-template.md` only while writing the manifest and
 - Do not score an executor against a criterion, budget, or step the plan did
   not state.
 - Do not require reviewer fan-out.
+- Do not plan new code at tier 6 without naming the cheaper tier ruled out.
 - Do not mark `plan-to-work` passed from prose confidence.
 - Do not commit unless the user authorized local commits.
 
