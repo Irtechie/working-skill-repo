@@ -15,7 +15,7 @@ const categories = new Map([
   ["Execution and repair", new Set(["kb-work", "kb-fix", "kb-troubleshoot", "kb-repair", "tdd"])],
   ["Verification and eval", new Set(["kb-check", "kb-functional-test", "kb-qa", "kb-regression-snapshot", "kb-eval-map"])],
   ["Completion and delivery", new Set(["kb-complete", "kb-finalize", "kb-review", "kb-ship", "kb-land"])],
-  ["Learning and maintenance", new Set(["learn", "evolve", "kb-cognitive", "kb-configure", "kb-models", "kb-handoff", "kb-executive-brief", "kb-simplify"])],
+  ["Learning and maintenance", new Set(["learn", "evolve", "kb-cognitive", "kb-configure", "kb-models", "kb-handoff", "kb-executive-brief", "kb-simplify", "kb-rehab"])],
   ["Review and compound", new Set(["document-review", "ce-compound", "ce-compound-refresh", "repo-critic", "pr-review-workbench"])],
   ["Utilities", new Set(["todo-create", "todo-triage", "safe-shell-quoting"])]
 ]);
