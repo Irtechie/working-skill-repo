@@ -208,6 +208,7 @@ reconcile it with a second shape or complexity table.
 | 1 | Project memory missing, partial, stale, or root invalid | `kb-map` | `kb-map` decides lookup/refresh/bootstrap |
 | 2 | User explicitly says `kb-goal`, sets a durable goal, wants work to run for days, asks for vDone, or needs cross-session objective tracking | `kb-goal` | goal ledger plus delegated KB gates |
 | 3 | User explicitly says `kb-task`, asks for first-principles execution, or wants one bounded task carried until verified/blocked | `kb-task` | task runner owns verification |
+| 3a | User asks what outstanding work exists across the project, wants dead or superseded plans marked, or wants branches reconciled against declared work before new work starts | `kb-rehab` | `kbcheck work-reality` containment proof plus a bounded decision packet |
 | 4 | Direct explanation, tradeoff discussion, or pushback with no file changes requested | answer directly; use `kb-first-principles` behavior when challenged | no work gate |
 | 5 | User wants a feature/plan/manifest taken from its current state through configured local, PR, or direct delivery | `kb-complete` | plan/work/finalize gates plus delivery policy |
 | 5a | User says `w2d`/"work to done"/"land it" | `w2d` | invocation is run-scoped merge intent; resolves a durable manifest or plans proportionally to recover; merge still needs permissions and checks |

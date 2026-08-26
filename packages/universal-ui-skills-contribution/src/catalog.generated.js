@@ -262,6 +262,15 @@ export const skillCatalog = Object.freeze([
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-regression-snapshot/SKILL.md"
   },
   {
+    "id": "kb-rehab",
+    "name": "kb-rehab",
+    "description": "Reconcile all outstanding work in a repository against git reality before new work starts. Use when the user asks what work is still outstanding, wants dead or superseded plans marked, wants branches paired against declared work, or wants the repository cleaned and current so the next task can begin. Not for ordinary cleanup, code review, or delivering one known feature.",
+    "argumentHint": "[optional scope hint, or blank for the whole repository]",
+    "category": "Learning and maintenance",
+    "sourcePath": ".github/skills/kb-rehab/SKILL.md",
+    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-rehab/SKILL.md"
+  },
+  {
     "id": "kb-repair",
     "name": "kb-repair",
     "description": "Surgical fix loop for QA and lint failures. Progress-based retry with stuck detection and a 5-iteration ceiling. Called by kb-qa when checks fail — not invoked directly by users.",

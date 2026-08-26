@@ -784,6 +784,7 @@ This is a command index. For the ordered lane decision, see
 | `kb-goal` | Long-lived objective that must keep moving across sessions until proven complete or blocked |
 | `kb-task` | First-principles task runner that continues until verified or blocked |
 | `kb-map` | Setup, lookup, or refresh project memory |
+| `kb-rehab` | Reconcile outstanding work against git reality before new work starts |
 | `kb-eval-map` | Map repo-native eval surfaces and proof commands |
 | `kb-fix` | Narrow bug, failing test, or small contained change |
 | `kb-troubleshoot` | Broken behavior needs logs/browser/test investigation |
@@ -881,6 +882,7 @@ Verification and gates:
 - `kb-review` - one evidence-bound broad or replacement specialist review
 - `kb-eval-map` - map repo-native eval surfaces and proof commands
 - `kb-memory-review` - high-cost project-memory maintenance pass
+- `kb-rehab` - pair declared work against git reality, mark proven-terminal work, emit a bounded decision packet
 
 Direct dependencies include `ce-compound`, `ce-compound-refresh`,
 `document-review`, `tdd`, `learn`, `evolve`, `todo-create`, and `todo-triage`.
