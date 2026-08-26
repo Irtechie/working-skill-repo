@@ -124,27 +124,21 @@ P2/P3/P4 do not block by severity alone. Before moving on, fix the cheap/actiona
 ## Premise Verification
 
 A factual premise is a load-bearing claim about repo, code, tool, runtime,
-dependency, or deployment state that would invalidate a slice if false. Product
-intent, priorities, and taste are user-owned and are not premises.
+dependency, or deployment state that would invalidate a slice if false. User
+intent, priority, and taste are not premises.
 
-Before a plan is written, every factual premise it rests on must be either:
+Before a plan is written, every premise it rests on must be either verified
+this session with a cited file, command, or tool result, or explicitly marked
+provisional. There is no third option; a premise that is neither is a P1
+blocker. A provisional premise must name the later proof that would catch it
+if wrong, which makes it a `safe-assumption` below. Without that proof hook it
+is `research-first` and still blocks.
 
-- verified this session with a cited file, command, or tool result; or
-- explicitly marked provisional in the plan.
-
-There is no third option. A premise that is neither is a P1 blocker. A
-provisional premise must name the later proof that would catch it if wrong,
-which makes it a `safe-assumption` below; without that proof hook it is
-`research-first` and still blocks.
-
-Apply this only where a wrong premise is expensive: `kb-brainstorm`, `kb-plan`,
-`kb-work`, `kb-epic`, `kb-goal`, and the planning path of `kb-task`. Do not
-apply it in `kb-fix`, `kb-repair`, or `kb-troubleshoot`, where diagnosis is the
-evidence and the blast radius is one contained change.
-
-`kb-work` preflight already requires `plan-to-work: passed`, so this check lands
-at plan time. When an in-scope lane is about to edit without a plan, run the
-same check against the assumptions the edit depends on before the first edit.
+Scope: `kb-brainstorm`, `kb-plan`, `kb-work`, `kb-epic`, `kb-goal`, and the
+planning path of `kb-task`. Not `kb-fix`, `kb-repair`, or `kb-troubleshoot`,
+where diagnosis is the evidence and the blast radius is one contained change.
+When an in-scope lane is about to edit without a plan, run the same check
+against the assumptions the edit depends on before the first edit.
 
 ## Question Gate Classes
 
