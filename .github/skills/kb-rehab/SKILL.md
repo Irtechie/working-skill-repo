@@ -50,6 +50,28 @@ belongs to `kb-complete`. Ref and worktree reaping belongs to `kbreconcile`.
 8. For a ref the user authorized reaping, invoke `kbreconcile` with its own
    `apply` gate. Never delete a ref here.
 
+## Delivery eligibility
+
+This lane decides eligibility. It never merges, pushes, or deletes.
+
+Every `unshipped` pairing resolves to exactly one of `report-only`,
+`deliver-pr`, or `merge-eligible`. `deliver-pr` and `merge-eligible` both
+delegate to `kb-complete`; the difference is only what `kb-complete` is told it
+may do.
+
+Default to no grant. Ask for one only when the user has already asked for
+merges and the packet shows pairings that could plausibly qualify.
+
+- A grant is bound to one run, one evidence cutoff, and an enumerated ref and
+  tip. It expires within the policy `PlanTTL`.
+- A grant never raises a ceiling the shipped policy sets, never authorizes a
+  protected-path merge, and never authorizes global skill sync.
+- Report each refusal using the receipt's reason verbatim.
+
+Say plainly that under this repository's shipped policy `merge-eligible` is
+unreachable, so granted delivery still ends at a PR a human reviews. Do not
+imply a grant will produce a merge here.
+
 ## Preservation
 
 An unanswered packet item leaves the work item and the ref untouched. Silence is
@@ -75,3 +97,5 @@ Return to the user, not to action, when:
 
 - `references/classification.md` - lifecycle states, evidence rules, and the
   fail-closed triggers.
+- `references/grant.md` - grant record fields, predicate inheritance, and the
+  refusal vocabulary.

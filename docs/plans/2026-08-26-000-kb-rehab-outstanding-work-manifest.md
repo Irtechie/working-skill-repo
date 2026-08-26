@@ -168,6 +168,25 @@ gate_ledger:
     blockers: []
     passed_at: "2026-08-26T23:40:00Z"
     allowed_next_action: "kb-work docs/plans/2026-08-26-000-kb-rehab-outstanding-work-manifest.md"
+  - gate_id: slice-slice-003-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "The mandatory merge predicate set is consumed from the shipped ActionMerge manifest, never restated, and an unknown predicate name evaluates as unsatisfied."
+      - "The check gate is resolved only from the authoritative default tree, proven by mutation: reading the working tree makes the oracle fail."
+      - "An absent adapter leaves its predicate unsatisfied, so adapter absence is a blocker and never a pass."
+      - "A pairing touching a protected path stops at an open PR under a valid grant, and every receipt records Sync: not-authorized."
+      - "An expired, replayed, TTL-exceeded, cutoff-drifted, unenumerated, or tip-drifted grant yields zero merge-eligible decisions, and a contended run decides nothing."
+    proof:
+      - docs/results/proofs/kb-rehab-20260826-slice-003.md
+      - cmd/kbcheck/rehab_delivery.go
+      - cmd/kbcheck/rehab_delivery_test.go
+      - .github/skills/kb-rehab/references/grant.md
+      - config/rehab-policy.json
+    blockers: []
+    passed_at: "2026-08-27T00:45:00Z"
+    allowed_next_action: "kb-finalize docs/plans/2026-08-26-000-kb-rehab-outstanding-work-manifest.md"
 slices:
   - id: slice-001
     title: "Pair declared work against git reality, read-only"
@@ -241,7 +260,7 @@ slices:
       kind: command_exit
       command: "go test ./cmd/kbcheck ./internal/reconcile -run 'RehabDelivery|RehabGrant|TerminalCleanup' -count=1"
       expect: 0
-    status: pending
+    status: done
     owner: agent
     can_continue_other_slices: false
     notes: "cost_tier=2 inheriting the eight ActionMerge mandatory predicates from internal/reconcile/policy.go and delegating ref and worktree reaping to kbreconcile apply; ruled out tier 6 because a second deletion engine would fork the safety predicates this bundle already ships. R15a substitutes 'go run ./cmd/kbcheck local-release' resolved from the authoritative default tree as the check adapter; R14b still stops every protected-path pairing at PR."

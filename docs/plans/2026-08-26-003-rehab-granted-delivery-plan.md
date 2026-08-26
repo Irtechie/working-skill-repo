@@ -44,15 +44,16 @@ hitl_note: >-
   The grant is a runtime input supplied by the operator when the lane runs, not
   a build-time input to this slice. Building the grant mechanism is agent-owned
   work. The lane refuses to merge without a valid grant.
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Implement grant validation, predicate inheritance, delegated delivery, and delegated reaping."
+next_agent_action: ""
 human_action: ""
 can_continue_other_slices: false
 protected_oracles:
   - path: cmd/kbcheck/rehab_delivery_test.go
+    sha256: 46dae7fa7889f954cb1b043003a85344fd934fb9432f8a1d2c8c2b42a026497b
     purpose: "Negative security fixtures prove that self-supplied proof, absent adapters, unenumerated pairings, protected paths, and unowned refs can never reach a merge."
   - path: cmd/kbcheck/terminal_cleanup_test.go
     purpose: "The existing safety corpus must still pass unchanged, proving this slice weakened no predicate."

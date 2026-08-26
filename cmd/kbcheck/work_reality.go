@@ -66,6 +66,7 @@ func workRealityPreservationPredicates() []string {
 type workRealityPolicy struct {
 	SchemaVersion            int      `json:"schema_version"`
 	PredicateManifestVersion string   `json:"predicate_manifest_version"`
+	NativeCheckGate          string   `json:"native_check_gate"`
 	TerminalClaimStatuses    []string `json:"terminal_claim_statuses"`
 	StaleClaimReviewAfterHrs float64  `json:"stale_claim_review_after_hours"`
 	ProtectedPaths           []string `json:"protected_paths"`
