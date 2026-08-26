@@ -61,6 +61,7 @@ Usage:
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name> --claim-id <id> --provider <name> --pr-id <id> --pr-url <url> --resume-packet <path>] [--root <path>] [--json]
   kbcheck session-preserve --action plan|apply --session-id <current-project-session-id> [--worktree <path>] [--branch <expected-branch>] [--root <path>] [--json]
+  kbcheck work-reality [--root <path>] [--session-id <id>] [--output <path>] [--json]
   kbcheck cargo-storage --action resolve|register-temp|finalize|validate-ready|not-applicable|validate --run-id <id> [--cache-root <path>] [--target <path> --temp-root <path> --reason <text>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
@@ -330,6 +331,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runWorktreeCommand(root, opts, stdout, stderr)
 	case "terminal-cleanup":
 		return runTerminalCleanupCommand(root, opts, stdout, stderr)
+	case "work-reality":
+		return runWorkRealityCommand(root, opts, stdout, stderr)
 	case "session-preserve":
 		return runSessionPreserveCommand(root, opts, stdout, stderr)
 	case "cargo-storage":
@@ -421,7 +424,7 @@ func parse(args []string) (options, error) {
 		"context-packet": true, "context-packet-selftest": true, "graph-route": true, "graph-routing-lifecycle-selftest": true, "graph-routing-eval": true, "provider-hygiene": true, "provider-hygiene-selftest": true,
 		"execution-telemetry": true, "execution-telemetry-selftest": true,
 		"model-tier-eval": true, "model-routing-release": true,
-		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "session-preserve": true, "cargo-storage": true,
+		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "work-reality": true, "session-preserve": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-guidance": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,

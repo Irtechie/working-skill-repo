@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "predicate_manifest_version": "rehab-1.0.0",
+  "description": "Classification predicates and protection policy for kbcheck work-reality and the kb-rehab lane. Ambiguity resolves to human-required; adapter absence removes conclusions and never adds one.",
+  "declared_work_sources": {
+    "todo_sections": [
+      "Active Work",
+      "Queued Improvements",
+      "Blocked",
+      "Parked"
+    ],
+    "manifest_glob": "docs/plans/*-manifest.md",
+    "goal_dir": "docs/context/goals",
+    "handoff_dir": "docs/handoffs/active"
+  },
+  "terminal_claim_statuses": [
+    "done",
+    "retired",
+    "superseded",
+    "delivery-integrated"
+  ],
+  "stale_claim_review_after_hours": 24,
+  "protected_paths": [
+    ".github/agents",
+    ".github/instructions",
+    ".github/skills",
+    "cmd",
+    "config/skill-quality.json",
+    "internal",
+    "scripts"
+  ],
+  "credential_path_patterns": [
+    ".env",
+    ".p12",
+    ".pem",
+    ".pfx",
+    "apikey",
+    "api-key",
+    "credential",
+    "id_dsa",
+    "id_ecdsa",
+    "id_rsa",
+    "passwd",
+    "password",
+    "private-key",
+    "secret",
+    "token"
+  ],
+  "terminal_states": [
+    "dead",
+    "superseded"
+  ],
+  "states": [
+    "live",
+    "unshipped",
+    "dead",
+    "superseded",
+    "orphan-work",
+    "orphan-branch",
+    "human-required"
+  ]
+}
