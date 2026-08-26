@@ -670,3 +670,304 @@ func TestWorkRealitySettledManifestIsNotOrphanWork(t *testing.T) {
 		t.Fatalf("a non-terminal manifest must still be paired as outstanding work")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Slice-002: markers, removal gate, and the decision packet
+// ---------------------------------------------------------------------------
+
+func runWorkRealityAction(t *testing.T, root, action string) workRealityReport {
+	t.Helper()
+	report, err := executeWorkReality(workRealityOptions{
+		Root:      root,
+		SessionID: "fixture-session",
+		Action:    action,
+		Cutoff:    time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("executeWorkReality(%s): %v", action, err)
+	}
+	return report
+}
+
+func readTodo(t *testing.T, root string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(root, "todo.md"))
+	if err != nil {
+		t.Fatalf("read todo.md: %v", err)
+	}
+	return string(raw)
+}
+
+// deadDeclaredFixture lands a branch by cherry-pick and declares it in todo.md
+// with a real status marker, so the pairing is dead with containment proof.
+func deadDeclaredFixture(t *testing.T, marker string) string {
+	t.Helper()
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/landed")
+	writeWorkRealityFile(t, root, "landed.txt", "landed\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "landed work")
+
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+	runGitForWorkReality(t, root, "cherry-pick", "codex/landed")
+	runGitForWorkReality(t, root, "push", "--quiet", "origin", "main")
+
+	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
+		"# todo",
+		"",
+		"## Active Work",
+		"",
+		"| Item | Status | Link |",
+		"|---|---|---|",
+		"| Landed thing | " + marker + " | `codex/landed` |",
+		"",
+	}, "\n"))
+	return root
+}
+
+func TestRehabMarkWritesSkippedMarkerForProvenDeadWork(t *testing.T) {
+	root := deadDeclaredFixture(t, "\U0001F527 in_progress")
+
+	report := runWorkRealityAction(t, root, workRealityActionMark)
+	if report.Marks == nil || !report.Marks.Applied {
+		t.Fatalf("expected applied marks, got %+v", report.Marks)
+	}
+	body := readTodo(t, root)
+	if !strings.Contains(body, rehabMarkerSkipped) {
+		t.Fatalf("expected the skipped marker in todo.md, got:\n%s", body)
+	}
+	if strings.Contains(body, "\U0001F527 in_progress") {
+		t.Fatalf("the stale marker must be replaced, got:\n%s", body)
+	}
+	if !strings.Contains(body, "Landed thing") {
+		t.Fatalf("marking must never remove the row, got:\n%s", body)
+	}
+	if !strings.Contains(body, "kb-rehab: marked dead") {
+		t.Fatalf("every write must carry its evidence, got:\n%s", body)
+	}
+}
+
+func TestRehabMarkPreservesAmbiguousWorkWithZeroWrites(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/open")
+	writeWorkRealityFile(t, root, "open.txt", "open\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "open work")
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+
+	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
+		"# todo",
+		"",
+		"## Active Work",
+		"",
+		"| Item | Status | Link |",
+		"|---|---|---|",
+		"| Open thing | \U0001F527 in_progress | `codex/open` |",
+		"",
+	}, "\n"))
+	before := readTodo(t, root)
+
+	report := runWorkRealityAction(t, root, workRealityActionMark)
+	if report.Marks == nil {
+		t.Fatalf("mark action must report a mark result")
+	}
+	if len(report.Marks.Writes) != 0 {
+		t.Fatalf("ambiguous work must produce zero writes, got %+v", report.Marks.Writes)
+	}
+	if after := readTodo(t, root); after != before {
+		t.Fatalf("todo.md must be byte-identical after a preserving run:\n%s", after)
+	}
+}
+
+func TestRehabMarkRefusesEntirelyOnFailClosedReport(t *testing.T) {
+	root := deadDeclaredFixture(t, "\U0001F527 in_progress")
+	before := readTodo(t, root)
+	if err := os.Remove(filepath.Join(root, "config", "rehab-policy.json")); err != nil {
+		t.Fatalf("remove policy: %v", err)
+	}
+
+	report := runWorkRealityAction(t, root, workRealityActionMark)
+	if report.Status != workRealityStatusFailClosed {
+		t.Fatalf("expected fail-closed, got %s", report.Status)
+	}
+	if report.Marks == nil || report.Marks.Applied || report.Marks.Refused == "" {
+		t.Fatalf("a fail-closed report must refuse every write, got %+v", report.Marks)
+	}
+	if after := readTodo(t, root); after != before {
+		t.Fatalf("fail-closed must leave todo.md untouched:\n%s", after)
+	}
+}
+
+func TestRehabRemovalBlockedByUncontainedCommitsRemarksTheRow(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/unshipped")
+	writeWorkRealityFile(t, root, "unshipped.txt", "unshipped\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "unshipped work")
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+
+	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
+		"# todo",
+		"",
+		"## Active Work",
+		"",
+		"| Item | Status | Link |",
+		"|---|---|---|",
+		"| Unshipped thing | \U0001F527 in_progress | `codex/unshipped` |",
+		"",
+	}, "\n"))
+
+	report := runWorkRealityAction(t, root, workRealityActionRemove)
+	pairing := reportPairing(t, report, "branch:codex/unshipped")
+	if pairing.Contained == "true" {
+		t.Fatalf("fixture must hold uncontained commits, got contained=%s", pairing.Contained)
+	}
+	body := readTodo(t, root)
+	if !strings.Contains(body, "Unshipped thing") {
+		t.Fatalf("an uncontained commit must block removal, got:\n%s", body)
+	}
+	if !strings.Contains(body, rehabMarkerBlocked) {
+		t.Fatalf("a blocked removal must re-mark the row, got:\n%s", body)
+	}
+	if !strings.Contains(body, "removal blocked") {
+		t.Fatalf("the block must name its reason, got:\n%s", body)
+	}
+}
+
+func TestRehabRemovalPermittedWhenArtifactLandedAndRefContained(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/replaced")
+	writeWorkRealityFile(t, root, "old.txt", "old\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "old work")
+
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+	runGitForWorkReality(t, root, "cherry-pick", "codex/replaced")
+	writeWorkRealityFile(t, root, "docs/plans/replacement.md", "# replacement\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "land replacement")
+	runGitForWorkReality(t, root, "push", "--quiet", "origin", "main")
+
+	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
+		"# todo",
+		"",
+		"## Parked",
+		"",
+		"| Item | Status | Link |",
+		"|---|---|---|",
+		"| Old thing | \U0001F527 in_progress | `codex/replaced` superseded by docs/plans/replacement.md |",
+		"",
+	}, "\n"))
+
+	report := runWorkRealityAction(t, root, workRealityActionRemove)
+	pairing := reportPairing(t, report, "branch:codex/replaced")
+	if pairing.State != workRealityStateSuperseded {
+		t.Fatalf("expected superseded, got %s: %s", pairing.State, pairing.Reason)
+	}
+	body := readTodo(t, root)
+	if strings.Contains(body, "Old thing") {
+		t.Fatalf("a contained supersession with a landed artifact permits removal, got:\n%s", body)
+	}
+	if report.Marks == nil || len(report.Marks.Writes) != 1 || report.Marks.Writes[0].Operation != "remove" {
+		t.Fatalf("expected exactly one recorded removal, got %+v", report.Marks)
+	}
+}
+
+func TestRehabMarkLeavesRowsWithNoStatusMarkerUntouched(t *testing.T) {
+	root := deadDeclaredFixture(t, "no-marker")
+	before := readTodo(t, root)
+
+	report := runWorkRealityAction(t, root, workRealityActionMark)
+	if report.Marks == nil || len(report.Marks.Blocked) == 0 {
+		t.Fatalf("an unmarked row must be recorded as blocked, got %+v", report.Marks)
+	}
+	if after := readTodo(t, root); after != before {
+		t.Fatalf("an unproven row shape must not be rewritten:\n%s", after)
+	}
+}
+
+func syntheticAmbiguousPairings() []workRealityPairing {
+	return []workRealityPairing{
+		{ID: "b1", State: workRealityStateOrphanBranch, Reason: "no declaration", Contained: "false",
+			ProtectedPaths: []string{".github/skills"}},
+		{ID: "b2", State: workRealityStateOrphanBranch, Reason: "no declaration", Contained: "false",
+			ProtectedPaths: []string{"cmd"}},
+		{ID: "b3", State: workRealityStateOrphanBranch, Reason: "no declaration", Contained: "false"},
+		{ID: "b4", State: workRealityStateUnshipped, Reason: "uncontained", Contained: "false"},
+		{ID: "b5", State: workRealityStateUnshipped, Reason: "uncontained", Contained: "false",
+			ProtectedPaths: []string{"cmd"}},
+		{ID: "b6", State: workRealityStateOrphanWork, Reason: "no ref", Contained: "unknown"},
+		{ID: "b7", State: workRealityStateHumanRequired, Reason: "stale claim", Contained: "unknown"},
+		{ID: "b8", State: workRealityStateLive, Reason: "fresh claim", Contained: "unknown"},
+		{ID: "b9", State: workRealityStateDead, Reason: "contained", Contained: "true"},
+	}
+}
+
+func TestRehabPacketNeverExceedsFiveGroupedItemsAndDropsNothing(t *testing.T) {
+	policy := workRealityPolicy{ProtectedPaths: []string{".github/skills", "cmd"}}
+	packet := buildRehabPacket(syntheticAmbiguousPairings(), policy)
+	if len(packet) != rehabPacketMaxItems {
+		t.Fatalf("expected exactly %d grouped items, got %d", rehabPacketMaxItems, len(packet))
+	}
+
+	covered := 0
+	for _, item := range packet {
+		covered += len(item.PairingIDs) + item.OmittedPairings
+		if item.RecommendedChoice == "" || item.Uncertainty == "" || item.SafeDefault == "" ||
+			item.IrreversibleConsequence == "" || item.RecheckSensor == "" ||
+			len(item.Evidence) == 0 {
+			t.Fatalf("packet item %s omits a mandated field: %+v", item.ID, item)
+		}
+		if item.State == workRealityStateDead {
+			t.Fatalf("a proven terminal pairing is not a decision: %+v", item)
+		}
+	}
+	if covered != 8 {
+		t.Fatalf("packet must account for all 8 ambiguous pairings, covered %d", covered)
+	}
+}
+
+func TestRehabPacketNamesGlobalInstallRootsForSkillPaths(t *testing.T) {
+	policy := workRealityPolicy{ProtectedPaths: []string{".github/skills", "cmd"}}
+	packet := buildRehabPacket(syntheticAmbiguousPairings(), policy)
+
+	found := false
+	for _, item := range packet {
+		if !strings.Contains(item.IrreversibleConsequence, ".github/skills") {
+			continue
+		}
+		found = true
+		for _, target := range rehabGlobalInstallRoots() {
+			if !strings.Contains(item.IrreversibleConsequence, target) {
+				t.Fatalf("a skills merge must name %s as a propagation target, got %q", target, item.IrreversibleConsequence)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected a packet item scoped to .github/skills")
+	}
+}
+
+func TestRehabReportActionDefaultsToReadOnly(t *testing.T) {
+	root := deadDeclaredFixture(t, "\U0001F527 in_progress")
+	before := readTodo(t, root)
+
+	report := runWorkRealityFixture(t, root)
+	if report.Action != workRealityActionReport {
+		t.Fatalf("default action must be report, got %q", report.Action)
+	}
+	if report.Marks != nil {
+		t.Fatalf("a report run must never carry marks, got %+v", report.Marks)
+	}
+	if after := readTodo(t, root); after != before {
+		t.Fatalf("the default action must not write:\n%s", after)
+	}
+}

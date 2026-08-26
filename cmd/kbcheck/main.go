@@ -61,7 +61,7 @@ Usage:
   kbcheck worktree --legacy-slice-worktree --action prepare|status|integrate|release --slice-id <id> --run-id <id> --owner-token <token> [--worktree <path>] [--branch <name>] [--base-sha <sha>] [--root <path>] [--json]
   kbcheck terminal-cleanup --action register|sweep --session-id <current-project-session-id> [--work-id <id> --worktree <path> --branch <name> --commit-sha <sha> --delivery-mode local|pr|direct --remote <name> --claim-id <id> --provider <name> --pr-id <id> --pr-url <url> --resume-packet <path>] [--root <path>] [--json]
   kbcheck session-preserve --action plan|apply --session-id <current-project-session-id> [--worktree <path>] [--branch <expected-branch>] [--root <path>] [--json]
-  kbcheck work-reality [--root <path>] [--session-id <id>] [--output <path>] [--json]
+  kbcheck work-reality [--action report|mark|remove] [--root <path>] [--session-id <id>] [--output <path>] [--json]
   kbcheck cargo-storage --action resolve|register-temp|finalize|validate-ready|not-applicable|validate --run-id <id> [--cache-root <path>] [--target <path> --temp-root <path> --reason <text>] [--root <path>] [--json]
   kbcheck scope-lease --ledger <path> [--json]
   kbcheck scope-lease-selftest
@@ -608,9 +608,29 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup" || opts.command == "session-preserve" || opts.command == "cargo-storage"
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup" || opts.command == "session-preserve" || opts.command == "cargo-storage" || opts.command == "work-reality"
 	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
+	}
+	if opts.command == "work-reality" {
+		// work-reality reports by default. A write mode is explicit, never
+		// inferred from an omitted flag.
+		if opts.sliceLeaseAction == "" {
+			opts.sliceLeaseAction = "report"
+		}
+		switch opts.sliceLeaseAction {
+		case "report", "mark", "remove":
+		default:
+			return options{}, fmt.Errorf("work-reality action must be report, mark, or remove")
+		}
+		if opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" ||
+			opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL ||
+			len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 ||
+			len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 ||
+			opts.baseSHA != "" || opts.repoIdentity != "" ||
+			opts.worktreePath != "" || opts.branchName != "" {
+			return options{}, fmt.Errorf("lease identity and claim flags are not supported for work-reality")
+		}
 	}
 	if leaseFlagCommand && opts.sliceLeaseAction == "" {
 		return options{}, fmt.Errorf("%s requires --action", opts.command)

@@ -35,15 +35,17 @@ proof_check:
   command: "go test ./cmd/kbcheck -run 'WorkReality|SkillRepoContract' -count=1"
   expect: 0
 hitl: false
-status: pending
+status: done
 owner: agent
 blocked_reason: ""
 resume_when: ""
-next_agent_action: "Author the kb-rehab skill lane and the bounded marker writer over the slice-001 report."
+next_agent_action: ""
 human_action: ""
 can_continue_other_slices: false
 protected_oracles:
   - path: cmd/kbcheck/work_reality_test.go
+    sha256: "29d5fd11517756e463750e36342b8cb49f42680f135373846fd4d36c041be914"
+    update_policy: "additive only; a slice-001 assertion may not be weakened or deleted without an explicit plan amendment"
     purpose: "Marker and removal tests assert that no write occurs without the report's containment proof."
 expected_files:
   - path: .github/skills/kb-rehab/SKILL.md

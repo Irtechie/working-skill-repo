@@ -30,6 +30,12 @@ const (
 	workRealityStatusFailClosed = "fail-closed"
 
 	workRealityRedacted = "[redacted]"
+
+	workRealityActionReport = "report"
+	workRealityActionMark   = "mark"
+	workRealityActionRemove = "remove"
+
+	rehabPacketMaxItems = 5
 )
 
 // workRealityPreservationPredicates is the preservation floor. It must remain a
@@ -75,6 +81,7 @@ type workRealityPolicy struct {
 type workRealityOptions struct {
 	Root       string
 	SessionID  string
+	Action     string
 	Cutoff     time.Time
 	PolicyPath string
 }
@@ -92,6 +99,7 @@ type workRealityDeclared struct {
 	Title    string `json:"title"`
 	Source   string `json:"source"`
 	Section  string `json:"section,omitempty"`
+	Line     int    `json:"line,omitempty"`
 	Status   string `json:"status,omitempty"`
 	Branch   string `json:"branch,omitempty"`
 	Manifest string `json:"manifest,omitempty"`
@@ -133,6 +141,7 @@ type workRealityReport struct {
 	SchemaVersion            int                        `json:"schema_version"`
 	PredicateManifestVersion string                     `json:"predicate_manifest_version"`
 	Status                   string                     `json:"status"`
+	Action                   string                     `json:"action"`
 	Cutoff                   string                     `json:"cutoff"`
 	Root                     string                     `json:"root"`
 	SessionID                string                     `json:"session_id,omitempty"`
@@ -142,6 +151,8 @@ type workRealityReport struct {
 	Declared                 []workRealityDeclared      `json:"declared"`
 	Settled                  []workRealitySettled       `json:"settled"`
 	Pairings                 []workRealityPairing       `json:"pairings"`
+	Packet                   []rehabPacketItem          `json:"packet"`
+	Marks                    *workRealityMarkResult     `json:"marks,omitempty"`
 	Limitations              []string                   `json:"limitations,omitempty"`
 }
 
@@ -161,6 +172,7 @@ func runWorkRealityCommand(root string, opts options, stdout, stderr io.Writer) 
 	report, err := executeWorkReality(workRealityOptions{
 		Root:      root,
 		SessionID: opts.sessionID,
+		Action:    opts.sliceLeaseAction,
 		Cutoff:    time.Now().UTC(),
 	})
 	if err != nil {
@@ -210,9 +222,15 @@ func executeWorkReality(options workRealityOptions) (workRealityReport, error) {
 	}
 	policy, policyErr := loadWorkRealityPolicy(policyPath)
 
+	action := strings.TrimSpace(options.Action)
+	if action == "" {
+		action = workRealityActionReport
+	}
+
 	report := workRealityReport{
 		SchemaVersion:          workRealitySchemaVersion,
 		Status:                 workRealityStatusOK,
+		Action:                 action,
 		Cutoff:                 cutoff.Format(time.RFC3339),
 		Root:                   root,
 		SessionID:              options.SessionID,
@@ -266,6 +284,12 @@ func executeWorkReality(options workRealityOptions) (workRealityReport, error) {
 	report.Settled = settled
 
 	report.Pairings = pairWorkAgainstReality(root, repository, outstanding, policy, authority, cutoff, report.Status)
+	report.Packet = buildRehabPacket(report.Pairings, policy)
+
+	if action == workRealityActionMark || action == workRealityActionRemove {
+		marks := applyWorkRealityMarks(root, report, policy, action == workRealityActionRemove)
+		report.Marks = &marks
+	}
 
 	sort.Strings(report.Limitations)
 	return report, nil
@@ -416,7 +440,7 @@ func parseTodoDeclaredWork(root string, policy workRealityPolicy) []workRealityD
 	declared := []workRealityDeclared{}
 	section := ""
 	index := 0
-	for _, line := range strings.Split(string(raw), "\n") {
+	for lineIndex, line := range strings.Split(string(raw), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "#") {
 			heading := strings.TrimSpace(strings.TrimLeft(trimmed, "# "))
@@ -437,6 +461,7 @@ func parseTodoDeclaredWork(root string, policy workRealityPolicy) []workRealityD
 		}
 		index++
 		item := newDeclaredItem(fmt.Sprintf("todo-%03d", index), "todo.md", section, trimmed)
+		item.Line = lineIndex + 1
 		declared = append(declared, item)
 	}
 	return declared
@@ -969,4 +994,373 @@ func dedupeStrings(values []string) []string {
 	}
 	sort.Strings(ordered)
 	return ordered
+}
+
+// ---------------------------------------------------------------------------
+// Decision packet
+// ---------------------------------------------------------------------------
+
+// rehabPacketItem is one grouped, answerable decision. Every field is mandatory
+// because an operator who cannot see the irreversible consequence and the safe
+// default is being asked to guess, not to decide.
+type rehabPacketItem struct {
+	ID                      string   `json:"id"`
+	State                   string   `json:"state"`
+	RecommendedChoice       string   `json:"recommended_choice"`
+	AffectedArtifacts       []string `json:"affected_artifacts"`
+	Evidence                []string `json:"evidence"`
+	Uncertainty             string   `json:"uncertainty"`
+	IrreversibleConsequence string   `json:"irreversible_consequence"`
+	SafeDefault             string   `json:"safe_default"`
+	RecheckSensor           string   `json:"recheck_sensor"`
+	PairingIDs              []string `json:"pairing_ids"`
+	OmittedPairings         int      `json:"omitted_pairings,omitempty"`
+}
+
+// rehabPacketAmbiguousStates are the states that need a human decision. A
+// terminal state is proven and does not belong in the packet; a preserved
+// current branch is not a decision either.
+func rehabPacketAmbiguousStates() map[string]int {
+	return map[string]int{
+		workRealityStateHumanRequired: 0,
+		workRealityStateOrphanBranch:  1,
+		workRealityStateUnshipped:     2,
+		workRealityStateOrphanWork:    3,
+		workRealityStateLive:          4,
+	}
+}
+
+// rehabGlobalInstallRoots are the propagation targets named in AGENTS.md. A
+// merge that touches .github/skills in this bundle is a supply-chain write into
+// every future agent session on this host, so the packet must say so.
+func rehabGlobalInstallRoots() []string {
+	return []string{"~/.agents/skills", "~/.codex/skills", "~/.copilot/skills"}
+}
+
+// buildRehabPacket groups ambiguous pairings and returns at most five items.
+// Grouping is by state and protection scope so an operator answers one question
+// per kind of risk instead of one per branch. Nothing is dropped silently: a
+// truncated group records how many pairings it still covers.
+func buildRehabPacket(pairings []workRealityPairing, policy workRealityPolicy) []rehabPacketItem {
+	priority := rehabPacketAmbiguousStates()
+	grouped := map[string][]workRealityPairing{}
+	for _, pairing := range pairings {
+		if _, ambiguous := priority[pairing.State]; !ambiguous {
+			continue
+		}
+		grouped[pairing.State+"/"+rehabProtectionScope(pairing)] = append(grouped[pairing.State+"/"+rehabProtectionScope(pairing)], pairing)
+	}
+
+	keys := make([]string, 0, len(grouped))
+	for key := range grouped {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		left := strings.SplitN(keys[i], "/", 2)
+		right := strings.SplitN(keys[j], "/", 2)
+		if priority[left[0]] != priority[right[0]] {
+			return priority[left[0]] < priority[right[0]]
+		}
+		return keys[i] < keys[j]
+	})
+
+	items := []rehabPacketItem{}
+	for index, key := range keys {
+		group := grouped[key]
+		sort.Slice(group, func(i, j int) bool { return group[i].ID < group[j].ID })
+		if index >= rehabPacketMaxItems {
+			// Fold every remaining group into the last item rather than
+			// dropping it. A dropped decision is an invisible decision.
+			last := &items[len(items)-1]
+			last.OmittedPairings += len(group)
+			continue
+		}
+		items = append(items, newRehabPacketItem(key, group, policy))
+	}
+	return items
+}
+
+func rehabProtectionScope(pairing workRealityPairing) string {
+	if len(pairing.ProtectedPaths) == 0 {
+		return "unprotected"
+	}
+	scoped := append([]string{}, pairing.ProtectedPaths...)
+	sort.Strings(scoped)
+	return scoped[0]
+}
+
+func newRehabPacketItem(key string, group []workRealityPairing, policy workRealityPolicy) rehabPacketItem {
+	parts := strings.SplitN(key, "/", 2)
+	state := parts[0]
+	scope := ""
+	if len(parts) > 1 {
+		scope = parts[1]
+	}
+
+	item := rehabPacketItem{
+		ID:            "packet-" + strings.ReplaceAll(key, "/", "-"),
+		State:         state,
+		SafeDefault:   "preserve: leave the work item and the ref untouched",
+		RecheckSensor: "go run ./cmd/kbcheck work-reality --root . --json",
+	}
+	for _, pairing := range group {
+		item.PairingIDs = append(item.PairingIDs, pairing.ID)
+		if pairing.Ref != "" {
+			item.AffectedArtifacts = append(item.AffectedArtifacts, pairing.Ref)
+		}
+		if pairing.DeclaredSource != "" && pairing.DeclaredID != "" {
+			item.AffectedArtifacts = append(item.AffectedArtifacts, pairing.DeclaredSource+"#"+pairing.DeclaredID)
+		}
+		item.Evidence = append(item.Evidence, pairing.ID+": "+pairing.Reason+" (contained="+pairing.Contained+")")
+	}
+	item.AffectedArtifacts = dedupeStrings(item.AffectedArtifacts)
+	item.Evidence = dedupeStrings(item.Evidence)
+
+	switch state {
+	case workRealityStateHumanRequired:
+		item.RecommendedChoice = "hold: resolve the missing evidence before any delivery or cleanup decision"
+		item.Uncertainty = "the report could not prove a lifecycle state for these pairings"
+	case workRealityStateOrphanBranch:
+		item.RecommendedChoice = "review each ref, then either open delivery for it or authorize reaping"
+		item.Uncertainty = "the ref exists with no declared work item, so intent is unrecorded"
+	case workRealityStateUnshipped:
+		item.RecommendedChoice = "deliver through kb-complete, which owns the delivery policy"
+		item.Uncertainty = "the ref holds commits the authoritative default does not contain"
+	case workRealityStateOrphanWork:
+		item.RecommendedChoice = "pair the work item with a ref or retire the declaration"
+		item.Uncertainty = "the work item names no reachable ref or artifact"
+	case workRealityStateLive:
+		item.RecommendedChoice = "leave it alone; another session holds this work"
+		item.Uncertainty = "a claim is held, so takeover would race a live owner"
+	default:
+		item.RecommendedChoice = "hold"
+		item.Uncertainty = "unclassified state"
+	}
+
+	item.IrreversibleConsequence = rehabIrreversibleConsequence(state, scope, policy)
+	return item
+}
+
+func rehabIrreversibleConsequence(state, scope string, policy workRealityPolicy) string {
+	if scope != "" && scope != "unprotected" {
+		for _, protected := range policy.ProtectedPaths {
+			if protected != scope || !strings.Contains(protected, "skills") {
+				continue
+			}
+			return "merging this group writes " + scope + " into the resolved default branch, which propagates to " +
+				strings.Join(rehabGlobalInstallRoots(), ", ") +
+				" and therefore into every future agent session on this host"
+		}
+		return "merging this group changes the protected path " + scope + " on the resolved default branch"
+	}
+	if state == workRealityStateOrphanBranch {
+		return "reaping a ref discards its unique commits permanently"
+	}
+	return "editing or retiring the declaration loses the recorded intent for this work"
+}
+
+// ---------------------------------------------------------------------------
+// Marker writes
+// ---------------------------------------------------------------------------
+
+type workRealityMarkWrite struct {
+	PairingID  string `json:"pairing_id"`
+	DeclaredID string `json:"declared_id"`
+	Line       int    `json:"line"`
+	Operation  string `json:"operation"`
+	Marker     string `json:"marker,omitempty"`
+	Reason     string `json:"reason"`
+}
+
+type workRealityMarkResult struct {
+	Applied   bool                   `json:"applied"`
+	Refused   string                 `json:"refused,omitempty"`
+	Writes    []workRealityMarkWrite `json:"writes"`
+	Blocked   []workRealityMarkWrite `json:"blocked"`
+	Preserved int                    `json:"preserved"`
+}
+
+const (
+	rehabMarkerSkipped       = "\u2298 skipped"
+	rehabMarkerBlocked       = "\U0001F512 blocked"
+	rehabMarkerHumanRequired = "\U0001F6D1 human-required"
+)
+
+// rehabKnownMarkers is todo.md's own status vocabulary. A row without one of
+// these is a row whose shape we cannot prove, so it is never rewritten.
+func rehabKnownMarkers() []string {
+	return []string{
+		"\u2B1C pending",
+		"\U0001F527 in_progress",
+		"\u2705 done",
+		rehabMarkerBlocked,
+		rehabMarkerSkipped,
+		rehabMarkerHumanRequired,
+	}
+}
+
+// applyWorkRealityMarks writes todo.md markers for pairings the report already
+// proved terminal. It refuses entirely on a fail-closed report: a report that
+// withheld conclusions cannot authorize a write.
+func applyWorkRealityMarks(root string, report workRealityReport, policy workRealityPolicy, removalRequested bool) workRealityMarkResult {
+	result := workRealityMarkResult{Writes: []workRealityMarkWrite{}, Blocked: []workRealityMarkWrite{}}
+	if report.Status != workRealityStatusOK {
+		result.Refused = "report is " + report.Status + "; no write may be authorized by a report that withheld conclusions"
+		return result
+	}
+
+	declaredByID := map[string]workRealityDeclared{}
+	for _, item := range report.Declared {
+		declaredByID[item.ID] = item
+	}
+
+	path := filepath.Join(root, "todo.md")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		result.Refused = "read todo.md: " + err.Error()
+		return result
+	}
+	lines := strings.Split(string(raw), "\n")
+
+	planned := []workRealityMarkWrite{}
+	for _, pairing := range report.Pairings {
+		declared, ok := declaredByID[pairing.DeclaredID]
+		if !ok || declared.Source != "todo.md" || declared.Line <= 0 || declared.Line > len(lines) {
+			result.Preserved++
+			continue
+		}
+		terminal := pairing.State == workRealityStateDead || pairing.State == workRealityStateSuperseded
+		if !terminal || pairing.Contained != "true" {
+			if removalRequested {
+				// R8: an uncontained commit blocks removal. The row stays and
+				// is re-marked so the blocked state is visible in todo.md.
+				planned = append(planned, workRealityMarkWrite{
+					PairingID:  pairing.ID,
+					DeclaredID: declared.ID,
+					Line:       declared.Line,
+					Operation:  "mark",
+					Marker:     rehabMarkerBlocked,
+					Reason:     "removal blocked: state=" + pairing.State + " contained=" + pairing.Contained,
+				})
+				continue
+			}
+			result.Preserved++
+			continue
+		}
+
+		artifact := rehabCompletingArtifact(root, report.RemoteAuthority.SHA, declared)
+		if removalRequested && artifact != "" {
+			planned = append(planned, workRealityMarkWrite{
+				PairingID:  pairing.ID,
+				DeclaredID: declared.ID,
+				Line:       declared.Line,
+				Operation:  "remove",
+				Reason:     "removed: " + pairing.State + " and superseding artifact " + artifact + " exists in the authoritative default tree",
+			})
+			continue
+		}
+		reason := "marked " + pairing.State + ": " + pairing.Reason
+		if removalRequested {
+			reason = "removal blocked: no superseding or completing artifact is named in the authoritative default tree"
+		}
+		planned = append(planned, workRealityMarkWrite{
+			PairingID:  pairing.ID,
+			DeclaredID: declared.ID,
+			Line:       declared.Line,
+			Operation:  "mark",
+			Marker:     rehabMarkerSkipped,
+			Reason:     reason,
+		})
+	}
+
+	if len(planned) == 0 {
+		result.Applied = false
+		return result
+	}
+
+	sort.Slice(planned, func(i, j int) bool { return planned[i].Line < planned[j].Line })
+	removeLines := map[int]bool{}
+	for _, write := range planned {
+		index := write.Line - 1
+		if write.Operation == "remove" {
+			removeLines[index] = true
+			result.Writes = append(result.Writes, write)
+			continue
+		}
+		rewritten, ok := rehabRewriteMarker(lines[index], write.Marker, write.Reason)
+		if !ok {
+			result.Blocked = append(result.Blocked, workRealityMarkWrite{
+				PairingID:  write.PairingID,
+				DeclaredID: write.DeclaredID,
+				Line:       write.Line,
+				Operation:  "mark",
+				Reason:     "row carries no todo.md status marker; shape unproven, so it was left untouched",
+			})
+			continue
+		}
+		lines[index] = rewritten
+		result.Writes = append(result.Writes, write)
+	}
+
+	if len(result.Writes) == 0 {
+		return result
+	}
+
+	kept := make([]string, 0, len(lines))
+	for index, line := range lines {
+		if removeLines[index] {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+		result.Refused = "write todo.md: " + err.Error()
+		result.Writes = nil
+		return result
+	}
+	result.Applied = true
+	return result
+}
+
+// rehabCompletingArtifact returns the superseding or completing artifact only
+// when it already exists in the authoritative default tree. A branch can never
+// name its own replacement into existence.
+func rehabCompletingArtifact(root, defaultSHA string, declared workRealityDeclared) string {
+	for _, candidate := range []string{declared.SupersededBy, declared.Manifest} {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if pathExistsInTree(root, defaultSHA, candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// rehabRewriteMarker replaces the row's existing status marker and appends the
+// evidence. It preserves the line ending, because this repository is CRLF and a
+// silent ending flip would rewrite the whole file in the diff.
+func rehabRewriteMarker(line, marker, reason string) (string, bool) {
+	body := line
+	suffix := ""
+	if strings.HasSuffix(body, "\r") {
+		body = strings.TrimSuffix(body, "\r")
+		suffix = "\r"
+	}
+	for _, known := range rehabKnownMarkers() {
+		if !strings.Contains(body, known) {
+			continue
+		}
+		rewritten := strings.Replace(body, known, marker, 1)
+		note := "kb-rehab: " + reason
+		if strings.HasSuffix(strings.TrimSpace(rewritten), "|") {
+			rewritten = strings.TrimRight(rewritten, " ")
+			rewritten = strings.TrimSuffix(rewritten, "|") + "; " + note + " |"
+		} else {
+			rewritten = strings.TrimRight(rewritten, " ") + "; " + note
+		}
+		return rewritten + suffix, true
+	}
+	return line, false
 }

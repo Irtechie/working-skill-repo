@@ -149,6 +149,25 @@ gate_ledger:
     blockers: []
     passed_at: "2026-08-26T22:35:00Z"
     allowed_next_action: "kb-work docs/plans/2026-08-26-000-kb-rehab-outstanding-work-manifest.md"
+  - gate_id: slice-slice-002-to-done
+    owner_skill: kb-work
+    gate_scope: implementation
+    status: passed
+    required_evidence:
+      - "kb-rehab exists as a routable lane at kb-start rank 3a and names kb-map, kbcheck work-reality, kb-complete, and kbreconcile explicitly."
+      - "Only a pairing the report classified dead or superseded with containment proof may be marked, and a fail-closed report refuses every write."
+      - "A removal is permitted only when a superseding or completing artifact already resolves in the authoritative default tree and the ref holds no uncontained commits."
+      - "The decision packet never exceeds five grouped items, never omits a mandated field, and accounts for every ambiguous pairing."
+      - "An unanswered packet item leaves both the work item and the ref untouched."
+    proof:
+      - docs/results/proofs/kb-rehab-20260826-slice-002.md
+      - .github/skills/kb-rehab/SKILL.md
+      - .github/skills/kb-rehab/references/classification.md
+      - cmd/kbcheck/work_reality.go
+      - docs/plans/2026-08-26-002-rehab-lane-triage-plan.md
+    blockers: []
+    passed_at: "2026-08-26T23:40:00Z"
+    allowed_next_action: "kb-work docs/plans/2026-08-26-000-kb-rehab-outstanding-work-manifest.md"
 slices:
   - id: slice-001
     title: "Pair declared work against git reality, read-only"
@@ -195,10 +214,15 @@ slices:
       kind: command_exit
       command: "go test ./cmd/kbcheck -run 'WorkReality|SkillRepoContract' -count=1"
       expect: 0
-    status: pending
+    status: done
     owner: agent
     can_continue_other_slices: false
-    notes: "cost_tier=2 reusing todo-triage's decision taxonomy and kbreconcile's decision-packet contract; ruled out tier 6 because a new classification vocabulary would fork triage semantics already versioned in this bundle."
+    protected_oracles:
+      - path: cmd/kbcheck/work_reality_test.go
+        role: "lifecycle oracle extended with marker, removal-gate, preservation, and packet-bound assertions"
+        sha256: "29d5fd11517756e463750e36342b8cb49f42680f135373846fd4d36c041be914"
+        update_policy: "additive only; a slice-001 assertion may not be weakened or deleted without an explicit plan amendment"
+    notes: "cost_tier=2 reusing todo-triage's decision taxonomy and kbreconcile's decision-packet contract; ruled out tier 6 because a new classification vocabulary would fork triage semantics already versioned in this bundle. DDR route=current orchestrator, exception context-required; exact slice proof PASS; full cmd/kbcheck package PASS; go vet/go build/skill-lint/git diff --check PASS; qa-browser skipped, no UI-reachable behavior; forecast implementation=6 actual implementation=6 discovered=0 unused=0, plus the slice-001-forecast cmd/kbcheck/main.go command-surface edit; packet grouped by state/protection-scope folds surplus groups into omitted_pairings instead of dropping them; marking reuses todo.md's existing skipped vocabulary rather than forking triage semantics."
   - id: slice-003
     title: "Granted delivery and delegated reaping"
     path: docs/plans/2026-08-26-003-rehab-granted-delivery-plan.md
