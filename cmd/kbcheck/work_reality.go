@@ -124,13 +124,10 @@ type workRealityPairing struct {
 	Evidence          []workRealityEvidence `json:"evidence"`
 }
 
-type workRealityRemoteAuthority struct {
-	State         string `json:"state"`
-	Remote        string `json:"remote,omitempty"`
-	DefaultBranch string `json:"default_branch,omitempty"`
-	SHA           string `json:"sha,omitempty"`
-	Limitation    string `json:"limitation,omitempty"`
-}
+// workRealityRemoteAuthority is an alias, not a copy. A second struct with the
+// same fields would let this survey and kbreconcile drift apart silently, which
+// is exactly how they came to disagree about which branches were dead.
+type workRealityRemoteAuthority = reconcile.RemoteAuthority
 
 type workRealitySettled struct {
 	ID     string `json:"id"`
@@ -315,105 +312,11 @@ func loadWorkRealityPolicy(path string) (workRealityPolicy, error) {
 	return policy, nil
 }
 
-// resolveWorkRealityRemoteAuthority proves the default branch from a fresh
-// remote advertisement, not from a cached remote-tracking ref. Every configured
-// remote is consulted and the strictest outcome wins.
+// resolveWorkRealityRemoteAuthority delegates to the shared probe so this
+// survey and kbreconcile cannot reach different conclusions about the same
+// remote from two copies of the same logic.
 func resolveWorkRealityRemoteAuthority(root string, repository reconcile.Repository) workRealityRemoteAuthority {
-	if len(repository.Remotes) == 0 {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Limitation: "no configured remote; containment cannot be proven",
-		}
-	}
-	var resolved workRealityRemoteAuthority
-	for _, remote := range repository.Remotes {
-		candidate := resolveRemoteAuthorityFor(root, remote.Name)
-		if candidate.State != "authoritative" {
-			return candidate
-		}
-		if resolved.State == "" {
-			resolved = candidate
-			continue
-		}
-		if resolved.SHA != candidate.SHA || resolved.DefaultBranch != candidate.DefaultBranch {
-			return workRealityRemoteAuthority{
-				State: "unavailable",
-				Limitation: fmt.Sprintf("remotes disagree on the default branch: %s/%s vs %s/%s",
-					resolved.Remote, resolved.DefaultBranch, candidate.Remote, candidate.DefaultBranch),
-			}
-		}
-	}
-	return resolved
-}
-
-func resolveRemoteAuthorityFor(root, remote string) workRealityRemoteAuthority {
-	advertised, err := gitCapture(root, "ls-remote", "--symref", remote, "HEAD")
-	if err != nil {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("remote %s is unreachable", remote),
-		}
-	}
-	branch, sha := parseSymrefAdvertisement(advertised)
-	if branch == "" || sha == "" {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("remote %s advertised no resolvable default branch", remote),
-		}
-	}
-	if _, err := gitCapture(root, "fetch", "--no-tags", remote, branch); err != nil {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("fetch of %s/%s failed", remote, branch),
-		}
-	}
-	fetched, err := gitCapture(root, "rev-parse", "FETCH_HEAD")
-	if err != nil {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("fetched head of %s/%s is unresolvable", remote, branch),
-		}
-	}
-	fetched = strings.TrimSpace(fetched)
-	if fetched != sha {
-		return workRealityRemoteAuthority{
-			State:  "unavailable",
-			Remote: remote,
-			Limitation: fmt.Sprintf("remote %s default moved between advertisement %s and fetch %s",
-				remote, shortSHA(sha), shortSHA(fetched)),
-		}
-	}
-	return workRealityRemoteAuthority{
-		State:         "authoritative",
-		Remote:        remote,
-		DefaultBranch: branch,
-		SHA:           sha,
-	}
-}
-
-func parseSymrefAdvertisement(output string) (branch, sha string) {
-	for _, line := range strings.Split(output, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "ref:") {
-			fields := strings.Fields(strings.TrimPrefix(line, "ref:"))
-			if len(fields) >= 1 {
-				branch = strings.TrimPrefix(fields[0], "refs/heads/")
-			}
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[1] == "HEAD" {
-			sha = fields[0]
-		}
-	}
-	return branch, sha
+	return reconcile.ResolveRemoteAuthority(root, repository.Remotes)
 }
 
 var (

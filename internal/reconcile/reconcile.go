@@ -71,21 +71,25 @@ type Ledger struct {
 }
 
 type Repository struct {
-	ID                 string       `json:"id"`
-	Root               string       `json:"root"`
-	CommonDir          string       `json:"common_dir,omitempty"`
-	PrimaryWorktree    string       `json:"primary_worktree,omitempty"`
-	CurrentWorktree    string       `json:"current_worktree,omitempty"`
-	CurrentBranch      string       `json:"current_branch,omitempty"`
-	DefaultBranch      string       `json:"default_branch,omitempty"`
-	DefaultBranchState string       `json:"default_branch_state"`
-	Worktrees          []Worktree   `json:"worktrees,omitempty"`
-	Branches           []Branch     `json:"branches,omitempty"`
-	Remotes            []Remote     `json:"remotes,omitempty"`
-	QueueClaims        []QueueClaim `json:"queue_claims,omitempty"`
-	Receipts           []Receipt    `json:"receipts,omitempty"`
-	Evidence           []Evidence   `json:"evidence"`
-	Artifacts          []Artifact   `json:"artifacts"`
+	ID                 string     `json:"id"`
+	Root               string     `json:"root"`
+	CommonDir          string     `json:"common_dir,omitempty"`
+	PrimaryWorktree    string     `json:"primary_worktree,omitempty"`
+	CurrentWorktree    string     `json:"current_worktree,omitempty"`
+	CurrentBranch      string     `json:"current_branch,omitempty"`
+	DefaultBranch      string     `json:"default_branch,omitempty"`
+	DefaultBranchState string     `json:"default_branch_state"`
+	Worktrees          []Worktree `json:"worktrees,omitempty"`
+	Branches           []Branch   `json:"branches,omitempty"`
+	Remotes            []Remote   `json:"remotes,omitempty"`
+	// RemoteAuthority is populated only when the caller opted into a network
+	// probe. A zero value means authority was never established, which is a
+	// different statement from authority being unavailable.
+	RemoteAuthority RemoteAuthority `json:"remote_authority,omitempty"`
+	QueueClaims     []QueueClaim    `json:"queue_claims,omitempty"`
+	Receipts        []Receipt       `json:"receipts,omitempty"`
+	Evidence        []Evidence      `json:"evidence"`
+	Artifacts       []Artifact      `json:"artifacts"`
 }
 
 type Worktree struct {

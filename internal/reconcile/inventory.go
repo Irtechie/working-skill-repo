@@ -22,6 +22,16 @@ type InventoryOptions struct {
 	CurrentSessionID string
 	Actor            string
 	Now              func() time.Time
+
+	// RefreshRemoteAuthority opts into a network probe that establishes fresh
+	// remote authority. It is off by default so inventory stays read-only and
+	// offline, and because most callers only need cached observations.
+	//
+	// Without it no containment proof can be authoritative, so every
+	// irreversible ref decision reports authoritative-containment-unavailable
+	// and is deferred to a human. That is correct when the caller declined to
+	// look, and wrong only if the caller wanted a real answer.
+	RefreshRemoteAuthority bool
 }
 
 func Inventory(options InventoryOptions) (Ledger, error) {
@@ -42,10 +52,17 @@ func Inventory(options InventoryOptions) (Ledger, error) {
 		Cutoff:        options.Cutoff.UTC(), GeneratedAt: options.Now().UTC(),
 		Actor: options.Actor, SessionID: options.CurrentSessionID,
 		Limitations: []string{
-			"inventory is read-only; cached remote refs do not establish fresh remote authority",
 			"missing host or provider adapters are reported unavailable and never inferred from Git",
 		},
 	}
+	if options.RefreshRemoteAuthority {
+		ledger.Limitations = append(ledger.Limitations,
+			"remote authority was probed over the network; containment is proven against the advertised default")
+	} else {
+		ledger.Limitations = append(ledger.Limitations,
+			"inventory is read-only; cached remote refs do not establish fresh remote authority")
+	}
+	sort.Strings(ledger.Limitations)
 	seen := map[string]bool{}
 	for _, candidate := range options.Roots {
 		repository, err := inventoryRepository(candidate, options)
@@ -88,6 +105,22 @@ func inventoryRepository(candidate string, options InventoryOptions) (Repository
 	repository.CurrentBranch, _ = gitOutput(root, "branch", "--show-current")
 	repository.Remotes = inventoryRemotes(root)
 	repository.DefaultBranch, repository.DefaultBranchState = inventoryDefaultBranch(root, repository.Remotes)
+	if options.RefreshRemoteAuthority {
+		repository.RemoteAuthority = ResolveRemoteAuthority(root, repository.Remotes)
+		if repository.RemoteAuthority.Authoritative() {
+			repository.DefaultBranch = repository.RemoteAuthority.DefaultBranch
+			repository.DefaultBranchState = EvidenceAvailable
+			repository.Evidence = replaceEvidence(repository.Evidence, Evidence{
+				Name: "remote-authority", State: EvidenceAvailable, Source: RemoteAuthoritySource,
+				ObservedAt: observed, Authoritative: true,
+				Value: repository.RemoteAuthority.Remote + "/" + repository.RemoteAuthority.DefaultBranch,
+			})
+		} else {
+			repository.Evidence = replaceEvidence(repository.Evidence, unavailableEvidence(
+				"remote-authority", RemoteAuthoritySource, observed, repository.RemoteAuthority.Limitation,
+			))
+		}
+	}
 	repository.Worktrees, err = inventoryWorktrees(root, common, repository, options)
 	if err != nil {
 		return Repository{}, err
@@ -105,7 +138,7 @@ func inventoryRepository(candidate string, options InventoryOptions) (Repository
 	repository.QueueClaims, repository.Evidence = inventoryQueue(common, observed, repository.Evidence)
 	applyQueueProtections(&repository)
 	repository.Receipts, repository.Evidence = inventoryReceipts(common, observed, repository.Evidence)
-	repository.Branches, err = inventoryBranches(root, repository.DefaultBranch, observed)
+	repository.Branches, err = inventoryBranches(root, repository.DefaultBranch, observed, repository.RemoteAuthority)
 	if err != nil {
 		return Repository{}, err
 	}
@@ -217,7 +250,7 @@ func inventoryDirt(worktree string) Dirt {
 	return dirt
 }
 
-func inventoryBranches(root, defaultBranch string, observed time.Time) ([]Branch, error) {
+func inventoryBranches(root, defaultBranch string, observed time.Time, authority RemoteAuthority) ([]Branch, error) {
 	output, err := gitBytes(root, "for-each-ref",
 		"--format=%(refname)%00%(objectname)%00%(committerdate:unix)%00", "refs/heads", "refs/remotes")
 	if err != nil {
@@ -249,11 +282,11 @@ func inventoryBranches(root, defaultBranch string, observed time.Time) ([]Branch
 		}
 		branches = append(branches, branch)
 	}
-	addCachedContainment(root, branches, defaultBranch, observed)
+	addCachedContainment(root, branches, defaultBranch, observed, authority)
 	return branches, nil
 }
 
-func addCachedContainment(root string, branches []Branch, defaultBranch string, observed time.Time) {
+func addCachedContainment(root string, branches []Branch, defaultBranch string, observed time.Time, authority RemoteAuthority) {
 	remoteByShort := map[string]Branch{}
 	var defaultRemote Branch
 	for _, branch := range branches {
@@ -270,6 +303,18 @@ func addCachedContainment(root string, branches []Branch, defaultBranch string, 
 			defaultRemote = branch
 		}
 	}
+	// A freshly proven default outranks the cached remote-tracking ref, and is
+	// the only target whose ancestry may be stamped authoritative.
+	ancestryTarget := defaultRemote.SHA
+	ancestrySource := "git-remote-tracking-ref"
+	ancestryIdentity := "cached:"
+	ancestryAuthoritative := false
+	if authority.Authoritative() && authority.DefaultBranch == defaultBranch {
+		ancestryTarget = authority.SHA
+		ancestrySource = RemoteAuthoritySource
+		ancestryIdentity = "fresh:"
+		ancestryAuthoritative = true
+	}
 	for index := range branches {
 		branch := &branches[index]
 		if branch.IsRemote {
@@ -283,13 +328,14 @@ func addCachedContainment(root string, branches []Branch, defaultBranch string, 
 				ObservedAt: observed, Authoritative: false,
 			})
 		}
-		if defaultRemote.SHA != "" {
-			command := exec.Command("git", "-C", root, "merge-base", "--is-ancestor", branch.SHA, defaultRemote.SHA)
+		if ancestryTarget != "" {
+			command := exec.Command("git", "-C", root, "merge-base", "--is-ancestor", branch.SHA, ancestryTarget)
 			if command.Run() == nil {
 				branch.DedupProofs = append(branch.DedupProofs, DedupProof{
 					Algorithm: DedupRemoteDefaultAncestry,
-					Identity:  "cached:" + branch.SHA + ":" + defaultRemote.SHA,
-					Source:    "git-remote-tracking-ref", ObservedAt: observed, Authoritative: false,
+					Identity:  ancestryIdentity + branch.SHA + ":" + ancestryTarget,
+					Source:    ancestrySource, ObservedAt: observed,
+					Authoritative: ancestryAuthoritative,
 				})
 			}
 		}
@@ -543,6 +589,19 @@ func unavailableEvidence(name, source string, observed time.Time, limitation str
 		Name: name, State: EvidenceUnavailable, Source: source,
 		ObservedAt: observed, Authoritative: false, Limitation: limitation,
 	}
+}
+
+// replaceEvidence overwrites an existing named observation rather than
+// appending a second one, so a report never carries two answers for the same
+// question and let a reader pick the convenient one.
+func replaceEvidence(items []Evidence, replacement Evidence) []Evidence {
+	for index := range items {
+		if items[index].Name == replacement.Name {
+			items[index] = replacement
+			return items
+		}
+	}
+	return append(items, replacement)
 }
 
 func addReason(reasons *[]string, reason string) {
