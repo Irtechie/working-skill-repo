@@ -622,6 +622,62 @@ func TestWorkRealityUnparsedRowBecomesOrphanWorkNotDropped(t *testing.T) {
 	}
 }
 
+// TestWorkRealityReadsRowStatusSoMarkedWorkSettles pins the loop-breaker: the
+// mark action writes "⊘ skipped" as its terminal marker, so a run that cannot
+// read that marker back re-surfaces the identical row as outstanding work on
+// every later pass and the lane can never settle anything it marked.
+func TestWorkRealityReadsRowStatusSoMarkedWorkSettles(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
+		"# todo",
+		"",
+		"## Active Work",
+		"",
+		"| Workstream | Status | Priority | Link |",
+		"|---|---|---|---|",
+		"| Already marked terminal | ⊘ skipped | P0 | superseded earlier |",
+		"| Still outstanding | 🔧 in_progress | P0 | ongoing |",
+		"",
+		"## Queued Improvements",
+		"",
+		"- ⊘ bullet that was already marked",
+		"- ⬜ bullet that is still pending",
+		"",
+	}, "\n"))
+
+	report := runWorkRealityFixture(t, root)
+
+	byTitle := map[string]string{}
+	for _, item := range report.Declared {
+		byTitle[item.Title] = item.Status
+	}
+	for title, want := range map[string]string{
+		"Already marked terminal":        "skipped",
+		"Still outstanding":              "in_progress",
+		"bullet that was already marked": "skipped",
+		"bullet that is still pending":   "pending",
+	} {
+		if got := byTitle[title]; got != want {
+			t.Fatalf("status for %q = %q, want %q (declared: %#v)", title, got, want, report.Declared)
+		}
+	}
+
+	settled := map[string]bool{}
+	for _, item := range report.Settled {
+		settled[item.ID] = true
+	}
+	if len(settled) != 2 {
+		t.Fatalf("both skipped rows must settle, got %d: %#v", len(settled), report.Settled)
+	}
+	for _, pairing := range report.Pairings {
+		if settled[strings.TrimPrefix(pairing.ID, "work:")] {
+			t.Fatalf("a settled row must not be paired again as outstanding work: %s", pairing.ID)
+		}
+	}
+}
+
 // TestWorkRealityReadsListRowsAndDropsTableHeader pins three reporting defects
 // that together made every bullet in todo.md untriageable: the table header was
 // counted as work, bullet titles kept their markup, and the table-shaped

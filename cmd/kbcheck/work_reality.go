@@ -166,6 +166,10 @@ func workRealityTerminalDeclaredStatuses() map[string]bool {
 		"abandoned": true, "cancelled": true, "canceled": true, "complete": true,
 		"completed": true, "delivered": true, "done": true, "integrated": true,
 		"retired": true, "shipped": true, "superseded": true,
+		// "skipped" is the marker applyWorkRealityMarks writes for a pairing it
+		// already proved terminal. Omitting it made the mark action unable to
+		// settle anything: the next run re-read its own marker as outstanding.
+		"skipped": true,
 	}
 }
 
@@ -521,7 +525,10 @@ func newDeclaredItem(id, source, section, text string) workRealityDeclared {
 	if !isTableRow {
 		// A list row carries its marker and status glyph in the same cell as its
 		// title, so strip them and report work rather than markup.
+		item.Status = declaredRowStatus(cells[0])
 		cells[0] = trimListDecoration(cells[0])
+	} else if len(cells) > 1 {
+		item.Status = declaredRowStatus(cells[1])
 	}
 	item.Title = redactCredentialLike(cells[0])
 	if match := workRealityBranchToken.FindStringSubmatch(text); len(match) > 1 {
@@ -548,7 +555,63 @@ func newDeclaredItem(id, source, section, text string) workRealityDeclared {
 // a bullet row so the recorded title is the work itself.
 func trimListDecoration(text string) string {
 	trimmed := strings.TrimSpace(strings.TrimLeft(text, "-* "))
-	return strings.TrimSpace(strings.TrimLeft(trimmed, "⬜🔧🔒⊘✅❌🟡🟢⏳🚧 "))
+	return strings.TrimSpace(strings.TrimLeft(trimmed, workRealityStatusGlyphs))
+}
+
+// workRealityStatusGlyphs are the status markers a declared row may carry ahead
+// of its text, including the markers this lane writes when it marks work.
+const workRealityStatusGlyphs = "⬜🔧🔒⊘✅❌🟡🟢⏳🚧🛑 "
+
+// declaredRowStatus reads the status a todo row already states. Without this a
+// row carries no status at all, so no todo row can ever be settled: the mark
+// action writes "⊘ skipped" as its terminal marker, and a later run that cannot
+// read that marker re-surfaces the identical row as outstanding work forever.
+func declaredRowStatus(cell string) string {
+	text := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(cell), "-* "))
+	glyph := ""
+	for _, r := range text {
+		if !strings.ContainsRune(workRealityStatusGlyphs, r) || r == ' ' {
+			break
+		}
+		glyph = string(r)
+		break
+	}
+	rest := strings.TrimSpace(strings.TrimLeft(text, workRealityStatusGlyphs))
+	// A status word the row spells out wins over the glyph, because the word is
+	// what a human wrote and the glyph is only its shorthand.
+	if word := firstStatusWord(rest); word != "" {
+		return word
+	}
+	switch glyph {
+	case "⊘":
+		return "skipped"
+	case "✅", "🟢":
+		return "completed"
+	case "🔒", "🛑":
+		return "blocked"
+	case "🔧", "🚧":
+		return "in_progress"
+	case "⬜", "⏳", "🟡":
+		return "pending"
+	}
+	return ""
+}
+
+// firstStatusWord returns the leading token of a status cell when it names a
+// status, so a table row's dedicated status column is read literally.
+func firstStatusWord(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return ""
+	}
+	word := strings.ToLower(strings.Trim(fields[0], "`*_.,;:"))
+	switch word {
+	case "pending", "in_progress", "blocked", "skipped", "human-required",
+		"abandoned", "cancelled", "canceled", "complete", "completed",
+		"delivered", "done", "integrated", "retired", "shipped", "superseded":
+		return word
+	}
+	return ""
 }
 
 func parseManifestDeclaredWork(root string, policy workRealityPolicy) []workRealityDeclared {
