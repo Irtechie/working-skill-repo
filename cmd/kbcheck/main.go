@@ -83,6 +83,8 @@ Usage:
   kbcheck surface-report [--root <path>] [--skill-root <path>] [--route <name>] [--baseline <path>] [--output <path>] [--json]
   kbcheck minimality [--root <path>] [--skill-root <path>] [--agent-root <path>] [--trim-line-threshold <n>] [--json]
   kbcheck minimality-selftest
+  kbcheck architecture-drift [--action check|init] [--roots <a,b>] [--root <path>] [--json]
+  kbcheck new-skill [--action check|apply] [--skill-name <name> --skill-description <text> --skill-category <id> --skill-purpose <text> --skill-routing-evidence <text> --skill-retained-capability <text> --skill-proof <text> --skill-argument-hint <text> --skill-callers <a,b>] [--skip-generated] [--root <path>] [--json]
   kbcheck pipeline [--root <path>] [--start <pipeline-id> | --status] [--run-id <id>]
   kbcheck pipeline-selftest [--root <path>]
   kbcheck skill-eval [--root <path>] [--result-root <path>] [--result-path <path>] [--baseline <path>] [--update-baseline] [--json]
@@ -229,6 +231,18 @@ type options struct {
 	cargoTarget             string
 	cargoTempRoot           string
 	cargoReason             string
+
+	newSkillName               string
+	newSkillDescription        string
+	newSkillArgumentHint       string
+	newSkillCategory           string
+	newSkillPurpose            string
+	newSkillRoutingEvidence    string
+	newSkillRetainedCapability string
+	newSkillProof              string
+	newSkillCallers            string
+	newSkillSkipGenerated      bool
+	architectureRoots          string
 }
 
 func main() {
@@ -343,6 +357,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runScopeLeaseSelftest(stdout, stderr)
 	case "skill-lint":
 		return runSkillLintCommand(root, opts, stdout, stderr)
+	case "new-skill":
+		return runNewSkillCommand(root, opts, stdout, stderr)
 	case "skill-guidance":
 		return runSkillGuidanceCommand(root, opts, stdout, stderr)
 	case "skill-sync-report":
@@ -375,6 +391,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runSurfaceReportCommand(root, opts, stdout, stderr)
 	case "minimality":
 		return runMinimalityCommand(root, opts, stdout, stderr)
+	case "architecture-drift":
+		return runArchitectureDriftCommand(root, opts, stdout, stderr)
 	case "minimality-selftest":
 		return runMinimalitySelftest(stdout, stderr)
 	case "pipeline":
@@ -427,10 +445,11 @@ func parse(args []string) (options, error) {
 		"slice-lease": true, "slice-lease-selftest": true, "plan-run-lease": true, "plan-run-lease-selftest": true, "plan-worktree": true, "plan-worktree-selftest": true, "worktree": true, "terminal-cleanup": true, "work-reality": true, "session-preserve": true, "cargo-storage": true,
 		"scope-lease": true, "scope-lease-selftest": true,
 		"skill-lint": true, "skill-guidance": true, "skill-sync-report": true, "doctor": true, "doctor-selftest": true,
+		"new-skill": true,
 		"marketplace-firebreak": true, "marketplace-firebreak-selftest": true,
 		"marketplace-promote": true, "marketplace-promote-selftest": true,
 		"benchmark-validate": true, "route-eval": true, "dishonest-completion-selftest": true, "review-reference-guard": true, "release-selftest": true, "workflow-governor-selftest": true,
-		"surface-report": true, "minimality": true, "minimality-selftest": true,
+		"surface-report": true, "minimality": true, "minimality-selftest": true, "architecture-drift": true,
 		"pipeline": true, "pipeline-selftest": true,
 		"skill-eval": true, "skill-eval-claims": true, "skill-eval-quality": true, "skill-eval-regression": true,
 		"skill-eval-manifest-selftest": true, "skill-eval-baseline-selftest": true,
@@ -508,6 +527,17 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&opts.cohort, "cohort", "", "model-routing release cohort")
 	fs.StringVar(&opts.evidencePath, "evidence", "", "model evidence path")
 	fs.BoolVar(&opts.allowQuarantine, "allow-quarantine", false, "accept status=quarantined as advanceable")
+	fs.StringVar(&opts.architectureRoots, "roots", "", "comma-separated component parent directories for architecture-drift --action init")
+	fs.StringVar(&opts.newSkillName, "skill-name", "", "new skill name")
+	fs.StringVar(&opts.newSkillDescription, "skill-description", "", "new skill description")
+	fs.StringVar(&opts.newSkillArgumentHint, "skill-argument-hint", "", "new skill argument hint")
+	fs.StringVar(&opts.newSkillCategory, "skill-category", "", "new skill category")
+	fs.StringVar(&opts.newSkillPurpose, "skill-purpose", "", "new skill purpose")
+	fs.StringVar(&opts.newSkillRoutingEvidence, "skill-routing-evidence", "", "routing evidence for the new skill")
+	fs.StringVar(&opts.newSkillRetainedCapability, "skill-retained-capability", "", "capability retained by the new skill")
+	fs.StringVar(&opts.newSkillProof, "skill-proof", "", "proof command or receipt for the new skill")
+	fs.StringVar(&opts.newSkillCallers, "skill-callers", "", "comma-separated callers; defaults to user")
+	fs.BoolVar(&opts.newSkillSkipGenerated, "skip-generated", false, "skip catalog regeneration and report the commands instead")
 	registerSliceLeaseFlags(fs, &opts)
 	home, _ := os.UserHomeDir()
 	fs.StringVar(&opts.codexSkillsRoot, "codex-skills-root", filepath.Join(home, ".codex", "skills"), "Codex skills root")
@@ -608,7 +638,7 @@ func parse(args []string) (options, error) {
 	if opts.command == "scope-lease" && opts.ledger == "" {
 		return options{}, fmt.Errorf("scope-lease requires --ledger")
 	}
-	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup" || opts.command == "session-preserve" || opts.command == "cargo-storage" || opts.command == "work-reality"
+	leaseFlagCommand := opts.command == "slice-lease" || opts.command == "plan-run-lease" || opts.command == "worktree" || opts.command == "plan-worktree" || opts.command == "terminal-cleanup" || opts.command == "session-preserve" || opts.command == "cargo-storage" || opts.command == "work-reality" || opts.command == "new-skill" || opts.command == "architecture-drift"
 	if !leaseFlagCommand && (opts.sliceLeaseAction != "" || opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" || opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL || len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 || len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 || opts.baseSHA != "" || opts.worktreePath != "" || opts.branchName != "" || opts.repoIdentity != "") {
 		return options{}, fmt.Errorf("slice/worktree flags are only supported for slice-lease and worktree")
 	}
@@ -630,6 +660,33 @@ func parse(args []string) (options, error) {
 			opts.baseSHA != "" || opts.repoIdentity != "" ||
 			opts.worktreePath != "" || opts.branchName != "" {
 			return options{}, fmt.Errorf("lease identity and claim flags are not supported for work-reality")
+		}
+	}
+	if opts.command == "architecture-drift" {
+		// architecture-drift checks by default so `core` can invoke it bare.
+		// init writes the declaration and is always explicit.
+		if opts.sliceLeaseAction == "" {
+			opts.sliceLeaseAction = "check"
+		}
+		switch opts.sliceLeaseAction {
+		case "check":
+			if opts.architectureRoots != "" {
+				return options{}, fmt.Errorf("--roots is only supported for architecture-drift --action init")
+			}
+		case "init":
+			if strings.TrimSpace(opts.architectureRoots) == "" {
+				return options{}, fmt.Errorf("architecture-drift --action init requires --roots")
+			}
+		default:
+			return options{}, fmt.Errorf("architecture-drift action must be check or init")
+		}
+		if opts.sliceLeaseStateRoot != "" || opts.sliceID != "" || opts.ownerToken != "" ||
+			opts.leaseGeneration != 0 || opts.leaseTTL != defaultSliceLeaseTTL ||
+			len(opts.leaseFiles) > 0 || len(opts.leasePrefixes) > 0 ||
+			len(opts.leaseDomains) > 0 || len(opts.leaseResources) > 0 ||
+			opts.baseSHA != "" || opts.repoIdentity != "" ||
+			opts.worktreePath != "" || opts.branchName != "" {
+			return options{}, fmt.Errorf("lease identity and claim flags are not supported for architecture-drift")
 		}
 	}
 	if leaseFlagCommand && opts.sliceLeaseAction == "" {
