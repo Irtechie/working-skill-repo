@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-06-10-skill-bundle-cleanup
 brainstorm_path: docs/brainstorms/2026-06-10-skill-bundle-cleanup-audit.md
 created: 2026-06-10
-status: reviewed
+status: completed
 workflow_shape: "multi-stream-epic"
 scope-verified-files:
   - .github/copilot-instructions.md

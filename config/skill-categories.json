@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "comment": "Display categories for the generated Skills catalog. Order is meaningful: the first category containing a skill wins. Every skill directory must appear exactly once; 'kbcheck new-skill --action check' enforces that, because the catalog projection itself falls back to 'Other' rather than failing a temp-root projection.",
+  "categories": [
+    {
+      "name": "Routing and memory",
+      "skills": ["kb-start", "kb-task", "kb-map", "kb-map-bootstrap", "kb-memory-review", "kb-goal", "kb-epic"]
+    },
+    {
+      "name": "Requirements and planning",
+      "skills": ["kb-brainstorm", "kb-plan", "kb-gate", "kb-research", "kb-first-principles", "kb-architecture-deepening"]
+    },
+    {
+      "name": "Execution and repair",
+      "skills": ["kb-work", "kb-fix", "kb-troubleshoot", "kb-repair", "tdd"]
+    },
+    {
+      "name": "Verification and eval",
+      "skills": ["kb-check", "kb-functional-test", "kb-qa", "kb-regression-snapshot", "kb-eval-map"]
+    },
+    {
+      "name": "Completion and delivery",
+      "skills": ["kb-complete", "kb-finalize", "kb-review", "kb-ship", "kb-land"]
+    },
+    {
+      "name": "Learning and maintenance",
+      "skills": ["learn", "evolve", "kb-cognitive", "kb-configure", "kb-models", "kb-handoff", "kb-executive-brief", "kb-simplify", "kb-rehab"]
+    },
+    {
+      "name": "Review and compound",
+      "skills": ["document-review", "ce-compound", "ce-compound-refresh", "repo-critic", "pr-review-workbench"]
+    },
+    {
+      "name": "Utilities",
+      "skills": ["todo-create", "todo-triage", "safe-shell-quoting"]
+    }
+  ]
+}

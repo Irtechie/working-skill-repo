@@ -454,7 +454,7 @@ stack actually in the repo; never assume a language or framework.
 
 ### Language-Specific Reviewers
 Choose at most one, matching the repo:
-`kieran-typescript-reviewer`, `kieran-python-reviewer`, `kieran-rails-reviewer`.
+`kieran-typescript-reviewer`, `kieran-python-reviewer`.
 
 ### When to Invoke
 - **Auto-triggered** (optional): Agents can run post-documentation for enhancement

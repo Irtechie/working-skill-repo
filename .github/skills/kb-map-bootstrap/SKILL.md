@@ -76,6 +76,10 @@ docs/context/history/
    - Routes, screens, commands, tools, actions, jobs, integrations.
    - Tests, docs, existing TODOs, brainstorms, plans, ADRs, and handoffs.
    - Packaging, installer, updater, release, deployment, and CI workflows.
+   - Contribution conventions and templates: `.github/ISSUE_TEMPLATE/`, pull
+     request templates, RFC/ADR templates, and contribution guidelines. Record
+     required fields, label conventions, and issue structure, not just paths.
+     A future session filing an issue or PR should not have to rediscover them.
    - Run the optional code-intel helper when available:
 
      ```powershell
@@ -152,6 +156,32 @@ docs/context/history/
      right pointer without broad repo search.
    - Record unresolved coverage gaps in `docs/context/memory-maintenance.md`
      with type `stale-doc` or `repeated-rediscovery`.
+
+3.6. **Declare the component table**
+   Every project that enters the harness gets a closed component table so later
+   sessions cannot add a component silently. This is the anti-drift declaration:
+   a component that is not in it is a finding, not a default.
+
+   - Identify the parent directories that actually contain components, such as
+     `crates`, `apps`, `packages`, `services`, `cmd`, or `src/modules`. Use the
+     real depth found during inventory; do not assume top level.
+   - Generate the declaration:
+
+     ```shell
+     kbcheck architecture-drift --action init --roots <parent-dirs> --root <repo>
+     ```
+
+     From this bundle's source repo, use
+     `go run ./cmd/kbcheck architecture-drift --action init --roots <parent-dirs> --root <repo>`.
+     If `kbcheck` is unavailable, write `config/architecture-components.json`
+     by hand with `roots`, `docs_dir`, `components`, and `exempt`.
+   - Commit the generated file. It is a reviewed declaration, not a cache.
+   - Run `kbcheck architecture-drift --root <repo>` and treat each
+     `undocumented` finding as a coverage gap for step 3.5. Existing sprawl is
+     expected on first run; record what you cannot resolve in
+     `docs/context/memory-maintenance.md`.
+   - Do not re-run `--action init` later. Adding a component after bootstrap is
+     a deliberate edit to the declaration, and that friction is the point.
 
 4. **Write `docs/context/PROJECT.md`**
    - Keep it short.

@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-05-model-agnostic-planner-economy
 brainstorm_path: docs/context/research/2026-07-05-humanlayer-pinned-repos-planner-economy.md
 created: 2026-07-05
-status: reviewed
+status: completed
 workflow_shape: "pipeline-change"
 context_packet_contract: true
 scope-verified-files:

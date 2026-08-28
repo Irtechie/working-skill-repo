@@ -440,7 +440,12 @@ func parseTodoDeclaredWork(root string, policy workRealityPolicy) []workRealityD
 	}
 	declared := []workRealityDeclared{}
 	section := ""
-	index := 0
+	type todoRow struct {
+		line    int
+		section string
+		text    string
+	}
+	rows := []todoRow{}
 	for lineIndex, line := range strings.Split(string(raw), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "#") {
@@ -457,15 +462,29 @@ func parseTodoDeclaredWork(root string, policy workRealityPolicy) []workRealityD
 		if section == "" {
 			continue
 		}
+		if isTableDelimiterRow(trimmed) {
+			// A delimiter proves the row above it was the table header, which is
+			// column labels rather than declared work.
+			if last := len(rows) - 1; last >= 0 && rows[last].line == lineIndex {
+				rows = rows[:last]
+			}
+			continue
+		}
 		if !isDeclaredWorkRow(trimmed) {
 			continue
 		}
-		index++
-		item := newDeclaredItem(fmt.Sprintf("todo-%03d", index), "todo.md", section, trimmed)
-		item.Line = lineIndex + 1
+		rows = append(rows, todoRow{line: lineIndex + 1, section: section, text: trimmed})
+	}
+	for index, row := range rows {
+		item := newDeclaredItem(fmt.Sprintf("todo-%03d", index+1), "todo.md", row.section, row.text)
+		item.Line = row.line
 		declared = append(declared, item)
 	}
 	return declared
+}
+
+func isTableDelimiterRow(line string) bool {
+	return strings.HasPrefix(line, "|") && strings.Trim(line, "|-: ") == ""
 }
 
 func isDeclaredWorkRow(line string) bool {
@@ -474,7 +493,7 @@ func isDeclaredWorkRow(line string) bool {
 	}
 	if strings.HasPrefix(line, "|") {
 		// Skip table header separators such as |---|---|.
-		if strings.Trim(line, "|-: ") == "" {
+		if isTableDelimiterRow(line) {
 			return false
 		}
 		return true
@@ -488,6 +507,7 @@ func isDeclaredWorkRow(line string) bool {
 func newDeclaredItem(id, source, section, text string) workRealityDeclared {
 	item := workRealityDeclared{ID: id, Source: source, Section: section}
 	cleaned := strings.TrimSpace(strings.Trim(text, "|"))
+	isTableRow := strings.HasPrefix(strings.TrimSpace(text), "|")
 	cells := []string{}
 	for _, cell := range strings.Split(cleaned, "|") {
 		cell = strings.TrimSpace(cell)
@@ -497,6 +517,11 @@ func newDeclaredItem(id, source, section, text string) workRealityDeclared {
 	}
 	if len(cells) == 0 {
 		cells = []string{strings.TrimSpace(strings.TrimLeft(cleaned, "-* "))}
+	}
+	if !isTableRow {
+		// A list row carries its marker and status glyph in the same cell as its
+		// title, so strip them and report work rather than markup.
+		cells[0] = trimListDecoration(cells[0])
 	}
 	item.Title = redactCredentialLike(cells[0])
 	if match := workRealityBranchToken.FindStringSubmatch(text); len(match) > 1 {
@@ -508,8 +533,22 @@ func newDeclaredItem(id, source, section, text string) workRealityDeclared {
 	if match := workRealitySuperseded.FindStringSubmatch(text); len(match) > 1 {
 		item.SupersededBy = strings.Trim(match[1], "`\"' ")
 	}
-	item.Parsed = item.Title != "" && (item.Branch != "" || item.Manifest != "" || len(cells) > 1)
+	if isTableRow {
+		item.Parsed = item.Title != "" && (item.Branch != "" || item.Manifest != "" || len(cells) > 1)
+	} else {
+		// A list row always yields exactly one cell, so the table-shaped
+		// cell-count test would mark every readable bullet unparsed and bury it
+		// under a missing-evidence reason it does not deserve.
+		item.Parsed = item.Title != ""
+	}
 	return item
+}
+
+// trimListDecoration removes the list marker and any leading status glyph from
+// a bullet row so the recorded title is the work itself.
+func trimListDecoration(text string) string {
+	trimmed := strings.TrimSpace(strings.TrimLeft(text, "-* "))
+	return strings.TrimSpace(strings.TrimLeft(trimmed, "⬜🔧🔒⊘✅❌🟡🟢⏳🚧 "))
 }
 
 func parseManifestDeclaredWork(root string, policy workRealityPolicy) []workRealityDeclared {

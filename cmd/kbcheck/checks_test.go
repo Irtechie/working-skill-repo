@@ -190,6 +190,7 @@ func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 	}
 	got := checkNames(checks)
 	want := []string{
+		"architecture-drift",
 		"context-packet-selftest",
 		"cross-model-benchmark-validate",
 		"dishonest-completion-selftest",

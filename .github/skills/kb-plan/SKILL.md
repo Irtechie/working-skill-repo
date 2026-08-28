@@ -61,6 +61,8 @@ Each slice must:
 9. Mark HITL only for authority, private input, irreversible risk, or
    subjective judgment.
 10. Declare `cost_tier` and the cheaper option ruled out.
+11. Name the `owning_component` it changes, taken from the repository's declared
+    component table.
 
 Choose the lowest tier that satisfies reasoning, context, tools, trust, and
 risk:
@@ -104,6 +106,31 @@ to see at plan time and hardest to unwind after execution.
 Trust-boundary validation, data-loss handling, security controls, and
 accessibility affordances are funded at every tier and are never cut by this
 rule.
+
+### Cost Of New Structure
+
+`cost_tier` judges whether new code is needed. It does not judge where that code
+lands, so a slice can rule out new code correctly and still create a new
+component. Structure is the more expensive decision: code inside an existing
+component is deleted by deleting it, while a new component becomes a routing
+target, a doc obligation, and a place future work accretes into.
+
+Each slice names one `owning_component` from
+`config/architecture-components.json`. If the repository has no declared table,
+name the directory the slice changes and say the table is absent; do not treat a
+missing declaration as permission.
+
+A slice may not create a component that is not already declared. When a slice
+appears to need one, stop and return an `ask-now` decision naming the existing
+component that would otherwise own the work and why it cannot. Planning never
+approves a new component, exactly as it never approves a new dependency.
+
+Adding the component to the declared table is the user's decision and a separate
+edit. That edit is what `architecture-drift` enforces afterward; this rule is
+what keeps the edit from being invented mid-plan.
+
+A plan that touches more components than it has slices is a signal to re-check
+decomposition before `plan-to-work`.
 
 ### Execution Contract Precision
 

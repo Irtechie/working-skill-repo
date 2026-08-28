@@ -598,12 +598,14 @@ func TestWorkRealityUnparsedRowBecomesOrphanWorkNotDropped(t *testing.T) {
 	fixture := newWorkRealityFixture(t)
 	root := fixture.Root
 
+	// A marker and status glyph with no title behind them. "- ???" is readable
+	// work with an odd name, so it no longer belongs here.
 	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
 		"# todo",
 		"",
 		"## Blocked",
 		"",
-		"- ???",
+		"- ⬜",
 		"",
 	}, "\n"))
 
@@ -611,9 +613,61 @@ func TestWorkRealityUnparsedRowBecomesOrphanWorkNotDropped(t *testing.T) {
 	if len(report.Declared) == 0 {
 		t.Fatalf("an unreadable row must still appear as declared work")
 	}
+	if report.Declared[0].Parsed {
+		t.Fatalf("a row with no title must not be reported as parsed: %#v", report.Declared[0])
+	}
 	pairing := reportPairing(t, report, "work:todo-001")
 	if pairing.State != workRealityStateOrphanWork {
 		t.Fatalf("an unparsed row must be orphan-work, got %s: %s", pairing.State, pairing.Reason)
+	}
+}
+
+// TestWorkRealityReadsListRowsAndDropsTableHeader pins three reporting defects
+// that together made every bullet in todo.md untriageable: the table header was
+// counted as work, bullet titles kept their markup, and the table-shaped
+// cell-count test marked every readable bullet unparsed.
+func TestWorkRealityReadsListRowsAndDropsTableHeader(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
+		"# todo",
+		"",
+		"## Active Work",
+		"",
+		"| Workstream | Status | Link |",
+		"|---|---|---|",
+		"| Real table work | in_progress | none |",
+		"",
+		"## Queued Improvements",
+		"",
+		"- ⬜ Real bullet work that names no ref",
+		"",
+	}, "\n"))
+
+	report := runWorkRealityFixture(t, root)
+	titles := []string{}
+	for _, item := range report.Declared {
+		if strings.HasPrefix(item.ID, "todo-") {
+			titles = append(titles, item.Title)
+		}
+	}
+	if len(titles) != 2 {
+		t.Fatalf("expected the header dropped and 2 work rows kept, got %d: %#v", len(titles), titles)
+	}
+	if titles[0] != "Real table work" {
+		t.Fatalf("table header must not be counted as work, got %q", titles[0])
+	}
+	if titles[1] != "Real bullet work that names no ref" {
+		t.Fatalf("bullet title must lose its marker and glyph, got %q", titles[1])
+	}
+
+	pairing := reportPairing(t, report, "work:todo-002")
+	if pairing.State != workRealityStateOrphanWork {
+		t.Fatalf("an unpaired bullet stays orphan-work, got %s", pairing.State)
+	}
+	if strings.Contains(pairing.Reason, "could not be parsed") {
+		t.Fatalf("a readable bullet must not claim a parse failure: %s", pairing.Reason)
 	}
 }
 

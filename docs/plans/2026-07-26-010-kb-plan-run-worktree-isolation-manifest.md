@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-26-plan-run-worktree-isolation
 brainstorm_path: direct-chat
 created: 2026-07-26
-status: reviewed
+status: completed
 workflow_shape: pipeline-change
 objective_contract: true
 done_check:
