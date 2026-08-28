@@ -123,10 +123,16 @@ deployment, signing, and optional-capability failures remain scoped to their
 promotion or capability; they do not turn proven implementation into a
 whole-objective failure.
 
-Not shipped yet: platform hook enforcement that blocks a Codex/Claude stop or
-prompt transition at runtime. The hook layer should mirror the same gate
-classes and ledger checks once the target runtime hook files are implemented.
-Until then, do not claim hook-enforced phase blocking.
+Not shipped: platform hook enforcement that blocks a Codex/Claude stop or
+prompt transition at runtime. Do not claim hook-enforced phase blocking.
+
+This is a decision, not a backlog gap. Measurement on 2026-08-28 found the
+deterministic gate ran in 22 of 22 sessions that performed work over a 30-day
+window, so compulsion hooks would enforce a behavior that does not fail, at the
+cost of per-provider hook files that conflict with the portability contract.
+The unresolved risk is gate-failure override, which belongs in a `kbcheck`
+gate-ledger assertion rather than a runtime hook. Evidence:
+`docs/results/2026-08-28-gate-compliance-measurement.md`.
 
 ## Map And Bootstrap
 

@@ -94,11 +94,16 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
   `/iterate` steering memory, context-efficient check output, and safe
   worktree/session adapter criteria. Research:
   `docs/context/research/2026-07-05-dexhorthy-humanlayer-agent-harness-research.md`.
-- ⬜ Add runtime hook enforcement for the workflow governor — implement Codex
-  and/or Claude hook files that mirror the Question Gate and gate-ledger checks,
-  block stop/phase advancement when the artifact says blocked, and prove the
-  hooks with deterministic selftests instead of claiming hook enforcement from
-  skill text alone.
+- ⬜ Detect gate-failure override in `kbcheck` — add a gate-ledger assertion that
+  compares recorded gate results against phase advancement and delivery, so a
+  session that runs a gate, sees a failure, and proceeds anyway is caught
+  deterministically. Scope is a `kbcheck` check, not a runtime hook.
+  Runtime hook enforcement was measured and rejected on 2026-08-28: the
+  `never ran the gate` failure mode occurred in 0 of 22 working sessions over 30
+  days, so compulsion hooks would close a hole with no observed instances while
+  breaking the `AGENTS.md` portability contract. The override case remains
+  unquantified because the supporting telemetry queries time out. Evidence:
+  `docs/results/2026-08-28-gate-compliance-measurement.md`.
 - ⬜ Continue markdown-to-runtime extraction — move remaining deterministic
   hot-path skill rules into `kbcheck` checks; keep `SKILL.md` for judgment,
   scope, escalation, and tradeoffs.

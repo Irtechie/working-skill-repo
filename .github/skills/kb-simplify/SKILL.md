@@ -47,6 +47,16 @@ git log --since="90 days ago" --name-only --format="" -- <path> |
 Read the top files. Skip anything with zero commits in the window and say so.
 If the user names a path, honor it and still rank within it.
 
+When a top file's churn is unexplained, trace it before judging health:
+
+```bash
+git blame -w -C -C -C <file>      # ignore whitespace, follow code moved across files
+git log -S"<pattern>" --oneline   # pickaxe: when a string was introduced or removed
+```
+
+`-w -C -C -C` matters. Plain `git blame` attributes moved code to whoever moved
+it, which makes a refactor look like an author change and hides the real origin.
+
 ## Step 2 — Classify Each Candidate
 
 Use exactly these categories:
