@@ -4,7 +4,7 @@ manifest_schema: 3
 kb_id: kb-2026-08-01-global-cleanup-reconciliation
 brainstorm_path: docs/brainstorms/2026-08-01-global-cleanup-reconciliation-requirements.md
 created: 2026-08-01
-status: reviewed
+status: completed
 workflow_shape: pipeline-change
 scope-verified-files:
   - .github/skills/kb-complete/SKILL.md

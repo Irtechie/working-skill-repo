@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-05-phoenix-proof-spine-merge
 brainstorm_path: docs/context/research/2026-07-05-atv-phoenix-self-heal-comparison.md
 created: 2026-07-05
-status: reviewed
+status: completed
 workflow_shape: "pipeline-change"
 model_examples_checked:
   checked_at: "2026-07-05T09:09:26-04:00"

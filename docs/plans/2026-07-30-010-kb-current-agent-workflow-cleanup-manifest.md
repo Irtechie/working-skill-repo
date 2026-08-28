@@ -4,7 +4,7 @@ manifest_schema: 2
 kb_id: kb-2026-07-30-current-agent-workflow-cleanup
 brainstorm_path: docs/brainstorms/2026-07-30-current-agent-skill-guidance-requirements.md
 created: 2026-07-30
-status: reviewed
+status: completed
 workflow_shape: pipeline-change
 objective_contract: true
 blocker_lifecycle_contract: true

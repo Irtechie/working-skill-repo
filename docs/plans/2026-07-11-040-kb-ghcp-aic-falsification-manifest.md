@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-11-ghcp-aic-falsification
 brainstorm_path: docs/brainstorms/2026-07-11-ghcp-aic-amr-falsification-requirements.md
 created: 2026-07-11
-status: reviewed
+status: completed
 workflow_shape: pipeline-change
 objective_contract: true
 preconditions:

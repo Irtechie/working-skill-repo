@@ -2,7 +2,7 @@
 type: kb-manifest
 kb_id: kb-2026-07-29-cargo-build-storage-contract
 created: 2026-07-29
-status: reviewed
+status: completed
 workflow_shape: skill-bundle-change
 objective_contract: true
 blocker_lifecycle_contract: true
