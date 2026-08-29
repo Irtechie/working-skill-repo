@@ -622,6 +622,62 @@ func TestWorkRealityUnparsedRowBecomesOrphanWorkNotDropped(t *testing.T) {
 	}
 }
 
+// TestWorkRealityReadsRowStatusSoMarkedWorkSettles pins the loop-breaker: the
+// mark action writes "⊘ skipped" as its terminal marker, so a run that cannot
+// read that marker back re-surfaces the identical row as outstanding work on
+// every later pass and the lane can never settle anything it marked.
+func TestWorkRealityReadsRowStatusSoMarkedWorkSettles(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	writeWorkRealityFile(t, root, "todo.md", strings.Join([]string{
+		"# todo",
+		"",
+		"## Active Work",
+		"",
+		"| Workstream | Status | Priority | Link |",
+		"|---|---|---|---|",
+		"| Already marked terminal | ⊘ skipped | P0 | superseded earlier |",
+		"| Still outstanding | 🔧 in_progress | P0 | ongoing |",
+		"",
+		"## Queued Improvements",
+		"",
+		"- ⊘ bullet that was already marked",
+		"- ⬜ bullet that is still pending",
+		"",
+	}, "\n"))
+
+	report := runWorkRealityFixture(t, root)
+
+	byTitle := map[string]string{}
+	for _, item := range report.Declared {
+		byTitle[item.Title] = item.Status
+	}
+	for title, want := range map[string]string{
+		"Already marked terminal":        "skipped",
+		"Still outstanding":              "in_progress",
+		"bullet that was already marked": "skipped",
+		"bullet that is still pending":   "pending",
+	} {
+		if got := byTitle[title]; got != want {
+			t.Fatalf("status for %q = %q, want %q (declared: %#v)", title, got, want, report.Declared)
+		}
+	}
+
+	settled := map[string]bool{}
+	for _, item := range report.Settled {
+		settled[item.ID] = true
+	}
+	if len(settled) != 2 {
+		t.Fatalf("both skipped rows must settle, got %d: %#v", len(settled), report.Settled)
+	}
+	for _, pairing := range report.Pairings {
+		if settled[strings.TrimPrefix(pairing.ID, "work:")] {
+			t.Fatalf("a settled row must not be paired again as outstanding work: %s", pairing.ID)
+		}
+	}
+}
+
 // TestWorkRealityReadsListRowsAndDropsTableHeader pins three reporting defects
 // that together made every bullet in todo.md untriageable: the table header was
 // counted as work, bullet titles kept their markup, and the table-shaped
@@ -1023,5 +1079,108 @@ func TestRehabReportActionDefaultsToReadOnly(t *testing.T) {
 	}
 	if after := readTodo(t, root); after != before {
 		t.Fatalf("the default action must not write:\n%s", after)
+	}
+}
+
+// TestWorkRealityReadsGoalStatusAndIgnoresPlaceholders covers the lifecycle
+// directories. parseDirDeclaredWork used to list filenames without opening
+// them, so a goal declaring status: complete was reported outstanding forever
+// and a .gitkeep placeholder was counted as work nobody declared.
+func TestWorkRealitySurveysRemoteOnlyBranchesExactlyOnce(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	// A branch pushed to origin and then deleted locally exists only as
+	// refs/remotes/origin/*. Surveying refs/heads alone makes it invisible.
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/remote-only")
+	writeWorkRealityFile(t, root, "remote-only.txt", "remote only\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "remote only work")
+	runGitForWorkReality(t, root, "push", "--quiet", "origin", "codex/remote-only")
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+	runGitForWorkReality(t, root, "branch", "-D", "codex/remote-only")
+
+	// A branch that exists both locally and on the remote must not be counted
+	// twice, because the local ref already represents it.
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/mirrored")
+	writeWorkRealityFile(t, root, "mirrored.txt", "mirrored\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "mirrored work")
+	runGitForWorkReality(t, root, "push", "--quiet", "origin", "codex/mirrored")
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+
+	report := runWorkRealityFixture(t, root)
+
+	remoteOnly := 0
+	mirrored := 0
+	for _, pairing := range report.Pairings {
+		switch pairing.Ref {
+		case "refs/remotes/origin/codex/remote-only":
+			remoteOnly++
+		}
+		if strings.HasSuffix(pairing.Ref, "codex/mirrored") {
+			mirrored++
+		}
+		if strings.HasSuffix(pairing.Ref, "/HEAD") {
+			t.Fatalf("origin/HEAD is a symbolic pointer, not work: %s", pairing.Ref)
+		}
+	}
+
+	if remoteOnly != 1 {
+		t.Fatalf("remote-only branch must be surveyed exactly once, got %d pairings", remoteOnly)
+	}
+	if mirrored != 1 {
+		t.Fatalf("mirrored branch must be surveyed once via its local ref, got %d pairings", mirrored)
+	}
+}
+
+func TestWorkRealityReadsGoalStatusAndIgnoresPlaceholders(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	// The real files in this repository use a capital-S "Status:" line under the
+	// H1, not YAML frontmatter. A fixture written in the shape the code expects
+	// would pass while every real goal still failed to settle.
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/shipped.md",
+		"# Shipped goal\n\nStatus: complete\nCreated: 2026-07-09\n")
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/yaml-shipped.md",
+		"---\nstatus: done\n---\n\n# Yaml shipped goal\n")
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/open.md",
+		"# Open goal\n\nStatus: active\n")
+	// A Status line buried below the header must not retire a live goal.
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/prose.md",
+		"# Prose goal\n\nStatus: active\n"+strings.Repeat("\nfiller\n", 12)+"\nStatus: complete\n")
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/.gitkeep", "")
+	runGitForWorkReality(t, fixture.Root, "add", "-A")
+	runGitForWorkReality(t, fixture.Root, "commit", "-m", "goals")
+
+	report := runWorkRealityFixture(t, fixture.Root)
+
+	settled := map[string]string{}
+	for _, item := range report.Settled {
+		settled[item.ID] = item.Status
+	}
+	if settled["goal:docs/context/goals/shipped.md"] != "complete" {
+		t.Fatalf("a goal declaring Status: complete did not settle: %#v", report.Settled)
+	}
+	if settled["goal:docs/context/goals/yaml-shipped.md"] != "done" {
+		t.Fatalf("a goal declaring yaml status: done did not settle: %#v", report.Settled)
+	}
+	if _, wrong := settled["goal:docs/context/goals/prose.md"]; wrong {
+		t.Fatal("a Status line below the header region retired a live goal")
+	}
+	declared := map[string]bool{}
+	for _, item := range report.Declared {
+		declared[item.ID] = true
+	}
+	if declared["goal:docs/context/goals/.gitkeep"] {
+		t.Fatal("a .gitkeep placeholder was counted as declared work")
+	}
+	// An open goal must survive. A fix that settles everything is not a fix.
+	for _, item := range report.Settled {
+		if item.ID == "goal:docs/context/goals/open.md" {
+			t.Fatal("an active goal was wrongly settled")
+		}
+	}
+	if !declared["goal:docs/context/goals/open.md"] {
+		t.Fatalf("active goal disappeared from declared work: %#v", report.Declared)
 	}
 }

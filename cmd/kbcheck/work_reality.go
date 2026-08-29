@@ -124,13 +124,10 @@ type workRealityPairing struct {
 	Evidence          []workRealityEvidence `json:"evidence"`
 }
 
-type workRealityRemoteAuthority struct {
-	State         string `json:"state"`
-	Remote        string `json:"remote,omitempty"`
-	DefaultBranch string `json:"default_branch,omitempty"`
-	SHA           string `json:"sha,omitempty"`
-	Limitation    string `json:"limitation,omitempty"`
-}
+// workRealityRemoteAuthority is an alias, not a copy. A second struct with the
+// same fields would let this survey and kbreconcile drift apart silently, which
+// is exactly how they came to disagree about which branches were dead.
+type workRealityRemoteAuthority = reconcile.RemoteAuthority
 
 type workRealitySettled struct {
 	ID     string `json:"id"`
@@ -166,6 +163,10 @@ func workRealityTerminalDeclaredStatuses() map[string]bool {
 		"abandoned": true, "cancelled": true, "canceled": true, "complete": true,
 		"completed": true, "delivered": true, "done": true, "integrated": true,
 		"retired": true, "shipped": true, "superseded": true,
+		// "skipped" is the marker applyWorkRealityMarks writes for a pairing it
+		// already proved terminal. Omitting it made the mark action unable to
+		// settle anything: the next run re-read its own marker as outstanding.
+		"skipped": true,
 	}
 }
 
@@ -311,105 +312,11 @@ func loadWorkRealityPolicy(path string) (workRealityPolicy, error) {
 	return policy, nil
 }
 
-// resolveWorkRealityRemoteAuthority proves the default branch from a fresh
-// remote advertisement, not from a cached remote-tracking ref. Every configured
-// remote is consulted and the strictest outcome wins.
+// resolveWorkRealityRemoteAuthority delegates to the shared probe so this
+// survey and kbreconcile cannot reach different conclusions about the same
+// remote from two copies of the same logic.
 func resolveWorkRealityRemoteAuthority(root string, repository reconcile.Repository) workRealityRemoteAuthority {
-	if len(repository.Remotes) == 0 {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Limitation: "no configured remote; containment cannot be proven",
-		}
-	}
-	var resolved workRealityRemoteAuthority
-	for _, remote := range repository.Remotes {
-		candidate := resolveRemoteAuthorityFor(root, remote.Name)
-		if candidate.State != "authoritative" {
-			return candidate
-		}
-		if resolved.State == "" {
-			resolved = candidate
-			continue
-		}
-		if resolved.SHA != candidate.SHA || resolved.DefaultBranch != candidate.DefaultBranch {
-			return workRealityRemoteAuthority{
-				State: "unavailable",
-				Limitation: fmt.Sprintf("remotes disagree on the default branch: %s/%s vs %s/%s",
-					resolved.Remote, resolved.DefaultBranch, candidate.Remote, candidate.DefaultBranch),
-			}
-		}
-	}
-	return resolved
-}
-
-func resolveRemoteAuthorityFor(root, remote string) workRealityRemoteAuthority {
-	advertised, err := gitCapture(root, "ls-remote", "--symref", remote, "HEAD")
-	if err != nil {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("remote %s is unreachable", remote),
-		}
-	}
-	branch, sha := parseSymrefAdvertisement(advertised)
-	if branch == "" || sha == "" {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("remote %s advertised no resolvable default branch", remote),
-		}
-	}
-	if _, err := gitCapture(root, "fetch", "--no-tags", remote, branch); err != nil {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("fetch of %s/%s failed", remote, branch),
-		}
-	}
-	fetched, err := gitCapture(root, "rev-parse", "FETCH_HEAD")
-	if err != nil {
-		return workRealityRemoteAuthority{
-			State:      "unavailable",
-			Remote:     remote,
-			Limitation: fmt.Sprintf("fetched head of %s/%s is unresolvable", remote, branch),
-		}
-	}
-	fetched = strings.TrimSpace(fetched)
-	if fetched != sha {
-		return workRealityRemoteAuthority{
-			State:  "unavailable",
-			Remote: remote,
-			Limitation: fmt.Sprintf("remote %s default moved between advertisement %s and fetch %s",
-				remote, shortSHA(sha), shortSHA(fetched)),
-		}
-	}
-	return workRealityRemoteAuthority{
-		State:         "authoritative",
-		Remote:        remote,
-		DefaultBranch: branch,
-		SHA:           sha,
-	}
-}
-
-func parseSymrefAdvertisement(output string) (branch, sha string) {
-	for _, line := range strings.Split(output, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "ref:") {
-			fields := strings.Fields(strings.TrimPrefix(line, "ref:"))
-			if len(fields) >= 1 {
-				branch = strings.TrimPrefix(fields[0], "refs/heads/")
-			}
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[1] == "HEAD" {
-			sha = fields[0]
-		}
-	}
-	return branch, sha
+	return reconcile.ResolveRemoteAuthority(root, repository.Remotes)
 }
 
 var (
@@ -521,7 +428,10 @@ func newDeclaredItem(id, source, section, text string) workRealityDeclared {
 	if !isTableRow {
 		// A list row carries its marker and status glyph in the same cell as its
 		// title, so strip them and report work rather than markup.
+		item.Status = declaredRowStatus(cells[0])
 		cells[0] = trimListDecoration(cells[0])
+	} else if len(cells) > 1 {
+		item.Status = declaredRowStatus(cells[1])
 	}
 	item.Title = redactCredentialLike(cells[0])
 	if match := workRealityBranchToken.FindStringSubmatch(text); len(match) > 1 {
@@ -548,7 +458,63 @@ func newDeclaredItem(id, source, section, text string) workRealityDeclared {
 // a bullet row so the recorded title is the work itself.
 func trimListDecoration(text string) string {
 	trimmed := strings.TrimSpace(strings.TrimLeft(text, "-* "))
-	return strings.TrimSpace(strings.TrimLeft(trimmed, "⬜🔧🔒⊘✅❌🟡🟢⏳🚧 "))
+	return strings.TrimSpace(strings.TrimLeft(trimmed, workRealityStatusGlyphs))
+}
+
+// workRealityStatusGlyphs are the status markers a declared row may carry ahead
+// of its text, including the markers this lane writes when it marks work.
+const workRealityStatusGlyphs = "⬜🔧🔒⊘✅❌🟡🟢⏳🚧🛑 "
+
+// declaredRowStatus reads the status a todo row already states. Without this a
+// row carries no status at all, so no todo row can ever be settled: the mark
+// action writes "⊘ skipped" as its terminal marker, and a later run that cannot
+// read that marker re-surfaces the identical row as outstanding work forever.
+func declaredRowStatus(cell string) string {
+	text := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(cell), "-* "))
+	glyph := ""
+	for _, r := range text {
+		if !strings.ContainsRune(workRealityStatusGlyphs, r) || r == ' ' {
+			break
+		}
+		glyph = string(r)
+		break
+	}
+	rest := strings.TrimSpace(strings.TrimLeft(text, workRealityStatusGlyphs))
+	// A status word the row spells out wins over the glyph, because the word is
+	// what a human wrote and the glyph is only its shorthand.
+	if word := firstStatusWord(rest); word != "" {
+		return word
+	}
+	switch glyph {
+	case "⊘":
+		return "skipped"
+	case "✅", "🟢":
+		return "completed"
+	case "🔒", "🛑":
+		return "blocked"
+	case "🔧", "🚧":
+		return "in_progress"
+	case "⬜", "⏳", "🟡":
+		return "pending"
+	}
+	return ""
+}
+
+// firstStatusWord returns the leading token of a status cell when it names a
+// status, so a table row's dedicated status column is read literally.
+func firstStatusWord(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return ""
+	}
+	word := strings.ToLower(strings.Trim(fields[0], "`*_.,;:"))
+	switch word {
+	case "pending", "in_progress", "blocked", "skipped", "human-required",
+		"abandoned", "cancelled", "canceled", "complete", "completed",
+		"delivered", "done", "integrated", "retired", "shipped", "superseded":
+		return word
+	}
+	return ""
 }
 
 func parseManifestDeclaredWork(root string, policy workRealityPolicy) []workRealityDeclared {
@@ -582,28 +548,90 @@ func parseManifestDeclaredWork(root string, policy workRealityPolicy) []workReal
 	return declared
 }
 
+// parseDirDeclaredWork reads declared work out of a lifecycle directory.
+//
+// It opens each file rather than listing names. A directory listing cannot see
+// that a goal already declares status: complete, so finished work is reported
+// outstanding on every pass and can never settle. That is the same defect that
+// made todo rows resurface, in a different source.
+// remoteOnlyShortName returns the branch name behind a refs/remotes ref when no
+// local ref already represents it. A remote whose work is mirrored locally is
+// surveyed through the local ref, and origin/HEAD is a symbolic pointer rather
+// than work.
+func remoteOnlyShortName(ref string, localShorts map[string]bool) (string, bool) {
+	trimmed := strings.TrimPrefix(ref, "refs/remotes/")
+	if trimmed == ref {
+		return "", false
+	}
+	parts := strings.SplitN(trimmed, "/", 2)
+	if len(parts) != 2 || parts[1] == "" || parts[1] == "HEAD" {
+		return "", false
+	}
+	if localShorts[parts[1]] {
+		return "", false
+	}
+	return parts[1], true
+}
+
 func parseDirDeclaredWork(root, dir, kind string) []workRealityDeclared {
 	if strings.TrimSpace(dir) == "" {
 		return nil
 	}
-	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(dir)))
+	base := filepath.Join(root, filepath.FromSlash(dir))
+	entries, err := os.ReadDir(base)
 	if err != nil {
 		return nil
 	}
 	declared := []workRealityDeclared{}
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() || !isDeclarationFile(entry.Name()) {
 			continue
 		}
 		relative := dir + "/" + entry.Name()
-		declared = append(declared, workRealityDeclared{
+		item := workRealityDeclared{
 			ID:     kind + ":" + relative,
 			Source: relative,
 			Title:  redactCredentialLike(entry.Name()),
 			Parsed: true,
-		})
+		}
+		if body, readErr := os.ReadFile(filepath.Join(base, entry.Name())); readErr == nil {
+			item.Status = declaredHeaderStatus(string(body))
+		}
+		declared = append(declared, item)
 	}
 	return declared
+}
+
+// isDeclarationFile reports whether a file can carry a work declaration at all.
+// A .gitkeep placeholder exists to keep an empty directory in git; counting it
+// as outstanding work invents an item no human ever declared.
+func isDeclarationFile(name string) bool {
+	return !strings.HasPrefix(name, ".") && strings.EqualFold(filepath.Ext(name), ".md")
+}
+
+// declaredHeaderStatus reads a lifecycle status from a document header.
+//
+// Goal and handoff files in this repository do not use YAML frontmatter. They
+// write a plain "Status: complete" line under the H1, with a capital S. A
+// case-sensitive lowercase-only match therefore reads every one of them as
+// having no status, which reports finished goals as outstanding forever.
+//
+// The scan is bounded to the header region so a "Status:" line quoted in prose
+// or inside a later section cannot silently retire a live goal.
+func declaredHeaderStatus(body string) string {
+	const headerLines = 20
+	for index, line := range strings.Split(body, "\n") {
+		if index >= headerLines {
+			break
+		}
+		trimmed := strings.TrimSpace(line)
+		if len(trimmed) < len("status:") || !strings.EqualFold(trimmed[:len("status:")], "status:") {
+			continue
+		}
+		value := strings.TrimSpace(trimmed[len("status:"):])
+		return strings.ToLower(strings.Trim(value, `"'`+"` "))
+	}
+	return ""
 }
 
 func scalarFrontmatterValue(body, key string) string {
@@ -669,11 +697,51 @@ func pairWorkAgainstReality(
 	pairings := []workRealityPairing{}
 	pairedDeclared := map[string]bool{}
 
+	localShorts := map[string]bool{}
+	for _, branch := range repository.Branches {
+		if !branch.IsRemote {
+			localShorts[strings.TrimPrefix(branch.Ref, "refs/heads/")] = true
+		}
+	}
+
 	for _, branch := range repository.Branches {
 		if branch.IsRemote || branch.IsDefault {
 			continue
 		}
 		short := strings.TrimPrefix(branch.Ref, "refs/heads/")
+		if short == authority.DefaultBranch || short == repository.DefaultBranch {
+			continue
+		}
+		item, hasItem := declaredByBranch[short]
+		if hasItem {
+			pairedDeclared[item.ID] = true
+		}
+		pairing := classifyPairing(root, classifyInput{
+			Branch:            branch,
+			Short:             short,
+			Declared:          item,
+			HasDeclared:       hasItem,
+			Repository:        repository,
+			Policy:            policy,
+			Authority:         authority,
+			Claims:            claimsByBranch[short],
+			ProtectionReasons: dedupeStrings(protectedWorktreeBranches[short]),
+			Cutoff:            cutoff,
+			TerminalAllowed:   terminalAllowed,
+		})
+		pairings = append(pairings, pairing)
+	}
+
+	// A branch that exists only on a remote is real outstanding work that no
+	// local ref represents. Surveying local refs alone silently hides it.
+	for _, branch := range repository.Branches {
+		if !branch.IsRemote || branch.IsDefault {
+			continue
+		}
+		short, ok := remoteOnlyShortName(branch.Ref, localShorts)
+		if !ok {
+			continue
+		}
 		if short == authority.DefaultBranch || short == repository.DefaultBranch {
 			continue
 		}

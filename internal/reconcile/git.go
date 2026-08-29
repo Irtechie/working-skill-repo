@@ -109,14 +109,7 @@ func refreshRemotes(root, topicBranch string) ([]freshRemote, error) {
 			return nil, fmt.Errorf("refresh remote %s HEAD: %w", name, err)
 		}
 		item := freshRemote{Name: name}
-		for _, line := range strings.Split(string(head), "\n") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 && fields[0] == "ref:" {
-				item.DefaultBranch = strings.TrimPrefix(fields[1], "refs/heads/")
-			} else if len(fields) >= 2 && fields[1] == "HEAD" {
-				item.DefaultSHA = fields[0]
-			}
-		}
+		item.DefaultBranch, item.DefaultSHA = ParseSymrefAdvertisement(string(head))
 		if item.DefaultBranch == "" || item.DefaultSHA == "" {
 			return nil, fmt.Errorf("authoritative remote default is unresolved for %s", name)
 		}

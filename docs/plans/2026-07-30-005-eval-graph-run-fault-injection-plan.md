@@ -46,7 +46,9 @@ protected_oracles:
     role: "fault-injection and retry/completion oracle"
     sha256: "filled by kb-work after RED/protection"
     update_policy: "requires explicit plan update"
-status: pending
+status: retired
+retired: 2026-08-28
+retired_reason: parent goal bounded-graph-run-provenance retired undelivered; kept as a design record
 owner: agent
 blocked_reason: ""
 resume_when: ""

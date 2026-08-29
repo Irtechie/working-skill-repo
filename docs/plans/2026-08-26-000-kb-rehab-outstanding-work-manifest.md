@@ -4,7 +4,9 @@ manifest_schema: 3
 kb_id: kb-2026-08-26-kb-rehab-outstanding-work
 brainstorm_path: docs/brainstorms/2026-08-26-kb-rehab-outstanding-work-requirements.md
 created: 2026-08-26
-status: reviewed
+status: completed
+landed_commit: 46e4b28
+landed_evidence: ".github/skills/kb-rehab/ present on origin/main; verified with git ls-tree --name-only origin/main"
 workflow_shape: pipeline-change
 scope-verified-files:
   - .github/skills/kb-rehab/SKILL.md
