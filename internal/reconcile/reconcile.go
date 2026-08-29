@@ -82,14 +82,15 @@ type Repository struct {
 	Worktrees          []Worktree `json:"worktrees,omitempty"`
 	Branches           []Branch   `json:"branches,omitempty"`
 	Remotes            []Remote   `json:"remotes,omitempty"`
-	// RemoteAuthority is populated only when the caller opted into a network
-	// probe. A zero value means authority was never established, which is a
-	// different statement from authority being unavailable.
-	RemoteAuthority RemoteAuthority `json:"remote_authority,omitempty"`
-	QueueClaims     []QueueClaim    `json:"queue_claims,omitempty"`
-	Receipts        []Receipt       `json:"receipts,omitempty"`
-	Evidence        []Evidence      `json:"evidence"`
-	Artifacts       []Artifact      `json:"artifacts"`
+	// RemoteAuthority is nil when the caller never opted into a network probe.
+	// That is a different statement from authority being unavailable, so it must
+	// be absent rather than an empty object: omitempty does not suppress a
+	// struct, and "state": "" reads as a failed probe rather than no probe.
+	RemoteAuthority *RemoteAuthority `json:"remote_authority,omitempty"`
+	QueueClaims     []QueueClaim     `json:"queue_claims,omitempty"`
+	Receipts        []Receipt        `json:"receipts,omitempty"`
+	Evidence        []Evidence       `json:"evidence"`
+	Artifacts       []Artifact       `json:"artifacts"`
 }
 
 type Worktree struct {

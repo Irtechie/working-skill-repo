@@ -49,7 +49,7 @@ func TestRefreshRemoteAuthorityUnblocksContainedRefRetirement(t *testing.T) {
 	}
 
 	cached := inventory(false)
-	if cached.RemoteAuthority.State != "" {
+	if cached.RemoteAuthority != nil {
 		t.Fatalf("default inventory probed the network: %#v", cached.RemoteAuthority)
 	}
 	cachedArtifact := artifactForRef(t, cached, "refs/heads/contained-feature")
@@ -58,7 +58,7 @@ func TestRefreshRemoteAuthorityUnblocksContainedRefRetirement(t *testing.T) {
 	}
 
 	fresh := inventory(true)
-	if !fresh.RemoteAuthority.Authoritative() {
+	if fresh.RemoteAuthority == nil || !fresh.RemoteAuthority.Authoritative() {
 		t.Fatalf("opt-in probe failed to establish authority: %#v", fresh.RemoteAuthority)
 	}
 	freshArtifact := artifactForRef(t, fresh, "refs/heads/contained-feature")

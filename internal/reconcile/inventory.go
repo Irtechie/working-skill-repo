@@ -106,18 +106,19 @@ func inventoryRepository(candidate string, options InventoryOptions) (Repository
 	repository.Remotes = inventoryRemotes(root)
 	repository.DefaultBranch, repository.DefaultBranchState = inventoryDefaultBranch(root, repository.Remotes)
 	if options.RefreshRemoteAuthority {
-		repository.RemoteAuthority = ResolveRemoteAuthority(root, repository.Remotes)
-		if repository.RemoteAuthority.Authoritative() {
-			repository.DefaultBranch = repository.RemoteAuthority.DefaultBranch
+		authority := ResolveRemoteAuthority(root, repository.Remotes)
+		repository.RemoteAuthority = &authority
+		if authority.Authoritative() {
+			repository.DefaultBranch = authority.DefaultBranch
 			repository.DefaultBranchState = EvidenceAvailable
 			repository.Evidence = replaceEvidence(repository.Evidence, Evidence{
 				Name: "remote-authority", State: EvidenceAvailable, Source: RemoteAuthoritySource,
 				ObservedAt: observed, Authoritative: true,
-				Value: repository.RemoteAuthority.Remote + "/" + repository.RemoteAuthority.DefaultBranch,
+				Value: authority.Remote + "/" + authority.DefaultBranch,
 			})
 		} else {
 			repository.Evidence = replaceEvidence(repository.Evidence, unavailableEvidence(
-				"remote-authority", RemoteAuthoritySource, observed, repository.RemoteAuthority.Limitation,
+				"remote-authority", RemoteAuthoritySource, observed, authority.Limitation,
 			))
 		}
 	}
@@ -250,7 +251,7 @@ func inventoryDirt(worktree string) Dirt {
 	return dirt
 }
 
-func inventoryBranches(root, defaultBranch string, observed time.Time, authority RemoteAuthority) ([]Branch, error) {
+func inventoryBranches(root, defaultBranch string, observed time.Time, authority *RemoteAuthority) ([]Branch, error) {
 	output, err := gitBytes(root, "for-each-ref",
 		"--format=%(refname)%00%(objectname)%00%(committerdate:unix)%00", "refs/heads", "refs/remotes")
 	if err != nil {
@@ -286,7 +287,7 @@ func inventoryBranches(root, defaultBranch string, observed time.Time, authority
 	return branches, nil
 }
 
-func addCachedContainment(root string, branches []Branch, defaultBranch string, observed time.Time, authority RemoteAuthority) {
+func addCachedContainment(root string, branches []Branch, defaultBranch string, observed time.Time, authority *RemoteAuthority) {
 	remoteByShort := map[string]Branch{}
 	var defaultRemote Branch
 	for _, branch := range branches {
@@ -309,7 +310,7 @@ func addCachedContainment(root string, branches []Branch, defaultBranch string, 
 	ancestrySource := "git-remote-tracking-ref"
 	ancestryIdentity := "cached:"
 	ancestryAuthoritative := false
-	if authority.Authoritative() && authority.DefaultBranch == defaultBranch {
+	if authority != nil && authority.Authoritative() && authority.DefaultBranch == defaultBranch {
 		ancestryTarget = authority.SHA
 		ancestrySource = RemoteAuthoritySource
 		ancestryIdentity = "fresh:"
