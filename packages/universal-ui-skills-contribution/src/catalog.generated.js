@@ -264,7 +264,7 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-rehab",
     "name": "kb-rehab",
-    "description": "Reconcile all outstanding work in a repository against git reality before new work starts. Use when the user asks what work is still outstanding, wants dead or superseded plans marked, wants branches paired against declared work, or wants the repository cleaned and current so the next task can begin. Not for ordinary cleanup, code review, or delivering one known feature.",
+    "description": "Clean house across a repository and check the result in. Pair every declared work item against real refs, settle or correct what is provably done, route the rest to a recorded disposition, and commit the reconciliation so the tree is clean before new work starts. Use when the user asks to clean house, check in, reconcile outstanding work, mark dead or superseded plans, or make the repository current. Not for ordinary code cleanup, code review, or delivering one known feature.",
     "argumentHint": "[optional scope hint, or blank for the whole repository]",
     "category": "Learning and maintenance",
     "sourcePath": ".github/skills/kb-rehab/SKILL.md",
