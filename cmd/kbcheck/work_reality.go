@@ -548,28 +548,71 @@ func parseManifestDeclaredWork(root string, policy workRealityPolicy) []workReal
 	return declared
 }
 
+// parseDirDeclaredWork reads declared work out of a lifecycle directory.
+//
+// It opens each file rather than listing names. A directory listing cannot see
+// that a goal already declares status: complete, so finished work is reported
+// outstanding on every pass and can never settle. That is the same defect that
+// made todo rows resurface, in a different source.
 func parseDirDeclaredWork(root, dir, kind string) []workRealityDeclared {
 	if strings.TrimSpace(dir) == "" {
 		return nil
 	}
-	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(dir)))
+	base := filepath.Join(root, filepath.FromSlash(dir))
+	entries, err := os.ReadDir(base)
 	if err != nil {
 		return nil
 	}
 	declared := []workRealityDeclared{}
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() || !isDeclarationFile(entry.Name()) {
 			continue
 		}
 		relative := dir + "/" + entry.Name()
-		declared = append(declared, workRealityDeclared{
+		item := workRealityDeclared{
 			ID:     kind + ":" + relative,
 			Source: relative,
 			Title:  redactCredentialLike(entry.Name()),
 			Parsed: true,
-		})
+		}
+		if body, readErr := os.ReadFile(filepath.Join(base, entry.Name())); readErr == nil {
+			item.Status = declaredHeaderStatus(string(body))
+		}
+		declared = append(declared, item)
 	}
 	return declared
+}
+
+// isDeclarationFile reports whether a file can carry a work declaration at all.
+// A .gitkeep placeholder exists to keep an empty directory in git; counting it
+// as outstanding work invents an item no human ever declared.
+func isDeclarationFile(name string) bool {
+	return !strings.HasPrefix(name, ".") && strings.EqualFold(filepath.Ext(name), ".md")
+}
+
+// declaredHeaderStatus reads a lifecycle status from a document header.
+//
+// Goal and handoff files in this repository do not use YAML frontmatter. They
+// write a plain "Status: complete" line under the H1, with a capital S. A
+// case-sensitive lowercase-only match therefore reads every one of them as
+// having no status, which reports finished goals as outstanding forever.
+//
+// The scan is bounded to the header region so a "Status:" line quoted in prose
+// or inside a later section cannot silently retire a live goal.
+func declaredHeaderStatus(body string) string {
+	const headerLines = 20
+	for index, line := range strings.Split(body, "\n") {
+		if index >= headerLines {
+			break
+		}
+		trimmed := strings.TrimSpace(line)
+		if len(trimmed) < len("status:") || !strings.EqualFold(trimmed[:len("status:")], "status:") {
+			continue
+		}
+		value := strings.TrimSpace(trimmed[len("status:"):])
+		return strings.ToLower(strings.Trim(value, `"'`+"` "))
+	}
+	return ""
 }
 
 func scalarFrontmatterValue(body, key string) string {

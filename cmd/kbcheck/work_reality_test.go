@@ -1081,3 +1081,58 @@ func TestRehabReportActionDefaultsToReadOnly(t *testing.T) {
 		t.Fatalf("the default action must not write:\n%s", after)
 	}
 }
+
+// TestWorkRealityReadsGoalStatusAndIgnoresPlaceholders covers the lifecycle
+// directories. parseDirDeclaredWork used to list filenames without opening
+// them, so a goal declaring status: complete was reported outstanding forever
+// and a .gitkeep placeholder was counted as work nobody declared.
+func TestWorkRealityReadsGoalStatusAndIgnoresPlaceholders(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	// The real files in this repository use a capital-S "Status:" line under the
+	// H1, not YAML frontmatter. A fixture written in the shape the code expects
+	// would pass while every real goal still failed to settle.
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/shipped.md",
+		"# Shipped goal\n\nStatus: complete\nCreated: 2026-07-09\n")
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/yaml-shipped.md",
+		"---\nstatus: done\n---\n\n# Yaml shipped goal\n")
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/open.md",
+		"# Open goal\n\nStatus: active\n")
+	// A Status line buried below the header must not retire a live goal.
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/prose.md",
+		"# Prose goal\n\nStatus: active\n"+strings.Repeat("\nfiller\n", 12)+"\nStatus: complete\n")
+	writeWorkRealityFile(t, fixture.Root, "docs/context/goals/.gitkeep", "")
+	runGitForWorkReality(t, fixture.Root, "add", "-A")
+	runGitForWorkReality(t, fixture.Root, "commit", "-m", "goals")
+
+	report := runWorkRealityFixture(t, fixture.Root)
+
+	settled := map[string]string{}
+	for _, item := range report.Settled {
+		settled[item.ID] = item.Status
+	}
+	if settled["goal:docs/context/goals/shipped.md"] != "complete" {
+		t.Fatalf("a goal declaring Status: complete did not settle: %#v", report.Settled)
+	}
+	if settled["goal:docs/context/goals/yaml-shipped.md"] != "done" {
+		t.Fatalf("a goal declaring yaml status: done did not settle: %#v", report.Settled)
+	}
+	if _, wrong := settled["goal:docs/context/goals/prose.md"]; wrong {
+		t.Fatal("a Status line below the header region retired a live goal")
+	}
+	declared := map[string]bool{}
+	for _, item := range report.Declared {
+		declared[item.ID] = true
+	}
+	if declared["goal:docs/context/goals/.gitkeep"] {
+		t.Fatal("a .gitkeep placeholder was counted as declared work")
+	}
+	// An open goal must survive. A fix that settles everything is not a fix.
+	for _, item := range report.Settled {
+		if item.ID == "goal:docs/context/goals/open.md" {
+			t.Fatal("an active goal was wrongly settled")
+		}
+	}
+	if !declared["goal:docs/context/goals/open.md"] {
+		t.Fatalf("active goal disappeared from declared work: %#v", report.Declared)
+	}
+}
