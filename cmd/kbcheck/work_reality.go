@@ -554,6 +554,25 @@ func parseManifestDeclaredWork(root string, policy workRealityPolicy) []workReal
 // that a goal already declares status: complete, so finished work is reported
 // outstanding on every pass and can never settle. That is the same defect that
 // made todo rows resurface, in a different source.
+// remoteOnlyShortName returns the branch name behind a refs/remotes ref when no
+// local ref already represents it. A remote whose work is mirrored locally is
+// surveyed through the local ref, and origin/HEAD is a symbolic pointer rather
+// than work.
+func remoteOnlyShortName(ref string, localShorts map[string]bool) (string, bool) {
+	trimmed := strings.TrimPrefix(ref, "refs/remotes/")
+	if trimmed == ref {
+		return "", false
+	}
+	parts := strings.SplitN(trimmed, "/", 2)
+	if len(parts) != 2 || parts[1] == "" || parts[1] == "HEAD" {
+		return "", false
+	}
+	if localShorts[parts[1]] {
+		return "", false
+	}
+	return parts[1], true
+}
+
 func parseDirDeclaredWork(root, dir, kind string) []workRealityDeclared {
 	if strings.TrimSpace(dir) == "" {
 		return nil
@@ -678,11 +697,51 @@ func pairWorkAgainstReality(
 	pairings := []workRealityPairing{}
 	pairedDeclared := map[string]bool{}
 
+	localShorts := map[string]bool{}
+	for _, branch := range repository.Branches {
+		if !branch.IsRemote {
+			localShorts[strings.TrimPrefix(branch.Ref, "refs/heads/")] = true
+		}
+	}
+
 	for _, branch := range repository.Branches {
 		if branch.IsRemote || branch.IsDefault {
 			continue
 		}
 		short := strings.TrimPrefix(branch.Ref, "refs/heads/")
+		if short == authority.DefaultBranch || short == repository.DefaultBranch {
+			continue
+		}
+		item, hasItem := declaredByBranch[short]
+		if hasItem {
+			pairedDeclared[item.ID] = true
+		}
+		pairing := classifyPairing(root, classifyInput{
+			Branch:            branch,
+			Short:             short,
+			Declared:          item,
+			HasDeclared:       hasItem,
+			Repository:        repository,
+			Policy:            policy,
+			Authority:         authority,
+			Claims:            claimsByBranch[short],
+			ProtectionReasons: dedupeStrings(protectedWorktreeBranches[short]),
+			Cutoff:            cutoff,
+			TerminalAllowed:   terminalAllowed,
+		})
+		pairings = append(pairings, pairing)
+	}
+
+	// A branch that exists only on a remote is real outstanding work that no
+	// local ref represents. Surveying local refs alone silently hides it.
+	for _, branch := range repository.Branches {
+		if !branch.IsRemote || branch.IsDefault {
+			continue
+		}
+		short, ok := remoteOnlyShortName(branch.Ref, localShorts)
+		if !ok {
+			continue
+		}
 		if short == authority.DefaultBranch || short == repository.DefaultBranch {
 			continue
 		}

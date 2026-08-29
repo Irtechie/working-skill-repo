@@ -1086,6 +1086,54 @@ func TestRehabReportActionDefaultsToReadOnly(t *testing.T) {
 // directories. parseDirDeclaredWork used to list filenames without opening
 // them, so a goal declaring status: complete was reported outstanding forever
 // and a .gitkeep placeholder was counted as work nobody declared.
+func TestWorkRealitySurveysRemoteOnlyBranchesExactlyOnce(t *testing.T) {
+	fixture := newWorkRealityFixture(t)
+	root := fixture.Root
+
+	// A branch pushed to origin and then deleted locally exists only as
+	// refs/remotes/origin/*. Surveying refs/heads alone makes it invisible.
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/remote-only")
+	writeWorkRealityFile(t, root, "remote-only.txt", "remote only\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "remote only work")
+	runGitForWorkReality(t, root, "push", "--quiet", "origin", "codex/remote-only")
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+	runGitForWorkReality(t, root, "branch", "-D", "codex/remote-only")
+
+	// A branch that exists both locally and on the remote must not be counted
+	// twice, because the local ref already represents it.
+	runGitForWorkReality(t, root, "checkout", "--quiet", "-b", "codex/mirrored")
+	writeWorkRealityFile(t, root, "mirrored.txt", "mirrored\n")
+	runGitForWorkReality(t, root, "add", "-A")
+	runGitForWorkReality(t, root, "commit", "--quiet", "-m", "mirrored work")
+	runGitForWorkReality(t, root, "push", "--quiet", "origin", "codex/mirrored")
+	runGitForWorkReality(t, root, "checkout", "--quiet", "main")
+
+	report := runWorkRealityFixture(t, root)
+
+	remoteOnly := 0
+	mirrored := 0
+	for _, pairing := range report.Pairings {
+		switch pairing.Ref {
+		case "refs/remotes/origin/codex/remote-only":
+			remoteOnly++
+		}
+		if strings.HasSuffix(pairing.Ref, "codex/mirrored") {
+			mirrored++
+		}
+		if strings.HasSuffix(pairing.Ref, "/HEAD") {
+			t.Fatalf("origin/HEAD is a symbolic pointer, not work: %s", pairing.Ref)
+		}
+	}
+
+	if remoteOnly != 1 {
+		t.Fatalf("remote-only branch must be surveyed exactly once, got %d pairings", remoteOnly)
+	}
+	if mirrored != 1 {
+		t.Fatalf("mirrored branch must be surveyed once via its local ref, got %d pairings", mirrored)
+	}
+}
+
 func TestWorkRealityReadsGoalStatusAndIgnoresPlaceholders(t *testing.T) {
 	fixture := newWorkRealityFixture(t)
 	// The real files in this repository use a capital-S "Status:" line under the

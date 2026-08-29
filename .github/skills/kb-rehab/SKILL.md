@@ -25,8 +25,9 @@ See `Completion` for the termination condition.
 ## Scope
 
 In scope: `todo.md` rows, `docs/plans/*-manifest.md`, `docs/context/goals/`,
-`docs/handoffs/active/`, every local branch and worktree in this repository's
-Git common directory, and committing the reconciliation edits this lane makes.
+`docs/handoffs/active/`, every local branch, every remote-only branch, and every
+worktree in this repository's Git common directory, and committing the
+reconciliation edits this lane makes.
 
 Out of scope: writing features, reviewing code, and delivering work. Delivery
 belongs to `kb-complete`. Ref and worktree reaping belongs to `kbreconcile`.
