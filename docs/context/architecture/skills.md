@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repo ships 43 `SKILL.md` files under `.github\skills\`. They define the KB
+This repo ships 48 `SKILL.md` files under `.github\skills\`. They define the KB
 workflow lanes, compound/document-review helpers, todo helpers, and learning/utilities
 used by Codex, Copilot, and shared agents.
 
@@ -16,10 +16,10 @@ Supporting reviewer/specialist agents live under `.github\agents\*.agent.md`.
 | Requirements / planning | `kb-brainstorm`, `kb-plan`, `kb-gate`, `kb-research`, `kb-first-principles` |
 | Execution / repair | `kb-work`, `kb-fix`, `kb-troubleshoot`, `kb-repair`, `tdd` |
 | Verification / eval | `kb-check`, `kb-functional-test`, `kb-qa`, `kb-regression-snapshot`, `kb-eval-map` |
-| Completion / delivery | `kb-complete`, `kb-finalize`, `kb-review`, `kb-ship`, `kb-land` |
-| Learning / maintenance | `learn`, `evolve`, `kb-cognitive`, `kb-configure`, `kb-models`, `kb-handoff`, `kb-architecture-deepening`, `kb-simplify` |
+| Completion / delivery | `kb-complete`, `kb-finalize`, `kb-review`, `kb-ship`, `kb-land`, `p2d`, `w2d`, `kb-executive-brief`, `pr-review-workbench` |
+| Learning / maintenance | `learn`, `evolve`, `kb-cognitive`, `kb-configure`, `kb-models`, `kb-handoff`, `kb-architecture-deepening`, `kb-simplify`, `kb-rehab` |
 | Compound / document review | `document-review`, `ce-compound`, `ce-compound-refresh`, `repo-critic` |
-| Todo / utility | `todo-create`, `todo-triage`, `safe-shell-quoting` |
+| Todo / utility | `todo-create`, `todo-triage`, `safe-shell-quoting`, `gh-copilot-cost-ops` |
 
 Successful planned work continues through this group automatically:
 `kb-work -> kb-finalize -> kb-complete`. `kb-complete` then applies the
@@ -37,6 +37,7 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `ce-compound` | Document a recently solved problem into reusable knowledge | Use after a solved bug/pattern worth compounding |
 | `document-review` | Optional one-profile requirements/plan review | Use when the main-agent self-check leaves material uncertainty |
 | `evolve` | Promote mature instincts into skills | Use when repeated instincts are ready to become durable skills |
+| `gh-copilot-cost-ops` | Build cost-ops infrastructure for Copilot usage-based billing | Use for per-PR cost attribution, cost cliff detection, or budget control |
 | `kb-architecture-deepening` | Explore where architecture needs deeper modularity | Use for architecture questions, not routine cleanup |
 | `kb-brainstorm` | Produce proportional requirements | Use for vague ideas or before planning |
 | `kb-check` | Run deterministic repo proof | Use when tests, lint, builds, or scripts should judge correctness |
@@ -45,6 +46,7 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-configure` | Set optional per-project execution/delivery policy | Use to inspect or change attempts/delivery settings |
 | `kb-epic` | Coordinate large multi-workstream initiatives | Use for migrations, rewrites, or large related backlogs |
 | `kb-eval-map` | Map repo-native eval surfaces | Use during bootstrap or when eval strategy is unclear |
+| `kb-executive-brief` | Generate a low-burden executive brief from structured data | Use for a decision brief or a PR/companion first screen |
 | `kb-finalize` | Post-work review/learning/cleanup pipeline | Usually invoked after `kb-work` |
 | `kb-first-principles` | Honest pushback / principled disagreement lane | Use when claims are challenged or truth is uncertain |
 | `kb-fix` | Small bug-fix lane | Use for narrow known bugs or failing tests |
@@ -60,6 +62,7 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-plan` | Vertical-slice planning workflow | Use when requirements exist and need slice decomposition |
 | `kb-qa` | Slice QA gate | Use to run lint/browser/API/CLI checks on slices |
 | `kb-regression-snapshot` | Capture/replay passing state | Use after a slice passes and before later slices risk regressions |
+| `kb-rehab` | Clean house across a repo and check the reconciliation in | Use to reconcile outstanding work, settle proven-done work, and make the tree current before new work |
 | `kb-repair` | Surgical retry loop for QA/lint failures | Invoked by `kb-qa` when checks fail |
 | `kb-research` | Reusable research lane | Use when external docs/prior art may change direction |
 | `kb-review` | KB-specific structured code review | Use before KB completion or PR-ready delivery |
@@ -70,11 +73,14 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-troubleshoot` | Autonomous debugging/self-correction lane | Use when behavior is broken but cause is unclear |
 | `kb-work` | Bounded swarm executor for planned slices | Use to execute a `kb-plan` manifest |
 | `learn` | Extract recent patterns into instincts | Use after completing work or at session end |
+| `p2d` | Plan to done | Use to carry an unplanned idea through `kb-plan` into `w2d` without staged confirmations |
+| `pr-review-workbench` | Turn a PR inbox or one PR into a terse, self-contained HTML review workbench | Use to reduce review cognitive load, build a PR walkthrough, or prepare a review decision |
 | `repo-critic` | Claims-vs-code evidence critic | Use to audit whether docs/claims match implementation |
 | `safe-shell-quoting` | Move fragile shell quoting into scripts | Use for quote-heavy or nested shell commands |
 | `tdd` | Explicit test-first compatibility lane | Use for “TDD”, “test first”, or red-green-refactor requests |
 | `todo-create` | Create durable work items in `todo.md` | Use when adding active tracked work |
 | `todo-triage` | Classify pending findings/todos | Use when deciding what belongs on the active board |
+| `w2d` | Work to done | Use after `kb-plan`, or for "take it all the way" / "land it" |
 
 ## Closest Files For Common Questions
 

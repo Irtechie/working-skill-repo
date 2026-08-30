@@ -609,7 +609,7 @@ development harness. The repository is intentionally larger than the installed
 runtime surface.
 
 The installed runtime surface is intentionally smaller than the repository:
-44 skills plus the reviewer/specialist agent catalog.
+48 skills plus the reviewer/specialist agent catalog.
 
 Installed/runtime surface:
 
@@ -784,7 +784,7 @@ This is a command index. For the ordered lane decision, see
 | `kb-goal` | Long-lived objective that must keep moving across sessions until proven complete or blocked |
 | `kb-task` | First-principles task runner that continues until verified or blocked |
 | `kb-map` | Setup, lookup, or refresh project memory |
-| `kb-rehab` | Reconcile outstanding work against git reality before new work starts |
+| `kb-rehab` | Clean house and check the result in before new work starts |
 | `kb-eval-map` | Map repo-native eval surfaces and proof commands |
 | `kb-fix` | Narrow bug, failing test, or small contained change |
 | `kb-troubleshoot` | Broken behavior needs logs/browser/test investigation |
@@ -823,6 +823,10 @@ Routing and memory:
   decision topology with a guided review path, source-backed application-impact
   ordering, and linked evidence
 - `kb-handoff` - compact a session into a restart packet
+- `kb-configure` - portable per-project delivery policy and the explicit
+  experimental AMR benchmark opt-in
+- `kb-models` - inspect live routes and manage optional user-local
+  OpenAI-compatible/LiteLLM routes through the `kbrouter` CLI
 
 Blocker handling is responsibility-first. A user pause stops work immediately
 but is not a technical failure; after a stop signal, the goal does not dispatch,
@@ -840,6 +844,20 @@ Execution lanes:
 - `kb-ship`, `kb-land`, `kb-epic`, `kb-task`, `kb-goal`,
   `kb-first-principles`
 - `safe-shell-quoting` - file-backed execution and validated cleanup for quote-heavy shell commands
+- `p2d` - plan to done; carries an unplanned idea through `kb-plan` into `w2d`
+  without staged confirmations
+- `w2d` - work to done; executes a validated manifest, finalizes it, opens a PR,
+  and merges when permissions and required checks allow
+
+Maintenance and audit:
+
+- `kb-simplify` - user-invoked maintenance pass over already-committed code; at
+  most six ranked targets, one at a time, never automatic
+- `repo-critic` - claims-vs-code evidence review for repos, skills, eval
+  harnesses, README claims, and tests
+- `gh-copilot-cost-ops` - cost-ops infrastructure for Copilot usage-based
+  billing: per-PR token cost attribution, cost cliff detection, and budget
+  control
 
 Successful planned work does not stop at phase handoffs:
 `kb-work -> kb-finalize -> kb-complete`. Configured PR delivery then invokes
@@ -882,7 +900,9 @@ Verification and gates:
 - `kb-review` - one evidence-bound broad or replacement specialist review
 - `kb-eval-map` - map repo-native eval surfaces and proof commands
 - `kb-memory-review` - high-cost project-memory maintenance pass
-- `kb-rehab` - pair declared work against git reality, mark proven-terminal work, emit a bounded decision packet
+- `kb-rehab` - pair declared work against real refs, settle or correct what is
+  provably done, route the rest to a recorded disposition, and commit the
+  reconciliation so the tree is clean before new work starts
 
 Direct dependencies include `ce-compound`, `ce-compound-refresh`,
 `document-review`, `tdd`, `learn`, `evolve`, `todo-create`, and `todo-triage`.
