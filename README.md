@@ -370,14 +370,12 @@ KB separates three decisions that agents often blur together:
 
 ### Difficulty-Driven Routing (DDR)
 
-DDR is the decision pattern; `kbrouter ddr attempt` reserves and runs one
-bounded local attempt for an eligible configured user-local route. Attended
-endpoint/auth approval is required only when the user opts into `required`
-approval mode.
-On a returned result, the parent runs deterministic proof and records the
-verdict with `kbrouter ddr resolve`. Planning records required capability and
-proof; execution records `current` or `delegated` ownership and chooses from
-live evidence.
+DDR is a work-time ownership decision. Planning records the minimum capability,
+risk, tools, context, and proof required without
+freezing a provider or model. Immediately before execution, the orchestrator
+inspects the active host's callable-agent harness plus eligible user-local
+routes, classifies the slice complexity, and chooses `current` or one qualified
+delegated owner from that live evidence.
 
 Immediately before execution, `kb-work` makes that choice visible:
 
@@ -391,11 +389,13 @@ reduce human decisions, not reduce agent instructions. It never approves the
 dispatch by itself; the named proof remains authoritative and must catch a bad
 route or bad result.
 
-Concrete route names come only from the active host or `kbrouter`, never model
-memory. A preferred local route gets one eligible attempt. Probe, availability,
-timeout, 5xx, dispatch, or deterministic-proof failure returns immediately to
-the active parent; the parent continues with its own current/host-native
-selection logic. No second local route is selected.
+Concrete route names come only from the active host harness or `kbrouter`, never
+model memory or a durable Small/Medium/Large model list. A candidate must be
+callable and fit the required tier, tools, context, risk, trust, and destination
+constraints. If the chosen route is unavailable before dispatch, the
+orchestrator rechecks the live harness and makes a new explicit owner decision;
+it never downgrades automatically. Deterministic proof evaluates the resulting
+work, not the prestige or price of the selected model.
 
 Two lightweight signals show whether this actually lowers human load:
 
@@ -479,9 +479,10 @@ Run-only controls remain explicit:
 - `use <model>` prefers an eligible route for this run;
 - `require <model>` hard-pins it or fails;
 - `ignore model routing` explicitly chooses current execution;
-- an eligible local route gets one attempt; failure returns to the active parent;
-- the parent uses its active model or host-native selection logic without a
-  runtime approval checkpoint or provider roulette.
+- absent an override, the orchestrator checks the live harness and selects from
+  all qualified routes based on the slice's actual complexity;
+- route availability or qualification failure causes a fresh explicit owner
+  decision, never a hidden downgrade or provider roulette.
 
 ### Memory And Handoff Routing
 

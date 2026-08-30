@@ -193,31 +193,7 @@ func TestSkillEvalEpistemicRuntimeSpecificProjectSkillMapping(t *testing.T) {
 	}
 }
 
-func TestSkillEvalEpistemicCodexLiveInvocationIsAutomationSafe(t *testing.T) {
-	actorRoot := filepath.Join(t.TempDir(), "actor")
-	schemaPath := filepath.Join(t.TempDir(), "result.schema.json")
-	command, args, err := epistemicLiveAgentCommand("codex", actorRoot, schemaPath, "gpt-test-exact")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if command != "codex" {
-		t.Fatalf("command = %q, want codex", command)
-	}
-	if len(args) == 0 || args[0] != "exec" {
-		t.Fatalf("Codex live invocation is not codex exec: %#v", args)
-	}
-	joined := " " + strings.Join(args, " ") + " "
-	for _, required := range []string{" --ephemeral ", " --ignore-user-config ", " --ignore-rules ", " --skip-git-repo-check ", " --cd " + actorRoot + " ", " --output-schema " + schemaPath + " ", " --model gpt-test-exact ", " - "} {
-		if !strings.Contains(joined, required) {
-			t.Fatalf("Codex exec args missing %q: %#v", required, args)
-		}
-	}
-	if _, _, err := epistemicLiveAgentCommand("codex", actorRoot, schemaPath, ""); err == nil {
-		t.Fatal("epistemic Codex live invocation accepted an unresolved empty model")
-	}
-}
-
-func TestSkillEvalEpistemicManifestBindsRequestedModelAndRuntimeIdentity(t *testing.T) {
+func TestSkillEvalEpistemicManifestBindsRouterSelectionAndRuntimeIdentity(t *testing.T) {
 	root := testRepoRoot(t)
 	actorRoot := t.TempDir()
 	surfaces, err := epistemicInstructionSurfaces(root, "codex", "dry-run")
@@ -225,19 +201,20 @@ func TestSkillEvalEpistemicManifestBindsRequestedModelAndRuntimeIdentity(t *test
 		t.Fatal(err)
 	}
 	fixture := map[string]any{"id": "supported-proceed", "_epistemic": true}
-	manifest, err := newEpistemicRunManifest(root, "run", "codex", "gpt-test-exact", fixture, surfaces, actorRoot)
+	config, contractPath := writeEpistemicTestRouterContract(t, root)
+	manifest, err := newRoutedEpistemicRunManifest(root, "run", "codex", fixture, surfaces, actorRoot, config, contractPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stringValue(manifest["requested_model"]) != "gpt-test-exact" {
-		t.Fatalf("requested model not bound exactly: %#v", manifest["requested_model"])
+	if stringValue(manifest["model_selection_owner"]) != "kbrouter" || stringValue(manifest["selected_route_alias"]) != config.RouteAlias || len(stringValue(manifest["router_dispatch_contract_sha256"])) != 64 {
+		t.Fatalf("router-selected route contract not bound exactly: %#v", manifest)
+	}
+	if _, exists := manifest["requested_model"]; exists {
+		t.Fatalf("epistemic preview retained coordinator-selected model: %#v", manifest["requested_model"])
 	}
 	identity, _ := manifest["runtime_identity"].(map[string]any)
 	if stringValue(identity["runtime"]) != "codex" || stringValue(identity["executable"]) == "" || len(stringValue(identity["sha256"])) != 64 {
 		t.Fatalf("runtime executable identity/hash not bound: %#v", identity)
-	}
-	if _, err := newEpistemicRunManifest(root, "run", "codex", "", fixture, surfaces, actorRoot); err == nil {
-		t.Fatal("epistemic live manifest accepted an unresolved empty model")
 	}
 }
 
@@ -382,7 +359,8 @@ func TestSkillEvalEpistemicRunPreservesAuditableActorWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run, err := runOneAdapterFixture(root, filepath.Join(root, ".kb", "epistemic-audit-test-"+randomShortHash()), "codex", "dry-run", fixture, options{dryRun: true, keepRun: true})
+	_, contractPath := writeEpistemicTestRouterContract(t, root)
+	run, err := runOneAdapterFixture(root, filepath.Join(root, ".kb", "epistemic-audit-test-"+randomShortHash()), "codex", "dry-run", fixture, options{dryRun: true, keepRun: true, agentCommand: "kbrouter-contract:" + contractPath})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,6 +388,56 @@ func TestSkillEvalEpistemicRunPreservesAuditableActorWorkspace(t *testing.T) {
 	}
 }
 
+func TestSkillEvalEpistemicCodexDryRunIsExactNoCallPreview(t *testing.T) {
+	root := testRepoRoot(t)
+	fixture, err := loadVisibleEpistemicFixture(root, "supported-proceed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, contractPath := writeEpistemicTestRouterContract(t, root)
+	run, err := runOneAdapterFixture(root, filepath.Join(root, ".kb", "epistemic-preview-test-"+randomShortHash()), "codex", "dry-run", fixture, options{dryRun: true, keepRun: true, agentCommand: "kbrouter-contract:" + contractPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(run.RunDir)
+	var manifest map[string]any
+	if err := readJSONFile(run.ManifestPath, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if stringValue(manifest["model_selection_owner"]) != "kbrouter" || stringValue(manifest["selected_route_alias"]) != config.RouteAlias {
+		t.Fatalf("dry-run preview did not bind router-selected route: %#v", manifest)
+	}
+	if _, exists := manifest["requested_model"]; exists {
+		t.Fatalf("dry-run preview accepted a coordinator-selected model: %#v", manifest)
+	}
+	identity, _ := manifest["runtime_identity"].(map[string]any)
+	if stringValue(identity["runtime"]) != "codex" || len(stringValue(identity["sha256"])) != 64 || strings.TrimSpace(stringValue(identity["version"])) == "" {
+		t.Fatalf("dry-run preview lacks exact runtime identity: %#v", identity)
+	}
+	var result map[string]any
+	if err := readJSONFile(run.ResultPath, &result); err != nil {
+		t.Fatal(err)
+	}
+	trace, _ := result["trace"].(map[string]any)
+	commands, _ := trace["commands"].([]any)
+	if len(commands) != 1 || stringValue(commands[0]) != "dry-run" {
+		t.Fatalf("preview did not preserve no-call trace: %#v", trace)
+	}
+	surfaceValues, _ := manifest["instruction_surfaces"].([]any)
+	if len(surfaceValues) < 2 {
+		t.Fatalf("preview instruction inventory is incomplete: %#v", surfaceValues)
+	}
+	for _, value := range surfaceValues {
+		surface, _ := value.(map[string]any)
+		if stringValue(surface["path"]) == "<isolated>" {
+			t.Fatalf("preview retained placeholder isolation instead of the exact inventory: %#v", surface)
+		}
+		if len(stringValue(surface["sha256"])) != 64 {
+			t.Fatalf("preview surface is not hash-bound: %#v", surface)
+		}
+	}
+}
+
 func TestSkillEvalEpistemicPromptInvokesPlanningTreatmentSkills(t *testing.T) {
 	fixture := map[string]any{"id": "supported-proceed", "task": "Plan the follow-up.", "_epistemic": true}
 	prompt := evalPrompt(fixture, "codex", "run-id")
@@ -417,6 +445,46 @@ func TestSkillEvalEpistemicPromptInvokesPlanningTreatmentSkills(t *testing.T) {
 		if !strings.Contains(prompt, invocation) {
 			t.Fatalf("epistemic prompt does not invoke %s: %s", invocation, prompt)
 		}
+	}
+}
+
+func TestSkillEvalEpistemicRoutedCommandDelegatesModelChoiceAndSealsEvaluatorContract(t *testing.T) {
+	config := epistemicRouterDispatchConfig{
+		SchemaVersion: 1, Command: "kbrouter", ProjectRoot: `E:\source`, RunRoot: `E:\source\.kb\route-run`,
+		RunID: "route-run", SliceID: "epistemic-fixture", Packet: "packet.json", RouteAlias: "selected.planner",
+	}
+	actor := `E:\external-actor`
+	prompt := actor + `\sealed-prompt.txt`
+	schema := actor + `\result.schema.json`
+	isolation := `skills.config=[{path="ambient",enabled=false}]`
+	command, args, err := epistemicRoutedAgentCommand(config, actor, prompt, schema, "epistemic-result.json", isolation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if command != "kbrouter" {
+		t.Fatalf("command=%q", command)
+	}
+	joined := " " + strings.Join(args, " ") + " "
+	for _, required := range []string{
+		" dispatch ", " --route-alias selected.planner ", " --evaluator-actor-cwd " + actor + " ",
+		" --evaluator-prompt " + prompt + " ", " --evaluator-output-schema " + schema + " ",
+		" --evaluator-structured-output epistemic-result.json ", " --evaluator-instruction-config " + isolation + " ",
+		" --output epistemic-result-dispatch-output.json ", " --receipt epistemic-result-dispatch-receipt.json ",
+		" --handoff epistemic-result-dispatch-handoff.json ",
+	} {
+		if !strings.Contains(joined, required) {
+			t.Fatalf("routed evaluator args missing %q: %s", required, joined)
+		}
+	}
+	if strings.Contains(joined, " --model ") || strings.Contains(joined, "reasoning") {
+		t.Fatalf("evaluator statically selected a model or reasoning effort: %s", joined)
+	}
+	config.RouteAlias = "current"
+	if _, _, err := epistemicRoutedAgentCommand(config, actor, prompt, schema, "epistemic-result.json", isolation); err == nil {
+		t.Fatal("current/App-only route was accepted for external evaluator dispatch")
+	}
+	if _, _, err := invokeLiveAgent(actor, "codex", map[string]any{"id": "fixture", "_epistemic": true}, "run", options{model: "statically-forced"}, isolation); err == nil || !strings.Contains(err.Error(), "direct model dispatch is refused") {
+		t.Fatalf("epistemic evaluator accepted direct static model dispatch: %v", err)
 	}
 }
 
@@ -435,7 +503,8 @@ func TestSkillEvalEpistemicRuntimeIdentityBindsReportedVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest, err := newEpistemicRunManifest(root, "run", "codex", "gpt-test-exact", map[string]any{"id": "supported-proceed", "_epistemic": true}, surfaces, actorRoot)
+	config, contractPath := writeEpistemicTestRouterContract(t, root)
+	manifest, err := newRoutedEpistemicRunManifest(root, "run", "codex", map[string]any{"id": "supported-proceed", "_epistemic": true}, surfaces, actorRoot, config, contractPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,6 +512,24 @@ func TestSkillEvalEpistemicRuntimeIdentityBindsReportedVersion(t *testing.T) {
 	if got := strings.TrimSpace(stringValue(manifestIdentity["version"])); got != version {
 		t.Fatalf("manifest runtime version=%q want exact reported version %q", got, version)
 	}
+}
+
+func writeEpistemicTestRouterContract(t *testing.T, root string) (epistemicRouterDispatchConfig, string) {
+	t.Helper()
+	contractRoot := t.TempDir()
+	config := epistemicRouterDispatchConfig{
+		SchemaVersion: 1,
+		Command:       "kbrouter",
+		ProjectRoot:   root,
+		RunRoot:       filepath.Join(root, ".kb", "router-test-run"),
+		RunID:         "router-test-run",
+		SliceID:       "epistemic-fixture",
+		Packet:        "packet.json",
+		RouteAlias:    "selected.planner",
+	}
+	path := filepath.Join(contractRoot, "router-contract.json")
+	writeJSONFile(path, config)
+	return config, path
 }
 
 func TestSkillEvalEpistemicRegressionDecision(t *testing.T) {

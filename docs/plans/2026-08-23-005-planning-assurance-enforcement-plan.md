@@ -11,7 +11,7 @@ model_tier_reason: This slice changes the manifest phase boundary and must prese
 model_requirements: [Go contract design, backward compatibility, skill workflow design, hash-bound receipt validation]
 escalation_triggers: [matched replay is not promote, legacy manifests fail, self-referential hashing appears, ordinary supported plans require user interaction]
 workspace_mode: shared-serial
-conflict_domains: [skill:kb-plan, skill:kb-work, namespace:manifest-contract, path:.github/skills/kb-plan/references]
+conflict_domains: [skill:kb-plan, skill:kb-work, namespace:manifest-contract, path:.github/skills/kb-plan/references, file:readme.md]
 shared_resources: [git:integration-owner, gate:plan-to-work]
 proof_check:
   kind: command_exit
@@ -37,6 +37,9 @@ expected_files:
   - path: cmd/kbcheck/manifest_contract_test.go
     op: edit
     scope: Protect valid fast-path, investigated-and-revised, stalled-inconclusive, stale-hash, malformed, and legacy-manifest behavior.
+  - path: readme.md
+    op: edit
+    scope: Document the promoted planning-assurance loop and enforcement boundary, audit adjacent workflow claims against current skills/code, and preserve all existing images unless an AMR image is proven stale.
 protected_oracles:
   - path: cmd/kbcheck/manifest_contract_test.go
     role: Planning-assurance enforcement and backward-compatibility oracle.
@@ -80,8 +83,12 @@ semantic quality of every cited source.
   phase state, then executes normally.
 - Deterministic tests cover false-positive investigation, contradicted-premise
   revision, insufficient evidence, stale hashes, and legacy compatibility.
+- README claims match the promoted implementation and current workflow owners;
+  all existing images remain unless the AMR/model-routing image is specifically
+  proven stale, misleading, and unnecessary after replacement text is verified.
 
 ## Scope Boundary
 
 No live model call, eval-oracle change, global skill sync, push, PR, merge, or
-claim that structural validation proves evidence relevance.
+claim that structural validation proves evidence relevance. No broad README
+rewrite or image removal without a source-backed finding.

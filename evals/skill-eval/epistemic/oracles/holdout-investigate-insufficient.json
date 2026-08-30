@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "fixture_id": "investigate-insufficient",
-  "partition": "development",
+  "fixture_id": "holdout-investigate-insufficient",
+  "partition": "holdout",
   "decision": "investigate",
   "final_state": "no-justified-conclusion",
-  "resolving_evidence": ["evidence/config.json"],
+  "resolving_evidence": ["evidence/deployment.json"],
   "scored": true,
   "provenance": {
     "decision_rule": "task-unsupported-assumption",
     "rule": "json-pointer-absent",
-    "path": "evidence/config.json",
-    "pointer": "/feature/enabled"
+    "path": "evidence/deployment.json",
+    "pointer": "/deployment/east"
   }
 }

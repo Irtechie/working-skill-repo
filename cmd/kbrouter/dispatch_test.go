@@ -63,6 +63,119 @@ func TestDispatchCodexExecArgvProfileModelAndProofUnknown(t *testing.T) {
 	}
 }
 
+func TestDispatchEpistemicEvaluatorUsesSealedExternalActorContractAndCapturesReceipt(t *testing.T) {
+	fixture := newDispatchFixture(t, "epistemic-evaluator")
+	route := fixture.route("codex.planner", "planner-model", modelrouting.ClassPlanner)
+	fixture.installCatalog(route)
+	fixture.trustRoutes(route)
+	fixture.withFakeCodex(fixture.fakeCodex(fakeCodexSpec{}))
+
+	actorRoot := filepath.Join(fixture.root, "sealed-actor")
+	if err := os.MkdirAll(actorRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture.trustSessionAt("session-epistemic", "planner-model", actorRoot)
+	promptPath := filepath.Join(actorRoot, "prompt.txt")
+	schemaPath := filepath.Join(actorRoot, "epistemic.schema.json")
+	prompt := "sealed planning premise\n"
+	schema := `{"type":"object","required":["epistemic"],"properties":{"epistemic":{"type":"object"}}}`
+	if err := os.WriteFile(promptPath, []byte(prompt), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(schemaPath, []byte(schema), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	previousRunner := dispatchWorkerProcess
+	t.Cleanup(func() { dispatchWorkerProcess = previousRunner })
+	dispatchWorkerProcess = func(_ string, req modelrouting.DispatchRequest, stdin []byte, _ int64, _, _ string, evaluator evaluatorDispatchContract) processResult {
+		if !sameFilesystemPath(req.CWD, actorRoot) || !sameFilesystemPath(evaluator.ActorCWD, actorRoot) {
+			t.Fatalf("worker cwd=%q evaluator cwd=%q want external actor %q", req.CWD, evaluator.ActorCWD, actorRoot)
+		}
+		if string(stdin) != prompt {
+			t.Fatalf("worker stdin=%q want sealed prompt %q", stdin, prompt)
+		}
+		args := codexExecArgs(req, evaluator)
+		wantContains(t, args, "--output-schema", schemaPath)
+		wantContains(t, args, "-c", evaluator.InstructionConfig)
+		wantContains(t, args, "--output-last-message", evaluator.RawOutputPath)
+		structured := `{"epistemic":{"decision":"investigate","evidence_inspected":["evidence.txt"],"final_state":"contradicted"}}`
+		if err := os.WriteFile(evaluator.RawOutputPath, []byte(structured), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return processResult{stdout: `{"type":"thread.started","thread_id":"session-epistemic"}` + "\n", exitCode: 0}
+	}
+
+	result := fixture.run(
+		"--route-alias", route.Alias,
+		"--evaluator-actor-cwd", actorRoot,
+		"--evaluator-prompt", promptPath,
+		"--evaluator-output-schema", schemaPath,
+		"--evaluator-structured-output", "epistemic-result.json",
+		"--evaluator-instruction-config", `skills.config=[{path="ambient",enabled=false}]`,
+	)
+	if result.code != 0 {
+		t.Fatalf("dispatch exit=%d stderr=%s stdout=%s", result.code, result.stderr, result.stdout)
+	}
+	report := decodeDispatchReport(t, result.stdout)
+	if report.RouteAlias != route.Alias || report.SessionID != "session-epistemic" || report.ProviderReportedModel != "planner-model" || report.Attribution != "exact" {
+		t.Fatalf("evaluator report lacks exact route/session/provider-model evidence: %#v", report)
+	}
+	if report.StructuredOutputPath != filepath.Join(fixture.runRoot, "epistemic-result.json") {
+		t.Fatalf("structured output path=%q", report.StructuredOutputPath)
+	}
+	var captured map[string]any
+	if err := json.Unmarshal([]byte(readFileForTest(t, report.StructuredOutputPath)), &captured); err != nil {
+		t.Fatalf("captured evaluator output is not exact structured JSON: %v", err)
+	}
+	receipt := decodeReceipt(t, fixture.receiptPath)
+	if receipt.RouteEvidence.RouteAlias != route.Alias || receipt.RouteEvidence.SessionID != "session-epistemic" || receipt.RouteEvidence.ProviderReportedModel != "planner-model" {
+		t.Fatalf("receipt lost routed evaluator evidence: %#v", receipt)
+	}
+}
+
+func TestDispatchEpistemicEvaluatorContractFailsClosedWhenPartial(t *testing.T) {
+	fixture := newDispatchFixture(t, "epistemic-partial")
+	result := fixture.run("--route-alias", "unused", "--evaluator-actor-cwd", fixture.root)
+	if result.code == 0 || !strings.Contains(result.stderr, "complete evaluator contract") {
+		t.Fatalf("partial evaluator contract accepted: code=%d stderr=%s", result.code, result.stderr)
+	}
+}
+
+func TestDispatchEpistemicEvaluatorContractRejectsChangedSealedInput(t *testing.T) {
+	fixture := newDispatchFixture(t, "epistemic-seal")
+	actorRoot := filepath.Join(fixture.root, "sealed-actor")
+	if err := os.MkdirAll(actorRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	promptPath := filepath.Join(actorRoot, "prompt.txt")
+	schemaPath := filepath.Join(actorRoot, "schema.json")
+	if err := os.WriteFile(promptPath, []byte("before"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(schemaPath, []byte(`{"type":"object","properties":{"epistemic":{"type":"object"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := prepareRunRoot(fixture.projectRoot, fixture.runRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract, err := prepareEvaluatorDispatchContract(prepared, dispatchOptions{
+		commonOptions: commonOptions{projectRoot: fixture.projectRoot}, sliceID: "slice-004",
+		evaluatorActorCWD: actorRoot, evaluatorPromptPath: promptPath, evaluatorOutputSchemaPath: schemaPath,
+		evaluatorStructuredOutput: "result.json", evaluatorInstructionConfig: `skills.config=[]`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(promptPath, []byte("after"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := revalidateEvaluatorDispatchContract(contract); err == nil || !strings.Contains(err.Error(), "prompt changed") {
+		t.Fatalf("changed sealed prompt accepted: %v", err)
+	}
+}
+
 func TestDispatchPacketRequiresExplicitDelegatedOwnership(t *testing.T) {
 	base := dispatchPacketForTest{
 		SchemaVersion: 1, PacketID: "packet-owner", TaskID: "task-owner",
@@ -745,14 +858,18 @@ func (f *dispatchFixture) trustRoutes(routes ...modelrouting.Route) {
 }
 
 func (f *dispatchFixture) trustSession(sessionID, model string) {
+	f.trustSessionAt(sessionID, model, f.projectRoot)
+}
+
+func (f *dispatchFixture) trustSessionAt(sessionID, model, cwd string) {
 	f.t.Helper()
 	dir := filepath.Join(f.codexHome, "sessions")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		f.t.Fatal(err)
 	}
 	lines := []string{
-		`{"type":"session_meta","payload":{"id":"` + sessionID + `","model_provider":"codex","cwd":"` + filepath.ToSlash(f.projectRoot) + `"}}`,
-		`{"type":"turn_context","payload":{"model":"` + model + `","cwd":"` + filepath.ToSlash(f.projectRoot) + `","approval_policy":"never","sandbox_policy":{"type":"workspace-write"}}}`,
+		`{"type":"session_meta","payload":{"id":"` + sessionID + `","model_provider":"codex","cwd":"` + filepath.ToSlash(cwd) + `"}}`,
+		`{"type":"turn_context","payload":{"model":"` + model + `","cwd":"` + filepath.ToSlash(cwd) + `","approval_policy":"never","sandbox_policy":{"type":"workspace-write"}}}`,
 	}
 	if err := os.WriteFile(filepath.Join(dir, sessionID+".jsonl"), []byte(strings.Join(lines, "\n")), 0o600); err != nil {
 		f.t.Fatal(err)

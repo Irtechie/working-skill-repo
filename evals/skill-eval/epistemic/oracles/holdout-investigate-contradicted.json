@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "fixture_id": "investigate-contradicted",
-  "partition": "development",
+  "fixture_id": "holdout-investigate-contradicted",
+  "partition": "holdout",
   "decision": "investigate",
   "final_state": "contradicted",
-  "resolving_evidence": ["evidence/config.json"],
+  "resolving_evidence": ["evidence/deployment.json"],
   "scored": true,
   "provenance": {
     "decision_rule": "task-unsupported-assumption",
     "rule": "json-pointer-equals",
-    "path": "evidence/config.json",
-    "pointer": "/feature/enabled",
+    "path": "evidence/deployment.json",
+    "pointer": "/deployment/east",
     "value": false
   }
 }

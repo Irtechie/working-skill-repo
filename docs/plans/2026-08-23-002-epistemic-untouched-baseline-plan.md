@@ -19,6 +19,30 @@ proof_check:
   expect: 0
 hitl: true
 expected_files:
+  - path: cmd/kbcheck/eval_adapters.go
+    op: edit
+    scope: Make Codex epistemic preview and live modes require the same router-selected contract, runtime identity, sealed actor, and ambient skill-isolation inventory without coordinator model selection.
+  - path: cmd/kbcheck/skill_eval_epistemic_test.go
+    op: edit
+    scope: Protect no-call preview parity for runtime identity, route-contract binding, sealed prompt hashing, and ambient instruction-isolation inventory.
+  - path: cmd/kbrouter/dispatch.go
+    op: edit
+    scope: Add a narrow evaluator dispatch seam that accepts an external actor root, sealed prompt, epistemic schema, and instruction-isolation configuration while retaining route/session attribution.
+  - path: cmd/kbrouter/dispatch_test.go
+    op: edit
+    scope: Prove routed evaluator dispatch preserves CWD, schema, structured output, actual-model attribution, and fail-closed route eligibility without inference in tests.
+  - path: cmd/kbrouter/main.go
+    op: edit
+    scope: Document only the bounded dispatch flags required by the evaluator seam; do not add AMR or a static tier-to-model catalog.
+  - path: internal/modelrouting/storage_acl_windows.go
+    op: edit
+    scope: Avoid a redundant Windows owner write when the protected run root is already current-user-owned while retaining owner transfer for transitional Administrator/System roots.
+  - path: internal/modelrouting/storage_acl_windows_test.go
+    op: edit
+    scope: Protect current-owner DACL-only security updates and required transitional owner transfer.
+  - path: readme.md
+    op: edit
+    scope: Remove the stale lower-tier-attempt/AMR-derived routing description while preserving the current harness-aware DDR diagram and every other image.
   - path: evals/skill-eval/epistemic/visible/
     op: edit
     scope: Finalize a balanced development and holdout corpus before baseline capture.
@@ -34,23 +58,23 @@ expected_files:
 protected_oracles:
   - path: evals/skill-eval/epistemic/
     role: Frozen visible corpus and hidden labels.
-    sha256: filled by kb-work from the corpus manifest before live execution
+    sha256: 9c506933962c01d8d82a78a1a57c500def570db44298f50393f2cf8853813537
     update_policy: Any change invalidates the baseline and requires recapture.
   - path: cmd/kbcheck/skill_eval_epistemic.go
     role: Frozen epistemic scorer.
-    sha256: filled by kb-work before live execution
+    sha256: 40e330ff5d2b8c3b0a5149e5b434baa31335f470572695c69da7682e819e2c0f
     update_policy: Any semantic change invalidates baseline-treatment comparison.
 test_inputs:
   - name: baseline_preview
     source: generated
     required_for: Exact live-run approval
     value: .kb/eval-runs/epistemic-baseline-preview.json
-status: pending
+status: in_progress
 owner: agent
 blocked_reason: ""
-resume_when: epistemic-001 passes and the user approves the exact no-run preview
-next_agent_action: Freeze hashes, generate a no-run preview, request approval, capture baseline, and verify the existing regression artifact.
-human_action: Approve or reject the exact runtime/model, repetitions, corpus hash, and bounded cost.
+resume_when: the user approves the exact Terra app-native preview at .kb/eval-runs/epistemic-baseline-preview.json
+next_agent_action: On approval, run eight no-history Terra fixture actors with no retries or model substitution, persist agent-id receipts and exact results, then score the untouched baseline.
+human_action: Approve or reject the exact eight-call Terra preview; gpt-5.5 is excluded from this run.
 can_continue_other_slices: false
 ---
 
@@ -70,8 +94,28 @@ investigation-behavior instruction changes.
 - The baseline receipt records content hashes or Git blob identities for the
   untreated `kb-plan` and `kb-gate` surfaces so the final control arm can be
   reconstructed after treatment without copying stale ambient state.
-- Preview mode makes no model call and names exact runtimes/models,
-  repetitions, hashes, and bounded cost when the host exposes cost.
+- Preview mode makes no model call and names the selected route, minimum tier,
+  runtime, repetitions, hashes, and bounded cost when the host exposes cost.
+  Provider-reported actual model identity is mandatory on the live receipt and
+  is never invented in the pre-run preview.
+- `model_tier` classifies execution capability; it is not a model name or a
+  reasoning-effort setting. The orchestrator owns work-time DDR selection,
+  inspects the live callable harness and eligible user-local routes, classifies
+  the task's complexity, and binds its actual route receipt into the preview.
+  No durable skill or coordinator-maintained list maps Medium or Large to a
+  closed set of models, and CLI catalog defaults are never translated into DDR.
+- If the selected route cannot be dispatched by an isolated, hash-provable eval
+  adapter, preview returns `adapter-unavailable`; it does not silently replace
+  the route with an available Codex CLI model.
+- The app-native Terra lane uses no-history agents bound to the sealed actor
+  snapshots. Its receipt proves the host-harness route request and returned
+  agent identity; because the app transport does not separately expose a
+  provider-reported model field, claims remain bounded to harness-selected
+  Terra rather than independent provider attestation.
+- The evaluator/router seam now shares the sealed actor, prompt, schema,
+  instruction configuration, structured output, and route/session attribution.
+  Availability still fails closed when live discovery cannot create its
+  protected run root or cannot select a dispatch-qualified route.
 - Preview inventories all instruction surfaces capable of influencing the
   actor; a runtime without isolated or hash-provable instruction loading is
   excluded or marked inconclusive.

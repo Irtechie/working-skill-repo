@@ -34,6 +34,27 @@ type adapterOutput struct {
 	Runs    []adapterRun `json:"runs"`
 }
 
+type epistemicRouterDispatchConfig struct {
+	SchemaVersion int      `json:"schema_version"`
+	Command       string   `json:"command"`
+	CommandArgs   []string `json:"command_args,omitempty"`
+	ProjectRoot   string   `json:"project_root"`
+	RunRoot       string   `json:"run_root"`
+	RunID         string   `json:"run_id"`
+	SliceID       string   `json:"slice_id"`
+	Packet        string   `json:"packet"`
+	RouteAlias    string   `json:"route_alias"`
+}
+
+type epistemicRouterDispatchReport struct {
+	RouteAlias            string `json:"route_alias"`
+	ProviderReportedModel string `json:"provider_reported_model"`
+	SessionID             string `json:"session_id"`
+	Attribution           string `json:"attribution"`
+	ReceiptPath           string `json:"receipt_path"`
+	StructuredOutputPath  string `json:"structured_output_path"`
+}
+
 func runEvalAdapterCommand(root string, opts options, runtime string, stdout, stderr io.Writer) int {
 	result, err := runEvalAdapter(root, opts, runtime)
 	if err != nil {
@@ -100,6 +121,8 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 	executionActorHash := ""
 	cleanupActor := func() {}
 	isolationCLI := ""
+	routerConfig := epistemicRouterDispatchConfig{}
+	routerContractPath := ""
 	if epistemic {
 		var actorErr error
 		actorRoot, cleanupActor, actorErr = createEpistemicActorWorkspace(root, runDir)
@@ -125,7 +148,7 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 		if err := materializeEpistemicInstructionSurfaces(root, actorRoot, runtime); err != nil {
 			return adapterRun{}, err
 		}
-		if mode == "live" && runtime == "codex" {
+		if (mode == "live" || mode == "dry-run") && runtime == "codex" {
 			codexHome, userHome, pluginRoots, err := codexIsolationRoots()
 			if err != nil {
 				return adapterRun{}, err
@@ -137,6 +160,18 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 			}
 			isolationCLI = isolation.CLIConfig
 			surfaces = append(surfaces, codexIsolationInstructionSurfaces(isolation)...)
+		}
+		var contractErr error
+		routerConfig, routerContractPath, contractErr = loadEpistemicRouterDispatchConfig(opts.agentCommand)
+		if contractErr != nil {
+			return adapterRun{}, contractErr
+		}
+		promptPath := filepath.Join(actorRoot, "sealed-prompt.txt")
+		if err := os.WriteFile(promptPath, []byte(evalPrompt(fixture, runtime, runID)), 0o600); err != nil {
+			return adapterRun{}, err
+		}
+		if _, _, err := epistemicRoutedAgentCommand(routerConfig, actorRoot, promptPath, filepath.Join(actorRoot, "result.schema.json"), "epistemic-preview.json", isolationCLI); err != nil {
+			return adapterRun{}, err
 		}
 		executionActorHash = directoryContentHash(actorRoot)
 		auditActorRoot = filepath.Join(runDir, "actor-workspace-audit")
@@ -165,9 +200,9 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 	}
 	writeJSONFile(resultPath, result)
 	manifest := newRunManifest(root, runID, runtime, fixture, surfaces, auditActorRoot)
-	if epistemic && mode == "live" {
+	if epistemic {
 		var manifestErr error
-		manifest, manifestErr = newEpistemicRunManifest(root, runID, runtime, opts.model, fixture, surfaces, auditActorRoot)
+		manifest, manifestErr = newRoutedEpistemicRunManifest(root, runID, runtime, fixture, surfaces, auditActorRoot, routerConfig, routerContractPath)
 		if manifestErr != nil {
 			return adapterRun{}, manifestErr
 		}
@@ -240,22 +275,17 @@ func dryRunResult(fixture map[string]any, runtime, runID string) map[string]any 
 }
 
 func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string, opts options, isolationCLI string) (map[string]any, int, error) {
+	const routedContractPrefix = "kbrouter-contract:"
+	if boolValue(fixture["_epistemic"]) {
+		if strings.HasPrefix(strings.TrimSpace(opts.agentCommand), routedContractPrefix) {
+			configPath := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(opts.agentCommand), routedContractPrefix))
+			return invokeRoutedEpistemicAgent(root, fixture, runID, configPath, isolationCLI)
+		}
+		return nil, 1, fmt.Errorf("epistemic live evaluation requires an orchestrator-selected kbrouter contract; direct model dispatch is refused")
+	}
 	command := opts.agentCommand
 	args := []string{}
-	if boolValue(fixture["_epistemic"]) {
-		schemaPath := filepath.Join(root, "result.schema.json")
-		builtCommand, builtArgs, err := epistemicLiveAgentCommand(runtime, root, schemaPath, opts.model)
-		if err != nil {
-			return nil, 1, err
-		}
-		if command == "" {
-			command = builtCommand
-		}
-		args = builtArgs
-		if isolationCLI != "" {
-			args = append(args[:1], append([]string{"-c", isolationCLI}, args[1:]...)...)
-		}
-	} else if command == "" {
+	if command == "" {
 		command = runtime
 		if runtime == "ghcp" {
 			command = "copilot"
@@ -283,6 +313,123 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 		return nil, 1, err
 	}
 	return result, 0, nil
+}
+
+func invokeRoutedEpistemicAgent(actorRoot string, fixture map[string]any, runID, configPath, isolationCLI string) (map[string]any, int, error) {
+	config, _, err := loadEpistemicRouterDispatchConfig("kbrouter-contract:" + configPath)
+	if err != nil {
+		return nil, 1, err
+	}
+	promptPath := filepath.Join(actorRoot, "sealed-prompt.txt")
+	wantPrompt := []byte(evalPrompt(fixture, "codex", runID))
+	sealedPrompt, err := os.ReadFile(promptPath)
+	if err != nil || !bytes.Equal(sealedPrompt, wantPrompt) {
+		return nil, 1, fmt.Errorf("sealed epistemic prompt is missing or changed")
+	}
+	runHash := sha256.Sum256([]byte(runID))
+	structuredName := "epistemic-result-" + hex.EncodeToString(runHash[:8]) + ".json"
+	command, args, err := epistemicRoutedAgentCommand(config, actorRoot, promptPath, filepath.Join(actorRoot, "result.schema.json"), structuredName, isolationCLI)
+	if err != nil {
+		return nil, 1, err
+	}
+	if _, err := exec.LookPath(command); err != nil {
+		return nil, 127, fmt.Errorf("kbrouter command unavailable: %w", err)
+	}
+	cmd := exec.Command(command, args...)
+	cmd.Dir = config.ProjectRoot
+	var out, errOut bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errOut
+	if err := cmd.Run(); err != nil {
+		code := 1
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			code = exitErr.ExitCode()
+		}
+		return nil, code, fmt.Errorf("%s\n%s", out.String(), errOut.String())
+	}
+	var report epistemicRouterDispatchReport
+	if err := json.Unmarshal([]byte(extractLastJSONObject(out.String())), &report); err != nil {
+		return nil, 1, fmt.Errorf("decode kbrouter dispatch report: %w", err)
+	}
+	if report.RouteAlias != config.RouteAlias || report.Attribution != "exact" || report.SessionID == "" || report.ProviderReportedModel == "" || report.ReceiptPath == "" || report.StructuredOutputPath == "" {
+		return nil, 1, fmt.Errorf("kbrouter dispatch did not return exact route/session/provider-model evidence")
+	}
+	if err := validateEpistemicRoutingReceipt(report.ReceiptPath, config, report); err != nil {
+		return nil, 1, err
+	}
+	var result map[string]any
+	if err := readJSONFile(report.StructuredOutputPath, &result); err != nil {
+		return nil, 1, fmt.Errorf("read routed epistemic structured output: %w", err)
+	}
+	return result, 0, nil
+}
+
+func loadEpistemicRouterDispatchConfig(agentCommand string) (epistemicRouterDispatchConfig, string, error) {
+	const prefix = "kbrouter-contract:"
+	value := strings.TrimSpace(agentCommand)
+	if !strings.HasPrefix(value, prefix) {
+		return epistemicRouterDispatchConfig{}, "", fmt.Errorf("epistemic evaluation requires an orchestrator-selected kbrouter contract; direct model dispatch is refused")
+	}
+	path := strings.TrimSpace(strings.TrimPrefix(value, prefix))
+	if path == "" {
+		return epistemicRouterDispatchConfig{}, "", fmt.Errorf("epistemic kbrouter contract path is empty")
+	}
+	absPath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return epistemicRouterDispatchConfig{}, "", err
+	}
+	var config epistemicRouterDispatchConfig
+	if err := readJSONFile(absPath, &config); err != nil {
+		return epistemicRouterDispatchConfig{}, "", fmt.Errorf("read routed epistemic dispatch contract: %w", err)
+	}
+	return config, absPath, nil
+}
+
+func epistemicRoutedAgentCommand(config epistemicRouterDispatchConfig, actorRoot, promptPath, schemaPath, structuredName, isolationCLI string) (string, []string, error) {
+	if config.SchemaVersion != 1 || strings.TrimSpace(config.Command) == "" || strings.TrimSpace(config.ProjectRoot) == "" || strings.TrimSpace(config.RunRoot) == "" || strings.TrimSpace(config.RunID) == "" || strings.TrimSpace(config.SliceID) == "" || strings.TrimSpace(config.Packet) == "" || strings.TrimSpace(config.RouteAlias) == "" {
+		return "", nil, fmt.Errorf("routed epistemic dispatch requires a complete orchestrator-selected contract")
+	}
+	if config.RouteAlias == "current" {
+		return "", nil, fmt.Errorf("current/App-only route cannot execute an external epistemic evaluator")
+	}
+	if strings.TrimSpace(actorRoot) == "" || strings.TrimSpace(promptPath) == "" || strings.TrimSpace(schemaPath) == "" || strings.TrimSpace(structuredName) == "" || strings.TrimSpace(isolationCLI) == "" {
+		return "", nil, fmt.Errorf("routed epistemic dispatch requires sealed actor, prompt, schema, output, and instruction isolation")
+	}
+	artifactStem := strings.TrimSuffix(filepath.Base(structuredName), filepath.Ext(structuredName))
+	if artifactStem == "" || artifactStem == "." {
+		return "", nil, fmt.Errorf("routed epistemic dispatch requires a safe structured output name")
+	}
+	args := append([]string{}, config.CommandArgs...)
+	args = append(args,
+		"dispatch", "--project-root", config.ProjectRoot, "--run-root", config.RunRoot,
+		"--run-id", config.RunID, "--slice-id", config.SliceID, "--packet", config.Packet,
+		"--output", artifactStem+"-dispatch-output.json", "--receipt", artifactStem+"-dispatch-receipt.json",
+		"--handoff", artifactStem+"-dispatch-handoff.json",
+		"--route-alias", config.RouteAlias, "--evaluator-actor-cwd", actorRoot,
+		"--evaluator-prompt", promptPath, "--evaluator-output-schema", schemaPath,
+		"--evaluator-structured-output", structuredName, "--evaluator-instruction-config", isolationCLI, "--json",
+	)
+	return config.Command, args, nil
+}
+
+func validateEpistemicRoutingReceipt(path string, config epistemicRouterDispatchConfig, report epistemicRouterDispatchReport) error {
+	var receipt struct {
+		RouteEvidence struct {
+			RunID                 string `json:"run_id"`
+			SliceID               string `json:"slice_id"`
+			RouteAlias            string `json:"route_alias"`
+			ProviderReportedModel string `json:"provider_reported_model"`
+			SessionID             string `json:"session_id"`
+		} `json:"route_evidence"`
+	}
+	if err := readJSONFile(path, &receipt); err != nil {
+		return fmt.Errorf("read epistemic routing receipt: %w", err)
+	}
+	evidence := receipt.RouteEvidence
+	if evidence.RunID != config.RunID || evidence.SliceID != config.SliceID || evidence.RouteAlias != config.RouteAlias || evidence.SessionID != report.SessionID || evidence.ProviderReportedModel != report.ProviderReportedModel {
+		return fmt.Errorf("epistemic routing receipt does not match dispatch report and selected route")
+	}
+	return nil
 }
 
 func evalPrompt(fixture map[string]any, runtime, runID string) string {
@@ -372,10 +519,7 @@ func newRunManifest(root, runID, runtime string, fixture map[string]any, surface
 	return manifest
 }
 
-func newEpistemicRunManifest(root, runID, runtime, model string, fixture map[string]any, surfaces []instructionSurface, actorRoot string) (map[string]any, error) {
-	if strings.TrimSpace(model) == "" {
-		return nil, fmt.Errorf("epistemic live run requires an explicit model")
-	}
+func newRoutedEpistemicRunManifest(root, runID, runtime string, fixture map[string]any, surfaces []instructionSurface, actorRoot string, config epistemicRouterDispatchConfig, contractPath string) (map[string]any, error) {
 	identity := runtimeIdentity(runtime)
 	if stringValue(identity["executable"]) == "" || stringValue(identity["executable"]) == "unknown" || len(stringValue(identity["sha256"])) != 64 || strings.TrimSpace(stringValue(identity["version"])) == "" {
 		detail := strings.TrimSpace(stringValue(identity["version_error"]))
@@ -385,8 +529,10 @@ func newEpistemicRunManifest(root, runID, runtime, model string, fixture map[str
 		return nil, fmt.Errorf("epistemic runtime executable identity is unprovable for %s%s", runtime, detail)
 	}
 	manifest := newRunManifest(root, runID, runtime, fixture, surfaces, actorRoot)
-	manifest["requested_model"] = model
 	manifest["runtime_identity"] = identity
+	manifest["model_selection_owner"] = "kbrouter"
+	manifest["selected_route_alias"] = config.RouteAlias
+	manifest["router_dispatch_contract_sha256"] = fileHashOrEmpty(contractPath)
 	return manifest, nil
 }
 
@@ -522,7 +668,7 @@ func epistemicInstructionSurfaces(root, runtime, mode string) ([]instructionSurf
 			surfaces = append(surfaces, instructionSurface{Scope: "repo", Path: mapping.Destination, SHA256: hash, LoadState: "proven"})
 		}
 	}
-	if mode == "live" {
+	if mode == "live" || (mode == "dry-run" && runtime == "codex") {
 		if runtime != "codex" {
 			return nil, fmt.Errorf("epistemic live comparison is inconclusive: no supported isolated runtime profile is configured for %s", runtime)
 		}
@@ -567,16 +713,6 @@ func materializeEpistemicInstructionSurfaces(root, workspace, runtime string) er
 		}
 	}
 	return nil
-}
-
-func epistemicLiveAgentCommand(runtime, actorRoot, schemaPath, model string) (string, []string, error) {
-	if runtime != "codex" {
-		return "", nil, fmt.Errorf("epistemic live runtime %s is unsupported", runtime)
-	}
-	if strings.TrimSpace(model) == "" {
-		return "", nil, fmt.Errorf("epistemic live run requires an explicit model")
-	}
-	return "codex", []string{"exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--cd", actorRoot, "--output-schema", schemaPath, "--model", model, "-"}, nil
 }
 
 type codexSkillIsolationEntry struct {

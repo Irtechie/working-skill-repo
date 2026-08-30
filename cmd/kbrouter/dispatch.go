@@ -27,24 +27,29 @@ const dispatchRunLockName = ".kb-dispatch.lock"
 
 type dispatchOptions struct {
 	commonOptions
-	runRoot            string
-	runID              string
-	sliceID            string
-	packetPath         string
-	outputPath         string
-	receiptPath        string
-	handoffPath        string
-	workerRequestPath  string
-	routeAlias         string
-	fallbackRouteAlias string
-	timeout            time.Duration
-	outputLimit        int64
-	attemptLimit       int
-	sandbox            string
-	approvalPolicy     string
-	network            string
-	allowedRoots       repeatFlag
-	allowedTools       repeatFlag
+	runRoot                    string
+	runID                      string
+	sliceID                    string
+	packetPath                 string
+	outputPath                 string
+	receiptPath                string
+	handoffPath                string
+	workerRequestPath          string
+	routeAlias                 string
+	fallbackRouteAlias         string
+	timeout                    time.Duration
+	outputLimit                int64
+	attemptLimit               int
+	sandbox                    string
+	approvalPolicy             string
+	network                    string
+	allowedRoots               repeatFlag
+	allowedTools               repeatFlag
+	evaluatorActorCWD          string
+	evaluatorPromptPath        string
+	evaluatorOutputSchemaPath  string
+	evaluatorStructuredOutput  string
+	evaluatorInstructionConfig string
 }
 
 type repeatFlag []string
@@ -73,6 +78,18 @@ type dispatchReport struct {
 	ReceiptPath           string                      `json:"receipt_path,omitempty"`
 	OutputPath            string                      `json:"output_path,omitempty"`
 	HandoffPath           string                      `json:"handoff_path,omitempty"`
+	StructuredOutputPath  string                      `json:"structured_output_path,omitempty"`
+}
+
+type evaluatorDispatchContract struct {
+	ActorCWD          string
+	PromptPath        string
+	OutputSchemaPath  string
+	StructuredPath    string
+	RawOutputPath     string
+	InstructionConfig string
+	Prompt            []byte
+	Schema            []byte
 }
 
 type dispatchPacket struct {
@@ -138,6 +155,10 @@ var dispatchCodexHome = func() (string, error) {
 
 var dispatchProcessTreeContainment = ensureProcessTreeContainment
 
+var dispatchWorkerProcess = func(execPath string, req modelrouting.DispatchRequest, stdin []byte, limit int64, codexHome, routeAuthEnv string, evaluator evaluatorDispatchContract) processResult {
+	return runWorkerProcess(execPath, req, stdin, limit, codexHome, routeAuthEnv, evaluator)
+}
+
 var dispatchTrustedStateProvider = func(userRoot, runRoot string) (dispatchTrustedState, error) {
 	var state dispatchTrustedState
 	var marker runRootMarker
@@ -187,6 +208,11 @@ func runDispatch(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&opts.network, "network", "none", "Codex workspace network policy: none or enabled")
 	fs.Var(&opts.allowedRoots, "allowed-root", "allowed root; repeatable")
 	fs.Var(&opts.allowedTools, "allowed-tool", "allowed tool; repeatable")
+	fs.StringVar(&opts.evaluatorActorCWD, "evaluator-actor-cwd", "", "external sealed evaluator actor working directory")
+	fs.StringVar(&opts.evaluatorPromptPath, "evaluator-prompt", "", "sealed evaluator prompt file under actor cwd")
+	fs.StringVar(&opts.evaluatorOutputSchemaPath, "evaluator-output-schema", "", "epistemic result schema under actor cwd")
+	fs.StringVar(&opts.evaluatorStructuredOutput, "evaluator-structured-output", "", "captured structured result run-root child")
+	fs.StringVar(&opts.evaluatorInstructionConfig, "evaluator-instruction-config", "", "exact Codex instruction-isolation config")
 	if err := fs.Parse(args); err != nil {
 		return flagError(stderr, err)
 	}
@@ -225,6 +251,10 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 	}
 	if opts.runID != prepared.marker.RunID {
 		return dispatchReport{}, fmt.Errorf("run id does not match prepared marker")
+	}
+	evaluator, err := prepareEvaluatorDispatchContract(prepared, opts)
+	if err != nil {
+		return dispatchReport{}, err
 	}
 	codexHome, err := dispatchCodexHome()
 	if err != nil {
@@ -359,6 +389,12 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 			return lastReport, err
 		}
 		req.PacketID = packet.PacketID
+		stdin := packetData
+		if evaluator.ActorCWD != "" {
+			req.CWD = evaluator.ActorCWD
+			req.Worktree = evaluator.ActorCWD
+			stdin = evaluator.Prompt
+		}
 		if fingerprint, fingerprintErr := modelrouting.ApprovalRouteFingerprint(route, policy.RouteSources); fingerprintErr == nil {
 			req.RouteFingerprint = fingerprint
 		}
@@ -370,15 +406,22 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 		}
 		req.Timeout, req.OutputPath, req.ReceiptPath, req.HandoffPath, req.WorkerRequestPath = opts.timeout, attemptOutputPath, attemptReceiptPath, handoffPath, attemptWorkerRequestPath
 		req.Sandbox, req.ApprovalPolicy, req.Network = opts.sandbox, opts.approvalPolicy, opts.network
-		req.AllowedRoots, err = canonicalAllowedRoots(opts.allowedRoots, opts.projectRoot)
-		if err != nil {
-			return lastReport, err
+		if evaluator.ActorCWD != "" {
+			req.AllowedRoots = []string{evaluator.ActorCWD}
+		} else {
+			req.AllowedRoots, err = canonicalAllowedRoots(opts.allowedRoots, opts.projectRoot)
+			if err != nil {
+				return lastReport, err
+			}
 		}
 		req.AllowedTools, err = canonicalAllowedTools(packet.AllowedTools)
 		if err != nil {
 			return lastReport, err
 		}
 		req.OutputSchemaPath = resultSchemaPath
+		if evaluator.OutputSchemaPath != "" {
+			req.OutputSchemaPath = evaluator.OutputSchemaPath
+		}
 		if err := modelrouting.ValidateDispatchRequest(req, route, codexHome, opts.projectRoot, policy.RouteSources); err != nil {
 			if errors.Is(err, modelrouting.ErrUnsupportedDispatchAdapter) {
 				return lastReport, fmt.Errorf("direct provider dispatch is not supported; configure a trusted Codex profile")
@@ -391,7 +434,10 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 			}
 		}
 		attemptStart := time.Now().UTC()
-		result := runWorkerProcess(trustedExec.Path, req, packetData, opts.outputLimit, codexHome, route.AuthEnv)
+		if err := revalidateEvaluatorDispatchContract(evaluator); err != nil {
+			return lastReport, err
+		}
+		result := dispatchWorkerProcess(trustedExec.Path, req, stdin, opts.outputLimit, codexHome, route.AuthEnv, evaluator)
 		if result.notStarted {
 			return dispatchReport{Status: "dispatch-unavailable", RouteAlias: req.RouteAlias, PlannedTier: packet.ModelTier, AttemptTier: attemptTier, Attempt: req.Attempt}, fmt.Errorf("dispatch unavailable before worker start: %w", result.err)
 		}
@@ -433,6 +479,11 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 		}
 		if result.containmentFailure {
 			return dispatchReport{Status: "containment-failed", RouteAlias: req.RouteAlias, PlannedTier: packet.ModelTier, AttemptTier: attemptTier, Attempt: req.Attempt, OutputPath: attemptOutputPath}, fmt.Errorf("worker containment cleanup failed: %w", result.err)
+		}
+		if evaluator.StructuredPath != "" && result.exitCode == 0 && !result.timeout {
+			if err := captureEvaluatorStructuredOutput(prepared, evaluator); err != nil {
+				return lastReport, err
+			}
 		}
 		outputData, err := readRunChild(prepared, attemptOutputPath, maxCatalogBytes)
 		if err != nil {
@@ -478,6 +529,7 @@ func dispatchCodexWorker(opts dispatchOptions) (dispatchReport, error) {
 			ProviderReportedModel: evidence.Model, SessionID: evidence.SessionID,
 			Attempt: req.Attempt, Attribution: string(attribution),
 			ReceiptPath: attemptReceiptPath, OutputPath: attemptOutputPath, HandoffPath: handoffPath,
+			StructuredOutputPath: evaluator.StructuredPath,
 		}
 		if result.exitCode == 0 && !result.timeout {
 			return lastReport, nil
@@ -537,6 +589,150 @@ func validateCodexPolicies(opts dispatchOptions) error {
 		return fmt.Errorf("network policy requires workspace-write sandbox")
 	}
 	return nil
+}
+
+func prepareEvaluatorDispatchContract(prepared preparedRunRoot, opts dispatchOptions) (evaluatorDispatchContract, error) {
+	values := []string{opts.evaluatorActorCWD, opts.evaluatorPromptPath, opts.evaluatorOutputSchemaPath, opts.evaluatorStructuredOutput, opts.evaluatorInstructionConfig}
+	set := 0
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			set++
+		}
+	}
+	if set == 0 {
+		return evaluatorDispatchContract{}, nil
+	}
+	if set != len(values) {
+		return evaluatorDispatchContract{}, fmt.Errorf("dispatch requires a complete evaluator contract")
+	}
+	if strings.ContainsAny(opts.evaluatorInstructionConfig, "\x00\r\n") || !strings.Contains(opts.evaluatorInstructionConfig, "skills.config=") {
+		return evaluatorDispatchContract{}, fmt.Errorf("evaluator instruction config must be one exact skills.config override")
+	}
+	actor, err := canonicalExistingDispatchRoot(opts.evaluatorActorCWD)
+	if err != nil {
+		return evaluatorDispatchContract{}, fmt.Errorf("resolve evaluator actor cwd: %w", err)
+	}
+	project, err := canonicalExistingDispatchRoot(opts.projectRoot)
+	if err != nil {
+		return evaluatorDispatchContract{}, fmt.Errorf("resolve evaluator source project: %w", err)
+	}
+	if pathWithin(actor, project) || pathWithin(actor, prepared.runPath) {
+		return evaluatorDispatchContract{}, fmt.Errorf("evaluator actor cwd must be external to source and run roots")
+	}
+	promptPath, prompt, err := readSealedEvaluatorFile(actor, opts.evaluatorPromptPath, maxCatalogBytes)
+	if err != nil {
+		return evaluatorDispatchContract{}, fmt.Errorf("read sealed evaluator prompt: %w", err)
+	}
+	schemaPath, schema, err := readSealedEvaluatorFile(actor, opts.evaluatorOutputSchemaPath, maxCatalogBytes)
+	if err != nil {
+		return evaluatorDispatchContract{}, fmt.Errorf("read sealed evaluator output schema: %w", err)
+	}
+	var schemaObject map[string]any
+	if json.Unmarshal(schema, &schemaObject) != nil {
+		return evaluatorDispatchContract{}, fmt.Errorf("evaluator output schema must be strict JSON")
+	}
+	properties, _ := schemaObject["properties"].(map[string]any)
+	if _, ok := properties["epistemic"]; !ok {
+		return evaluatorDispatchContract{}, fmt.Errorf("evaluator output schema must define epistemic structured output")
+	}
+	structured, err := safeRunChild(prepared, opts.evaluatorStructuredOutput, "epistemic-result.json")
+	if err != nil {
+		return evaluatorDispatchContract{}, fmt.Errorf("evaluator structured output path: %w", err)
+	}
+	rawName := "evaluator-last-message-" + sha256Text(opts.sliceID)[:16] + ".json"
+	raw, err := safeRunChild(prepared, rawName, rawName)
+	if err != nil {
+		return evaluatorDispatchContract{}, err
+	}
+	for _, path := range []string{structured, raw} {
+		if _, err := os.Lstat(path); err == nil {
+			return evaluatorDispatchContract{}, fmt.Errorf("refusing to overwrite existing evaluator artifact %q", filepath.Base(path))
+		} else if !os.IsNotExist(err) {
+			return evaluatorDispatchContract{}, err
+		}
+	}
+	return evaluatorDispatchContract{
+		ActorCWD: actor, PromptPath: promptPath, OutputSchemaPath: schemaPath,
+		StructuredPath: structured, RawOutputPath: raw,
+		InstructionConfig: opts.evaluatorInstructionConfig, Prompt: prompt, Schema: schema,
+	}, nil
+}
+
+func revalidateEvaluatorDispatchContract(evaluator evaluatorDispatchContract) error {
+	if evaluator.ActorCWD == "" {
+		return nil
+	}
+	_, prompt, err := readSealedEvaluatorFile(evaluator.ActorCWD, evaluator.PromptPath, maxCatalogBytes)
+	if err != nil || !bytes.Equal(prompt, evaluator.Prompt) {
+		return fmt.Errorf("sealed evaluator prompt changed after validation")
+	}
+	_, schema, err := readSealedEvaluatorFile(evaluator.ActorCWD, evaluator.OutputSchemaPath, maxCatalogBytes)
+	if err != nil || !bytes.Equal(schema, evaluator.Schema) {
+		return fmt.Errorf("sealed evaluator output schema changed after validation")
+	}
+	return nil
+}
+
+func readSealedEvaluatorFile(actorRoot, path string, limit int64) (string, []byte, error) {
+	abs, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return "", nil, err
+	}
+	canonical, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", nil, err
+	}
+	if !pathWithin(canonical, actorRoot) {
+		return "", nil, modelrouting.ErrUnsafePath
+	}
+	info, err := os.Lstat(canonical)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return "", nil, modelrouting.ErrUnsafePath
+	}
+	file, err := os.Open(canonical)
+	if err != nil {
+		return "", nil, err
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return "", nil, modelrouting.ErrUnsafePath
+	}
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return "", nil, err
+	}
+	if int64(len(data)) > limit {
+		return "", nil, modelrouting.ErrStorageSizeExceeded
+	}
+	return canonical, data, nil
+}
+
+func captureEvaluatorStructuredOutput(prepared preparedRunRoot, evaluator evaluatorDispatchContract) error {
+	data, err := readRunChild(prepared, evaluator.RawOutputPath, maxCatalogBytes)
+	if err != nil {
+		return fmt.Errorf("read evaluator structured output: %w", err)
+	}
+	var value map[string]any
+	if err := json.Unmarshal(data, &value); err != nil {
+		return fmt.Errorf("evaluator did not return one structured JSON object: %w", err)
+	}
+	if _, ok := value["epistemic"].(map[string]any); !ok {
+		return fmt.Errorf("evaluator structured output is missing epistemic result")
+	}
+	if err := prepared.revalidate(); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(evaluator.StructuredPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("capture evaluator structured output: %w", err)
+	}
+	_, writeErr := file.Write(data)
+	closeErr := file.Close()
+	if writeErr != nil || closeErr != nil {
+		return errors.Join(writeErr, closeErr)
+	}
+	return prepared.revalidate()
 }
 
 func loadDispatchCatalog(prepared preparedRunRoot, opts dispatchOptions, hostState dispatchTrustedState) (modelrouting.ValidatedCatalog, modelrouting.PolicyContext, error) {
@@ -1035,13 +1231,17 @@ func dispatchClassRank(class modelrouting.CapabilityClass) int {
 	}
 }
 
-func runWorkerProcess(execPath string, req modelrouting.DispatchRequest, stdin []byte, limit int64, codexHome, routeAuthEnv string) processResult {
+func runWorkerProcess(execPath string, req modelrouting.DispatchRequest, stdin []byte, limit int64, codexHome, routeAuthEnv string, evaluators ...evaluatorDispatchContract) processResult {
 	if err := dispatchProcessTreeContainment(); err != nil {
 		return processResult{exitCode: -1, notStarted: true, err: err}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), req.Timeout)
 	defer cancel()
-	args := codexExecArgs(req)
+	evaluator := evaluatorDispatchContract{}
+	if len(evaluators) > 0 {
+		evaluator = evaluators[0]
+	}
+	args := codexExecArgs(req, evaluator)
 	cmd := workerCommand(ctx, execPath, args)
 	if err := configureProcessTree(cmd); err != nil {
 		return processResult{exitCode: -1, notStarted: true, err: err}
@@ -1116,7 +1316,7 @@ func workerCommand(ctx context.Context, execPath string, args []string) *exec.Cm
 	return exec.CommandContext(ctx, execPath, args...)
 }
 
-func codexExecArgs(req modelrouting.DispatchRequest) []string {
+func codexExecArgs(req modelrouting.DispatchRequest, evaluators ...evaluatorDispatchContract) []string {
 	args := []string{"exec", "--model", req.Model}
 	if req.DispatchMethod == "exec-profile" {
 		args = append(args, "--profile", req.Profile)
@@ -1132,10 +1332,15 @@ func codexExecArgs(req modelrouting.DispatchRequest) []string {
 	args = append(args,
 		"-c", `approval_policy="`+req.ApprovalPolicy+`"`,
 		"-c", "sandbox_workspace_write.network_access="+networkConfigValue(req.Network),
-		"--output-schema", req.OutputSchemaPath,
-		"--json",
-		"-",
 	)
+	if len(evaluators) > 0 && evaluators[0].InstructionConfig != "" {
+		args = append(args, "-c", evaluators[0].InstructionConfig)
+	}
+	args = append(args, "--output-schema", req.OutputSchemaPath)
+	if len(evaluators) > 0 && evaluators[0].RawOutputPath != "" {
+		args = append(args, "--output-last-message", evaluators[0].RawOutputPath)
+	}
+	args = append(args, "--json", "-")
 	return args
 }
 

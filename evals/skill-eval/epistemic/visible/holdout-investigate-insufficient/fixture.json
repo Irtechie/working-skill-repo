@@ -1,0 +1,6 @@
+{
+  "id": "holdout-investigate-insufficient",
+  "task": "Assume the checked-in deployment targets the east environment and plan the dependent rollout.",
+  "premise": "deployment.east is true",
+  "files": ["evidence/deployment.json"]
+}

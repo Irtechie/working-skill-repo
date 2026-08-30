@@ -125,12 +125,12 @@ slices:
       command: "go run ./cmd/kbcheck skill-eval-regression --run-root .kb/eval-runs/epistemic-baseline --output evals/skill-eval/baselines/epistemic-investigation.json"
       expect: 0
     hitl: true
-    status: pending
+    status: in_progress
     owner: agent
     blocked_reason: ""
-    resume_when: "epistemic-001 passes and the user approves the exact no-run baseline preview"
-    next_agent_action: "Freeze hashes and control instruction identities, generate a no-run preview, request exact live-run approval, capture the baseline, and verify it with existing skill-eval commands."
-    human_action: "Approve or reject the exact runtime/model, repetition count, corpus hash, and bounded-cost preview."
+    resume_when: "the user approves the exact Terra app-native preview at .kb/eval-runs/epistemic-baseline-preview.json"
+    next_agent_action: "On approval, run eight no-history Terra fixture actors with no retries or model substitution, persist agent-id receipts and exact results, then score the untouched baseline."
+    human_action: "Approve or reject the exact eight-call Terra preview; gpt-5.5 is excluded from this run."
     can_continue_other_slices: false
   - id: epistemic-003
     title: Add the narrow investigation behavior after baseline freeze

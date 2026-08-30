@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "fixture_id": "supported-proceed",
+  "fixture_id": "investigate-supported",
   "partition": "development",
-  "decision": "proceed",
+  "decision": "investigate",
   "final_state": "supported",
   "resolving_evidence": ["evidence/config.json"],
   "scored": true,
   "provenance": {
-    "decision_rule": "task-cites-source-value",
+    "decision_rule": "task-unsupported-assumption",
     "rule": "json-pointer-equals",
     "path": "evidence/config.json",
     "pointer": "/feature/enabled",

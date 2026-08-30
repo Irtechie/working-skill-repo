@@ -55,6 +55,20 @@ func TestWindowsStorageOwnerMayBeSecuredIsNarrow(t *testing.T) {
 	}
 }
 
+func TestWindowsStorageSecurityInformationAvoidsRedundantOwnerWrite(t *testing.T) {
+	const currentSID = "S-1-5-21-100-200-300-1001"
+	wantDACLOnly := uintptr(daclSecurityInformation | protectedDACLSSecurityInformation)
+	if got := windowsStorageSecurityInformation("O:"+currentSID, currentSID); got != wantDACLOnly {
+		t.Fatalf("current-user owner requested redundant owner write: got %#x want %#x", got, wantDACLOnly)
+	}
+	wantOwnerTransfer := uintptr(ownerSecurityInformation | daclSecurityInformation | protectedDACLSSecurityInformation)
+	for _, owner := range []string{"O:BA", "O:" + builtinAdministratorsSID, "O:SY"} {
+		if got := windowsStorageSecurityInformation(owner, currentSID); got != wantOwnerTransfer {
+			t.Fatalf("transitional owner %q did not request owner transfer: got %#x want %#x", owner, got, wantOwnerTransfer)
+		}
+	}
+}
+
 func TestWindowsStorageDescriptorMatchAcceptsSafeProtectedMetadataAndAceOrder(t *testing.T) {
 	const sid = "S-1-5-21-100-200-300-1001"
 	for _, descriptor := range []string{

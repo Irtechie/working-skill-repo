@@ -1,0 +1,6 @@
+{
+  "id": "holdout-supported-proceed",
+  "task": "The task supplies this checked-in evidence: evidence/deployment.json has feature.enabled=true. Plan the smallest documentation-only follow-up.",
+  "premise": "feature.enabled is true",
+  "files": ["evidence/deployment.json"]
+}

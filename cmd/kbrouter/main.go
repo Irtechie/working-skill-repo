@@ -18,7 +18,7 @@ import (
 const usage = `kbrouter routes KB model work without weakening proof gates.
 
 Usage:
-  kbrouter dispatch --run-root <path> --run-id <id> --slice-id <id> --packet <path> --route-alias <alias> --model <id> [--json]
+  kbrouter dispatch --run-root <path> --run-id <id> --slice-id <id> --packet <path> --route-alias <selected-alias> [--evaluator-actor-cwd <external-path> --evaluator-prompt <path> --evaluator-output-schema <path> --evaluator-structured-output <run-child> --evaluator-instruction-config <config>] [--json]
   kbrouter ddr attempt --run-id <id> --slice-id <id> --alias <alias> --request <path> --tier <tier> --tier-reason <reason> --task-family <id> --tool <id> --context-size <n> --risk normal --sensitive-data=true|false [--require] [--json]
   kbrouter ddr resolve --run-id <id> --slice-id <id> --proof-result pass|fail --proof-command <command> --proof-artifact-hash sha256:<hex> [--json]
   kbrouter models show [--user-root <path>] [--project-root <path>] [--json]

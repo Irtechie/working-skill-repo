@@ -74,12 +74,20 @@ func secureWindowsStoragePath(path string, directory bool) error {
 	// may take ownership of that dedicated root; shared/project storage must never
 	// use this path. The committed state must be owned by the current user with
 	// the exact protected DACL.
-	information := uintptr(ownerSecurityInformation | daclSecurityInformation | protectedDACLSSecurityInformation)
+	information := windowsStorageSecurityInformation(owner, sid)
 	result, _, callErr := setFileSecurityW.Call(uintptr(unsafe.Pointer(pathPointer)), information, descriptor)
 	if result == 0 {
 		return fmt.Errorf("set private Windows ACL: %w", callErr)
 	}
 	return validateWindowsStoragePath(path, directory)
+}
+
+func windowsStorageSecurityInformation(owner, currentSID string) uintptr {
+	information := uintptr(daclSecurityInformation | protectedDACLSSecurityInformation)
+	if !strings.EqualFold(strings.TrimSpace(owner), "O:"+strings.TrimSpace(currentSID)) {
+		information |= ownerSecurityInformation
+	}
+	return information
 }
 
 // windowsStorageOwnerMayBeSecured accepts the current user and the transitional
