@@ -264,7 +264,7 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-rehab",
     "name": "kb-rehab",
-    "description": "Clean house across a repository and check the result in. Pair every declared work item against real refs, settle or correct what is provably done, route the rest to a recorded disposition, and commit the reconciliation so the tree is clean before new work starts. Use when the user asks to clean house, check in, reconcile outstanding work, mark dead or superseded plans, or make the repository current. Not for ordinary code cleanup, code review, or delivering one known feature.",
+    "description": "Clean house across a repository and check everything in. Invoking this lane is the authorization to commit salvageable uncommitted work, discard provable junk, settle or correct what is provably done, drive every stale branch and worktree to a terminal state, and open, merge, and clean up the pull request that carries it, ending on the default branch with a clean tree. Use when the user asks to clean house, check in, reconcile outstanding work, mark dead or superseded plans, close out branches and worktrees, or get the repository back to a clean starting point. Not for ordinary code cleanup, code review, or delivering one known feature.",
     "argumentHint": "[optional scope hint, or blank for the whole repository]",
     "category": "Learning and maintenance",
     "sourcePath": ".github/skills/kb-rehab/SKILL.md",

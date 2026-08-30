@@ -1,5 +1,11 @@
 # Granted delivery
 
+This file governs the machine-enforced grant for delivering **`unshipped` feature
+pairings** through the reconcile policy engine. It does not govern the lane's own
+reconciliation commit, which `kb-rehab` lands directly under the standing
+authorization described in that skill's `Authorization` section. Do not read a
+refusal here as a reason to leave the rehab bookkeeping unlanded.
+
 A grant is a runtime input, never a stored credential and never a file this lane
 writes. It authorizes a bounded, enumerated set of merges for one run and then
 expires. Absence of a grant is the normal state.
