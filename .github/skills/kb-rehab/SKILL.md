@@ -174,12 +174,28 @@ swept in or abandoned.
 9. For anything in `unshipped`, invoke `kb-complete` with that manifest and this
    run's authorization, so the delegate does not stall waiting for an approval
    the user already gave. Delivery is executed by `kb-complete`, not here.
-10. Reap every ref and worktree the survey proved contained, using `kbreconcile`
-    with its own `apply` gate and `--refresh-authority` so the containment proof
-    is reachable. Without that flag `kbreconcile` returns
-    `authoritative-containment-unavailable` on every default invocation. Reaping
-    a contained ref needs no further approval; reaping an uncontained one is
-    never allowed here.
+10. Reap every ref and worktree the survey proved contained:
+
+    ```shell
+    go run ./cmd/kbreconcile plan --repo . --rehab --refresh-authority --output <plan>
+    go run ./cmd/kbreconcile apply --repo . --rehab --input <plan> --receipt <receipt>
+    ```
+
+    `--refresh-authority` makes the containment proof reachable; without it
+    `kbreconcile` returns `authoritative-containment-unavailable` on every
+    default invocation. `--rehab` raises the retire risk budgets from the
+    defaults of 5 per run and 3 per repository to 100, so one run converges
+    instead of leaving a backlog for the next. It raises no proof: every
+    mandatory predicate is inherited unchanged. Pass `--rehab` to **both** plan
+    and apply, or the policy versions differ and apply refuses the bundle.
+
+    Reaping a contained ref needs no further approval; reaping an uncontained
+    one is never allowed here.
+
+    `kbreconcile` mutates local refs and worktrees only - `localMutationAuthorized`
+    permits no other class, whatever the policy says. Delete merged **remote**
+    branches directly with `git push origin --delete`, under `Authorization`,
+    once containment is proven. Do not wait for `kbreconcile` to do it.
 11. Re-run the survey and confirm each delegation actually changed state. A
     delegation that was invoked but changed nothing is an open item, not a
     closed one. Report it as such.
@@ -275,13 +291,14 @@ pairings you would rather a human confirmed. A protected path under
 refusals are real; caution is not one.
 
 Keep one distinction honest. This lane merges **its own reconciliation PR**
-directly under `Authorization`. Delivering someone else's `unshipped` feature
-branch instead runs through the reconcile policy engine, where
-`internal/reconcile/policy.go` registers `ActionMerge` with `allowed=false` and a
-per-run budget of `0`. `merge-eligible` is therefore unreachable in this
-repository, and delegated feature delivery still ends at a PR a human reviews.
-Say that plainly rather than implying the standing grant auto-merges feature
-work.
+directly under `Authorization`, using `gh`. Delivering someone else's
+`unshipped` feature branch is a different path, and two facts bound it:
+`internal/reconcile/policy.go` registers `ActionMerge` with `allowed=false` and
+a per-run budget of `0`, and `plan.go`'s `localMutationAuthorized` permits only
+`ActionWorktreeRetire` and `ActionLocalRefRetire` to mutate at all. `--rehab`
+changes neither. `merge-eligible` is therefore unreachable here, and delegated
+feature delivery still ends at a PR a human reviews. Say that plainly rather
+than implying the standing grant auto-merges feature work.
 
 ## Preservation
 

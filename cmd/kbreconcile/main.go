@@ -88,12 +88,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var policyPath, cutoffText, outputPath string
 	var jsonMode bool
 	var refreshAuthority bool
+	var rehabMode bool
 	flags.Var(&roots, "repo", "repository root; repeat for portfolio inventory")
 	flags.StringVar(&policyPath, "policy", "", "versioned reconciliation policy")
 	flags.StringVar(&cutoffText, "cutoff", "", "immutable RFC3339 scan cutoff")
 	flags.StringVar(&outputPath, "output", "", "durable plan output path")
 	flags.BoolVar(&refreshAuthority, "refresh-authority", false,
 		"probe remotes over the network so containment can be proven instead of deferred")
+	flags.BoolVar(&rehabMode, "rehab", false,
+		"raise the retire risk budgets for a kb-rehab run; predicates are unchanged")
 	flags.BoolVar(&jsonMode, "json", false, "emit stable JSON")
 	if err := flags.Parse(args[1:]); err != nil {
 		return 2
@@ -116,7 +119,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		cutoff = parsed.UTC()
 	}
 	policy := reconcile.DefaultPolicy()
+	if rehabMode {
+		policy = reconcile.RehabPolicy()
+	}
 	if policyPath != "" {
+		if rehabMode {
+			return writeCommandError(stdout, stderr, jsonMode, 2, "conflicting-policy",
+				"--rehab and --policy both select a policy; pass only one")
+		}
 		loaded, err := reconcile.LoadPolicy(policyPath)
 		if err != nil {
 			return writeCommandError(stdout, stderr, jsonMode, 1, "policy-unavailable", err.Error())
@@ -212,10 +222,13 @@ func runApplyVerify(mode string, args []string, stdout, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	var inputPath, receiptPath, policyPath, sessionID string
 	var jsonMode bool
+	var rehabMode bool
 	flags.StringVar(&inputPath, "input", "", "cutoff-bound plan bundle")
 	flags.StringVar(&receiptPath, "receipt", "", "durable apply receipt")
 	flags.StringVar(&policyPath, "policy", "", "versioned reconciliation policy")
 	flags.StringVar(&sessionID, "session-id", os.Getenv("COPILOT_SESSION_ID"), "current executor session identity")
+	flags.BoolVar(&rehabMode, "rehab", false,
+		"apply a plan built with --rehab; must match the plan's policy version")
 	flags.BoolVar(&jsonMode, "json", false, "emit stable JSON")
 	if err := flags.Parse(args); err != nil {
 		return 2
@@ -227,7 +240,14 @@ func runApplyVerify(mode string, args []string, stdout, stderr io.Writer) int {
 		return writeCommandError(stdout, stderr, jsonMode, 2, "missing-input", "apply and verify require --input and --receipt")
 	}
 	policy := reconcile.DefaultPolicy()
+	if rehabMode {
+		policy = reconcile.RehabPolicy()
+	}
 	if policyPath != "" {
+		if rehabMode {
+			return writeCommandError(stdout, stderr, jsonMode, 2, "conflicting-policy",
+				"--rehab and --policy both select a policy; pass only one")
+		}
 		loaded, err := reconcile.LoadPolicy(policyPath)
 		if err != nil {
 			return writeCommandError(stdout, stderr, jsonMode, 1, "policy-unavailable", err.Error())

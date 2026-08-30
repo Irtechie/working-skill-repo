@@ -10,6 +10,12 @@ A grant is a runtime input, never a stored credential and never a file this lane
 writes. It authorizes a bounded, enumerated set of merges for one run and then
 expires. Absence of a grant is the normal state.
 
+**Wiring status.** `evaluateRehabDelivery` in `cmd/kbcheck/rehab_delivery.go`
+has no CLI entry point: it is reachable only from its tests. Everything in this
+file describes a designed subsystem that no shipped command currently invokes.
+Treat it as the contract to build against, not as a mechanism running today, and
+do not cite one of its refusals as the reason a real run stopped short.
+
 ## What a grant cannot do
 
 A grant raises no ceiling. It selects from what the shipped policy already
