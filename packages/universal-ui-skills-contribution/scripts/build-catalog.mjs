@@ -9,16 +9,32 @@ const packageRoot = path.resolve(scriptDir, "..");
 const defaultRepoRoot = path.resolve(packageRoot, "..", "..");
 const defaultOutput = path.join(packageRoot, "src", "catalog.generated.js");
 
-const categories = new Map([
-  ["Routing and memory", new Set(["kb-start", "kb-task", "kb-map", "kb-map-bootstrap", "kb-memory-review", "kb-goal", "kb-epic"])],
-  ["Requirements and planning", new Set(["kb-brainstorm", "kb-plan", "kb-gate", "kb-research", "kb-first-principles", "kb-architecture-deepening"])],
-  ["Execution and repair", new Set(["kb-work", "kb-fix", "kb-troubleshoot", "kb-repair", "tdd"])],
-  ["Verification and eval", new Set(["kb-check", "kb-functional-test", "kb-qa", "kb-regression-snapshot", "kb-eval-map"])],
-  ["Completion and delivery", new Set(["kb-complete", "kb-finalize", "kb-review", "kb-ship", "kb-land"])],
-  ["Learning and maintenance", new Set(["learn", "evolve", "kb-cognitive", "kb-configure", "kb-models", "kb-handoff", "kb-executive-brief", "kb-simplify"])],
-  ["Review and compound", new Set(["document-review", "ce-compound", "ce-compound-refresh", "repo-critic", "pr-review-workbench"])],
-  ["Utilities", new Set(["todo-create", "todo-triage", "safe-shell-quoting"])]
-]);
+const categoriesPath = ["config", "skill-categories.json"];
+
+// Categories are data, not code, so `kbcheck new-skill` can register a skill by
+// editing JSON instead of rewriting this module. A projection over a root that
+// ships no category file still succeeds and reports "Other"; requiring every
+// skill to be mapped is enforced by `kbcheck new-skill --action check`.
+async function loadCategories(repoRoot) {
+  let raw;
+  try {
+    raw = await fs.readFile(path.join(repoRoot, ...categoriesPath), "utf8");
+  } catch {
+    return new Map();
+  }
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed.categories)) {
+    throw new Error(`${categoriesPath.join("/")} must define a categories array.`);
+  }
+  const categories = new Map();
+  for (const entry of parsed.categories) {
+    if (typeof entry?.name !== "string" || !Array.isArray(entry.skills)) {
+      throw new Error(`${categoriesPath.join("/")} entries need a name and a skills array.`);
+    }
+    categories.set(entry.name, new Set(entry.skills));
+  }
+  return categories;
+}
 
 function stripYamlQuotes(value) {
   const trimmed = value.trim();
@@ -69,7 +85,7 @@ function assertSafeText(value, label) {
   }
 }
 
-function categoryForSkill(skillId) {
+function categoryForSkill(categories, skillId) {
   for (const [category, skills] of categories) {
     if (skills.has(skillId)) {
       return category;
@@ -98,6 +114,7 @@ export function assertSafeProjection(catalog) {
 export async function collectSkillCatalog(repoRoot = defaultRepoRoot) {
   const skillsRoot = path.join(repoRoot, ".github", "skills");
   const entries = await fs.readdir(skillsRoot, { withFileTypes: true });
+  const categories = await loadCategories(repoRoot);
   const catalog = [];
 
   for (const entry of entries.filter((item) => item.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -117,7 +134,7 @@ export async function collectSkillCatalog(repoRoot = defaultRepoRoot) {
       name: frontmatter.name,
       description: frontmatter.description,
       argumentHint: frontmatter["argument-hint"] || null,
-      category: categoryForSkill(entry.name),
+      category: categoryForSkill(categories, entry.name),
       sourcePath,
       sourceUrl: `https://github.com/Irtechie/working-skill-repo/blob/main/${sourcePath}`
     });

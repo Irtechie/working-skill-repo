@@ -986,17 +986,10 @@ func fetchAuthoritativeRemoteDefault(root, remote string) (string, string, strin
 	if code != 0 {
 		return "", "", "resolve remote default authority: " + strings.TrimSpace(output)
 	}
-	branch := ""
-	headSHA := ""
-	for _, line := range strings.Split(output, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 3 && fields[0] == "ref:" && fields[2] == "HEAD" {
-			branch = strings.TrimPrefix(fields[1], "refs/heads/")
-		}
-		if len(fields) == 2 && fields[1] == "HEAD" {
-			headSHA = fields[0]
-		}
-	}
+	// Only the advertisement parsing is shared with reconcile. The fetch below
+	// deliberately populates refs/remotes/<remote>/* because fetchExactRemoteBranch
+	// reads those refs without fetching them itself; FETCH_HEAD would not do that.
+	branch, headSHA := reconcile.ParseSymrefAdvertisement(output)
 	if branch == "" || headSHA == "" {
 		return "", "", "remote default branch authority is unresolved for " + remote
 	}

@@ -80,7 +80,7 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
 | Epistemic investigation gate and calibration eval | 🔧 in_progress | P0 | Planning-specific loop and post-promotion enforcement approved; live baseline/replay remain exact-preview HITL. Manifest: `docs/plans/2026-08-23-000-kb-epistemic-investigation-gate-manifest.md` |
 | KB runtime, cognitive routing, and surface reduction | 🔧 in_progress | P0 | Epic: `docs/context/epics/kb-runtime-cognitive-routing.md`; manifests: `docs/plans/2026-08-20-000-kb-runtime-state-contract-manifest.md`, `docs/plans/2026-08-20-010-kb-routing-cognitive-delivery-manifest.md`, `docs/plans/2026-08-20-020-kb-surface-retirement-manifest.md`; user authorized W2D on 2026-08-20; one serial delivery train, runtime contract first. |
 | Deepseek4 DDR evaluation rerun | ⬜ pending | P0 | Session `df9c6b72-4785-40db-a649-81f41febf905`; installed kbrouter now reports `approval_mode=disabled`, local routing enabled, and configured `deepseek-local` project-selectable without `trust.json`. Resume the bounded rerun in its owning session; deterministic proof remains required. |
-| Bounded graph-run provenance | 🔧 in_progress | P0 | Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md`; next: `kb-work` |
+| Bounded graph-run provenance | ⊘ skipped | P0 | Retired 2026-08-28 undelivered; planning kept as a design record, branch dropped. Manifest: `docs/plans/2026-07-30-000-kb-bounded-graph-run-provenance-manifest.md`; goal: `docs/context/goals/bounded-graph-run-provenance.md` |
 | DDR planning validation and model tier classifier | 🔒 blocked | P0 | Portable classifier and both slices are complete; final `local-release` is blocked by the existing Windows nested `cmd/kbrouter` `.cmd` execution failure. Recheck after harness-validation recovery. Epic: `docs/context/epics/ddr-planning-validation.md`; manifest: `docs/plans/2026-07-30-010-kb-model-tier-qualification-manifest.md`; TokenZoom DS4 evidence runs separately |
 | Session model routing advisory pilot | 🔧 in_progress | P0 | `docs/plans/2026-07-10-030-kb-session-model-routing-manifest.md` |
 | Plan-to-PR finish lane | ⊘ skipped | P0 | Superseded by `docs/plans/2026-07-31-000-kb-automatic-delivery-chain-manifest.md`; completion now owns configured delivery without a legacy finish alias |
@@ -95,11 +95,16 @@ Go validator full replacement manifest: `docs/plans/archive/2026-06/2026-06-01-1
   `/iterate` steering memory, context-efficient check output, and safe
   worktree/session adapter criteria. Research:
   `docs/context/research/2026-07-05-dexhorthy-humanlayer-agent-harness-research.md`.
-- ⬜ Add runtime hook enforcement for the workflow governor — implement Codex
-  and/or Claude hook files that mirror the Question Gate and gate-ledger checks,
-  block stop/phase advancement when the artifact says blocked, and prove the
-  hooks with deterministic selftests instead of claiming hook enforcement from
-  skill text alone.
+- ⬜ Detect gate-failure override in `kbcheck` — add a gate-ledger assertion that
+  compares recorded gate results against phase advancement and delivery, so a
+  session that runs a gate, sees a failure, and proceeds anyway is caught
+  deterministically. Scope is a `kbcheck` check, not a runtime hook.
+  Runtime hook enforcement was measured and rejected on 2026-08-28: the
+  `never ran the gate` failure mode occurred in 0 of 22 working sessions over 30
+  days, so compulsion hooks would close a hole with no observed instances while
+  breaking the `AGENTS.md` portability contract. The override case remains
+  unquantified because the supporting telemetry queries time out. Evidence:
+  `docs/results/2026-08-28-gate-compliance-measurement.md`.
 - ⬜ Continue markdown-to-runtime extraction — move remaining deterministic
   hot-path skill rules into `kbcheck` checks; keep `SKILL.md` for judgment,
   scope, escalation, and tradeoffs.

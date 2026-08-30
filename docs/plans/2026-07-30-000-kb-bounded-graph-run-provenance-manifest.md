@@ -4,7 +4,9 @@ manifest_schema: 2
 kb_id: kb-2026-07-30-bounded-graph-run-provenance
 brainstorm_path: docs/context/goals/bounded-graph-run-provenance.md
 created: 2026-07-30
-status: active
+status: retired
+retired: 2026-08-28
+retired_reason: planned but never executed past the slice-001 red test; branch dropped, no consumer regressed
 workflow_shape: pipeline-change
 objective_contract: true
 blocker_lifecycle_contract: true

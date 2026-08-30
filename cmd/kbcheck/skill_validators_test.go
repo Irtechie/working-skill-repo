@@ -77,6 +77,71 @@ func TestSkillSyncReportFindsRequiredDrift(t *testing.T) {
 	}
 }
 
+// TestSkillSyncReportSeparatesUncommittedSourceFromRealDrift pins the two cases
+// a working-tree-only comparison cannot tell apart. Before HEAD awareness, both
+// reported drift-required, so an uncommitted edit raised a sync failure that no
+// sync could clear and real staleness was indistinguishable from it.
+func TestSkillSyncReportSeparatesUncommittedSourceFromRealDrift(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	required := filepath.ToSlash(filepath.Join(root, "required"))
+	writeFile(t, filepath.Join(root, "config", "skill-quality.json"), `{
+	  "sync_targets": [
+	    {"id":"source","path":".github/skills","classification":"source","required":true},
+	    {"id":"required","path":"`+required+`","classification":"required","required":true}
+	  ]
+	}`)
+	skillFile := filepath.Join(root, ".github", "skills", "demo", "SKILL.md")
+	writeFile(t, skillFile, "committed content\n")
+
+	gitOK(t, root, "init")
+	gitOK(t, root, "config", "user.email", "test@example.com")
+	gitOK(t, root, "config", "user.name", "Sync Report Test")
+	gitOK(t, root, "add", ".")
+	gitOK(t, root, "commit", "-m", "fixture")
+
+	// The target holds exactly what was committed, while the source carries an
+	// edit that has been released to nowhere.
+	writeFile(t, filepath.Join(root, "required", "demo", "SKILL.md"), "committed content\n")
+	writeFile(t, skillFile, "uncommitted local edit\n")
+
+	result, err := computeSkillSyncReport(root, "config/skill-quality.json")
+	if err != nil {
+		t.Fatalf("computeSkillSyncReport returned error: %v", err)
+	}
+	if !result.OK || result.RequiredIssues != 0 {
+		t.Fatalf("target matching HEAD must not be drift, got %#v", result)
+	}
+	if status := syncStatusFor(t, result, "required"); status != "synced-at-head" {
+		t.Fatalf("expected synced-at-head, got %q", status)
+	}
+
+	// A target matching neither HEAD nor the working tree is genuinely stale and
+	// must still fail, or the fix would have silenced the check it repairs.
+	writeFile(t, filepath.Join(root, "required", "demo", "SKILL.md"), "genuinely stale\n")
+	result, err = computeSkillSyncReport(root, "config/skill-quality.json")
+	if err != nil {
+		t.Fatalf("computeSkillSyncReport returned error: %v", err)
+	}
+	if result.OK || result.RequiredIssues != 1 {
+		t.Fatalf("real drift must still fail, got %#v", result)
+	}
+	if status := syncStatusFor(t, result, "required"); status != "drift-required" {
+		t.Fatalf("expected drift-required, got %q", status)
+	}
+}
+
+func syncStatusFor(t *testing.T, result skillSyncResult, target string) string {
+	t.Helper()
+	for _, row := range result.Rows {
+		if row.Target == target {
+			return row.Status
+		}
+	}
+	t.Fatalf("no row for target %q in %#v", target, result.Rows)
+	return ""
+}
+
 func TestSkillHashIgnoresRuntimeCachesButDetectsSourceChanges(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

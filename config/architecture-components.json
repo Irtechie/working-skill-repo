@@ -1,0 +1,12 @@
+{
+  "roots": ["cmd"],
+  "docs_dir": "docs/context/architecture",
+  "components": [
+    "amrbench",
+    "kbbrief",
+    "kbcheck",
+    "kbreconcile",
+    "kbrouter"
+  ],
+  "exempt": []
+}

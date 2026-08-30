@@ -1,8 +1,22 @@
 # Bounded Graph-Run Provenance
 
-Status: active
+Status: retired
 Created: 2026-07-30
-Last updated: 2026-07-30
+Last updated: 2026-08-28
+
+## Retirement
+
+Retired on 2026-08-28 without delivery. Planning completed on 2026-07-30
+(manifest, five slice plans, five context packets, and a research note), but
+execution never advanced past the slice-001 red test. That test lived alone on
+`codex/kb-2026-07-30-bounded-graph-run-provenance` with no implementation
+behind it, so it could never merge without breaking the build, and the branch
+was dropped when this goal was retired.
+
+Nothing in the shipped tool depends on graph-run storage, so no consumer
+regresses. The slice plans and research note are kept as design records. Reopen
+by setting this status back to `active` and re-planning from the existing
+slice plans rather than resurrecting the dropped branch.
 
 ## Objective
 

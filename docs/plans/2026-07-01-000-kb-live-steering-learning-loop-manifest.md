@@ -22,7 +22,7 @@ scope-verified-files:
   - todo-done.md
 brainstorm_path: docs/context/goals/live-steering-learning-loop.md
 created: 2026-07-01
-status: reviewed
+status: completed
 workflow_shape: "skill-bundle-change"
 gate_ledger:
   - gate_id: brainstorm-to-plan

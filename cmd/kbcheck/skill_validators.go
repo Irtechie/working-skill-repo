@@ -1,12 +1,15 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -167,6 +170,7 @@ type syncRow struct {
 	Status         string `json:"status"`
 	SourceHash     string `json:"source_hash"`
 	TargetHash     string `json:"target_hash"`
+	HeadHash       string `json:"head_hash,omitempty"`
 	Suggestion     string `json:"suggestion"`
 }
 
@@ -221,24 +225,40 @@ func computeSkillSyncReport(root, configPath string) (skillSyncResult, error) {
 	sort.Strings(skills)
 	for _, skill := range skills {
 		sourceHash, _ := skillHash(filepath.Join(sourceRoot, skill))
+		// Probed at most once per skill, and only after a target already
+		// disagrees with the working tree, so a clean repository never pays for
+		// a git call.
+		headHash, headKnown, headProbed := "", false, false
 		for _, target := range config.SyncTargets {
 			if target.Classification == "source" {
 				continue
 			}
 			targetRoot := resolveRepoPath(root, target.Path)
+			targetDir := filepath.Join(targetRoot, skill)
 			status := "missing-target"
 			targetHash := ""
 			suggestion := "target path unavailable"
 			if info, err := os.Stat(targetRoot); err == nil && info.IsDir() {
-				if hash, err := skillHash(filepath.Join(targetRoot, skill)); err == nil {
+				if hash, err := skillHash(targetDir); err == nil {
 					targetHash = hash
-					if hash == sourceHash {
+					if !headProbed && hash != sourceHash {
+						headProbed = true
+						headHash, headKnown = committedSkillHash(root, sourceRoot, skill)
+					}
+					switch {
+					case hash == sourceHash:
 						status = "match"
 						suggestion = "none"
-					} else if target.Required {
+					case headKnown && matchesCommitted(targetDir, headHash):
+						// The target holds exactly what was committed. The only
+						// difference is uncommitted local work, which is not a
+						// sync failure and must not be reported as drift.
+						status = "synced-at-head"
+						suggestion = "none; source has uncommitted local edits, sync after committing them"
+					case target.Required:
 						status = "drift-required"
 						suggestion = "review diff before copying source -> target or merging target -> source"
-					} else {
+					default:
 						status = "drift-optional"
 						suggestion = "review diff before copying source -> target or merging target -> source"
 					}
@@ -255,14 +275,50 @@ func computeSkillSyncReport(root, configPath string) (skillSyncResult, error) {
 				Required: target.Required, Status: status, SourceHash: shortHash(sourceHash),
 				TargetHash: shortHash(targetHash), Suggestion: suggestion,
 			}
+			if status == "synced-at-head" {
+				row.HeadHash = shortHash(headHash)
+			}
 			result.Rows = append(result.Rows, row)
-			if target.Required && status != "match" {
+			if target.Required && !syncStatusSatisfied(status) {
 				result.RequiredIssues++
 			}
 		}
 	}
 	result.OK = result.RequiredIssues == 0
 	return result, nil
+}
+
+// syncStatusSatisfied reports whether a required target is acceptably in sync.
+// A target matching HEAD counts, because the source's uncommitted edits have
+// not been released to anywhere yet.
+func syncStatusSatisfied(status string) bool {
+	return status == "match" || status == "synced-at-head"
+}
+
+// matchesCommitted compares a target directory against a HEAD digest. Both
+// sides are hashed with end-of-line normalization because git applies its own
+// EOL filters when materializing committed content, so a byte-exact comparison
+// would report false drift wherever core.autocrlf is in play.
+func matchesCommitted(targetDir, headHash string) bool {
+	if headHash == "" {
+		return false
+	}
+	hash, err := skillHashWith(targetDir, true)
+	if err != nil {
+		return false
+	}
+	return hash == headHash
+}
+
+// committedSkillHash resolves a skill directory to a repository-relative path
+// and hashes it as committed. It returns ok=false for a source root outside the
+// repository, where HEAD content is not a meaningful comparison.
+func committedSkillHash(root, sourceRoot, skill string) (string, bool) {
+	rel, err := filepath.Rel(root, filepath.Join(sourceRoot, skill))
+	if err != nil || strings.HasPrefix(filepath.ToSlash(rel), "../") {
+		return "", false
+	}
+	return headSkillHash(root, rel)
 }
 
 func printSkillSyncReport(w io.Writer, result skillSyncResult, verboseOptional bool) {
@@ -278,10 +334,12 @@ func printSkillSyncReport(w io.Writer, result skillSyncResult, verboseOptional b
 	required := []syncRow{}
 	optional := []syncRow{}
 	for _, row := range result.Rows {
-		if row.Required && row.Status != "match" {
-			required = append(required, row)
+		if syncStatusSatisfied(row.Status) {
+			continue
 		}
-		if !row.Required && row.Status != "match" {
+		if row.Required {
+			required = append(required, row)
+		} else {
 			optional = append(optional, row)
 		}
 	}
@@ -975,6 +1033,14 @@ func addConflictMarkerErrors(root string, config skillQualityConfig, result *ski
 }
 
 func skillHash(skillDir string) (string, error) {
+	return skillHashWith(skillDir, false)
+}
+
+// skillHashWith hashes a skill directory. normalizeEOL collapses CRLF to LF
+// before hashing, which is required only when comparing against content that
+// passed through git's end-of-line filters. skillHash itself must stay
+// byte-exact because its digests are persisted as .kb-sync markers.
+func skillHashWith(skillDir string, normalizeEOL bool) (string, error) {
 	info, err := os.Stat(skillDir)
 	if err != nil || !info.IsDir() {
 		return "", fmt.Errorf("missing skill dir")
@@ -991,14 +1057,14 @@ func skillHash(skillDir string) (string, error) {
 			return nil
 		}
 		name := strings.ToLower(entry.Name())
-		if name == ".ds_store" || name == "thumbs.db" || strings.HasSuffix(name, ".pyc") || strings.HasSuffix(name, ".pyo") {
+		if skipSkillHashFile(name) {
 			return nil
 		}
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil
 		}
-		hash := sha256.Sum256(content)
+		hash := sha256.Sum256(normalizeLineEndings(content, normalizeEOL))
 		rel, _ := filepath.Rel(skillDir, path)
 		lines = append(lines, filepath.ToSlash(rel)+"\t"+hex.EncodeToString(hash[:]))
 		return nil
@@ -1009,6 +1075,78 @@ func skillHash(skillDir string) (string, error) {
 	sort.Strings(lines)
 	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func normalizeLineEndings(content []byte, normalizeEOL bool) []byte {
+	if !normalizeEOL {
+		return content
+	}
+	return bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
+}
+
+// skipSkillHashFile lists the incidental files that never belong to a skill's
+// identity. Both the working-tree and HEAD hash paths call it, so the two can
+// never drift into hashing different file sets and reporting a false mismatch.
+func skipSkillHashFile(name string) bool {
+	lower := strings.ToLower(name)
+	return lower == ".ds_store" || lower == "thumbs.db" ||
+		strings.HasSuffix(lower, ".pyc") || strings.HasSuffix(lower, ".pyo")
+}
+
+// headSkillHash computes the same digest as skillHash, but over the skill as
+// committed at HEAD instead of as it sits in the working tree.
+//
+// It exists because comparing a global install against the working tree cannot
+// distinguish a stale target from an uncommitted local edit. Any dirty skill
+// directory makes every downstream target look like drift, which reports a sync
+// failure that no amount of syncing can fix and hides real drift in the noise.
+//
+// ok is false when HEAD content cannot be read at all: no git, no repository,
+// or a skill that has never been committed. Callers must then keep the
+// working-tree verdict rather than invent a conclusion from a failed probe.
+func headSkillHash(root, relPath string) (string, bool) {
+	slashPath := filepath.ToSlash(relPath)
+	command := exec.Command("git", "-C", root, "archive", "--format=tar", "HEAD", "--", slashPath)
+	var out bytes.Buffer
+	command.Stdout = &out
+	if err := command.Run(); err != nil {
+		return "", false
+	}
+	prefix := slashPath + "/"
+	lines := []string{}
+	reader := tar.NewReader(&out)
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", false
+		}
+		if header.Typeflag != tar.TypeReg {
+			continue
+		}
+		name := filepath.ToSlash(header.Name)
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		rel := strings.TrimPrefix(name, prefix)
+		if strings.Contains(rel, "__pycache__/") || skipSkillHashFile(filepath.Base(rel)) {
+			continue
+		}
+		content, err := io.ReadAll(reader)
+		if err != nil {
+			return "", false
+		}
+		sum := sha256.Sum256(normalizeLineEndings(content, true))
+		lines = append(lines, rel+"\t"+hex.EncodeToString(sum[:]))
+	}
+	if len(lines) == 0 {
+		return "", false
+	}
+	sort.Strings(lines)
+	digest := sha256.Sum256([]byte(strings.Join(lines, "\n")))
+	return hex.EncodeToString(digest[:]), true
 }
 
 func shortHash(hash string) string {

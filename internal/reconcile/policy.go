@@ -139,6 +139,56 @@ func DefaultPolicy() Policy {
 	}
 }
 
+// RehabRetireBudget is the per-run and per-repository ceiling a kb-rehab run
+// applies to the retire classes it owns. Rehab exists to converge a repository
+// in one pass, so the default ceilings of 5 and 3 defeat its purpose directly:
+// a repository holding eight stale branches would need three runs to clean.
+// The value stays finite so a malformed ledger still cannot cause unbounded
+// mutation.
+const RehabRetireBudget = 100
+
+// RehabPolicyVersion distinguishes a rehab plan from a default one. apply.go
+// rejects a bundle whose plan policy version differs from the applying policy,
+// so planning with --rehab and applying without it fails closed instead of
+// silently reverting to the lower ceilings.
+const RehabPolicyVersion = DefaultPolicyVersion + "+rehab"
+
+// RehabPolicy returns DefaultPolicy with the caution ceilings raised for a
+// kb-rehab run, and nothing else changed.
+//
+// The distinction this function draws is between caution and proof. Risk
+// budgets are caution: they cap how much a single run may touch, and for rehab
+// that cap is the blocker rather than the safeguard. Mandatory predicates are
+// proof: they establish that a ref is contained, a worktree is clean, and no
+// live executor owns the work. Rehab gets a pass on the first and none on the
+// second, so every predicate is inherited byte-for-byte from DefaultPolicy.
+//
+// This raises no ceiling that would matter for remote mutation. plan.go's
+// localMutationAuthorized permits only ActionWorktreeRetire and
+// ActionLocalRefRetire to mutate, so flipping ActionMerge or
+// ActionRemoteRefRetire to allowed here would change a field nobody reads and
+// claim a capability the apply surface does not have. Remote deletion and PR
+// merges are performed by the rehab lane itself under the standing
+// authorization in its skill, not by this engine.
+//
+// ActionSalvage is included deliberately. It is Allowed, so the budget is the
+// only thing capping it, and its default effective cap of 1 means a plan
+// surfaces one salvage candidate and defers the rest as
+// "risk-budget-exhausted-or-action-disabled". Raising it makes rehab report
+// every candidate. It still plans with MutationAllowed false, so the effect is
+// complete visibility, not additional mutation.
+func RehabPolicy() Policy {
+	policy := DefaultPolicy()
+	policy.PolicyVersion = RehabPolicyVersion
+	for _, action := range []string{
+		ActionLocalRefRetire, ActionWorktreeRetire, ActionSalvage,
+	} {
+		policy.RiskBudget.PerRun[action] = RehabRetireBudget
+		policy.RiskBudget.PerRepository[action] = RehabRetireBudget
+	}
+	return policy
+}
+
 func predicateForName(name, freshness string) PredicateDefinition {
 	return PredicateDefinition{
 		Name: name, Adapters: adaptersForPredicate(name), Freshness: freshness,

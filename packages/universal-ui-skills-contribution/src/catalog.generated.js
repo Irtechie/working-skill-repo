@@ -262,6 +262,15 @@ export const skillCatalog = Object.freeze([
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-regression-snapshot/SKILL.md"
   },
   {
+    "id": "kb-rehab",
+    "name": "kb-rehab",
+    "description": "Clean house across a repository and check everything in. Invoking this lane is the authorization to commit salvageable uncommitted work, discard provable junk, settle or correct what is provably done, drive every stale branch and worktree to a terminal state, and open, merge, and clean up the pull request that carries it, ending on the default branch with a clean tree. Use when the user asks to clean house, check in, reconcile outstanding work, mark dead or superseded plans, close out branches and worktrees, or get the repository back to a clean starting point. Not for ordinary code cleanup, code review, or delivering one known feature.",
+    "argumentHint": "[optional scope hint, or blank for the whole repository]",
+    "category": "Learning and maintenance",
+    "sourcePath": ".github/skills/kb-rehab/SKILL.md",
+    "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-rehab/SKILL.md"
+  },
+  {
     "id": "kb-repair",
     "name": "kb-repair",
     "description": "Surgical fix loop for QA and lint failures. Progress-based retry with stuck detection and a 5-iteration ceiling. Called by kb-qa when checks fail — not invoked directly by users.",
@@ -417,7 +426,7 @@ export const skillCatalog = Object.freeze([
   {
     "id": "w2d",
     "name": "w2d",
-    "description": "Work to done. Post-plan command that executes a validated manifest, finalizes it, opens a PR, and merges that PR when permissions and required checks allow. Use after kb-plan, or when the user says w2d, 'work to done', 'take it all the way', or 'land it'.",
+    "description": "Work to done. Post-plan command that executes a validated manifest, planning proportionally when none exists, then finalizes it, opens a PR, and merges that PR when permissions and required checks allow. Use after kb-plan, or when the user says w2d, 'work to done', 'take it all the way', or 'land it'.",
     "argumentHint": "[manifest path, or blank to resume the active manifest]",
     "category": "Other",
     "sourcePath": ".github/skills/w2d/SKILL.md",

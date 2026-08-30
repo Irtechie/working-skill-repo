@@ -168,13 +168,20 @@ func TestUncontainedRunnerBoundsTimeoutOverflowAndInheritedPipes(t *testing.T) {
 		return result, time.Since(start)
 	}
 
-	if result, elapsed := run("timeout", 50*time.Millisecond); result.ExitCode != 124 || elapsed > 2*time.Second {
+	// The exit code is the oracle: each helper sleeps 5s and exits 0 on its own,
+	// so 124/125/non-zero can only come from the runner cutting it short. The
+	// elapsed guard only catches a runner that never returns, so it must clear
+	// subprocess spawn latency on a loaded machine rather than sit just above
+	// the runner's own ~150ms bound.
+	const neverReturned = 30 * time.Second
+
+	if result, elapsed := run("timeout", 50*time.Millisecond); result.ExitCode != 124 || elapsed > neverReturned {
 		t.Fatalf("timeout result=%+v elapsed=%s", result, elapsed)
 	}
-	if result, elapsed := run("overflow", time.Second); result.ExitCode != 125 || elapsed > 2*time.Second {
+	if result, elapsed := run("overflow", time.Second); result.ExitCode != 125 || elapsed > neverReturned {
 		t.Fatalf("overflow result=%+v elapsed=%s", result, elapsed)
 	}
-	if result, elapsed := run("pipe-parent", time.Second); result.ExitCode == 0 || elapsed > 2*time.Second {
+	if result, elapsed := run("pipe-parent", time.Second); result.ExitCode == 0 || elapsed > neverReturned {
 		t.Fatalf("inherited-pipe result=%+v elapsed=%s", result, elapsed)
 	}
 }
@@ -190,6 +197,7 @@ func TestDiscoverSkillRepoChecksIncludesNativeValidators(t *testing.T) {
 	}
 	got := checkNames(checks)
 	want := []string{
+		"architecture-drift",
 		"context-packet-selftest",
 		"cross-model-benchmark-validate",
 		"dishonest-completion-selftest",

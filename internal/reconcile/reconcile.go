@@ -71,21 +71,26 @@ type Ledger struct {
 }
 
 type Repository struct {
-	ID                 string       `json:"id"`
-	Root               string       `json:"root"`
-	CommonDir          string       `json:"common_dir,omitempty"`
-	PrimaryWorktree    string       `json:"primary_worktree,omitempty"`
-	CurrentWorktree    string       `json:"current_worktree,omitempty"`
-	CurrentBranch      string       `json:"current_branch,omitempty"`
-	DefaultBranch      string       `json:"default_branch,omitempty"`
-	DefaultBranchState string       `json:"default_branch_state"`
-	Worktrees          []Worktree   `json:"worktrees,omitempty"`
-	Branches           []Branch     `json:"branches,omitempty"`
-	Remotes            []Remote     `json:"remotes,omitempty"`
-	QueueClaims        []QueueClaim `json:"queue_claims,omitempty"`
-	Receipts           []Receipt    `json:"receipts,omitempty"`
-	Evidence           []Evidence   `json:"evidence"`
-	Artifacts          []Artifact   `json:"artifacts"`
+	ID                 string     `json:"id"`
+	Root               string     `json:"root"`
+	CommonDir          string     `json:"common_dir,omitempty"`
+	PrimaryWorktree    string     `json:"primary_worktree,omitempty"`
+	CurrentWorktree    string     `json:"current_worktree,omitempty"`
+	CurrentBranch      string     `json:"current_branch,omitempty"`
+	DefaultBranch      string     `json:"default_branch,omitempty"`
+	DefaultBranchState string     `json:"default_branch_state"`
+	Worktrees          []Worktree `json:"worktrees,omitempty"`
+	Branches           []Branch   `json:"branches,omitempty"`
+	Remotes            []Remote   `json:"remotes,omitempty"`
+	// RemoteAuthority is nil when the caller never opted into a network probe.
+	// That is a different statement from authority being unavailable, so it must
+	// be absent rather than an empty object: omitempty does not suppress a
+	// struct, and "state": "" reads as a failed probe rather than no probe.
+	RemoteAuthority *RemoteAuthority `json:"remote_authority,omitempty"`
+	QueueClaims     []QueueClaim     `json:"queue_claims,omitempty"`
+	Receipts        []Receipt        `json:"receipts,omitempty"`
+	Evidence        []Evidence       `json:"evidence"`
+	Artifacts       []Artifact       `json:"artifacts"`
 }
 
 type Worktree struct {

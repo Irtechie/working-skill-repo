@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-07-25-orchestrator-directed-ddr
 title: Orchestrator-directed DDR manifest
 created: 2026-07-25
-status: reviewed
+status: completed
 workflow_shape: skill-bundle-change
 workspace_mode: shared-serial
 objective_contract: true

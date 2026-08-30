@@ -3,7 +3,7 @@ type: kb-manifest
 kb_id: kb-2026-06-10-review-reference-drift-guard
 brainstorm_path: direct-chat
 created: 2026-06-10
-status: reviewed
+status: completed
 workflow_shape: "skill-bundle-change"
 scope-verified-files:
   - cmd/kbcheck/checks.go

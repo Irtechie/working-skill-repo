@@ -1,8 +1,36 @@
 # EDDR Experimental State
 
-Status: parked-exception
+Status: retired
 Created: 2026-07-27
+Retired: 2026-08-28
 Repository: `Irtechie/working-skill-repo`
+
+## Termination
+
+The campaign was explicitly terminated by the user on 2026-08-28, which is the
+termination branch of the resume condition recorded at the end of this file.
+Every ref this handoff pointed at has been reaped, so the pointers below are
+historical and no longer resolvable.
+
+Reaped refs, recorded so the commits stay recoverable by SHA:
+
+- `refs/heads/parked/eddr-planning-2026-07-27` at `ff733b6d` - superseded. Its
+  `kb-plan/SKILL.md` was 488 lines against 245 on `main`, and `main` had six
+  later commits to that file, so reapplying it would have regressed the skill.
+  Its `skills.md` edit documented `ce-review` and `kb-ddr-plan`, neither of
+  which `main` ships.
+- `preserved/deaderestpool-model-routing-benchmark-20260728211501404` at
+  `dc01367` - superseded. Of its four skills absent from `main`, `kb-finish` and
+  `klfg` self-describe as deprecated aliases for `kb-complete`, `ce-review` is
+  superseded by `kb-review` as the single code-review owner, and `kb-ddr-plan`
+  is ruled out by `kb-plan`'s explicit "Do not create a DDR-specific planner".
+  Of its 865 benchmark files, 759 were run evidence; `main` deliberately kept
+  the curated harness as `evals/amr-model-benchmark`.
+
+The DDR line was not abandoned. It was renamed and absorbed: `model_tier`,
+minimum-capable-tier selection, and unaided-execution precision live in
+`kb-plan` on `main`, delegation-first DDR routing lives in `kb-work`, and the
+benchmark survives as `evals/amr-model-benchmark`.
 
 ## Durable Planning Snapshot
 

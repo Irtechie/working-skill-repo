@@ -26,6 +26,7 @@ Use this file as the router, not the deep dive.
 | Installer / sync | Node installer, PowerShell installer, global target propagation, router binary lifecycle | `bin/kb-install.mjs`; `scripts/install-kb.ps1`; `package.json`; `docs/context/operations/skill-bundle-maintenance.md` | `npm run test`; `doctor`; `skill-sync-report` |
 | UniversalUI Skills contribution | Safe React projection of the canonical skill catalog into `/apps/skills` | `packages/universal-ui-skills-contribution/`; `.github/skills/` | `npm run test:universal-ui-skills`; `npm run pack:universal-ui-skills` |
 | Benchmark / AIC harness | No-paid AMR readiness and paired grading | `cmd/amrbench/`; `evals/amr-model-benchmark/`; `docs/context/architecture/ghcp-aic-benchmark.md` | `amrbench conformance`; `amrbench grade-paired` |
+| `kbbrief` | Deterministic executive-brief renderer: source-owned JSON to Markdown with an optional Mermaid flow | `cmd/kbbrief/`; `cmd/kbbrief/testdata/executive-brief.json` | `go test ./cmd/kbbrief`; invoked by `kb-executive-brief` |
 | Marketplace | Approved-vs-quarantine reusable skill flow | `config/skill-marketplace.json`; `docs/context/architecture/private-skill-marketplace.md` | `marketplace-firebreak`; `marketplace-promote` |
 | Learning model | Durable instincts and scoped promotion | `docs/context/architecture/kb-learning-model.md`; `docs/context/kb/` | `learning-adoption` |
 
