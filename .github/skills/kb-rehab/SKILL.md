@@ -8,11 +8,6 @@ argument-hint: "[optional scope hint, or blank for the whole repository]"
 
 Clean house, then check in. Pair every declared work item against real refs,
 settle or correct what is provably done, drive the rest to a recorded
-disposition, and commit the reconciliation so the next session starts from a
-clean tree instead of a mess.
-
-Clean house, then check in. Pair every declared work item against real refs,
-settle or correct what is provably done, drive the rest to a recorded
 disposition, and land the reconciliation so the next session starts from a
 clean tree on the default branch instead of a mess.
 
@@ -94,6 +89,14 @@ that has sat unmerged since yesterday is exactly what this lane closes out.
 "Another session might be using it" stops being true once the work is a day old,
 and treating it as true is how branches accumulate for weeks.
 
+A queue claim reading `in_progress` is not proof that a session is live. Claims
+decay: `internal/reconcile` withdraws `active-claim` protection once a claim is
+older than `StaleClaimAfter`, matching `stale_claim_review_after_hours` in
+`config/rehab-policy.json`. A process holding a claim for days almost certainly
+died without releasing it, and an expired claim is a stuck sensor rather than a
+reason to preserve. Expiry withdraws only that one protection; dirt,
+containment, credentials, and checkout state each still apply on their own.
+
 If a worktree older than the grace window holds uncommitted work, commit that
 work on its own branch before closing the worktree. Never discard it to make the
 worktree removable.
@@ -152,6 +155,14 @@ swept in or abandoned.
 
    Dead work comes off disk so the next run does not rediscover it. A row the
    survey could not prove terminal stays put and goes to the packet.
+
+   **Inspect the diff before keeping it.** As shipped, `--action remove` does
+   not merely decline to remove an unprovable row: it rewrites that row's status
+   to `blocked` and appends `; kb-rehab: removal blocked: ...` to its link cell.
+   That converts active and pending work into a false `blocked` claim and leaves
+   tool noise in the table. Revert `todo.md` when this happens and route those
+   rows through step 7 instead. Never land a status this lane cannot substantiate;
+   a row that could not be paired with a ref is unproven, not blocked.
 
 7. Route every `orphan-work` pairing to one of four dispositions before the run
    ends. This is agent-owned triage, not a user question:
