@@ -137,7 +137,7 @@ func inventoryRepository(candidate string, options InventoryOptions) (Repository
 		}
 	}
 	repository.QueueClaims, repository.Evidence = inventoryQueue(common, observed, repository.Evidence)
-	applyQueueProtections(&repository)
+	applyQueueProtections(&repository, observed)
 	repository.Receipts, repository.Evidence = inventoryReceipts(common, observed, repository.Evidence)
 	repository.Branches, err = inventoryBranches(root, repository.DefaultBranch, observed, repository.RemoteAuthority)
 	if err != nil {
@@ -426,9 +426,40 @@ func inventoryReceipts(common string, observed time.Time, evidence []Evidence) (
 	})
 }
 
-func applyQueueProtections(repository *Repository) {
+// StaleClaimAfter is how long a non-terminal queue claim keeps protecting the
+// worktree it names. A claim is a statement that some session is working right
+// now, and that statement decays: a process holding a claim for days has
+// almost certainly died without releasing it.
+//
+// Without this bound a single abandoned claim protects its worktree forever, so
+// every later reconciliation reports the artifact as live and declines to touch
+// it. That is not a safety property. It is a stuck sensor that reads "occupied"
+// after the occupant is gone, and it is the specific mechanism by which stale
+// branches and worktrees accumulate for weeks.
+//
+// The window matches stale_claim_review_after_hours in config/rehab-policy.json
+// so the engine and the lane policy agree on when a claim stops being evidence.
+// A claim with no UpdatedAt keeps protecting, because an unstamped claim proves
+// nothing about its own age.
+const StaleClaimAfter = 24 * time.Hour
+
+// claimProtectsWorktree reports whether a claim is still live enough to protect
+// the worktree it names. Expiry only withdraws the "active-claim" protection;
+// it never authorizes anything. Every other predicate - dirt, containment,
+// credentials, checkout state - still has to pass on its own.
+func claimProtectsWorktree(claim QueueClaim, observed time.Time) bool {
+	if claim.Status != "in_progress" && claim.Status != "active" && claim.Status != "paused" {
+		return false
+	}
+	if claim.UpdatedAt.IsZero() {
+		return true
+	}
+	return observed.Sub(claim.UpdatedAt) < StaleClaimAfter
+}
+
+func applyQueueProtections(repository *Repository, observed time.Time) {
 	for _, claim := range repository.QueueClaims {
-		if claim.Status != "in_progress" && claim.Status != "active" && claim.Status != "paused" {
+		if !claimProtectsWorktree(claim, observed) {
 			continue
 		}
 		for index := range repository.Worktrees {
@@ -484,7 +515,7 @@ func repositoryArtifacts(repository Repository, options InventoryOptions) []Arti
 	}
 	for _, claim := range repository.QueueClaims {
 		protections := []string{}
-		if claim.Status == "active" || claim.Status == "in_progress" || claim.Status == "paused" {
+		if claimProtectsWorktree(claim, options.Cutoff) {
 			protections = append(protections, "active-claim")
 		}
 		artifacts = append(artifacts, Artifact{
