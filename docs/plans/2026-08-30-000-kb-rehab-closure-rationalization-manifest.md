@@ -5,7 +5,7 @@ kb_id: kb-2026-08-30-rehab-closure-rationalization
 source: docs/brainstorms/2026-08-30-rehab-closure-rationalization-requirements.md
 source_sha256: 72901ac025c9cae11324473243589722b899728254272a0d5756c6ecf32a74bb
 created: 2026-08-30
-status: completed
+status: reviewed
 workflow_shape: pipeline-change
 objective_contract: true
 model_tier_contract: true
@@ -87,7 +87,7 @@ SHA.
 | plan-to-work | passed | One bounded slice, complete requirement mapping, explicit exclusions, and focused deterministic proof | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
 | slice-closure-001-to-done | passed | `WorkReality` and `RehabRemoval` tests prove ineligible rows are preserved and eligible landed supersession remains removable | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
 | work-to-complete | passed | `closure-001` proof plus `go run ./cmd/kbcheck core` on `11d23df` (`core: ok checks=39`) | `kb-finalize docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
-| complete-to-ship | pending | Final review, exact-tree proof, and `local-release` | `kb-ship` |
+| complete-to-ship | passed | Review receipt, durable aggregate proof, and `go run ./cmd/kbcheck local-release` passed on `a6eea37` | `kb-ship` |
 | delivery | pending | Exact branch head, mergeability, and required GitHub conditions | `kb-land` |
 
 ## Slices
@@ -108,3 +108,15 @@ SHA.
 
 - `remove` may report preservation but may not mutate a row lacking terminal,
   contained, and resolving-artifact proof.
+
+## Finalization
+
+- Aggregate proof: `docs/results/proofs/kb-rehab-closure-20260830-aggregate.md`.
+- Semantic review: `docs/results/code-reviews/kb-rehab-closure-rationalization-20260830-cli.json`
+  (`cli-readiness`; P0=0, P1=0, P2=0, P3=0).
+- Follow-up: resolved 0, logged 0, blocked 0.
+- Knowledge and memory: skipped; this is a bounded correction to existing
+  work-reality behavior with no new durable architecture or workflow contract.
+- Cleanup: no run-owned ephemeral repository artifacts remained.
+
+Status: reviewed.

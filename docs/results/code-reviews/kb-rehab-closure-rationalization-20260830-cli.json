@@ -7,7 +7,7 @@
     "sha256": "72901ac025c9cae11324473243589722b899728254272a0d5756c6ecf32a74bb"
   },
   "proof_receipt": {
-    "path": "C:\\Users\\marowe\\.copilot\\session-state\\a82b3642-1dd2-4e8f-9539-1a0b58bbe9c5\\files\\closure-aggregate-proof.md",
+    "path": "docs/results/proofs/kb-rehab-closure-20260830-aggregate.md",
     "sha256": "236d5f273f9cc9dd3a0671ce3a9876d5efdc292fc37957e1c8a70f6066e1edcb"
   },
   "risk_classification": "destructive CLI mutation of user-authored todo.md state",
