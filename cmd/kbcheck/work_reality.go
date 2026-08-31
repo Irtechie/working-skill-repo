@@ -1339,19 +1339,6 @@ func applyWorkRealityMarks(root string, report workRealityReport, policy workRea
 		}
 		terminal := pairing.State == workRealityStateDead || pairing.State == workRealityStateSuperseded
 		if !terminal || pairing.Contained != "true" {
-			if removalRequested {
-				// R8: an uncontained commit blocks removal. The row stays and
-				// is re-marked so the blocked state is visible in todo.md.
-				planned = append(planned, workRealityMarkWrite{
-					PairingID:  pairing.ID,
-					DeclaredID: declared.ID,
-					Line:       declared.Line,
-					Operation:  "mark",
-					Marker:     rehabMarkerBlocked,
-					Reason:     "removal blocked: state=" + pairing.State + " contained=" + pairing.Contained,
-				})
-				continue
-			}
 			result.Preserved++
 			continue
 		}
@@ -1367,10 +1354,11 @@ func applyWorkRealityMarks(root string, report workRealityReport, policy workRea
 			})
 			continue
 		}
-		reason := "marked " + pairing.State + ": " + pairing.Reason
 		if removalRequested {
-			reason = "removal blocked: no superseding or completing artifact is named in the authoritative default tree"
+			result.Preserved++
+			continue
 		}
+		reason := "marked " + pairing.State + ": " + pairing.Reason
 		planned = append(planned, workRealityMarkWrite{
 			PairingID:  pairing.ID,
 			DeclaredID: declared.ID,
