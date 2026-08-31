@@ -8,6 +8,7 @@ created: 2026-08-30
 status: reviewed
 workflow_shape: pipeline-change
 objective_contract: true
+blocker_lifecycle_contract: true
 model_tier_contract: true
 workspace_isolation_contract: true
 proof_governor_contract: true
@@ -51,8 +52,42 @@ plan_run_worktree:
   commit_approval_ref: "Explicit /w2d invocation on 2026-08-30"
 delivery:
   mode: pr
-  merge: manual
+  merge: auto-after-checks
   post_merge_sync: true
+delivery_authority:
+  source: explicit-same-run-user-authorization
+  mode: pr
+  merge: auto-after-checks
+  post_merge_sync: true
+  authorized_actions: [commit, push-topic, create-or-update-pr, merge-after-required-checks, sync-installed-skills]
+  forbidden_actions: [force-push, bypass-branch-protection, bypass-required-checks, bypass-required-reviews, push-default]
+final_audited_shipping_scope:
+  - cmd/kbcheck/work_reality.go
+  - cmd/kbcheck/work_reality_test.go
+  - docs/brainstorms/2026-08-30-rehab-closure-rationalization-requirements.md
+  - docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md
+  - docs/plans/2026-08-30-001-work-reality-remove-safety-plan.md
+  - docs/results/code-reviews/kb-rehab-closure-rationalization-20260830-cli.json
+  - docs/results/proofs/kb-rehab-closure-20260830-aggregate.md
+  - docs/results/proofs/kb-rehab-closure-20260830-closure-001.md
+gate_ledger:
+  - gate_id: complete-to-ship
+    owner_skill: kb-finalize
+    gate_scope: release
+    status: passed
+    required_evidence:
+      - "The aggregate deterministic proof passed on the integrated implementation commit."
+      - "The focused work-reality tests prove only fully eligible terminal rows are removable."
+      - "One CLI-readiness review found no actionable P0-P3 findings."
+      - "The final repository release gate passed after durable proof and review metadata were committed."
+    proof:
+      - docs/results/proofs/kb-rehab-closure-20260830-aggregate.md
+      - docs/results/proofs/kb-rehab-closure-20260830-closure-001.md
+      - docs/results/code-reviews/kb-rehab-closure-rationalization-20260830-cli.json
+      - "go run ./cmd/kbcheck local-release"
+    blockers: []
+    passed_at: "2026-08-31T04:29:28Z"
+    allowed_next_action: "kb-complete docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md"
 ---
 
 # Rehab Closure and DDR Rationalization
