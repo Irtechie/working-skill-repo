@@ -13,9 +13,9 @@ brainstorm_style: kb-brainstorm
 - a stale queue claim protected 163 hours of abandoned changes;
 - `work-reality --action remove` rewrote active and pending rows as `blocked`
   when it could not prove they were removable;
-- PR #36 mixes a useful complexity-based DDR direction with an unproven
-  epistemic-evaluation framework, unrelated Windows ACL changes, and a
-  documentation contradiction that fails the repository gate.
+- PR #36 mixes an unproven epistemic-evaluation framework, unrelated Windows
+  ACL changes, and a documentation-only DDR claim that fails the repository
+  gate.
 
 The outcome is not more enforcement. It is a smaller, truthful workflow that
 does not preserve abandoned work forever, invent blocked status, or turn
@@ -35,9 +35,11 @@ unproven model behavior into a release gate.
 - PR #36's evaluator adds 1,000+ lines across the dispatch surface and
   evaluation corpus, but its new runtime-identity test fails. It has no
   captured baseline or demonstrated promotion result.
-- The same PR's README change correctly moves selection toward slice
-  complexity, but omits the existing invariant that local failure does not
-  trigger a second local route. `ddr_contract_test.go` detects that conflict.
+- The same PR's README change claims complexity-based selection, but its
+  `cmd/kbrouter/dispatch.go` diff adds only evaluator flags, actor-workspace
+  handling, sealed-input checks, and captured evaluator output. It does not
+  implement route selection. `ddr_contract_test.go` detects that the claim
+  also omits the existing no-second-local-route invariant.
 
 **Confidence:** High. Each finding comes from executed tests or the exact
 runtime and mutation paths in this repository.
@@ -55,16 +57,11 @@ runtime and mutation paths in this repository.
 - R3. `--action mark` retains its existing behavior for terminal rows. The
   change is limited to removal-mode nonterminal or uncontained paths.
 
-**Complexity-aware DDR without roulette**
+**No unsupported DDR delivery**
 
-- R4. DDR chooses an execution owner from currently qualified routes using the
-  slice's required capability and complexity, never provider prestige, a model
-  name, or a durable provider list.
-- R5. A failed local route returns to the parent for a new explicit ownership
-  decision; it must not silently try a second local route or downgrade.
-- R6. `README.md`, `.github/skills/kb-work/SKILL.md`,
-  `docs/context/architecture/kb-workflow.md`, and
-  `cmd/kbcheck/ddr_contract_test.go` state and test one consistent policy.
+- R4. Do not land PR #36's documentation-only complexity-selection claim.
+  Preserve the existing, already-consistent DDR policy and its
+  no-second-local-route invariant.
 
 **Cut unproven machinery and close delivery**
 
@@ -73,10 +70,10 @@ runtime and mutation paths in this repository.
   only if a future owner supplies a bounded use case and a passing baseline.
 - R8. Do not land the unrelated Windows ACL change from PR #36 as part of DDR
   or rehabilitation work.
-- R9. Extract only the candidate DDR behavior that passes its focused tests,
-  place it on this objective's branch, and close PR #36 as superseded after
-  the replacement is merged.
-- R10. The stale session TODOs for a new remote-authority subsystem are closed
+- R8. Close PR #36 as rejected after the work-reality replacement merges. Its
+  commits remain recoverable by SHA, but it supplies no independently proven
+  behavior to the replacement.
+- R9. The stale session TODOs for a new remote-authority subsystem are closed
   as already satisfied; no replacement code is written.
 
 ## Success Criteria
@@ -84,12 +81,9 @@ runtime and mutation paths in this repository.
 - A non-removable `pending` or `in_progress` fixture row is byte-for-byte
   identical before and after `--action remove`.
 - A removable terminal fixture row is still removed.
-- Targeted DDR tests and `go run ./cmd/kbcheck core` pass on the delivery
-  branch.
-- The replacement PR contains neither epistemic evaluator/corpus paths nor
-  `internal/modelrouting/storage_acl_windows.go`.
-- PR #36 is closed as superseded only after a merged replacement preserves the
-  approved DDR behavior.
+- `go run ./cmd/kbcheck core` passes on the delivery branch.
+- The replacement PR contains no code or documentation copied from PR #36.
+- PR #36 is closed as rejected only after the work-reality repair merges.
 - The repository finishes on `main`, clean and level with `origin/main`.
 
 ## Scope Boundaries
@@ -106,22 +100,19 @@ runtime and mutation paths in this repository.
 
 ## Key Decisions
 
-- Keep complexity-aware DDR; keep the no-second-local-route invariant:
-  complexity decides the first qualified owner, while failure recovery stays
-  explicit and bounded. Evidence: current DDR contract test and PR #36 diff.
-- Cut the evaluator from this delivery: it is a large new gate with no
-  established operational benefit and a failing self-test. Evidence:
-  `cmd/kbcheck/skill_eval_epistemic_test.go` on PR #36.
+- Keep the existing DDR contract unchanged. The candidate does not implement
+  the claimed first-owner selection, so retaining its README wording would
+  turn documentation into a false behavior claim. Evidence: the exact
+  `cmd/kbrouter/dispatch.go` PR #36 diff.
+- Cut the entire PR #36 evaluator delivery: it is a large new gate with no
+  established operational benefit, a failing self-test, and no separable DDR
+  behavior.
 - Change removal-mode preservation from mutation to reporting: a tool cannot
   truthfully convert missing proof into a lifecycle status. Evidence: real
   `todo.md` corruption reproduced by the rehab run.
 
 ## Dependencies / Assumptions
 
-- [safe-assumption] The PR #36 dispatcher changes can be separated from the
-  evaluator changes. Reversible because the original PR remains intact until
-  the replacement merges. Evidence/proof: use a fresh topic branch, explicit
-  file selection, targeted `cmd/kbrouter` tests, and `core`.
 - [safe-assumption] Closing the six remote-authority session TODOs requires no
   repository edit. Reversible because they are session-local task metadata;
   `ResolveRemoteAuthority` plus the opt-in inventory and CLI surfaces are
@@ -132,8 +123,8 @@ runtime and mutation paths in this repository.
 - Repair and land the entire epistemic evaluator: rejected. Its baseline and
   promotion claims remain unproven, while repair would expand the router and
   gate surface solely to validate a premise not needed for rehabilitation.
-- Permit a second local route after failure: rejected. It creates provider
-  roulette and contradicts the existing parent-owned recovery contract.
+- Extract the claimed DDR change: rejected. The candidate's router diff does
+  not contain a route-selection change to extract.
 - Keep remarking non-removable rows as blocked: rejected. Absence of removal
   proof is preservation evidence, not a truthful statement that the work is
   blocked.
@@ -142,9 +133,7 @@ runtime and mutation paths in this repository.
 
 - Make removal-mode preservation non-mutating - an attempted cleanup cannot
   corrupt active work state.
-- Extract and prove complexity-aware DDR - retain useful routing behavior with
-  bounded failure recovery.
-- Deliver the reduced replacement and retire the mixed salvage PR - no stranded
+- Deliver the removal repair and retire the mixed salvage PR - no stranded
   branch or open PR remains after a clean replacement.
 
 ## Outstanding Questions
@@ -152,11 +141,6 @@ runtime and mutation paths in this repository.
 ### Resolve Before Planning
 
 None.
-
-### Deferred to Planning
-
-- [defer-to-planning][Affects R9][Technical] Identify the minimum PR #36
-  dispatcher and test files that prove R4-R5 without carrying evaluator code.
 
 ### Parked / Out of Scope
 

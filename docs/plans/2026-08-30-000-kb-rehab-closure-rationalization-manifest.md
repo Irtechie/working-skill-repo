@@ -3,7 +3,7 @@ type: kb-manifest
 manifest_schema: 3
 kb_id: kb-2026-08-30-rehab-closure-rationalization
 source: docs/brainstorms/2026-08-30-rehab-closure-rationalization-requirements.md
-source_sha256: 5e7dc7db8a1c09b6580e644f0e9e45ec951702dd230e6389dde70a8c4ef81ee1
+source_sha256: 72901ac025c9cae11324473243589722b899728254272a0d5756c6ecf32a74bb
 created: 2026-08-30
 status: planned
 workflow_shape: pipeline-change
@@ -15,9 +15,9 @@ pre_slice_review_contract: true
 pre_slice_review:
   status: not-required
   source: docs/brainstorms/2026-08-30-rehab-closure-rationalization-requirements.md
-  source_sha256: 5e7dc7db8a1c09b6580e644f0e9e45ec951702dd230e6389dde70a8c4ef81ee1
+  source_sha256: 72901ac025c9cae11324473243589722b899728254272a0d5756c6ecf32a74bb
   mode: requirements-wide
-  not_required_reason: "The requirements resolve the only material tradeoff from executed evidence: retain bounded complexity-aware DDR, and cut the unproven evaluator rather than invent a model-specific rule."
+  not_required_reason: "The requirements resolve the only material tradeoff from executed evidence: the candidate contains no separable DDR behavior, so cut its documentation-only claim and evaluator rather than inventing a model-specific rule."
 done_check:
   kind: command_exit
   command: "go run ./cmd/kbcheck local-release"
@@ -59,17 +59,14 @@ delivery:
 
 ## Objective
 
-Remove false rehabilitation blockers without relaxing proof, preserve only the
-useful complexity-aware DDR behavior from PR #36, and finish with no mixed,
-failing salvage branch.
+Remove false rehabilitation blockers without relaxing proof, reject PR #36's
+unproven mixed evaluator/DDR claim, and finish with no mixed failing salvage
+branch.
 
 ## Scope
 
 - `cmd/kbcheck/work_reality.go` and its tests: removal-mode preservation.
-- `cmd/kbrouter/dispatch.go` and tests: bounded complexity-aware owner choice.
-- `README.md`, `kb-work`, `kb-workflow`, and `ddr_contract_test.go`: one DDR
-  policy statement.
-- PR #36: close as superseded after the replacement merges.
+- PR #36: close as rejected after the replacement merges.
 
 The epistemic evaluator/corpus, Windows ACL change, a new authority subsystem,
 provider-specific restrictions, live model calls, and unpaired-work deletion
@@ -78,17 +75,18 @@ are excluded.
 ## Delivery Contract
 
 This branch is the only replacement delivery candidate. It contains only the
-two slices below. After its exact audited head merges, close PR #36 as
-superseded and delete its remote branch; its commits remain recoverable by SHA.
+removal-safety slice below. After its exact audited head merges, close PR #36
+as rejected and delete its remote branch; its commits remain recoverable by
+SHA.
 
 ## Gate Ledger
 
 | Gate | Status | Evidence required | Next action |
 |---|---|---|---|
 | brainstorm-to-plan | passed | Requirements source hash and executed evidence for existing authority, unsafe removal behavior, and PR #36 gate failures | `kb-plan` |
-| plan-to-work | passed | Two serial slices, complete requirement mapping, explicit exclusions, and focused deterministic proof | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
+| plan-to-work | passed | One bounded slice, complete requirement mapping, explicit exclusions, and focused deterministic proof | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
 | slice-closure-001-to-done | passed | `WorkReality` and `RehabRemoval` tests prove ineligible rows are preserved and eligible landed supersession remains removable | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
-| work-to-complete | pending | Both slice proofs plus `go run ./cmd/kbcheck core` | `kb-finalize` |
+| work-to-complete | pending | Slice proof plus `go run ./cmd/kbcheck core` | `kb-finalize` |
 | complete-to-ship | pending | Final review, exact-tree proof, and `local-release` | `kb-ship` |
 | delivery | pending | Exact branch head, mergeability, and required GitHub conditions | `kb-land` |
 
@@ -97,23 +95,16 @@ superseded and delete its remote branch; its commits remain recoverable by SHA.
 | ID | Outcome | Depends on | Tier | Proof |
 |---|---|---|---|---|
 | closure-001 | Non-removable todo rows survive `--action remove` unchanged | none | medium | targeted `WorkReality` tests |
-| closure-002 | Complexity-aware DDR is extracted without a second-local retry or evaluator surface | closure-001 | medium | router and DDR contract tests |
 
 ## Requirement Mapping
 
 | Requirement | Slice / outcome |
 |---|---|
 | R1-R3 | closure-001 |
-| R4-R6 | closure-002 |
-| R7-R9 | closure-002 plus delivery contract |
-| R10 | Already satisfied; close the duplicate session task with the existing-authority tests |
+| R4, R7-R8 | delivery contract |
+| R9 | Already satisfied; close the duplicate session task with the existing-authority tests |
 
 ## Constraints
 
 - `remove` may report preservation but may not mutate a row lacking terminal,
   contained, and resolving-artifact proof.
-- The parent, not a fallback roulette, owns recovery after a local route fails.
-- No model name, provider, or historical complaint is a normal-path routing
-  rule.
-- Do not copy code from PR #36 without a focused test that proves its retained
-  behavior.
