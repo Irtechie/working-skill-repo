@@ -84,7 +84,7 @@ gate_ledger:
       - docs/results/proofs/kb-rehab-closure-20260830-aggregate.md
       - docs/results/proofs/kb-rehab-closure-20260830-closure-001.md
       - docs/results/code-reviews/kb-rehab-closure-rationalization-20260830-cli.json
-      - "go run ./cmd/kbcheck local-release"
+      - docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md
     blockers: []
     passed_at: "2026-08-31T04:29:28Z"
     allowed_next_action: "kb-complete docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md"
