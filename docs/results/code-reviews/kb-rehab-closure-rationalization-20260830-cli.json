@@ -1,0 +1,36 @@
+{
+  "review_policy_version": 1,
+  "base_commit": "43cc7e0530f505f59eee5ce753202ff1c99c30cb",
+  "integrated_commit": "11d23df7ac3b38cde08ea000ef14de074ef961cf",
+  "requirements": {
+    "path": "docs/brainstorms/2026-08-30-rehab-closure-rationalization-requirements.md",
+    "sha256": "72901ac025c9cae11324473243589722b899728254272a0d5756c6ecf32a74bb"
+  },
+  "proof_receipt": {
+    "path": "C:\\Users\\marowe\\.copilot\\session-state\\a82b3642-1dd2-4e8f-9539-1a0b58bbe9c5\\files\\closure-aggregate-proof.md",
+    "sha256": "236d5f273f9cc9dd3a0671ce3a9876d5efdc292fc37957e1c8a70f6066e1edcb"
+  },
+  "risk_classification": "destructive CLI mutation of user-authored todo.md state",
+  "selected_profile": "cli-readiness",
+  "review_mode": "read-only semantic review",
+  "changed_paths": [
+    "cmd/kbcheck/work_reality.go",
+    "cmd/kbcheck/work_reality_test.go",
+    "docs/brainstorms/2026-08-30-rehab-closure-rationalization-requirements.md",
+    "docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md",
+    "docs/plans/2026-08-30-001-work-reality-remove-safety-plan.md",
+    "docs/results/proofs/kb-rehab-closure-20260830-closure-001.md"
+  ],
+  "findings": [],
+  "finding_counts": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "p3": 0
+  },
+  "follow_up_resolution": "resolved 0, logged 0, blocked 0",
+  "residual_risks": [
+    "Removal still relies on live authoritative-remote, containment, and resolving-artifact probes; unavailable authority fails closed.",
+    "The review inspected the aggregate proof receipt and did not re-execute it."
+  ]
+}

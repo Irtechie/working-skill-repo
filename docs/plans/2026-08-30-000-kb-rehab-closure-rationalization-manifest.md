@@ -5,7 +5,7 @@ kb_id: kb-2026-08-30-rehab-closure-rationalization
 source: docs/brainstorms/2026-08-30-rehab-closure-rationalization-requirements.md
 source_sha256: 72901ac025c9cae11324473243589722b899728254272a0d5756c6ecf32a74bb
 created: 2026-08-30
-status: planned
+status: completed
 workflow_shape: pipeline-change
 objective_contract: true
 model_tier_contract: true
@@ -86,7 +86,7 @@ SHA.
 | brainstorm-to-plan | passed | Requirements source hash and executed evidence for existing authority, unsafe removal behavior, and PR #36 gate failures | `kb-plan` |
 | plan-to-work | passed | One bounded slice, complete requirement mapping, explicit exclusions, and focused deterministic proof | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
 | slice-closure-001-to-done | passed | `WorkReality` and `RehabRemoval` tests prove ineligible rows are preserved and eligible landed supersession remains removable | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
-| work-to-complete | pending | Slice proof plus `go run ./cmd/kbcheck core` | `kb-finalize` |
+| work-to-complete | passed | `closure-001` proof plus `go run ./cmd/kbcheck core` on `11d23df` (`core: ok checks=39`) | `kb-finalize docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
 | complete-to-ship | pending | Final review, exact-tree proof, and `local-release` | `kb-ship` |
 | delivery | pending | Exact branch head, mergeability, and required GitHub conditions | `kb-land` |
 
