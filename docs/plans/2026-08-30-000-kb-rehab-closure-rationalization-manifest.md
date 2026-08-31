@@ -87,6 +87,7 @@ superseded and delete its remote branch; its commits remain recoverable by SHA.
 |---|---|---|---|
 | brainstorm-to-plan | passed | Requirements source hash and executed evidence for existing authority, unsafe removal behavior, and PR #36 gate failures | `kb-plan` |
 | plan-to-work | passed | Two serial slices, complete requirement mapping, explicit exclusions, and focused deterministic proof | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
+| slice-closure-001-to-done | passed | `WorkReality` and `RehabRemoval` tests prove ineligible rows are preserved and eligible landed supersession remains removable | `kb-work docs/plans/2026-08-30-000-kb-rehab-closure-rationalization-manifest.md` |
 | work-to-complete | pending | Both slice proofs plus `go run ./cmd/kbcheck core` | `kb-finalize` |
 | complete-to-ship | pending | Final review, exact-tree proof, and `local-release` | `kb-ship` |
 | delivery | pending | Exact branch head, mergeability, and required GitHub conditions | `kb-land` |

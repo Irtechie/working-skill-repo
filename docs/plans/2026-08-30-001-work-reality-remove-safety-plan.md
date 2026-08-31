@@ -1,7 +1,7 @@
 ---
 slice_id: closure-001
 title: Preserve non-removable todo rows during work-reality removal
-status: planned
+status: done
 blockers: []
 verification: tdd
 test_level: functional-cli
@@ -72,3 +72,13 @@ byte-for-byte unchanged.
 
 Do not change terminal classifications, remote-authority proof, marker grammar,
 or any `todo.md` row in the repository outside fixtures.
+
+## Implementation Evidence
+
+- `go test ./cmd/kbcheck -run 'WorkReality|RehabRemoval' -count=1` passed.
+- `TestRehabRemovalPreservesUncontainedInProgressRowByteForByte` fails against
+  the prior implementation and proves the fixed command writes no marker or
+  link note.
+- `TestRehabRemovalPreservesTerminalRowWithoutResolvingArtifact` proves removal
+  does not fall back to a skipped marker.
+- The existing landed-supersession removal test remains green.

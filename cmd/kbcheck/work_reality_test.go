@@ -912,7 +912,7 @@ func TestRehabMarkRefusesEntirelyOnFailClosedReport(t *testing.T) {
 	}
 }
 
-func TestRehabRemovalBlockedByUncontainedCommitsRemarksTheRow(t *testing.T) {
+func TestRehabRemovalPreservesUncontainedInProgressRowByteForByte(t *testing.T) {
 	fixture := newWorkRealityFixture(t)
 	root := fixture.Root
 
@@ -932,6 +932,7 @@ func TestRehabRemovalBlockedByUncontainedCommitsRemarksTheRow(t *testing.T) {
 		"| Unshipped thing | \U0001F527 in_progress | `codex/unshipped` |",
 		"",
 	}, "\n"))
+	before := readTodo(t, root)
 
 	report := runWorkRealityAction(t, root, workRealityActionRemove)
 	pairing := reportPairing(t, report, "branch:codex/unshipped")
@@ -940,13 +941,13 @@ func TestRehabRemovalBlockedByUncontainedCommitsRemarksTheRow(t *testing.T) {
 	}
 	body := readTodo(t, root)
 	if !strings.Contains(body, "Unshipped thing") {
-		t.Fatalf("an uncontained commit must block removal, got:\n%s", body)
+		t.Fatalf("an uncontained commit must preserve its row, got:\n%s", body)
 	}
-	if !strings.Contains(body, rehabMarkerBlocked) {
-		t.Fatalf("a blocked removal must re-mark the row, got:\n%s", body)
+	if after := readTodo(t, root); after != before {
+		t.Fatalf("a non-removable row must remain byte-for-byte unchanged:\n%s", after)
 	}
-	if !strings.Contains(body, "removal blocked") {
-		t.Fatalf("the block must name its reason, got:\n%s", body)
+	if report.Marks == nil || report.Marks.Applied || len(report.Marks.Writes) != 0 {
+		t.Fatalf("preservation must report zero writes, got %+v", report.Marks)
 	}
 }
 
@@ -988,6 +989,20 @@ func TestRehabRemovalPermittedWhenArtifactLandedAndRefContained(t *testing.T) {
 	}
 	if report.Marks == nil || len(report.Marks.Writes) != 1 || report.Marks.Writes[0].Operation != "remove" {
 		t.Fatalf("expected exactly one recorded removal, got %+v", report.Marks)
+	}
+}
+
+func TestRehabRemovalPreservesTerminalRowWithoutResolvingArtifact(t *testing.T) {
+	root := deadDeclaredFixture(t, "\U0001F527 in_progress")
+	before := readTodo(t, root)
+
+	report := runWorkRealityAction(t, root, workRealityActionRemove)
+
+	if after := readTodo(t, root); after != before {
+		t.Fatalf("a terminal row without a resolving artifact must remain unchanged:\n%s", after)
+	}
+	if report.Marks == nil || report.Marks.Applied || len(report.Marks.Writes) != 0 || report.Marks.Preserved == 0 {
+		t.Fatalf("missing resolving artifact must preserve rather than mark, got %+v", report.Marks)
 	}
 }
 
