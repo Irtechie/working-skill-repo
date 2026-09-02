@@ -75,7 +75,7 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-cognitive",
     "name": "kb-cognitive",
-    "description": "Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, or responses while preserving technical truth. Select the smallest useful presentation: plain language, ranked bullets, a comparison table, a decision block, or a workflow diagram when relationships matter. Use when the user says 'cognitive', 'cognitive burden', 'compact', 'fewer words', 'make this terse', 'organize the response', 'talk to me like a person', 'limited time', 'low cognitive burden', 'make this easy to understand', 'easy to read', 'show me visually', 'token diet', 'every token pays rent', or when KB docs are getting too large for routine session startup.",
+    "description": "Lower the cognitive burden of KB memory, docs, handoffs, skill drafts, user-facing completion/status returns, or PR first screens while preserving technical truth. Select the smallest useful presentation and escalate from prose through static visuals to a bounded interactive walkthrough only when the information shape earns it. Use when the user says 'cognitive', 'cognitive burden', 'compact', 'fewer words', 'make this terse', 'organize the response', 'talk to me like a person', 'limited time', 'low cognitive burden', 'make this easy to understand', 'easy to read', 'show me visually', 'token diet', 'every token pays rent', or when KB docs are getting too large for routine session startup.",
     "argumentHint": "[file path, response, or doc area to make easier to read]",
     "category": "Learning and maintenance",
     "sourcePath": ".github/skills/kb-cognitive/SKILL.md",

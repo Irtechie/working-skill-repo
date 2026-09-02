@@ -143,8 +143,6 @@ reviews.
 
 ## Task Routing
 
-![KB task routing workflow](docs/assets/kb-routing-workflow.png)
-
 `kb-start` calls `kb-map` first, then chooses by task shape:
 
 | Request signal | Route | Exit evidence |
@@ -299,6 +297,11 @@ Blockers are responsibility-first. Test, code, controller, browser, and
 reproducibility failures stay agent-owned while safe repair remains.
 `human-required` is reserved for authority, credentials, private input,
 irreversible risk, or subjective judgment.
+
+When KB returns control, it makes the state explicit: **Done**, **Agent
+continues**, or **You need to decide**. It uses the cheapest useful presentation:
+plain text, a table, a real UI screenshot, Mermaid, or an optional interactive
+walkthrough only when simpler formats cannot carry the relationship.
 
 ## What Makes KB Different
 

@@ -44,6 +44,19 @@ The PR is an executive first screen, not a chronological work diary. Lead with
 the outcome and the reviewer-owned decision. Keep exact evidence, blockers,
 risks, and safety information.
 
+### Presentation Ladder
+
+Keep text as the default. Use a table for repeated fields, one real screenshot
+for a small rendered UI change, and Mermaid for a compact sequence or
+relationship. Use `interactive-workflow-workbench-light` only when one bounded
+path benefits from a few selectable nodes. Reserve the full
+`interactive-workflow-workbench` for epic, multi-path, deep-evidence, or
+client/showcase presentation.
+
+These are optional visual companions, not PR requirements. If an optional visual
+capability is unavailable, the static PR first screen remains complete and
+delivery continues.
+
 ## Companion Document
 
 Link a companion document when the change required material research, design

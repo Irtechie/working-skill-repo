@@ -41,7 +41,7 @@ Each row maps to `.github\skills\<skill>\SKILL.md`.
 | `kb-architecture-deepening` | Explore where architecture needs deeper modularity | Use for architecture questions, not routine cleanup |
 | `kb-brainstorm` | Produce proportional requirements | Use for vague ideas or before planning |
 | `kb-check` | Run deterministic repo proof | Use when tests, lint, builds, or scripts should judge correctness |
-| `kb-cognitive` | Reduce comprehension effort and select the smallest useful response format | Use when KB docs or outputs are noisy, hard to scan, or need a table/flow to expose relationships |
+| `kb-cognitive` | Reduce comprehension effort in durable docs and user-facing returns, then select the smallest useful presentation | Use when KB docs or outputs are noisy, or at a completion/status/decision/PR boundary that needs clearer ownership or relationships |
 | `kb-complete` | Single state-aware end-to-end completion command | Use to take work from current state to configured endpoint |
 | `kb-configure` | Set optional per-project execution/delivery policy | Use to inspect or change attempts/delivery settings |
 | `kb-epic` | Coordinate large multi-workstream initiatives | Use for migrations, rewrites, or large related backlogs |

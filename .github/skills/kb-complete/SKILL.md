@@ -323,7 +323,33 @@ Never delete a husk containing non-reproducible files.
 
 ## Terminal Outcomes
 
+Apply the `kb-cognitive` return-boundary contract before terminal output. Start
+with one control state:
+
+- **Done** for `local`, `pr-open` with review as the accepted endpoint,
+  `landed`, or `nothing-to-deliver` when no immediate human action is required.
+- **Agent continues** only for a meaningful status returned while another
+  authorized phase, safe repair, or retry remains active.
+- **You need to decide** only for a hard human-owned authorization, private
+  input, irreversible risk, subjective judgment, or disposition choice after
+  safe agent-owned recovery is exhausted.
+
+`blocked` and `delivery-blocked` do not choose the control label by themselves:
+
+- If safe repair or retry remains, use **Agent continues** and keep working; the
+  outcome is not terminal.
+- If implementation is complete and the accepted endpoint is waiting for review
+  with no immediate user action, use **Done** and name the pending delivery
+  state.
+- If every safe agent-owned recovery path is exhausted and continuing requires a
+  human disposition decision, use **You need to decide** with the exact choice,
+  blocked scope, and recommendation. Do not relabel the underlying technical
+  failure as human-owned or ask the user to perform the agent's test or repair.
+
+Then preserve the exact delivery evidence:
+
 ```text
+Control: Done | Agent continues | You need to decide
 KB complete: local|pr-open|landed|nothing-to-deliver|delivery-blocked|blocked
 Manifest: <path>
 Finalization: <complete-to-ship status>
@@ -343,30 +369,21 @@ Next: none|<exact resume action>
 Do not report `landed` unless the remote default branch contains the delivered
 commit and any configured post-integration sync has been verified.
 
-## Terminal Integration Question
+## PR-Open Return
 
-After reporting `pr-open`, ask exactly one question and then stop:
+Wait for review is the safe default under `merge: manual`. Report **Done** with
+the review-ready PR URL and state that no response is needed now. Do not ask a
+terminal integration question or force the user to choose between syncing and
+waiting.
 
-```text
-PR is ready for review: <url>
-Sync now, or wait for PR review?
-```
+If the current run already carries valid merge authorization, report
+**Agent continues** and invoke `kb-land`; PR creation is not the return boundary.
+If the user later says to merge or sync, treat that as new run-scoped authority
+and invoke `kb-land`, which still verifies required checks, approvals, exact PR
+head, and remote-default containment.
 
-Rules:
-
-- Ask only when the PR is genuinely review-ready: pushed, correctly based,
-  proof green, and scope audited. Never ask to paper over a failed gate.
-- Ask once. A `local`, `nothing-to-deliver`, `delivery-blocked`, or `blocked`
-  outcome has nothing to decide, so do not ask.
-- "Wait for PR review" is the default on silence. Leaving a PR open is a
-  finished state, not an unfinished one.
-- "Sync now" authorizes integration for this run only. It never writes policy,
-  never enables `auto-after-checks`, and never implies future auto-merge.
-- Honor the answer through `kb-land`, which still verifies that the remote
-  default branch contains the delivered commit.
-
-This is the only terminal question. Do not also ask whether to commit, push,
-open a PR, clean up, or retire a worktree: those are agent-owned.
+Do not ask whether to commit, push, open a PR, clean up, or retire a worktree:
+those are agent-owned.
 
 ## Compatibility
 
