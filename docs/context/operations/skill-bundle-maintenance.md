@@ -4,12 +4,16 @@ This document holds operational detail that should not live in the root README.
 
 ## Repo Boundary
 
-This repo should contain skills, agents, native gate tooling, templates, and durable
-references needed by the workflow. It should not carry consuming-project
-brainstorms, plans, handoffs, research notes, or context maps unless the work is
-explicitly about maintaining this skill bundle.
+The tracked public tree contains skills, agents, installer/package source,
+native gate tooling, eval fixtures, configuration, and curated architecture,
+operations, and research references.
 
-Consuming projects own their local:
+Maintenance work still uses KB memory locally, but `.gitignore` keeps todos,
+brainstorms, plans, handoffs, run results, generated learning views, and
+project-memory state out of the public bundle. Create and update those files
+normally during local work; do not force-add them.
+
+Consuming projects own their:
 
 - `todo.md`
 - `todo-done.md`
@@ -19,6 +23,10 @@ Consuming projects own their local:
 - `config/pipelines/*.json`
 - `.atv/pipeline-runs`
 - `.agent-marketplace/skill-lock.json`
+
+Unlike this bundle source, a consuming project may choose to version durable
+memory such as `todo.md`, `docs/context/`, `docs/solutions/`, and handoffs when
+that history is part of the project's operating model.
 
 ## Canonical Gates
 

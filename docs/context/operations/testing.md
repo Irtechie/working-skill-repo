@@ -202,7 +202,7 @@ go run ./cmd/kbcheck graph-route --packet <packet.json>
 go run ./cmd/kbcheck graph-routing-lifecycle-selftest
 go run ./cmd/kbcheck graph-routing-eval --require-ready
 go test ./cmd/kbrouter -run Catalog|Doctor|Policy
-go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
+go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence evals/model-routing/initial-pilot-release-evidence.json
 go test ./cmd/kbcheck -run 'ModelTierEval' -count=1
 go run ./cmd/kbcheck model-tier-eval --evidence <evidence.json> --json
 ```

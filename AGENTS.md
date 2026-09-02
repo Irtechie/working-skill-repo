@@ -10,7 +10,11 @@ On every fresh session or ambiguous work request, let `kb-map` perform the KB me
 - If context or handoff folders are partial, `kb-map` refreshes or creates the missing structure.
 - Do not ask the user to confirm bootstrap or refresh unless the operation would overwrite non-empty user files.
 
-This repo is the portable skill bundle. Do not bootstrap consuming-project memory or create project-work handoffs here by accident. If the user is trying to hand off work from another project, switch to that project root or ask for its path. Only create `todo.md`, `docs/context/PROJECT.md`, or `docs/handoffs/*` in this repo when the work is explicitly about maintaining this skill bundle.
+This repo is the portable skill bundle. Do not bootstrap consuming-project
+memory or create project-work handoffs here by accident. If the user is trying
+to hand off work from another project, switch to that project root or ask for
+its path. Maintenance work may create the normal KB memory files here, but
+they are local, Git-ignored state and must not be added to the public bundle.
 
 ## Skill Sync Workflow
 
@@ -98,7 +102,8 @@ token must pay rent:
 - Do not register broad MCP/tool catalogs in repo config. Prefer built-in
   file/search/CLI tools and enable optional tools only when a task needs them.
 
-Use these project memory files:
+Use these project memory files. Consuming projects decide whether to track
+them; this skill-bundle source repo keeps them local and Git-ignored:
 
 - `todo.md` for active work, blockers, parked work, and handoff pointers.
 - `todo-done.md` for completed-work summaries.
@@ -111,7 +116,10 @@ Do not treat these files as skills. Skills live under `.github/skills/`.
 
 ## Learning Model
 
-Instincts are stored at the narrowest scope that owns them. Durable instinct files live in `docs/context/kb/` (git-tracked); ephemeral artifacts live in `.kb/` (git-ignored).
+Instincts are stored at the narrowest scope that owns them. Durable instinct
+files live in `docs/context/kb/` and are normally git-tracked by consuming
+projects; this bundle source keeps its own maintenance instincts ignored.
+Ephemeral artifacts live in `.kb/` (git-ignored).
 
 Key paths:
 

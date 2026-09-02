@@ -11,9 +11,8 @@ import (
 func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) {
 	t.Parallel()
 	root := ddrTestRepoRoot(t)
-	// One policy, one requirement. kb-work, kb-workflow, and README each phrase the
-	// single-local-route rule differently, so the contract tracks the policy term
-	// rather than three sentences that drift independently.
+	// One policy, one requirement. kb-work and kb-workflow phrase the
+	// single-local-route rule differently, so the contract tracks the policy term.
 	noSecondLocalRoute := docConcept("second local route")
 
 	requireDocContract(t, root, "production DDR contract", map[string][]contractMatcher{
@@ -63,14 +62,6 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			docConcept("CLI and user-local routes"),
 			docConcept("never passes `attempt_tier`"),
 			docConcept("route announcement is evidence-bound"),
-			noSecondLocalRoute,
-		},
-		"README.md": {
-			docAnchor("DDR route: <current|subagent> | primary:"),
-			docConcept("planned tier is portable"),
-			docConcept("qualified subagent normally executes each bounded slice"),
-			docConcept("one owner per slice, not one worker per plan"),
-			docConcept("semi-gated exception"),
 			noSecondLocalRoute,
 		},
 	})

@@ -1,4 +1,0 @@
-command: go test ./cmd/kbcheck -run 'SkillGuidance|Minimality|ReviewReference' -count=1
-exit_code: 0
-result: ok github.com/Irtechie/working-skill-repo/cmd/kbcheck
-checked_at: 2026-07-31T03:22:00Z

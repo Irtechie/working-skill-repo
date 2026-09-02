@@ -94,7 +94,7 @@ switch it back with `--enabled true`.
 Related evidence and docs:
 
 - `docs/context/goals/session-model-routing.md`
-- `docs/results/2026-07-10-session-model-routing-initial-pilot.json`
+- `evals/model-routing/initial-pilot-release-evidence.json`
 - `cmd/kbcheck/model_routing_release.go`
 
 ## Canonical Commands
@@ -102,7 +102,7 @@ Related evidence and docs:
 ```powershell
 go run ./cmd/kbrouter --help
 go test ./cmd/kbrouter -run 'Import|DDRAttempt|Catalog|Doctor|Policy'
-go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence docs/results/2026-07-10-session-model-routing-initial-pilot.json
+go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence evals/model-routing/initial-pilot-release-evidence.json
 ```
 
 ## Sharp Edges

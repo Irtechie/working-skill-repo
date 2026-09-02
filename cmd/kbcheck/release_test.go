@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-const testModelRoutingInitialPilotEvidence = "docs/results/2026-07-10-session-model-routing-initial-pilot.json"
+const testModelRoutingInitialPilotEvidence = "evals/model-routing/initial-pilot-release-evidence.json"
 
 func TestReleaseChecksUseNativeCoreNotPSGate(t *testing.T) {
 	t.Parallel()

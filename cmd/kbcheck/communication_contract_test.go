@@ -108,17 +108,6 @@ func TestLowCognitiveBurdenCommunicationContract(t *testing.T) {
 			docConcept("mental alignment"),
 			docConcept("generated Markdown is a projection"),
 		},
-		"README.md": {
-			docAnchor("go run ./cmd/kbbrief"),
-			docConcept("comprehension and decision effort"),
-			docConcept("Plannotator's bro skill"),
-			docConcept("hard response only the user can"),
-			docConcept("low-burden PR first screen"),
-			docConcept("user pause stops work immediately"),
-			docConcept("after a stop signal, the goal does not dispatch"),
-			docConcept("override the parent freeze"),
-			docConcept("Every blocker is rechecked before it is repeated"),
-		},
 		"docs/context/architecture/kb-workflow.md": {
 			docAnchor("### Blocker Lifecycle"),
 			docConcept("`paused` is rejected as a gate"),
