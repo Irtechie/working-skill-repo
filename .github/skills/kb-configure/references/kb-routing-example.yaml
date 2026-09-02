@@ -1,9 +1,5 @@
 schema_version: 1
 
-experimental_amr:
-  enabled: false
-  affects_normal_work: false
-
 delivery:
   mode: pr
   merge: manual

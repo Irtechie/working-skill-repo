@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -20,6 +21,7 @@ import (
 const (
 	modelTierEvalSchemaVersion = 1
 	modelTierEvalThreshold     = "medium-v1"
+	maxModelTierEvidenceBytes  = 1 << 20
 )
 
 var modelTierEvalIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{2,127}$`)
@@ -182,12 +184,12 @@ type modelTierEvalResult struct {
 }
 
 func runModelTierEvalCommand(root string, opts options, stdout, stderr io.Writer) int {
-	path, err := resolveModelRoutingReleaseFile(root, opts.evidencePath)
+	path, err := resolveModelTierFile(root, opts.evidencePath)
 	if err != nil {
 		fmt.Fprintln(stderr, "model-tier-eval: invalid evidence path")
 		return 2
 	}
-	content, err := readSafeBoundedModelRoutingFile(path)
+	content, err := readSafeBoundedModelTierFile(path)
 	if err != nil {
 		fmt.Fprintln(stderr, "model-tier-eval: evidence input is unavailable or unsafe")
 		return 2
@@ -201,7 +203,7 @@ func runModelTierEvalCommand(root string, opts options, stdout, stderr io.Writer
 		return 2
 	}
 	var evidence modelTierEvidence
-	if err := decodeStrictModelRoutingJSON(path, content, &evidence); err != nil {
+	if err := decodeStrictModelTierJSON(path, content, &evidence); err != nil {
 		fmt.Fprintln(stderr, "model-tier-eval: invalid strict evidence document")
 		return 2
 	}
@@ -447,7 +449,7 @@ func validateModelTierScope(scope modelTierScope) error {
 
 func validateModelTierCohort(cohort modelTierCohort) error {
 	if !modelTierEvalIDPattern.MatchString(cohort.ID) || strings.TrimSpace(cohort.ManifestPath) == "" ||
-		!validReleaseHash(cohort.ManifestSHA256) || !modelTierEvalIDPattern.MatchString(cohort.ManifestSignerID) ||
+		!validModelTierHash(cohort.ManifestSHA256) || !modelTierEvalIDPattern.MatchString(cohort.ManifestSignerID) ||
 		len(cohort.ManifestSignature) != ed25519.SignatureSize*2 ||
 		len(cohort.ExpectedAttemptIDs) == 0 || len(cohort.Families) == 0 {
 		return fmt.Errorf("cohort manifest is incomplete")
@@ -467,11 +469,11 @@ func validateModelTierCohort(cohort modelTierCohort) error {
 }
 
 func loadModelTierCohortManifest(root string, cohort modelTierCohort) (modelTierCohortManifest, bool, error) {
-	path, err := resolveModelRoutingReleaseFile(root, cohort.ManifestPath)
+	path, err := resolveModelTierFile(root, cohort.ManifestPath)
 	if err != nil {
 		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest path is unsafe")
 	}
-	content, err := readSafeBoundedModelRoutingFile(path)
+	content, err := readSafeBoundedModelTierFile(path)
 	if err != nil {
 		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest is unavailable or unsafe")
 	}
@@ -482,7 +484,7 @@ func loadModelTierCohortManifest(root string, cohort modelTierCohort) (modelTier
 		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest is not strict JSON")
 	}
 	var manifest modelTierCohortManifest
-	if err := decodeStrictModelRoutingJSON(path, content, &manifest); err != nil {
+	if err := decodeStrictModelTierJSON(path, content, &manifest); err != nil {
 		return modelTierCohortManifest{}, false, fmt.Errorf("cohort manifest is invalid")
 	}
 	if manifest.SchemaVersion != 1 {
@@ -492,16 +494,16 @@ func loadModelTierCohortManifest(root string, cohort modelTierCohort) (modelTier
 }
 
 func verifyModelTierManifestAuthority(root string, cohort modelTierCohort, manifest []byte) bool {
-	path, err := resolveModelRoutingReleaseFile(root, filepath.Join("config", "model-tier-trust.json"))
+	path, err := resolveModelTierFile(root, filepath.Join("config", "model-tier-trust.json"))
 	if err != nil {
 		return false
 	}
-	content, err := readSafeBoundedModelRoutingFile(path)
+	content, err := readSafeBoundedModelTierFile(path)
 	if err != nil || validateJSONShape(content, 6) != nil {
 		return false
 	}
 	var policy modelTierTrustPolicy
-	if decodeStrictModelRoutingJSON(path, content, &policy) != nil || policy.SchemaVersion != 1 {
+	if decodeStrictModelTierJSON(path, content, &policy) != nil || policy.SchemaVersion != 1 {
 		return false
 	}
 	signature, err := hex.DecodeString(cohort.ManifestSignature)
@@ -525,7 +527,7 @@ func validateModelTierFingerprint(fingerprint modelTierFingerprint) error {
 	for _, hash := range []string{
 		fingerprint.RouteFingerprint, fingerprint.SystemInstructionsHash, fingerprint.ToolsHash, fingerprint.ContextRiskPolicyHash,
 	} {
-		if !validReleaseHash(hash) {
+		if !validModelTierHash(hash) {
 			return fmt.Errorf("execution fingerprint contains an invalid hash")
 		}
 	}
@@ -554,7 +556,7 @@ func validateModelTierAttemptHashes(attempt modelTierAttempt) error {
 		hashes = append(hashes, attempt.ProofSHA256)
 	}
 	for _, hash := range hashes {
-		if !validReleaseHash(hash) {
+		if !validModelTierHash(hash) {
 			return fmt.Errorf("attempt artifact hash is missing or invalid")
 		}
 	}
@@ -601,11 +603,11 @@ func verifyModelTierAttemptArtifacts(root string, cohort modelTierCohort, attemp
 }
 
 func verifyModelTierArtifact(root, label, relative, want string) error {
-	path, err := resolveModelRoutingReleaseFile(root, relative)
+	path, err := resolveModelTierFile(root, relative)
 	if err != nil {
 		return fmt.Errorf("%s path is unsafe", label)
 	}
-	content, err := readSafeBoundedModelRoutingFile(path)
+	content, err := readSafeBoundedModelTierFile(path)
 	if err != nil {
 		return fmt.Errorf("%s artifact is unavailable or unsafe", label)
 	}
@@ -613,6 +615,114 @@ func verifyModelTierArtifact(root, label, relative, want string) error {
 		return fmt.Errorf("%s artifact sha256 mismatch", label)
 	}
 	return nil
+}
+
+func resolveModelTierFile(root, input string) (string, error) {
+	if strings.TrimSpace(input) == "" {
+		return "", fmt.Errorf("path is required")
+	}
+	rootAbs, err := filepath.Abs(filepath.Clean(root))
+	if err != nil {
+		return "", err
+	}
+	resolved := input
+	if !filepath.IsAbs(resolved) {
+		resolved = filepath.Join(rootAbs, filepath.FromSlash(input))
+	}
+	resolved, err = filepath.Abs(filepath.Clean(resolved))
+	if err != nil {
+		return "", err
+	}
+	relative, err := filepath.Rel(rootAbs, resolved)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return "", fmt.Errorf("path must be repository-relative and contained under the repository root")
+	}
+	probe := rootAbs
+	for _, part := range strings.Split(relative, string(filepath.Separator)) {
+		probe = filepath.Join(probe, part)
+		info, statErr := os.Lstat(probe)
+		if statErr != nil {
+			return "", statErr
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("symlink path component is forbidden: %s", part)
+		}
+	}
+	rootCanonical, err := filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		return "", err
+	}
+	resolvedCanonical, err := filepath.EvalSymlinks(resolved)
+	if err != nil {
+		return "", err
+	}
+	canonicalRelative, err := filepath.Rel(rootCanonical, resolvedCanonical)
+	if err != nil || canonicalRelative == "." || canonicalRelative == ".." || strings.HasPrefix(canonicalRelative, ".."+string(filepath.Separator)) || filepath.IsAbs(canonicalRelative) {
+		return "", fmt.Errorf("path must be repository-relative and contained under the repository root")
+	}
+	info, err := os.Lstat(resolvedCanonical)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("evidence input must be a regular file")
+	}
+	if info.Size() > maxModelTierEvidenceBytes {
+		return "", fmt.Errorf("evidence input exceeded %d bytes", maxModelTierEvidenceBytes)
+	}
+	return resolvedCanonical, nil
+}
+
+func readSafeBoundedModelTierFile(path string) ([]byte, error) {
+	before, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if before.Mode()&os.ModeSymlink != 0 || !before.Mode().IsRegular() {
+		return nil, fmt.Errorf("input must be a non-symlink regular file")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	content, err := io.ReadAll(io.LimitReader(file, maxModelTierEvidenceBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	after, err := os.Lstat(path)
+	if err != nil || after.Mode()&os.ModeSymlink != 0 || !os.SameFile(before, opened) || !os.SameFile(opened, after) {
+		return nil, fmt.Errorf("input changed or became a symlink while being read")
+	}
+	if int64(len(content)) > maxModelTierEvidenceBytes || opened.Size() > maxModelTierEvidenceBytes {
+		return nil, fmt.Errorf("%s exceeded %d bytes", filepath.Base(path), maxModelTierEvidenceBytes)
+	}
+	return content, nil
+}
+
+func decodeStrictModelTierJSON(path string, content []byte, value any) error {
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(value); err != nil {
+		return err
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return fmt.Errorf("%s contained trailing JSON content", filepath.Base(path))
+	}
+	return nil
+}
+
+func validModelTierHash(value string) bool {
+	if len(value) != 64 || strings.ToLower(value) != value {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 func admissibleModelAttempt(attempt modelTierAttempt) bool {

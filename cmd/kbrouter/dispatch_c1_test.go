@@ -68,7 +68,7 @@ func TestC1RejectsPreExistingDispatchArtifacts(t *testing.T) {
 
 func TestC1FallbackUsesPerAttemptArtifacts(t *testing.T) {
 	fixture := newDispatchFixture(t, "c1-attempt-artifacts")
-	fixture.writeDelegatedPacket("small", "")
+	fixture.writeDelegatedPacket("small")
 	first := fixture.route("codex.small", "small-model", modelrouting.ClassSmall)
 	fallback := fixture.route("codex.large", "large-model", modelrouting.ClassLarge)
 	fixture.installCatalog(first, fallback)
@@ -95,7 +95,7 @@ func TestC1FallbackUsesPerAttemptArtifacts(t *testing.T) {
 func TestC1ContainmentUnavailableDoesNotStartOrFallback(t *testing.T) {
 	skipIfPrivateACLUnsupported(t)
 	fixture := newDispatchFixture(t, "c1-containment-unavailable")
-	fixture.writeDelegatedPacket("small", "")
+	fixture.writeDelegatedPacket("small")
 	first := fixture.route("codex.small", "small-model", modelrouting.ClassSmall)
 	fallback := fixture.route("codex.large", "large-model", modelrouting.ClassLarge)
 	fixture.installCatalog(first, fallback)

@@ -13,6 +13,8 @@ import {
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(packageRoot, "..", "..");
+const machinePrivatePathPattern =
+  /\b[A-Za-z]:[\\/]{1,2}(?:Users|Documents and Settings)[\\/]{1,2}|\/(?:home|Users)\/|%USERPROFILE%|\$HOME|file\s*:/i;
 
 test("generated catalog exactly matches canonical SKILL.md frontmatter", async () => {
   const current = await collectSkillCatalog(repoRoot);
@@ -32,9 +34,15 @@ test("catalog projection excludes executable markup and machine-private paths", 
   );
   assert.doesNotMatch(
     serialized,
-    /\b[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/]|\/(?:home|Users)\/|%USERPROFILE%|\$HOME|file\s*:/i
+    machinePrivatePathPattern
   );
   assert.ok(skillCatalog.every((skill) => skill.sourcePath.startsWith(".github/skills/")));
+});
+
+test("machine-private path matcher covers serialized Windows paths", () => {
+  const windowsPath = ["C:", "Users", "private-user", "secret"].join("\\");
+  assert.match(windowsPath, machinePrivatePathPattern);
+  assert.match(JSON.stringify(windowsPath), machinePrivatePathPattern);
 });
 
 test("Markdown bodies never cross the catalog boundary", async (t) => {
@@ -51,7 +59,7 @@ argument-hint: "[request]"
 ---
 # Safe Skill
 
-PRIVATE-BODY-MARKER C:\\Users\\private-user\\secret
+PRIVATE-BODY-MARKER local-private-value
 <script>alert("not projected")</script>
 [unsafe](javascript:alert(1))
 `
@@ -61,7 +69,7 @@ PRIVATE-BODY-MARKER C:\\Users\\private-user\\secret
   assert.equal(projected.length, 1);
   assert.doesNotMatch(
     JSON.stringify(projected),
-    /PRIVATE-BODY-MARKER|<script|private-user/
+    /PRIVATE-BODY-MARKER|<script|local-private-value/
   );
 
   await fs.writeFile(

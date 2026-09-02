@@ -93,8 +93,8 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-configure",
     "name": "kb-configure",
-    "description": "Configure portable per-project delivery policy and an explicit experimental AMR benchmark opt-in.",
-    "argumentHint": "[show|amr-experiment-on|amr-experiment-off|delivery-local|delivery-pr|delivery-direct|reset]",
+    "description": "Configure portable per-project delivery and plan-worktree concurrency policy.",
+    "argumentHint": "[show|delivery-local|delivery-pr|delivery-direct|reset]",
     "category": "Learning and maintenance",
     "sourcePath": ".github/skills/kb-configure/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-configure/SKILL.md"

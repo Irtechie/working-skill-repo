@@ -632,7 +632,6 @@ func validateModelSelectionContract(path string) []manifestContractIssue {
 		"catalog":                        "active-host-plus-user-local",
 		"delegated_fallback":             "same-tier-then-higher",
 		"automatic_downward_routing":     "false",
-		"amr_required":                   "false",
 		"automatic_cross_owner_fallback": "false",
 	}
 	issues := []manifestContractIssue{}

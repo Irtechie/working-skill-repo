@@ -91,18 +91,11 @@ returns to the active parent.
 Use `kbrouter models local-routing --enabled false` for the safe atomic write;
 switch it back with `--enabled true`.
 
-Related evidence and docs:
-
-- `docs/context/goals/session-model-routing.md`
-- `evals/model-routing/initial-pilot-release-evidence.json`
-- `cmd/kbcheck/model_routing_release.go`
-
 ## Canonical Commands
 
 ```powershell
 go run ./cmd/kbrouter --help
 go test ./cmd/kbrouter -run 'Import|DDRAttempt|Catalog|Doctor|Policy'
-go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence evals/model-routing/initial-pilot-release-evidence.json
 ```
 
 ## Sharp Edges
@@ -129,4 +122,5 @@ go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence eva
   by standard ACL tooling only when owner and full-control ACEs still match the
   current user plus SYSTEM exactly; inherited ACEs and extra principals remain
   rejected.
-- AMR remains an experimental benchmark and is not part of normal selection.
+- Live local-route behavior needs periodic bounded re-evaluation; deterministic
+  route and proof contracts remain the release gate.

@@ -79,40 +79,6 @@ func TestModelsSelectRejectsVagueCurrentOwnerReason(t *testing.T) {
 	}
 }
 
-func TestModelsSelectReportsExplicitAttemptAndPlannedCorrectionTiers(t *testing.T) {
-	skipIfPrivateACLUnsupported(t)
-	fixture := newDispatchFixture(t, "select-attempt-cli")
-	route := fixture.route("codex.small", "small-model", modelrouting.ClassSmall)
-	route.Capability.Source = modelrouting.EvidenceAdapterPrior
-	route.Capability.DispatchQualified = true
-	route.Capability.ExpiresAt = time.Now().Add(time.Hour)
-	fixture.installCatalog(route)
-	prepared, err := prepareRunRoot(fixture.projectRoot, fixture.runRoot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := saveDispatchTrustedState(fixture.userRoot, prepared, loadRunCatalogForTest(t, fixture.runRoot)); err != nil {
-		t.Fatal(err)
-	}
-	code, stdout, stderr := runForTest("models", "select", "--user-root", fixture.userRoot, "--project-root", fixture.projectRoot, "--run-root", fixture.runRoot, "--run-id", filepath.Base(fixture.runRoot), "--tier", "medium", "--attempt-tier", "small", "--execution-owner", "delegated", "--owner-reason", "experimental-amr-attempt", "--tier-reason", "fixture medium correction floor", "--task-family", "code", "--tool", "codex-harness", "--context-size", "4096", "--risk", "normal", "--prefer", "native", "--json")
-	if code != 0 {
-		t.Fatalf("select failed code=%d stderr=%s stdout=%s", code, stderr, stdout)
-	}
-	var out selectOutput
-	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
-		t.Fatal(err)
-	}
-	if out.Status != modelrouting.SelectionRouted || len(out.Aliases) == 0 || out.Aliases[0] != route.Alias {
-		t.Fatalf("unexpected selection: %#v", out)
-	}
-	if out.PlannedTier != modelrouting.TierMedium || out.AttemptTier != modelrouting.TierSmall {
-		t.Fatalf("selection lost correction metadata: %#v", out)
-	}
-	if out.Preference != modelrouting.PreferenceNativeFirst {
-		t.Fatalf("selection lost run preference: %#v", out)
-	}
-}
-
 func TestModelsSelectLoadsSavedProjectPriorityUnlessRunPreferenceOverrides(t *testing.T) {
 	skipIfPrivateACLUnsupported(t)
 	fixture := newDispatchFixture(t, "select-saved-priority")

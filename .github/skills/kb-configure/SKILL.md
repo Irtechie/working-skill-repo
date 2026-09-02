@@ -1,7 +1,7 @@
 ---
 name: kb-configure
-description: "Configure portable per-project delivery policy and an explicit experimental AMR benchmark opt-in."
-argument-hint: "[show|amr-experiment-on|amr-experiment-off|delivery-local|delivery-pr|delivery-direct|reset]"
+description: "Configure portable per-project delivery and plan-worktree concurrency policy."
+argument-hint: "[show|delivery-local|delivery-pr|delivery-direct|reset]"
 ---
 
 # KB Configure
@@ -10,10 +10,9 @@ Configure optional project execution policy without making ordinary KB startup
 interactive.
 
 Orchestrator-directed DDR is the normal execution path and needs no project
-setup. This skill owns delivery policy and an explicit AMR benchmark opt-in.
-The AMR flag is for experimental harnesses only; normal `kb-work` never reads it
-to choose an execution owner or route. Personal source preference belongs to
-user-local `kb-models` state keyed by project identity.
+setup. This skill owns delivery and plan-worktree concurrency policy. Personal
+source preference belongs to user-local `kb-models` state keyed by project
+identity.
 
 ## Config Path
 
@@ -25,13 +24,9 @@ there. `kbrouter` continues to own host and user-local model configuration.
 
 ## Behavior
 
-1. If the file exists, read it and show a compact experiment/delivery summary. Ask only
+1. If the file exists, read it and show a compact delivery/concurrency summary. Ask only
    which setting the user wants to change when their request is ambiguous.
 2. If the file is absent and an argument was supplied:
-   - `amr-experiment-on` permits a separate controlled AMR benchmark.
-   - `amr-experiment-off` disables that benchmark.
-   - Legacy `attempts-on` and `attempts-off` are readable aliases for those
-     experiment flags only and must not alter normal `kb-work`.
    - `delivery-local` keeps reviewed work local. This is an opt-out: it leaves
      finished work on a branch with no review path, so choose it only for
      scratch or private projects.
@@ -39,7 +34,7 @@ there. `kbrouter` continues to own host and user-local model configuration.
      This is the default when no policy file exists.
    - `delivery-direct` permits verified direct-default integration; protection
      or policy rejection falls back to PR or blocks.
-   - `show` reports AMR experiment disabled and PR/manual delivery without
+   - `show` reports PR/manual delivery and the plan-worktree limit without
      creating a file.
    - `reset` removes only this project policy after explicit confirmation.
 3. If the file is absent and no mode was supplied, show the defaults and the
@@ -53,10 +48,6 @@ there. `kbrouter` continues to own host and user-local model configuration.
 
 ```yaml
 schema_version: 1
-
-experimental_amr:
-  enabled: false
-  affects_normal_work: false
 
 delivery:
   mode: pr
@@ -79,9 +70,8 @@ These safety rules are fixed rather than configurable:
 - `model_tier` is the minimum execution capability, not the validator.
 - Normal work uses one explicit `current` or `delegated` owner decision.
 - Delegated work selects exactly one qualified same-tier-or-higher route.
-- Normal work never passes `attempt_tier`, routes downward automatically, or
-  silently falls back across owners.
-- AMR experiments do not affect normal manifests or work execution.
+- Normal work never routes below the planned tier or silently falls back across
+  owners.
 - Ordinary proof remains authoritative. Routing receipts are telemetry.
 - Repository ownership/write access never selects direct delivery by itself.
 - Direct delivery, automatic merge, and post-merge sync require explicit policy.
@@ -95,9 +85,9 @@ These safety rules are fixed rather than configurable:
 
 When no config exists:
 
-- AMR experiment: disabled.
-- Normal DDR: orchestrator-owned and unaffected by the AMR experiment flag.
-- Delivery: PR with manual merge.
+- Normal DDR is orchestrator-owned.
+- Delivery is PR with manual merge.
+- At most two KB-owned plan-run worktrees may be live per repository.
 - `kb-start`, `kb-plan`, and `kb-work` do not ask configuration questions.
 
 ## Output
@@ -105,5 +95,5 @@ When no config exists:
 After writing, report the path and a one-line summary:
 
 ```text
-KB configured: AMR experiment disabled; normal DDR unchanged; delivery PR/manual.
+KB configured: delivery PR/manual; max plan-run worktrees 2.
 ```

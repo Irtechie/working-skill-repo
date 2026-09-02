@@ -5,14 +5,14 @@ Budget mode: standard
 
 ## Question
 
-What do strong code-review and workflow products do that the current
-`pr-review-workbench` does not, and which patterns should be adopted without
-turning the artifact into a noisy dashboard or unsafe GitHub replacement?
+What did strong code-review and workflow products suggest for improving the
+then-current `pr-review-workbench` without turning the artifact into a noisy
+dashboard or unsafe GitHub replacement?
 
 ## Findings
 
-The current renderer is not actually workflow-like. It leads with a large
-status heading and five fact cards, then offers `Impact`, `Files`, and `Gaps`
+At research time, the renderer was not actually workflow-like. It led with a large
+status heading and five fact cards, then offered `Impact`, `Files`, and `Gaps`
 tabs. The older `interactive-workflow-workbench` example had the missing
 structure: a topology, ordered steps, a decision gate, explicit terminal
 states, and a coordinated evidence inspector.
@@ -125,16 +125,10 @@ every card, fake confidence scores, decorative charts, or a wall of badges.
 - Reimplementing diffs, comments, approvals, or merge controls.
 - External JavaScript, fonts, images, network calls, or browser storage.
 
-## Impact On Current Project
+## Current Adoption
 
-- Replace the current hero-and-tabs renderer with a real decision topology.
-- Add a guided five-step review path and coordinated evidence inspector.
-- Require a commit-pinned impact order for the rich workbench. Grouping by file
-  role remains an explicitly labeled fallback, never an impact claim.
-- Keep small, low-risk, single-area PRs on the compact PR first screen. A rich
-  workbench is automatic only when source-backed impact or a material boundary,
-  downstream path, reconstruction cost, or repair path justifies it.
-- Keep the existing fail-closed packet, SHA pin, CSP, and explicit review
-  mutation boundary.
-- Expand deterministic tests around topology, terminals, application-impact
-  ordering, fallback labeling, inspector controls, and forbidden resources.
+The workbench now implements the decision topology, guided review path,
+coordinated evidence inspector, commit-pinned source-backed impact ordering,
+explicit fallback labels, and fail-closed mutation boundary recommended here.
+Current behavior and proof requirements live in the skill and its references;
+this note preserves the external design rationale.

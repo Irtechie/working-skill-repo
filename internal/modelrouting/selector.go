@@ -8,7 +8,6 @@ import (
 
 type WorkRequest struct {
 	PlannedTier    Tier
-	AttemptTier    Tier
 	ExecutionOwner ExecutionOwner
 	OwnerReason    string
 	TierReason     string
@@ -64,7 +63,6 @@ type SelectionDecision struct {
 	Routes         []Route
 	Current        CurrentModel
 	PlannedTier    Tier
-	AttemptTier    Tier
 	ExecutionOwner ExecutionOwner
 	OwnerReason    string
 	TierReason     string
@@ -145,7 +143,7 @@ func explicitlyDelegatedSelectable(catalog Catalog, alias string, req WorkReques
 	if alias == "" || ledger.Attempted(alias) {
 		return Route{}, false
 	}
-	floor := tierFloor(selectionAttemptTier(req))
+	floor := tierFloor(req.PlannedTier)
 	for _, route := range catalog.Routes {
 		if route.Alias != alias || validateRouteSchema(route) != nil ||
 			!routeAllowedByPolicy(route, req, policy, now) ||
@@ -213,14 +211,7 @@ func currentOwnerReasonCode(reason string) string {
 }
 
 func validTierRequest(req WorkRequest) bool {
-	if !validTier(req.PlannedTier) {
-		return false
-	}
-	if req.AttemptTier == "" {
-		return true
-	}
-	return (req.PlannedTier == TierMedium && req.AttemptTier == TierSmall) ||
-		(req.PlannedTier == TierLarge && req.AttemptTier == TierMedium)
+	return validTier(req.PlannedTier)
 }
 
 func validRoutePreference(preference RoutePreference) bool {
@@ -246,7 +237,7 @@ func preferredSelectable(catalog Catalog, alias string, req WorkRequest, policy 
 	if !completeEnvelope || alias == "" || ledger.Attempted(alias) {
 		return Route{}, false
 	}
-	floor := tierFloor(selectionAttemptTier(req))
+	floor := tierFloor(req.PlannedTier)
 	for _, route := range catalog.Routes {
 		if route.Alias != alias || validateRouteSchema(route) != nil || !routeAllowedByPolicy(route, req, policy, now) || !automaticEligible(route, req, floor, now) {
 			continue
@@ -257,7 +248,7 @@ func preferredSelectable(catalog Catalog, alias string, req WorkRequest, policy 
 }
 
 func eligibleRoutes(catalog Catalog, req WorkRequest, policy PolicyContext, ledger AttemptLedger, now time.Time) []Route {
-	floor := tierFloor(selectionAttemptTier(req))
+	floor := tierFloor(req.PlannedTier)
 	floorRank := classRank(floor)
 	sameClass := make([]Route, 0, len(catalog.Routes))
 	higher := make([]Route, 0, len(catalog.Routes))
@@ -328,16 +319,9 @@ func routeMatchesPreference(route Route, preference RoutePreference) bool {
 
 func selectionDecisionForRequest(req WorkRequest) SelectionDecision {
 	return SelectionDecision{
-		PlannedTier: req.PlannedTier, AttemptTier: selectionAttemptTier(req),
+		PlannedTier:    req.PlannedTier,
 		ExecutionOwner: req.ExecutionOwner, OwnerReason: req.OwnerReason, TierReason: req.TierReason,
 	}
-}
-
-func selectionAttemptTier(req WorkRequest) Tier {
-	if req.AttemptTier != "" {
-		return req.AttemptTier
-	}
-	return req.PlannedTier
 }
 
 func validTier(tier Tier) bool {

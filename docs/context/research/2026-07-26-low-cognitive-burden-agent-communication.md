@@ -98,15 +98,12 @@ tactical history into the PR.
 - Mandatory time estimates: ungrounded estimates create false certainty.
 - Mandatory next actions: completed work should not manufacture user work.
 - A second always-loaded style skill: the ambient rule belongs in `AGENTS.md`;
-  `kb-compact` remains the explicit repair/organization lane.
+  `kb-cognitive` remains the explicit repair/organization lane.
 
-## Impact On Current Project
+## Current Adoption
 
-- Reframe `AGENTS.md` and `kb-compact` around comprehension and responsibility,
-  not terseness.
-- Make `kb-gate` present human-only decisions with the exact ask, reason,
-  consequence, and recommendation.
-- Make `kb-ship` produce a low-burden PR first screen backed by linked
-  companion artifacts.
-- Add deterministic contract coverage so the three responsibility classes
-  cannot disappear silently.
+`AGENTS.md` and `kb-cognitive` now optimize for comprehension and responsibility
+rather than raw terseness. The workflow distinguishes hard human questions,
+soft preferences, and agent-owned information; PR and completion surfaces lead
+with the outcome and required attention. Deterministic contract coverage
+protects the responsibility classes.

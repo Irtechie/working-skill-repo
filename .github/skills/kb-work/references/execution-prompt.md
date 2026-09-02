@@ -120,5 +120,5 @@ Instructions:
 Do not modify other slices' files unless required for this slice.
 Do not add scope beyond what the plan specifies.
 Do not stage unrelated dirty or untracked files.
-Do not invoke AMR or pass `attempt_tier` during normal KB work.
+Do not route below the planned tier or silently change execution owners.
 ```

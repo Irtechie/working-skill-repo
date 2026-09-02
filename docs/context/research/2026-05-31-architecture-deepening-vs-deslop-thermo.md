@@ -61,10 +61,10 @@ deslop-style cleanup and this repo's thermo-nuclear code-quality reviewer?
 - Do not make architecture deepening a base-layer skill; it is specialized and
   should be loaded lazily.
 
-## Impact On Current Project
+## Current Adoption
 
-- Add an architecture-deepening lane to the skill-minimalism epic.
-- Borrow the deletion test and interface-as-test-surface language for
-  thermo-nuclear or a future architecture-deepening skill.
-- Keep the lane optional until loaded-surface measurement proves its cost and
-  evals cover its routing.
+The bundle now keeps these concerns separate: `kb-architecture-deepening`
+explores architectural seams, `kb-simplify` owns explicitly requested cleanup
+of committed code, and the thermo-nuclear reviewer remains a diff-scoped
+structural review profile. Current triggers and boundaries live in the skills
+architecture document.

@@ -23,7 +23,7 @@ Usage:
   kbrouter ddr resolve --run-id <id> --slice-id <id> --proof-result pass|fail --proof-command <command> --proof-artifact-hash sha256:<hex> [--json]
   kbrouter models show [--user-root <path>] [--project-root <path>] [--json]
   kbrouter models discover --run-root <path> [--user-root <path>] [--current-model <id>] [--probe-openai-compatible] [--json]
-  kbrouter models select --run-root <path> --run-id <id> --tier <small|medium|large> [--attempt-tier <small|medium>] --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] [--json]
+  kbrouter models select --run-root <path> --run-id <id> --tier <small|medium|large> --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] [--json]
   kbrouter models priority --project-root <path> (--mode automatic|self-hosted-first|native-first | --clear | --reset) [--json]
   kbrouter models local-routing --enabled true|false [--json]
   kbrouter models approval-mode --mode disabled|required [--json]

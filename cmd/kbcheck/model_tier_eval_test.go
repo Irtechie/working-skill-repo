@@ -120,7 +120,7 @@ func TestModelTierEvalRejectsEscapedSymlinkAndOversizeInput(t *testing.T) {
 			t.Fatal("symlink evidence passed")
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, "large.json"), bytes.Repeat([]byte("x"), int(maxModelRoutingReleaseBytes+1)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "large.json"), bytes.Repeat([]byte("x"), maxModelTierEvidenceBytes+1), 0o644); err != nil {
 		t.Fatalf("write oversized input: %v", err)
 	}
 	if code := run([]string{"model-tier-eval", "--root", root, "--evidence", "large.json", "--json"}, &strings.Builder{}, &strings.Builder{}); code == 0 {

@@ -114,7 +114,7 @@ project files.
 - Choose the user-local approval behavior with `kbrouter models approval-mode --mode disabled|required`. Missing mode defaults to `disabled`, so bounded routing does not pause for endpoint/auth permission. `required` opts into attended approval.
 - Import explicit operator configuration: `kbrouter models import --file <path>`.
 - Discover for one run: `kbrouter models discover --run-root <run-root> --current-model <id>`.
-- Select without mutation: `kbrouter models select --run-root <run-root> --run-id <id> --tier <small|medium|large> --tier-reason <reason> --execution-owner <current|delegated> --owner-reason <reason> --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] --json`. `--tier` is the minimum execution capability. Normal work never passes `--attempt-tier`.
+- Select without mutation: `kbrouter models select --run-root <run-root> --run-id <id> --tier <small|medium|large> --tier-reason <reason> --execution-owner <current|delegated> --owner-reason <reason> --task-family <id> --tool <id> --context-size <n> --risk <normal|broad> [--prefer self-hosted|native] [--override use|require|ignore --alias <alias>] --json`. `--tier` is the minimum execution capability.
 - Add reusable routes only with explicit user scope: `kbrouter models add --scope user ...`. Production user state always lives under the operating-system user's `~/.kb`; a repository cannot redirect credential-consuming commands to its own catalog.
 - When approval mode is `required`, approve endpoint/auth use for the current canonical project with attended `kbrouter models approve --alias <alias>`. `add --approve-endpoint` is the one-step attended equivalent. Both require a live console confirmation bound to the canonical project path, route fingerprint, endpoint origin, auth environment-variable name, and expiry. Redirected/noninteractive approval is refused. Approvals have fixed expiries and live in user-local `trust.json`, never in the route catalog or project.
 - Revoke approval with `kbrouter models revoke --alias <alias>` or record a project-bound denial with `kbrouter models deny --alias <alias>`.
@@ -140,8 +140,6 @@ project files.
   catalog, then select exactly one qualified same-tier or higher route. Do not
   automatically route downward. One failed local DDR attempt returns control to
   the active parent; it never selects a second local route.
-- AMR remains a separate experimental benchmark. Normal `kb-work` never passes
-  `--attempt-tier` and never requires an AMR trial.
 - Do not create user or project catalog files during ordinary startup, `show`, `doctor`, or `discover`.
 - Plain `use <model>`, `require <model>`, and `ignore model routing` are
   natural-language, run-scoped overrides passed to `models select`; they are
