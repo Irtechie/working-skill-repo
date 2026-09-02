@@ -59,11 +59,23 @@ the single code-review owner for KB completion and standalone bundle review.
 Optimize for comprehension and decision effort, not the fewest words. Every
 token must pay rent:
 
+- Apply this policy at user-facing return boundaries: completion, meaningful
+  status, a blocker, a decision, and a pull-request first screen. Internal
+  reasoning, tool calls, and subagent exchanges may stay detailed enough to
+  finish the work.
+- Put practical meaning first and the exact technical name second. For example,
+  say what a cache is doing before naming its implementation or version.
+- When control ownership could be unclear, label one state:
+  - **Done**: the requested endpoint is reached; no response is needed.
+  - **Agent continues**: safe work remains and the agent owns the next action.
+  - **You need to decide**: only the user can unblock the named work or choose
+    its disposition after safe agent-owned repair is exhausted.
 - No preamble or closing filler.
 - Do not restate the user's request.
 - Lead with the answer, route, command, or code.
-- For active work, use a compact `Done | Next | Blocked` state line only when
-  it improves orientation; do not repeat unchanged state every turn.
+- For active work, lead with **Agent continues** plus only the changed outcome,
+  next action, or blocker when that improves orientation; do not repeat
+  unchanged state every turn.
 - Keep the primary response surface to five ranked items. Put optional depth
   under a named `Details` or `Later` section instead of hiding it.
 - Give time estimates only when grounded in observed work or a known wait.
@@ -72,8 +84,14 @@ token must pay rent:
 - Use longer explanations only when they change the decision or reduce rework.
 - Match the format to the information: use plain sentences for a simple answer,
   ranked bullets for independent points, a table for repeated-field comparison,
-  and one workflow diagram for sequence, dependency, branching, ownership, or
-  state change. A visual must remove mental reconstruction, not decorate.
+  a real screenshot for a visible UI change, and one Mermaid workflow diagram
+  for sequence, dependency, branching, ownership, or state change. When those
+  are insufficient, use `interactive-workflow-workbench-light` for one bounded
+  clickable path and the full interactive workbench only for epic, multi-path,
+  deep-evidence, or client/showcase work. A visual must remove mental
+  reconstruction, not decorate.
+- If an optional visual capability is unavailable, fall back to the best static
+  format and continue. Presentation depth never blocks proven core work.
 - Before asking a question, classify it:
   - **hard response required**: only the user can authorize, supply, or decide
     it and dependent work cannot safely continue;

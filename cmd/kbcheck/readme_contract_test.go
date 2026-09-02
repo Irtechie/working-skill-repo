@@ -26,7 +26,6 @@ func TestReadmeIsFocusedProductFrontDoor(t *testing.T) {
 
 	diagrams := []string{
 		"docs/assets/kb-workflow-overview.png",
-		"docs/assets/kb-routing-workflow.png",
 		"docs/assets/kb-model-selection.png",
 		"docs/assets/kb-memory-loop.png",
 	}

@@ -40,9 +40,20 @@ Set `visual.mode` to `auto` for the normal gate, `always` only when the user
 explicitly requested the visual and the input has at least two nodes plus one
 edge, or `none` when prose is clearer.
 
-For a pull request that needs file drill-down, evidence tabs, source anchors, or
-an interactive walkthrough, use `pr-review-workbench` after the PR exists.
+Use the cheapest visual route that exposes the evidence shape:
+
+- a real screenshot for a small rendered UI change;
+- Mermaid for a small relationship, sequence, or state flow;
+- `interactive-workflow-workbench-light` for one bounded path that benefits from
+  selecting a few nodes;
+- `interactive-workflow-workbench` for epic, multi-path, deep-evidence, or
+  client/showcase presentation;
+- use `pr-review-workbench` after the PR exists when review needs commit-pinned
+  impact, file drill-down, evidence tabs, or source anchors.
+
 Mermaid remains the small static relationship view; it is not the PR review UI.
+If either interactive skill is unavailable, keep the source-backed static brief
+and continue.
 
 ## Workflow
 

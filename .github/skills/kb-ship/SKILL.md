@@ -125,6 +125,30 @@ Inspect PRs by exact head repository/ref.
   invoke authorized `kb-land`; PR creation is not terminal when the same run
   already carries valid merge authorization.
 
+### Presentation ladder
+
+The compact PR body is always the complete first screen. Add one visual only
+when it removes real reviewer reconstruction:
+
+| Change shape | Route |
+|---|---|
+| Simple fix or one clear outcome | PR text only |
+| Repeated fields or a compact comparison | Markdown table |
+| Small visible UI change with rendered evidence | One real screenshot and a short caption |
+| Sequence, dependency, state, ownership, or branch | One Mermaid diagram |
+| One bounded path that benefits from selecting a few nodes | Optional `interactive-workflow-workbench-light` companion |
+| Epic, multi-path, deep walkthrough, or client/showcase presentation | Optional `interactive-workflow-workbench` companion |
+| Commit-pinned impact, source anchors, evidence gaps, or reviewer drill-down | Use the source-backed evidence workbench, `pr-review-workbench`, after the PR exists |
+
+Do not generate HTML merely because a PR exists. When an optional visual
+capability is unavailable, keep the static PR first screen and continue
+delivery. A missing companion is not a core ship blocker.
+
+Use screenshot evidence already produced by rendered UI verification. Do not
+invent or substitute a screenshot for a nonvisual change. Mermaid may live in
+the PR body; interactive artifacts stay off the PR branch and follow the
+authorization and privacy rules below.
+
 ### Lazy visual review
 
 After the correctly based open PR exists, load `pr-review-workbench` only when

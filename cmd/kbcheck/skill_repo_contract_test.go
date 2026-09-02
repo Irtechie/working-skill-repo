@@ -114,7 +114,8 @@ func TestDeliveryOwnerSkillContracts(t *testing.T) {
 			docConcept("only delivery candidate"),
 			docConcept("Absent policy is PR/manual"),
 			docConcept("no policy authorizes merge"),
-			docConcept("Sync now, or wait for PR review?"),
+			docConcept("Wait for review is the safe default"),
+			docConcept("Do not ask a terminal integration question"),
 			docConcept("release the shared work claim"),
 		},
 		".github/skills/kb-ship/SKILL.md": {

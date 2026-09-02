@@ -3,6 +3,18 @@
 Use these as shape examples, not rigid templates. Preserve exact proof, risk,
 commands, paths, and safety context from the real task.
 
+## Contents
+
+1. Simple outcome
+2. Soft preference
+3. Hard decision
+4. Repeated fields
+5. Workflow or dependency
+6. Active work
+7. Return boundary
+8. Visual escalation
+9. Quick test
+
 ## 1. Simple Outcome: Use Plain Language
 
 Use:
@@ -79,6 +91,48 @@ Use:
 Order by effect on the person or application, not by the order files were
 edited.
 
+## 7. Return Boundary: Make Control Ownership Explicit
+
+Completed:
+
+> **Done** — The fix is merged and the installed copies match. No response is
+> needed.
+
+Autonomous work remains:
+
+> **Agent continues** — The code is complete; the release check is still
+> running. The agent owns the next action.
+
+Human-only unblock:
+
+> **You need to decide** — Approve the production deployment.
+>
+> **Why you:** It changes the live service.
+>
+> **Blocked:** Production rollout.
+>
+> **Recommendation:** Approve after reviewing the linked staging proof.
+
+Do not label routine direct answers. Use the state when completion or next-action
+ownership could otherwise be mistaken.
+
+## 8. Visual Escalation: Stop at the Cheapest Useful Format
+
+Use the first route that removes the reading burden:
+
+| Change shape | Presentation |
+|---|---|
+| Method correction | Plain outcome |
+| Small comparison | Table |
+| Text-box color change | Real screenshot from rendered UI proof |
+| Three-step dependency or branch | Mermaid |
+| One bounded path needing a few selectable nodes | `interactive-workflow-workbench-light` |
+| Epic, multi-path, deep-evidence, or client walkthrough | Full `interactive-workflow-workbench` |
+
+Do not build HTML for an ordinary PR, a short list, or a flow Mermaid already
+explains. If an optional visual skill is missing, use the best static route and
+continue.
+
 ## Quick Test
 
 Before sending:
@@ -89,3 +143,5 @@ Before sending:
    reconstruct?
 4. Can any sentence, row, or node disappear without losing action, truth, proof,
    risk, or safety?
+5. Is **Done**, **Agent continues**, or **You need to decide** obvious when
+   control ownership matters?

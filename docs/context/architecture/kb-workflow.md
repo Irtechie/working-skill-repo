@@ -604,6 +604,25 @@ implementing plan.
 Document review has a separate lens-agent set for coherence, feasibility,
 product, design, security, scope, and adversarial review.
 
+## Cognitive Return Boundary
+
+The low-burden presentation contract applies when KB returns a completion,
+meaningful status, blocker, decision, or pull-request first screen to the user.
+Internal reasoning and tool exchange may remain detailed enough to finish the
+task.
+
+The first screen makes control ownership explicit: **Done** means no response is
+needed, **Agent continues** means the workflow still owns the next safe action,
+and **You need to decide** identifies a hard human-only unblock. Practical
+meaning precedes an exact framework, protocol, cache, route, or version name.
+
+Presentation escalates only as needed: plain text, ranked bullets, table, real
+UI screenshot, Mermaid, `interactive-workflow-workbench-light` for one bounded
+clickable path, then the full interactive workbench for epic, multi-path,
+deep-evidence, or client/showcase work. `pr-review-workbench` remains the
+commit-pinned source/evidence review lane. Missing optional visuals fall back to
+the best static format and never block core completion or delivery.
+
 ## Token Diet
 
 Heavy inherited ATV/CE skills keep routing and safety rules in `SKILL.md`, but
