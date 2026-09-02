@@ -97,15 +97,11 @@ of coding-agent skills, and which older patterns should be retired?
   proof.
 - Running compound, learning, evolution, and memory refresh after every task.
 
-## Impact On Current Project
+## Current Adoption
 
-- `kb-work`, `kb-plan`, and `kb-brainstorm` exceed the recommended skill-body
-  size and need progressive-disclosure refactors.
-- `kb-review`, `ce-review`, and `document-review` use default fan-out that
-  conflicts with single-agent-first guidance.
-- `kb-finalize` combines review, learning, evolution, memory, and cleanup in one
-  unconditional hot path.
-- Deprecated aliases and protected dead lanes inflate discovery and maintenance
-  surfaces.
-- `kbcheck` should enforce objective structural guidance while leaving semantic
-  judgments to a bounded audit.
+The bundle now uses progressive disclosure, single-agent-first execution,
+zero-or-one proportional semantic review, bounded retries, and deterministic
+structural checks. Removed aliases are recorded as history rather than exposed
+as routes. `kbcheck` owns objective contracts while bounded reviewers retain
+semantic judgment. Current inventory and workflow behavior live in the
+architecture docs.

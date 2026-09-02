@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) {
+func TestProductionDDRContractSeparatesHostSurfaces(t *testing.T) {
 	t.Parallel()
 	root := ddrTestRepoRoot(t)
 	// One policy, one requirement. kb-work and kb-workflow phrase the
@@ -29,7 +29,6 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			docConcept("per slice, not per plan"),
 			docConcept("subagents in parallel"),
 			docConcept("portable tier"),
-			docConcept("unpromoted experimental benchmark"),
 			docConcept("App-only aliases with CLI-only aliases"),
 			docConcept("emit exactly"),
 			docConcept("compact user-visible line before mutation"),
@@ -41,15 +40,10 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 		".github/skills/kb-work/references/execution-prompt.md": {
 			docAnchor("Route announcement:"),
 			docAnchor("Router receipt:"),
-			docConcept("attempt_tier", "normal KB work"),
 			docConcept("immutable orchestration receipts"),
 			docConcept("re-decide ownership"),
 			docConcept("evidence-backed"),
 			docConcept("emit or repeat"),
-		},
-		".github/skills/kb-configure/references/kb-routing-example.yaml": {
-			docAnchor("experimental_amr:"),
-			docAnchor("affects_normal_work: false"),
 		},
 		"docs/context/architecture/kb-workflow.md": {
 			docAnchor("parent-on-first-local-failure"),
@@ -60,7 +54,6 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 			docConcept("callable schema is authoritative"),
 			docConcept("kbrouter` is authoritative"),
 			docConcept("CLI and user-local routes"),
-			docConcept("never passes `attempt_tier`"),
 			docConcept("route announcement is evidence-bound"),
 			noSecondLocalRoute,
 		},
@@ -110,24 +103,53 @@ func TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces(t *testing.T) 
 		})
 	}
 
-	forbidden := []string{
-		"AMR is automatic",
-		"planned-tier AMR selection is automatic",
-		"may make one explicit lower-tier attempt",
+	path := writeManifest(t, `
+---
+model_selection_contract:
+  timing: work-time
+  decision_owner: orchestrator
+  owner_choice: current-or-delegated
+  max_owner_decisions_per_slice: 1
+  catalog: active-host-plus-user-local
+  delegated_fallback: same-tier-then-higher
+  automatic_downward_routing: true
+  automatic_cross_owner_fallback: false
+slices: []
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(path)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, path := range []string{
-		".github/skills/kb-plan/SKILL.md",
-		".github/skills/kb-work/SKILL.md",
-		".github/skills/kb-functional-test/SKILL.md",
-		"docs/context/architecture/kb-workflow.md",
-	} {
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
-		if err != nil {
-			t.Fatalf("read %s: %v", path, err)
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-model-selection-contract-field") {
+		t.Fatalf("automatic downward routing was not mechanically rejected: %#v", result)
+	}
+}
+
+func TestRetiredModelRoutingSurfacesAreAbsent(t *testing.T) {
+	t.Parallel()
+	root := ddrTestRepoRoot(t)
+	for path := range trackedTextFiles(t, root) {
+		slashPath := filepath.ToSlash(path)
+		if strings.HasPrefix(slashPath, "cmd/"+strings.Join([]string{"amr", "bench"}, "")) ||
+			strings.HasPrefix(slashPath, "evals/"+strings.Join([]string{"amr", "model", "benchmark"}, "-")) {
+			t.Errorf("retired model-routing path remains tracked: %s", path)
 		}
-		for _, phrase := range forbidden {
-			if strings.Contains(string(content), phrase) {
-				t.Errorf("%s contains forbidden normal-path AMR phrase %q", path, phrase)
+	}
+	forbidden := []string{
+		strings.Join([]string{"amr", "bench"}, ""),
+		strings.Join([]string{"attempt", "tier"}, "-"),
+		strings.Join([]string{"attempt", "tier"}, "_"),
+		strings.Join([]string{"support", "cohort"}, "_"),
+		strings.Join([]string{"initial", "pilot"}, "-"),
+		strings.Join([]string{"model", "routing", "release"}, "_"),
+	}
+	for path, content := range trackedTextFiles(t, root) {
+		text := strings.ToLower(string(content))
+		for _, token := range forbidden {
+			if strings.Contains(text, token) {
+				t.Errorf("%s contains retired model-routing token %q", path, token)
 			}
 		}
 	}

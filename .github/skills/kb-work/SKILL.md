@@ -124,8 +124,8 @@ alias blocks.
 A grouped delegated preview may summarize the ready set.
 This preview rule never suppresses the mandatory per-slice DDR route line.
 
-AMR remains an unpromoted experimental benchmark. Ordinary work never passes
-`attempt_tier` or claims AMR savings.
+Ordinary work never routes below the planned tier or claims unmeasured routing
+savings.
 
 ### Step 2.6: Orchestrator Ownership Decision (DDR)
 

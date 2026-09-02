@@ -218,8 +218,7 @@ parent return, `3` means a required alias blocked, and `2` means invalid usage.
 The orchestrator must not assume model names from memory. Host-native and CLI
 catalogs are separate callable surfaces unless an adapter proves otherwise.
 
-Adaptive Model Routing (AMR) is not promoted. Normal work does not configure or
-pass `attempt_tier`, does not require a lower-tier trial, and does not use AMR
+Normal DDR does not require a lower-tier trial or use unverified benchmark
 results as production routing policy.
 
 Run-scoped controls remain available:

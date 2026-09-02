@@ -385,12 +385,10 @@ ownership decision. Local DDR never chooses a second local route. The active
 parent continues with its current model or host-native selector after a
 structured parent return.
 
-Adaptive Model Routing (AMR) remains an unpromoted experimental benchmark.
-Normal work never passes `attempt_tier`, never requires a lower-tier trial, and
-never consumes an AMR experiment flag. `kb-configure` can opt a separate
-benchmark in or out. Advanced run-scoped `use`, `require`,
-`prefer self-hosted` (`prefer local` shorthand), `prefer native`, and
-`ignore model routing` controls remain available through `kb-models`.
+Normal DDR never routes below the planned tier or silently changes owners.
+Advanced run-scoped `use`, `require`, `prefer self-hosted` (`prefer local`
+shorthand), `prefer native`, and `ignore model routing` controls remain
+available through `kb-models`.
 
 `kb-work` executes the safe ready set from the slice dependency DAG. Once
 execution starts, it does not ask before each slice. The default WIP is every

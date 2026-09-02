@@ -202,7 +202,6 @@ go run ./cmd/kbcheck graph-route --packet <packet.json>
 go run ./cmd/kbcheck graph-routing-lifecycle-selftest
 go run ./cmd/kbcheck graph-routing-eval --require-ready
 go test ./cmd/kbrouter -run Catalog|Doctor|Policy
-go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence evals/model-routing/initial-pilot-release-evidence.json
 go test ./cmd/kbcheck -run 'ModelTierEval' -count=1
 go run ./cmd/kbcheck model-tier-eval --evidence <evidence.json> --json
 ```
@@ -219,14 +218,6 @@ go run ./cmd/kbcheck eval-run-codex --fixture-id tiny-typo-fix --dry-run
 go run ./cmd/kbcheck eval-run-ghcp --fixture-id tiny-typo-fix --dry-run
 go run ./cmd/kbcheck eval-run-live-corpus --dry-run
 go run ./cmd/kbcheck skill-eval-wrap --fixture-id tiny-typo-fix --dry-run --sealed
-```
-
-### AMR benchmark
-
-```powershell
-go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
-go run ./cmd/amrbench run --dry-run --experiment-id <id> --routes <routes.json> --context baseline --mode direct --task <task> --model <runtime-model>
-go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>
 ```
 
 ## Skill Quality Contract
@@ -249,8 +240,6 @@ promotion, quarantine firebreak rules, and global-install boundaries.
 - `provider-hygiene --include-user` is the explicit user-global inspection mode.
   Plain `provider-hygiene` remains repo-local.
 - `graph-routing-eval --require-ready` is fixture proof, not live-provider proof.
-- `model-routing-release` validates evidence boundaries; a green result does not
-  mean live AMR is promoted.
 - `.github/workflows\` is currently empty, so local CLI commands are the only
   checked-in deterministic proof surface for release/install behavior.
 

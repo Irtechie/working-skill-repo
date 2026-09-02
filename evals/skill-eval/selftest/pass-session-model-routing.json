@@ -13,7 +13,7 @@
       "delegated ownership selects exactly one qualified route",
       "no automatic downward or cross-owner fallback",
       "active host and CLI catalogs remain distinct",
-      "AMR marked experimental and absent from normal work",
+      "production routing never selects below the planned tier",
       "deterministic proof remains authoritative",
       "sync proof reserved for the distribution slice",
       "check output"
@@ -44,7 +44,7 @@
       "go run ./cmd/kbcheck skill-lint",
       "go test ./internal/modelrouting -run 'TestSelectRouteCurrentOwnerWinsEvenWhenDelegatedWorkersExist|TestSelectRouteCurrentOwnerMustMeetCapabilityEnvelope|TestSelectRouteCurrentOwnerAcceptsVisibleOnlyActiveRoute|TestSelectRouteDelegatedOwnerChoosesExactlyOneAndNeverFallsBackToCurrent|TestSelectRouteRejectsMissingOrInvalidOwnershipMetadata'",
       "go test ./cmd/kbrouter -run 'TestModelsSelectRequiresExplicitOwnershipDecision|TestModelsSelectUsesValidatedRunCatalogAndRunOnlyOverride'",
-      "go test ./cmd/kbcheck -run 'TestManifestContractAcceptsOrchestratorDirectedModelSelectionContract|TestManifestContractRejectsForcedAMROrCrossOwnerFallback|TestManifestContractRejectsEachUnsafeRoutingMutation|TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces'",
+      "go test ./cmd/kbcheck -run 'TestManifestContractAcceptsOrchestratorDirectedModelSelectionContract|TestManifestContractRejectsDownwardOrCrossOwnerFallback|TestManifestContractRejectsEachUnsafeRoutingMutation|TestProductionDDRContractSeparatesHostSurfaces'",
       "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-25-orchestrator-directed-ddr-context/ddr-001.json",
       "git diff --check"
     ],
@@ -76,13 +76,13 @@
       "type": "file_read",
       "contains": ".github/skills/kb-configure/SKILL.md",
       "expected": true,
-      "claim": "The run verified AMR configuration is experimental-only"
+      "claim": "The run verified production model-routing configuration"
     },
     {
       "type": "file_read",
       "contains": ".github/skills/kb-work/references/execution-prompt.md",
       "expected": true,
-      "claim": "The worker prompt prohibits AMR in normal work"
+      "claim": "The worker prompt preserves orchestrator-owned routing"
     },
     {
       "type": "command_ran",
@@ -101,9 +101,9 @@
     {
       "type": "command_ran",
       "path": "",
-      "contains": "TestManifestContractRejectsForcedAMROrCrossOwnerFallback",
+      "contains": "TestManifestContractRejectsDownwardOrCrossOwnerFallback",
       "expected": true,
-      "claim": "Manifest proof rejects forced AMR and silent owner changes"
+      "claim": "Manifest proof rejects downward routing and silent owner changes"
     }
   ],
   "trace_rules": {
@@ -120,8 +120,8 @@
       "TestSelectRouteCurrentOwnerWinsEvenWhenDelegatedWorkersExist",
       "TestSelectRouteDelegatedOwnerChoosesExactlyOneAndNeverFallsBackToCurrent",
       "TestModelsSelectRequiresExplicitOwnershipDecision",
-      "TestManifestContractRejectsForcedAMROrCrossOwnerFallback",
-      "TestProductionDDRContractExcludesAMRAndSeparatesHostSurfaces",
+      "TestManifestContractRejectsDownwardOrCrossOwnerFallback",
+      "TestProductionDDRContractSeparatesHostSurfaces",
       "go run ./cmd/kbcheck context-packet --packet docs/plans/2026-07-25-orchestrator-directed-ddr-context/ddr-001.json",
       "git diff --check"
     ],

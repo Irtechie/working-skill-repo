@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-const testModelRoutingInitialPilotEvidence = "evals/model-routing/initial-pilot-release-evidence.json"
-
 func TestReleaseChecksUseNativeCoreNotPSGate(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -27,6 +25,144 @@ func TestReleaseChecksUseNativeCoreNotPSGate(t *testing.T) {
 			t.Fatalf("release gate must not delegate to kb-release-gate.ps1: %+v", check)
 		}
 	}
+}
+
+func TestReleaseDiffCheckIncludesStagedChanges(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "Release Gate Test"},
+	} {
+		if code, output := runGitCommand(root, args...); code != 0 {
+			t.Fatalf("git %s failed: %s", strings.Join(args, " "), output)
+		}
+	}
+	path := filepath.Join(root, "README.md")
+	writeFile(t, path, "clean\n")
+	if code, output := runGitCommand(root, "add", "README.md"); code != 0 {
+		t.Fatalf("git add baseline failed: %s", output)
+	}
+	if code, output := runGitCommand(root, "commit", "-m", "baseline"); code != 0 {
+		t.Fatalf("git commit baseline failed: %s", output)
+	}
+
+	writeFile(t, path, "trailing whitespace  \n")
+	if code, output := runGitCommand(root, "add", "README.md"); code != 0 {
+		t.Fatalf("git add candidate failed: %s", output)
+	}
+	writeFile(t, path, "clean\n")
+	checks, err := releaseChecks(root, "local-release", runProcessCheck)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, check := range checks {
+		if check.Name != "git-diff-check" {
+			continue
+		}
+		if check.CommandString() != "git diff --cached --check" {
+			t.Fatalf("unexpected diff check: %s", check.CommandString())
+		}
+		result := runProcessCheck(root, check)
+		if result.ExitCode == 0 || !strings.Contains(result.Stdout+result.Stderr, "trailing whitespace") {
+			t.Fatalf("staged whitespace was not rejected: %+v", result)
+		}
+		return
+	}
+	t.Fatal("missing git-diff-check")
+}
+
+func TestReleaseCandidateCoherenceRejectsStagedContractReversal(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "Release Gate Test"},
+	} {
+		if code, output := runGitCommand(root, args...); code != 0 {
+			t.Fatalf("git %s failed: %s", strings.Join(args, " "), output)
+		}
+	}
+	path := filepath.Join(root, "README.md")
+	writeFile(t, path, "![valid](docs/assets/kb-memory-loop.png)\n")
+	if code, output := runGitCommand(root, "add", "README.md"); code != 0 {
+		t.Fatalf("git add baseline failed: %s", output)
+	}
+	if code, output := runGitCommand(root, "commit", "-m", "baseline"); code != 0 {
+		t.Fatalf("git commit baseline failed: %s", output)
+	}
+
+	writeFile(t, path, "![broken](docs/assets/missing.png)\n")
+	if code, output := runGitCommand(root, "add", "README.md"); code != 0 {
+		t.Fatalf("git add candidate failed: %s", output)
+	}
+	writeFile(t, path, "![valid](docs/assets/kb-memory-loop.png)\n")
+
+	result := runCandidateCoherence(root, runProcessCheck)
+	if result.ExitCode == 0 || !strings.Contains(result.Stderr, "unstaged tracked changes") {
+		t.Fatalf("staged contract reversal was not rejected: %+v", result)
+	}
+}
+
+func TestReleaseCandidateCoherenceCoversCandidateStates(t *testing.T) {
+	t.Parallel()
+	t.Run("staged only passes", func(t *testing.T) {
+		root, path := releaseGitFixture(t)
+		writeFile(t, path, "staged\n")
+		if code, output := runGitCommand(root, "add", "README.md"); code != 0 {
+			t.Fatalf("git add candidate failed: %s", output)
+		}
+		if result := runCandidateCoherence(root, runProcessCheck); result.ExitCode != 0 {
+			t.Fatalf("staged-only candidate failed: %+v", result)
+		}
+	})
+	t.Run("unstaged only fails", func(t *testing.T) {
+		root, path := releaseGitFixture(t)
+		writeFile(t, path, "unstaged\n")
+		if result := runCandidateCoherence(root, runProcessCheck); result.ExitCode == 0 || !strings.Contains(result.Stderr, "unstaged tracked changes") {
+			t.Fatalf("unstaged-only candidate was not rejected: %+v", result)
+		}
+	})
+	t.Run("untracked fails", func(t *testing.T) {
+		root, _ := releaseGitFixture(t)
+		writeFile(t, filepath.Join(root, "new.txt"), "untracked\n")
+		if result := runCandidateCoherence(root, runProcessCheck); result.ExitCode == 0 || !strings.Contains(result.Stderr, "untracked non-ignored files") {
+			t.Fatalf("untracked candidate was not rejected: %+v", result)
+		}
+	})
+	t.Run("git error propagates", func(t *testing.T) {
+		result := runCandidateCoherence(t.TempDir(), func(_ string, check Check) CheckResult {
+			return CheckResult{ExitCode: 2, Stderr: check.CommandString() + " failed"}
+		})
+		if result.ExitCode != 2 || !strings.Contains(result.Stderr, "git diff --quiet failed") {
+			t.Fatalf("git command error was not propagated: %+v", result)
+		}
+	})
+}
+
+func releaseGitFixture(t *testing.T) (string, string) {
+	t.Helper()
+	root := t.TempDir()
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "Release Gate Test"},
+	} {
+		if code, output := runGitCommand(root, args...); code != 0 {
+			t.Fatalf("git %s failed: %s", strings.Join(args, " "), output)
+		}
+	}
+	path := filepath.Join(root, "README.md")
+	writeFile(t, path, "baseline\n")
+	if code, output := runGitCommand(root, "add", "README.md"); code != 0 {
+		t.Fatalf("git add baseline failed: %s", output)
+	}
+	if code, output := runGitCommand(root, "commit", "-m", "baseline"); code != 0 {
+		t.Fatalf("git commit baseline failed: %s", output)
+	}
+	return root, path
 }
 
 func TestReleaseReportsCheckStartBeforeRunnerReturns(t *testing.T) {
@@ -122,121 +258,4 @@ func TestReleaseRequiresNativeSyncForSkillRepo(t *testing.T) {
 		}
 	}
 	t.Fatal("missing skill-sync-report release check")
-}
-
-func TestLocalReleaseRequiresNativeModelRoutingGateWhenPilotEvidenceExists(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, filepath.FromSlash(testModelRoutingInitialPilotEvidence)), "{}\n")
-
-	checks, err := releaseChecks(root, "local-release", func(root string, check Check) CheckResult {
-		return CheckResult{ExitCode: 0}
-	})
-	if err != nil {
-		t.Fatalf("releaseChecks returned error: %v", err)
-	}
-	var matches []Check
-	for _, check := range checks {
-		if check.Name == "model-routing-initial-pilot" {
-			matches = append(matches, check)
-		}
-	}
-	if len(matches) != 1 {
-		t.Fatalf("expected one model-routing release check, got %d", len(matches))
-	}
-	check := matches[0]
-	want := "kbcheck model-routing-release --cohort initial-pilot --evidence " + testModelRoutingInitialPilotEvidence
-	if !check.Required || check.CommandString() != want || check.Run == nil {
-		t.Fatalf("expected required native model-routing check %q, got %+v", want, check)
-	}
-}
-
-func TestModelRoutingReleaseFailureBlocksLocalRelease(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, filepath.FromSlash(testModelRoutingInitialPilotEvidence)), "{}\n")
-
-	runner := func(root string, check Check) CheckResult {
-		if check.Name == "model-routing-initial-pilot" {
-			if check.Run == nil {
-				t.Fatal("model-routing release check must use the native runner")
-			}
-			return check.Run(root)
-		}
-		return CheckResult{ExitCode: 0}
-	}
-	var stdout, stderr strings.Builder
-	code := runRelease(root, options{command: "local-release", root: root}, &stdout, &stderr, runner)
-	if code == 0 {
-		t.Fatalf("invalid model-routing evidence did not block local-release: stdout=%s stderr=%s", stdout.String(), stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "failed [required/deterministic-local] model-routing-initial-pilot") {
-		t.Fatalf("release output omitted required model-routing failure: %s", stdout.String())
-	}
-}
-
-func TestGenericReleaseOmitsModelRoutingGateWhenFeatureIsAbsent(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	for _, profile := range []string{"local-release", "live-release"} {
-		checks, err := releaseChecks(root, profile, func(root string, check Check) CheckResult {
-			return CheckResult{ExitCode: 0}
-		})
-		if err != nil {
-			t.Fatalf("%s releaseChecks returned error: %v", profile, err)
-		}
-		for _, check := range checks {
-			if check.Name == "model-routing-initial-pilot" {
-				t.Fatalf("%s must remain contributor-safe when canonical pilot evidence is absent", profile)
-			}
-		}
-	}
-}
-
-func TestModelRoutingFeatureMarkerRequiresGateWhenEvidenceIsMissing(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, filepath.FromSlash(modelRoutingFeatureMarker)), "package modelrouting\n")
-
-	checks, err := releaseChecks(root, "local-release", func(root string, check Check) CheckResult {
-		return CheckResult{ExitCode: 0}
-	})
-	if err != nil {
-		t.Fatalf("releaseChecks returned error: %v", err)
-	}
-	for _, check := range checks {
-		if check.Name == "model-routing-initial-pilot" {
-			if !check.Required || check.Run == nil {
-				t.Fatalf("feature marker did not install a required native evidence gate: %+v", check)
-			}
-			result := check.Run(root)
-			if result.ExitCode == 0 || !strings.Contains(strings.ToLower(result.Stderr), "evidence") {
-				t.Fatalf("missing canonical evidence did not fail closed: %+v", result)
-			}
-			return
-		}
-	}
-	t.Fatal("feature marker failed to require model-routing gate")
-}
-
-func TestLiveReleaseIncludesModelRoutingGateExactlyOnce(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, filepath.FromSlash(testModelRoutingInitialPilotEvidence)), "{}\n")
-
-	checks, err := releaseChecks(root, "live-release", func(root string, check Check) CheckResult {
-		return CheckResult{ExitCode: 0}
-	})
-	if err != nil {
-		t.Fatalf("releaseChecks returned error: %v", err)
-	}
-	count := 0
-	for _, check := range checks {
-		if check.Name == "model-routing-initial-pilot" {
-			count++
-		}
-	}
-	if count != 1 {
-		t.Fatalf("live-release must inherit, not duplicate, the model-routing check; got %d", count)
-	}
 }

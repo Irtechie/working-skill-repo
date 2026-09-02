@@ -133,7 +133,7 @@ claim, not in the repository's product introduction:
 | **Code-enforced scheduler** | Ready-set and cycle rules moved from skill prose into deterministic Go checks | **June 2, 2026** - `2fb60fd` |
 | **Outer loop over graphs** | Durable `kb-goal` repeatedly routed work units through planning and graph execution until terminal | **June 8, 2026** - `cbcda0f` |
 
-The existing execution graph already covers explicit dependencies, safe
+At the checked revision, the execution graph covered explicit dependencies, safe
 parallelism, barriers, leases, gate ledgers, and independent proof. The main
 gap is not an "org graph" or a new `kb-graph` lane. It is a unified immutable
 node receipt joining data that currently lives across execution telemetry,
@@ -221,15 +221,11 @@ receipt IDs that contributed to each merged finding.
 - Let the executing model self-certify completion: provenance supports a gate;
   it does not replace one.
 
-## Impact On Current Project
+## Current Adoption
 
-Keep the current lanes. If implementation is authorized, make provenance an
-additive contract:
-
-1. Extend the execution telemetry envelope with node identity, attempt,
-   dependencies, state/base/head revisions, timestamps, status, and lease
-   generation.
-2. Emit one immutable receipt per node attempt.
-3. Link its path and hash from the slice gate ledger.
-4. Add a deterministic validator and compact failed/why-not-done projection.
-5. Add reviewer receipt IDs to review merge provenance.
+KB keeps graph responsibilities split across manifest dependency DAGs,
+provider-neutral source-impact packets, execution telemetry, leases, and proof
+receipts. The source-routing packet and its deterministic validators are current
+product surfaces. The unified immutable per-node receipt proposed above was a
+research direction, not a current product promise; current graph behavior is
+defined by the architecture docs and checked-in schemas.

@@ -1162,7 +1162,6 @@ model_selection_contract:
   catalog: active-host-plus-user-local
   delegated_fallback: same-tier-then-higher
   automatic_downward_routing: false
-  amr_required: false
   automatic_cross_owner_fallback: false
 slices:
   - id: slice-001
@@ -1183,7 +1182,7 @@ gate_ledger: []
 	}
 }
 
-func TestManifestContractRejectsForcedAMROrCrossOwnerFallback(t *testing.T) {
+func TestManifestContractRejectsDownwardOrCrossOwnerFallback(t *testing.T) {
 	t.Parallel()
 	path := writeManifest(t, `
 ---
@@ -1195,7 +1194,6 @@ model_selection_contract:
   catalog: remembered-model-names
   delegated_fallback: lower-then-current
   automatic_downward_routing: true
-  amr_required: true
   automatic_cross_owner_fallback: true
 slices: []
 gate_ledger: []
@@ -1206,7 +1204,7 @@ gate_ledger: []
 		t.Fatal(err)
 	}
 	if result.OK || !hasManifestIssue(result.Issues, "invalid-model-selection-contract-field") {
-		t.Fatalf("forced AMR contract was accepted: %#v", result)
+		t.Fatalf("unsafe routing contract was accepted: %#v", result)
 	}
 }
 
@@ -1222,7 +1220,6 @@ model_selection_contract:
   catalog: active-host-plus-user-local
   delegated_fallback: same-tier-then-higher
   automatic_downward_routing: false
-  amr_required: false
   automatic_cross_owner_fallback: false
 slices: []
 gate_ledger: []
@@ -1232,7 +1229,6 @@ gate_ledger: []
 		"catalog":                    {"catalog: active-host-plus-user-local", "catalog: remembered-model-names"},
 		"delegated-fallback":         {"delegated_fallback: same-tier-then-higher", "delegated_fallback: lower-then-current"},
 		"automatic-downward-routing": {"automatic_downward_routing: false", "automatic_downward_routing: true"},
-		"amr-required":               {"amr_required: false", "amr_required: true"},
 		"cross-owner-fallback":       {"automatic_cross_owner_fallback: false", "automatic_cross_owner_fallback: true"},
 	}
 	for name, mutation := range mutations {

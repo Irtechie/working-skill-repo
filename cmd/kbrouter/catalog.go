@@ -468,7 +468,6 @@ func discoverCatalog(opts discoverOptions) (discoveryReport, error) {
 	report := discoveryReport{
 		Catalog: modelrouting.Catalog{
 			SchemaVersion: modelrouting.CatalogSchemaVersion,
-			Cohort:        modelrouting.CohortInitialPilot,
 			Surfaces:      localSurfaceFingerprints(activeCatalog, projectPolicy),
 			Current:       currentModel(opts.currentModel),
 			Routes:        redactedUserRoutes(activeCatalog.Routes),

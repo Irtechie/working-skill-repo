@@ -6,8 +6,7 @@ Budget mode: lean
 ## Question
 
 Are we using Git correctly for this portable skill bundle, or are we creating
-avoidable drift by treating local/global installs and ATV copies as peer source
-trees?
+avoidable drift by treating local and global installs as peer source trees?
 
 ## Findings
 
@@ -21,8 +20,6 @@ That implies this repo should treat skills like distributable source packages:
 - one canonical source repo owns skill content;
 - installed global skill directories are install artifacts, not authoring
   locations;
-- downstream bundles such as ATV must have an explicit distribution policy
-  instead of becoming an accidental second source of truth;
 - sync should be deterministic and hash-verified after merge, not hand-managed
   during implementation.
 
@@ -56,9 +53,8 @@ and live skill-eval fixtures.
 The scripts guidance recommends pinning one-off command versions, stating
 environment prerequisites, moving complex commands into tested scripts, exposing
 `--help`, avoiding interactive prompts, using helpful errors, and emitting
-structured output. This supports making `sync-skills.ps1`,
-`check-skill-distribution.ps1`, and eval adapters policy-aware scripts rather
-than relying on agent prose.
+structured output. This supports keeping sync and eval behavior in tested deterministic tooling
+rather than relying on agent prose.
 
 ## Sources
 
@@ -89,7 +85,6 @@ than relying on agent prose.
 - Syncing to `~/.codex/skills`,
   `~/.copilot/skills`, or
   `~/.agents/skills`.
-- Syncing or pruning ATV `.github/skills`, scaffold, or plugin copies.
 - Designing the next distribution contract and sync/check scripts.
 - Deciding whether a behavior belongs in `SKILL.md`, `references/`, `assets/`,
   or `scripts/`.
@@ -97,16 +92,13 @@ than relying on agent prose.
 ## Stale When
 
 - Agent Skills changes the directory/spec/frontmatter contract.
-- Codex, Copilot, or ATV stops using Agent Skills-compatible discovery.
+- Codex or Copilot stops using Agent Skills-compatible discovery.
 - A package-manager-style installer replaces local global skill directories.
-- ATV chooses and documents a stable full-bundle or thin-bundle policy.
 
 ## Rejected Approaches
 
 - Editing global installs directly as source. This creates unreviewed drift and
   makes Git history incomplete.
-- Treating ATV as a peer source repo without an explicit upstream/downstream
-  policy. This hides distribution decisions inside sync warnings.
 - Hash-gating line-ending churn without normalization. Byte-level gates are
   useful only when the sync path is byte-stable.
 - Adding more skill prose to compensate for missing deterministic scripts. If
@@ -115,32 +107,11 @@ than relying on agent prose.
 - Optimizing skill trigger descriptions only by intuition. Trigger behavior
   needs should-trigger and should-not-trigger prompts with holdout queries.
 
-## Impact On Current Project
+## Current Adoption
 
-The repo should add a policy-aware distribution layer:
-
-1. Add `config/skill-distribution.json`.
-   - canonical skill list;
-   - required global install targets;
-   - ATV `.github/skills` policy;
-   - ATV scaffold/plugin policy;
-   - line-ending and hash expectations;
-   - excluded or intentionally-thin targets.
-2. Add `scripts/sync-skills.ps1`.
-   - copy from landed canonical source only;
-   - normalize text output consistently;
-   - refuse to overwrite unreviewed downstream-only drift;
-   - print a required-target hash table.
-3. Add `scripts/check-skill-distribution.ps1`.
-   - read-only policy gate;
-   - fail required drift;
-   - report optional/thin-bundle differences as declared policy, not vague
-     warnings.
-4. Add `.gitattributes` for stable skill/script/doc line endings.
-5. Update README with a clear lifecycle:
-   `feature branch -> kb-check -> merge main -> sync/install from main -> hash verify`.
-6. Keep globals as installed artifacts. Never edit them first.
-
-This does not mean the current work is invalid. It means the next reliability
-improvement should make Git boring: canonical source, explicit release channels,
-deterministic install, deterministic verification.
+The dated recommendation is now implemented through the Node installer,
+`config/skill-quality.json`, and the Go-native `kbcheck skill-sync-report`,
+`doctor`, and `local-release` commands. The working repository remains the
+canonical source; Codex, Copilot, and shared-agent global roots are deployed
+copies. Current commands and target policy live in the architecture and
+operations docs, not this note.

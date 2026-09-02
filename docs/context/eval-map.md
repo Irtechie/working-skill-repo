@@ -7,7 +7,7 @@ Checked: 2026-07-26
 Mixed skill/workflow repo:
 
 - primary surface: portable KB skill bundle under `.github\skills\`
-- native proof CLIs: `cmd\kbcheck`, `cmd\kbrouter`, `cmd\amrbench`
+- native proof CLIs: `cmd\kbcheck`, `cmd\kbrouter`
 - install surfaces: `bin\kb-install.mjs`, `scripts\install-kb.ps1`
 - deterministic corpora: `evals\**`
 
@@ -35,9 +35,7 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 | Worker context and telemetry stay bounded | context packet + telemetry JSON | `go run ./cmd/kbcheck context-packet --packet <packet.json>`; `go run ./cmd/kbcheck execution-telemetry --telemetry <telemetry.json>` | Host adapters still expose measured usage inconsistently | P1 |
 | Optional providers remain optional | repo/user provider config | `go run ./cmd/kbcheck provider-hygiene`; `go run ./cmd/kbcheck provider-hygiene --include-user` | Host-specific registries may need future adapters | P1 |
 | Graph routing stays promotion-safe | `config/graph-route.schema.json`; `evals/graph-routing/**` | `go run ./cmd/kbcheck graph-route --packet <packet.json>`; `graph-routing-lifecycle-selftest`; `graph-routing-eval --require-ready` | Fixture proof only; live providers remain optional | P0 |
-| Model-routing release claims stay inside evidence | `evals/model-routing/*.json`; release artifact JSON | `go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence evals/model-routing/initial-pilot-release-evidence.json` | Deterministic/no-paid evidence only; not promoted | P0 |
 | Model routes earn Medium only from complete trusted evidence | `evals/model-tier-qualification/fixtures.json`; strict producer evidence JSON | `go test ./cmd/kbcheck -run 'ModelTierEval' -count=1`; `go run ./cmd/kbcheck model-tier-eval --evidence <evidence.json> --json` | Experimental until one real non-inconclusive cohort and a second consumer prove generality | P0 |
-| GHCP AMR benchmark stays safe before spend | `cmd/amrbench`; `evals/amr-model-benchmark/**` | `go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json`; `go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>` | Attended runs remain approval-gated and currently disabled | P0 |
 
 ## Existing Harnesses
 
@@ -87,17 +85,14 @@ fixture corpora agree across Codex, GHCP, and shared-agent installs.
 - `go run ./cmd/kbcheck eval-run-live-corpus --dry-run`
 - `go run ./cmd/kbcheck skill-eval-wrap --fixture-id tiny-typo-fix --dry-run --sealed`
 
-### Graph / model routing / benchmark
+### Graph and model routing
 
 - `go run ./cmd/kbcheck graph-route --packet <packet.json>`
 - `go run ./cmd/kbcheck graph-routing-lifecycle-selftest`
 - `go run ./cmd/kbcheck graph-routing-eval --require-ready`
 - `go test ./cmd/kbrouter -run Catalog|Doctor|Policy`
-- `go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence evals/model-routing/initial-pilot-release-evidence.json`
 - `go test ./cmd/kbcheck -run 'ModelTierEval' -count=1`
 - `go run ./cmd/kbcheck model-tier-eval --evidence <evidence.json> --json`
-- `go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json`
-- `go run ./cmd/amrbench grade-paired --results <paired-results.jsonl>`
 
 ## Canonical Commands
 
@@ -113,9 +108,7 @@ go run ./cmd/kbcheck local-release
 go run ./cmd/kbcheck route-eval
 go run ./cmd/kbcheck skill-eval
 go run ./cmd/kbcheck graph-routing-eval --require-ready
-go run ./cmd/kbcheck model-routing-release --cohort initial-pilot --evidence evals/model-routing/initial-pilot-release-evidence.json
 go test ./cmd/kbcheck -run 'ModelTierEval' -count=1
-go run ./cmd/amrbench conformance --config evals/amr-model-benchmark/config.json --no-paid --require-ready --json
 git diff --check
 ```
 
@@ -126,8 +119,7 @@ real harnesses for its highest-value workflows:
 
 - skill lint / route-calibration / claim-quality scoring
 - deterministic graph-routing readiness
-- model-routing release validation
-- no-paid AMR conformance
+- model-tier qualification
 - installer tests in Node
 
 Creating placeholder browser/API smoke tests would not prove anything real here.
@@ -148,9 +140,7 @@ Creating placeholder browser/API smoke tests would not prove anything real here.
 | doctor install-drift repair/refusal | deterministic fixture selftest |
 | graph-route packet validation | deterministic schema/contract check |
 | graph-routing lifecycle and readiness | deterministic |
-| model-routing release evidence validation | deterministic |
 | experimental model-tier qualification | deterministic, offline, strict evidence classification |
-| AMR no-paid conformance | deterministic |
 | Codex/GHCP live adapters | mixed: model action plus deterministic scoring |
 
 ## Credentials / Session Requirements
@@ -158,12 +148,10 @@ Creating placeholder browser/API smoke tests would not prove anything real here.
 - Deterministic checks above require no credentials.
 - `eval-run-codex` live mode needs a working/authenticated `codex` CLI.
 - `eval-run-ghcp` live mode needs a working/authenticated `copilot` CLI.
-- `cmd/amrbench run` non-dry remains unavailable until a trusted approval
-  verifier exists.
 
 ## Dashboard / Export Options
 
-Keep local fixture JSON/Markdown and `kbcheck`/`amrbench` output as source of
+Keep local fixture JSON/Markdown and `kbcheck` output as source of
 truth. Langfuse, Braintrust, LangSmith, Promptfoo, or DeepEval remain optional
 exporters/adapters, not the current judges.
 
@@ -171,6 +159,7 @@ exporters/adapters, not the current judges.
 
 - Broaden the live Codex/GHCP corpus beyond the current route fixture set.
 - Capture normalized real token/cache/turn usage from live adapters.
+- Repeat a bounded local DDR route evaluation against current local models.
 - Decided 2026-08-05: release/install proof stays **local-only by design**;
   `.github/workflows/` is intentionally empty and `kbcheck` is the release
   authority. No longer an open gap. The residual gap is that the `_unix` branch

@@ -109,13 +109,6 @@ const (
 	TrainingUnknown TrainingUse = "unknown"
 )
 
-type SupportCohort string
-
-const (
-	CohortUnspecified  SupportCohort = "unspecified"
-	CohortInitialPilot SupportCohort = "initial-pilot"
-)
-
 type SurfaceFingerprint struct {
 	Surface    string `json:"surface"`
 	Provider   string `json:"provider"`
@@ -149,7 +142,6 @@ type Catalog struct {
 	Enabled       *bool                `json:"enabled,omitempty"`
 	ApprovalMode  ApprovalMode         `json:"approval_mode,omitempty"`
 	Fingerprint   string               `json:"fingerprint,omitempty"`
-	Cohort        SupportCohort        `json:"support_cohort,omitempty"`
 	Surfaces      []SurfaceFingerprint `json:"surfaces,omitempty"`
 	Current       CurrentModel         `json:"current"`
 	Routes        []Route              `json:"routes"`
@@ -565,12 +557,16 @@ func ComputeCatalogFingerprint(catalog Catalog) (string, error) {
 		}
 	}
 	payload := struct {
-		Cohort       SupportCohort        `json:"cohort"`
 		Surfaces     []SurfaceFingerprint `json:"surfaces"`
 		Current      string               `json:"current"`
 		CurrentRoute string               `json:"current_route"`
 		Routes       []string             `json:"routes"`
-	}{catalog.Cohort, surfaces, catalog.Current.ModelID, currentRoute, routeIDs}
+	}{
+		Surfaces:     surfaces,
+		Current:      catalog.Current.ModelID,
+		CurrentRoute: currentRoute,
+		Routes:       routeIDs,
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return "", err

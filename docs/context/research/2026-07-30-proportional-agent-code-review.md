@@ -43,7 +43,7 @@ large reviewer swarms for routine changes?
    tokens or AI credits, unique P0/P1 findings, false positives, and findings
    duplicated by another reviewer or deterministic check. A reviewer with no
    marginal finding yield should not remain always-on.
-8. **ATV-Phoenix demonstrates a zero-persona evidence gate.** At inspected main
+8. **ATV-Phoenix demonstrated a zero-persona evidence gate.** At inspected main
    revision `d473ddfbeab156b102436101dafc9f49a44aed4c`, `phoenix-review`
    re-runs the acceptance check, full regression suite, and tamper-evident trace,
    then reports only bugs, unmet criteria, regressions, and concrete
@@ -93,7 +93,7 @@ not required.
 
 Run review once per exact tree at the finalization or PR boundary. Reuse a
 receipt while the reviewed tree and review policy fingerprint remain unchanged.
-Do not run both `ce-review` and `kb-review` on the same tree.
+Do not run duplicate semantic-review entry points on the same tree.
 
 ## Sources
 
@@ -139,7 +139,7 @@ Do not run both `ce-review` and `kb-review` on the same tree.
 
 ## Applies When
 
-- Designing `kb-review`, `ce-review`, or completion review gates.
+- Designing `kb-review` or completion review gates.
 - Deciding whether a reviewer persona should be always-on or conditional.
 - Evaluating review cost, duplicate findings, or reviewer marginal yield.
 
@@ -162,22 +162,10 @@ Do not run both `ce-review` and `kb-review` on the same tree.
 - **Run every specialist on large diffs:** size alone does not make every domain
   relevant. Select specialists by changed risk boundaries.
 
-## Impact On Current Project
+## Current Adoption
 
-- `.github/skills/kb-review/SKILL.md` and
-  `.github/skills/ce-review/SKILL.md` each mandate six reviewers even for a
-  small change.
-- `.github/skills/kb-finalize/SKILL.md` makes `kb-review` mandatory after every
-  manifest execution, so the six-agent minimum is on the normal completion
-  path.
-- `document-review` and its callers already use materiality and conditional
-  persona selection, but `document-review` still mandates two always-on agents
-  after activation. Its pre-slice baseline must become one Spec/plan reviewer
-  so the lifecycle cap is achievable.
-- The review skills should share one review engine/policy. `kb-review` can
-  remain the KB-facing wrapper that selects the stricter structural rubric and
-  KB artifact paths without duplicating the orchestration contract.
-- The existing `kb-check`, functional-test receipts, regression snapshots, and
-  exact-tree proof already approximate Phoenix's Tier 0 evidence gate.
-  `kb-finalize` should classify semantic-review depth only after that evidence
-  passes, instead of unconditionally launching six reviewers.
+The recommendation is implemented: deterministic proof runs first;
+`kb-finalize` selects zero or one semantic review; `kb-review` chooses one broad
+or replacement specialist profile; and `document-review` invokes one best-fit
+specialist only when material uncertainty remains. Phoenix remains cited as
+historical prior art for an evidence-first gate, not as a runtime dependency.

@@ -210,7 +210,7 @@ func TestSelectRouteExplicitDelegatedFirstDispatchStillRequiresFullEnvelope(t *t
 	}
 }
 
-func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t *testing.T) {
+func TestSelectRouteRespectsPlannedTierOverridesAndEvidenceStrength(t *testing.T) {
 	now := fixedNow()
 	mediumA := provenRoute("medium-a", ClassMedium, "openai", "codex", "named-agent", "gpt-medium", "code", now.Add(time.Hour))
 	mediumB := provenRoute("medium-b", ClassMedium, "openai", "codex", "named-agent", "gpt-medium-b", "code", now.Add(2*time.Hour))
@@ -221,7 +221,6 @@ func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t
 		mediumA,
 		mediumB,
 		large,
-		provenRoute("small-a", ClassSmall, "openai", "codex", "named-agent", "gpt-small", "code", now.Add(time.Hour)),
 	})
 	req := broadRequest(TierMedium)
 	policy := publicPolicy()
@@ -231,27 +230,9 @@ func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t
 		t.Fatalf("select: %v", err)
 	}
 	assertAliases(t, decision, []string{"medium-a"})
-	if decision.PlannedTier != TierMedium || decision.AttemptTier != TierMedium {
-		t.Fatalf("decision tiers planned=%q attempt=%q", decision.PlannedTier, decision.AttemptTier)
+	if decision.PlannedTier != TierMedium {
+		t.Fatalf("decision planned tier=%q", decision.PlannedTier)
 	}
-
-	// A lower tier is considered only when the caller explicitly marks this
-	// bounded packet for that attempt. Task family alone never lowers the floor.
-	withAttempt := req
-	withAttempt.AttemptTier = TierSmall
-	decision, err = selectForTest(t, catalog, withAttempt, policy, RunOverride{}, AttemptLedger{}, now)
-	if err != nil {
-		t.Fatalf("small attempt: %v", err)
-	}
-	assertAliases(t, decision, []string{"small-a"})
-	if decision.PlannedTier != TierMedium || decision.AttemptTier != TierSmall {
-		t.Fatalf("attempt decision tiers planned=%q attempt=%q", decision.PlannedTier, decision.AttemptTier)
-	}
-	decision, err = selectForTest(t, catalog, withAttempt, policy, RunOverride{Mode: OverrideUse, Alias: "small-a"}, AttemptLedger{}, now)
-	if err != nil {
-		t.Fatalf("use eligible small attempt: %v", err)
-	}
-	assertAliases(t, decision, []string{"small-a"})
 
 	// `use` is only a preference within the fully eligible automatic set. A
 	// declared route cannot bypass proof, tools, context, risk, or the tier floor.
@@ -291,28 +272,6 @@ func TestSelectRouteRespectsPlannedAndAttemptTiersOverridesAndEvidenceStrength(t
 		t.Fatalf("qualified escalation: %v", err)
 	}
 	assertAliases(t, decision, []string{"medium-b"})
-}
-
-func TestSelectRouteAcceptsOnlyTheExactNextLowerAttemptTier(t *testing.T) {
-	now := fixedNow()
-	for name, tiers := range map[string][2]Tier{
-		"equal":       {TierMedium, TierMedium},
-		"skips tier":  {TierLarge, TierSmall},
-		"small tries": {TierSmall, TierTiny},
-		"above":       {TierSmall, TierMedium},
-	} {
-		t.Run(name, func(t *testing.T) {
-			req := broadRequest(tiers[0])
-			req.AttemptTier = tiers[1]
-			decision, err := selectForTest(t, catalogWithCurrent(now, nil), req, publicPolicy(), RunOverride{}, AttemptLedger{}, now)
-			if !errors.Is(err, ErrInvalidWorkRequest) || decision.Status != SelectionUnavailable {
-				t.Fatalf("decision=%#v err=%v", decision, err)
-			}
-			if decision.PlannedTier != tiers[0] || decision.AttemptTier != tiers[1] {
-				t.Fatalf("invalid decision lost tier metadata: %#v", decision)
-			}
-		})
-	}
 }
 
 func TestSelectRoutePreferenceReordersOnlyAlreadyEligibleSameTierRoutes(t *testing.T) {
@@ -1089,7 +1048,6 @@ func TestDefaultManagementMetadataDoesNotInvalidateLegacyRouteApproval(t *testin
 func TestCatalogMergeFingerprintAndCurrentFallbackPolicy(t *testing.T) {
 	now := fixedNow()
 	native := catalogWithCurrent(now, []Route{provenRoute("native", ClassMedium, "openai", "codex", "named-agent", "native", "code", now.Add(time.Hour))})
-	native.Cohort = CohortInitialPilot
 	native.Surfaces = []SurfaceFingerprint{{Surface: "codex-cli", Provider: "openai", Revision: "0.143", ConfigHash: "cfg"}}
 	extra := Catalog{SchemaVersion: CatalogSchemaVersion, Routes: []Route{provenRoute("extra", ClassLarge, "openai", "codex", "named-agent", "extra", "code", now.Add(time.Hour))}}
 	merged, err := MergeCatalog(native, extra)

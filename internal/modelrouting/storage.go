@@ -528,9 +528,6 @@ func ValidateCatalogStatic(catalog Catalog, source CatalogSource) error {
 	if source == CatalogSourceRun && catalog.Fingerprint == "" {
 		return fmt.Errorf("%w: run catalog fingerprint is required", ErrInvalidCatalog)
 	}
-	if catalog.Cohort != "" && catalog.Cohort != CohortUnspecified && catalog.Cohort != CohortInitialPilot {
-		return fmt.Errorf("%w: unknown support cohort", ErrInvalidCatalog)
-	}
 	for _, surface := range catalog.Surfaces {
 		if surface.Surface == "" || surface.Provider == "" || surface.Revision == "" || surface.ConfigHash == "" {
 			return fmt.Errorf("%w: incomplete surface fingerprint", ErrInvalidCatalog)

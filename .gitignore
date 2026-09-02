@@ -14,8 +14,6 @@
 /kbreconcile.exe
 /kbbrief
 /kbbrief.exe
-/amrbench
-/amrbench.exe
 __pycache__/
 *.pyc
 kbrouter-routes.local.json
@@ -40,7 +38,6 @@ kbrouter-routes.local.json
 /docs/solutions/
 /docs/reports/
 /docs/learning-wiki/
-/docs/assets/
 /docs/context/PROJECT.md
 /docs/context/landmines.md
 /docs/context/memory-maintenance.md

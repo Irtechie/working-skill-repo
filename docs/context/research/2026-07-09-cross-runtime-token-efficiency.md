@@ -42,8 +42,8 @@ runtime-specific hook?
 - Lazy skill references and loaded-surface/token-estimate reports.
 - Compact `kbcheck` success output with detailed failures.
 - Model-tier routing with a constant proof bar.
-- Session-hygiene thresholds and `kb-compact`.
-- A planned context-packet/task-state absorption spike.
+- Explicit cognitive-burden reduction through `kb-cognitive`.
+- Bounded context packets in planning and execution.
 
 ### Highest-value remaining gap
 
@@ -59,7 +59,7 @@ Keep raw fields as the source of truth. A weighted "effective tokens" score may
 be useful for trend reports, but its provider/model weights must be versioned;
 it must never replace correctness and proof outcomes.
 
-The next implementation should also record:
+Any future usage measurement should also record:
 
 - tokens per passing task or fixture, not tokens per run alone;
 - turns per task and tokens per turn;
@@ -106,11 +106,12 @@ The next implementation should also record:
 - Put live task state in `AGENTS.md`: increases every turn and breaks stable
   prompt prefixes.
 
-## Impact On Current Project
+## Current Adoption
 
 - `.github/copilot-instructions.md` is now a thin pointer to `AGENTS.md`.
 - Repo-local provider auto-start files were removed.
 - Phoenix remains credited prior art, but no Phoenix runtime/MCP connection is
   part of the bundle.
-- The planner-economy telemetry slice should capture normalized real usage when
-  available, while remaining valid when a host exposes no usage fields.
+- Planning and execution use bounded context packets. Normalized real usage
+  remains optional when a host exposes it; absence of usage fields does not
+  weaken correctness proof.

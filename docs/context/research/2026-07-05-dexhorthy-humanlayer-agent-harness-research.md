@@ -26,13 +26,19 @@ Adopt HumanLayer ideas as narrower surfaces:
 
 HumanLayer's RPI pattern uses research -> plan -> implement, with compaction into docs and human review focused on research/plan because a bad research or plan line can create many bad code lines.
 
-KB already has `kb-research`, `kb-plan`, `kb-work`, and `kb-complete`. Gap: KB should make "review the research/plan before code" cheaper and more explicit for high-risk work, maybe by adding a plan-quality/risk checklist or `kbcheck plan-audit`.
+KB already had `kb-research`, `kb-plan`, `kb-work`, and `kb-complete`. The
+research recommendation was to make requirements-wide review cheaper and more
+explicit for high-risk work. That boundary is now represented by proportional
+pre-slice review and deterministic manifest contracts.
 
 ### 3. Slice context packets are the highest-value planning improvement
 
 Dex's 12-factor context work says the model input should be owned and shaped for the job, not left as a generic chat transcript. The planning analogue for KB is: each slice should carry a compact, deliberate context packet that a child agent or lower-cost model can execute from without rediscovering the world.
 
-KB already has `expected_files`, acceptance criteria, verification, functional risk, and model tier. Gap: the slice plan does not yet explicitly say "this is the context payload the worker should receive." That leaves too much context assembly to the executor and makes tiny/small model delegation weaker than it needs to be.
+At research time, slice plans had `expected_files`, acceptance criteria,
+verification, functional risk, and model tier, but not an explicit worker
+context payload. Bounded context packets are now part of planning and execution.
+The original packet rationale remains:
 
 Adopt a `context_packet` or `context_prefetch` section per slice:
 
@@ -50,14 +56,15 @@ This combines Factor 3 "own your context window", Factor 13 prefetch, and Factor
 
 HumanLayer's `design-control-loop` frames recurring work as set point, sensor, controller, actuator, disturbances, dampener, scope gate, batch size, memory, and WIP bound.
 
-KB now records these fields in `kb-plan` and `kb-goal`, but does not yet generate a runnable recurring workflow or local sensor/controller scaffold.
+KB now records these fields in `kb-goal` steering state. It does not claim a
+separate recurring-workflow runtime or generated sensor/controller scaffold.
 
 Adopt next: `kb-control-loop` or a `kb-goal` extension that creates:
 
 - local sensor command script;
 - controller script/policy file selecting one reviewable increment;
 - actuator prompt/skill pointer;
-- `.github/agent-memory/<loop>.md` or KB equivalent steering file;
+- a KB-owned steering-memory file;
 - PR bound of 1 open PR;
 - optional `/iterate` marker that routes reviewer comments into steering memory;
 - optional dampener check on PRs.
@@ -68,13 +75,15 @@ HumanLayer separates durable loop feedback from one-off PR comments. Maintainers
 
 KB already has feedback classification: current-only, steering-memory, observation, scoped-instinct, landmine, and instinct-evidence. Gap is runtime ingestion from PR comments. Adopt the routing shape, but write feedback into KB steering memory first, not straight to instincts.
 
-### 6. Context-efficient backpressure should become a `kbcheck` output mode
+### 6. Context-efficient backpressure belongs in deterministic check output
 
 HumanLayer's backpressure wrapper prints compact success and only dumps output on failure. Fail-fast and output filtering reduce context damage.
 
-KB has deterministic gates, but many commands still return noisy output through the agent. Adopt:
+KB's deterministic gates now keep routine success compact and preserve focused
+failure evidence. The durable principle is:
 
-- `kbcheck run --summary` or a check wrapper: success emits one compact line with counts/timestamps; failure emits command, exit code, focused stderr/stdout, and artifact path;
+- success emits one compact line with counts or timing, while failure preserves
+  the command, exit code, focused output, and artifact path;
 - fail-fast mode when available (`go test -failfast`, `pytest -x`, etc.);
 - verbose logs stored as artifacts and cited by path.
 
@@ -117,11 +126,13 @@ KB should not import these wholesale. Adopt:
 
 ### 10. Model-tier decomposition is already better in KB
 
-HumanLayer talks about using Opus for parent/orchestration and Sonnet/Haiku for bounded subagents. KB already encodes `tiny/small/medium/large` in `kb-plan` and `kb-work`, including escalation boundaries and a constant proof bar.
+HumanLayer talks about using stronger models for parent/orchestration and
+smaller models for bounded subagents. KB now records portable
+`small/medium/large` minimum tiers, escalation boundaries, and a constant proof
+bar without hardcoding provider model names.
 
 Refinement: add examples in the model-tier contract:
 
-- tiny: grep inventories, schema/frontmatter fill, route classification, docs copy;
 - small: narrow mechanical edits and simple tests;
 - medium: ordinary vertical slice;
 - large: decomposition, hard debugging, security/architecture, final synthesis.
@@ -152,7 +163,7 @@ Also consider a `model_tier_reason` field in slice plans if reviews show assignm
 ## Applies When
 
 - Designing KB self-healing, recurring improvement loops, or scheduled agent work.
-- Deciding whether KB should become HumanLayer/Phoenix/ACP versus absorb pieces.
+- Deciding whether KB should absorb ideas from a larger runtime framework.
 - Improving model-tier decomposition and subagent cost routing.
 - Reducing context blowups from tests, logs, MCP tools, and broad instructions.
 
@@ -170,13 +181,11 @@ Also consider a `model_tier_reason` field in slice plans if reviews show assignm
 - Switch `cmd/kbcheck` to Rust now: no evidence current Go tooling is the bottleneck.
 - Turn all lessons into global memory: contradicts KB scoped-learning model and causes sibling contamination.
 
-## Impact On Current Project
+## Current Adoption
 
-Recommended next slices:
-
-1. Add `context_packet` / `context_prefetch` to KB slice plans and make `kb-work` load it before local or delegated execution.
-2. Add `kbcheck run` or `kbcheck check-summary` for context-efficient command output.
-3. Add a KB recurring-loop generator or `kb-goal` extension for local sensor/controller/actuator scaffolds plus PR-bound workflow.
-4. Add `/iterate`-style steering-memory ingestion for PR comments or local review notes.
-5. Add optional Claude-targeted AGENTS/CLAUDE conditionalization helper, gated as runtime-specific.
-6. Add harness-adapter parity fixture pattern from Shannon before any tmux/session adapter is trusted.
+KB adopted bounded context packets, proportional plan-wide review, compact
+deterministic check output, capability tiers, control-loop fields in `kb-goal`,
+and steering memory. It deliberately remains file-native and does not claim a
+HumanLayer/ACP runtime, generated recurring-workflow scaffold, `/iterate`
+integration, or tmux/session adapter. Those unimplemented ideas are historical
+research options, not current product promises.

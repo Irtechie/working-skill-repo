@@ -11,9 +11,6 @@ import (
 	"time"
 )
 
-const modelRoutingInitialPilotEvidence = "evals/model-routing/initial-pilot-release-evidence.json"
-const modelRoutingFeatureMarker = "internal/modelrouting/selector.go"
-
 type ReleaseResult struct {
 	OK               bool              `json:"ok"`
 	Profile          string            `json:"profile"`
@@ -114,7 +111,13 @@ func releaseChecks(root, profile string, runner processRunner) ([]Check, error) 
 				return CheckResult{ExitCode: code, Stdout: out.String(), Stderr: err.String()}
 			},
 		},
-		{Name: "git-diff-check", Args: []string{"git", "diff", "--check"}, Reason: "whitespace/conflict guard", Required: true, Confidence: "deterministic-local"},
+		{Name: "git-diff-check", Args: []string{"git", "diff", "--cached", "--check"}, Reason: "staged whitespace/conflict guard", Required: true, Confidence: "deterministic-local"},
+		{Name: "git-worktree-diff-check", Args: []string{"git", "diff", "--check"}, Reason: "unstaged whitespace/conflict guard", Required: true, Confidence: "deterministic-local"},
+		{
+			Name: "git-candidate-coherence", Args: []string{"git", "status", "--porcelain=v1", "--untracked-files=normal"},
+			Reason: "exact staged/working-tree candidate boundary", Required: true, Confidence: "deterministic-local",
+			Run: func(root string) CheckResult { return runCandidateCoherence(root, runner) },
+		},
 	}
 
 	if exists(root, ".github/skills") && exists(root, "config/skill-quality.json") {
@@ -128,28 +131,6 @@ func releaseChecks(root, profile string, runner processRunner) ([]Check, error) 
 	}
 	// skill-surface-minimality is already a stable child of core. Do not execute
 	// it again in the same immutable release profile.
-	// Once the routing feature exists, its canonical evidence is mandatory. Do
-	// not let deleting or renaming the evidence silently remove the release gate.
-	if exists(root, modelRoutingFeatureMarker) || exists(root, modelRoutingInitialPilotEvidence) {
-		checks = append(checks, Check{
-			Name: "model-routing-initial-pilot",
-			Args: []string{
-				"kbcheck", "model-routing-release",
-				"--cohort", "initial-pilot",
-				"--evidence", modelRoutingInitialPilotEvidence,
-			},
-			Reason:     "canonical model-routing pilot evidence detected",
-			Required:   true,
-			Confidence: "deterministic-local",
-			Run: func(root string) CheckResult {
-				return runNativeCommand(root, []string{
-					"model-routing-release",
-					"--cohort", "initial-pilot",
-					"--evidence", modelRoutingInitialPilotEvidence,
-				})
-			},
-		})
-	}
 	if profile == "live-release" {
 		if exists(root, "evals/route-complexity") {
 			checks = append(checks, Check{
@@ -164,6 +145,30 @@ func releaseChecks(root, profile string, runner processRunner) ([]Check, error) 
 		}
 	}
 	return checks, nil
+}
+
+func runCandidateCoherence(root string, runner processRunner) CheckResult {
+	unstaged := runner(root, Check{Args: []string{"git", "diff", "--quiet"}})
+	if unstaged.ExitCode != 0 {
+		if unstaged.ExitCode != 1 {
+			return unstaged
+		}
+		return CheckResult{
+			ExitCode: 1,
+			Stderr:   "release candidate has unstaged tracked changes; stage or revert them before release proof\n",
+		}
+	}
+	untracked := runner(root, Check{Args: []string{"git", "ls-files", "--others", "--exclude-standard"}})
+	if untracked.ExitCode != 0 {
+		return untracked
+	}
+	if strings.TrimSpace(untracked.Stdout) != "" {
+		return CheckResult{
+			ExitCode: 1,
+			Stderr:   "release candidate has untracked non-ignored files; stage or remove them before release proof\n" + untracked.Stdout,
+		}
+	}
+	return CheckResult{ExitCode: 0}
 }
 
 func invokeReleaseCheck(root string, check Check, runner processRunner) ReleaseCheckRun {
