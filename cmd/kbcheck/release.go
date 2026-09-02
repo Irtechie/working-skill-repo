@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const modelRoutingInitialPilotEvidence = "docs/results/2026-07-10-session-model-routing-initial-pilot.json"
+const modelRoutingInitialPilotEvidence = "evals/model-routing/initial-pilot-release-evidence.json"
 const modelRoutingFeatureMarker = "internal/modelrouting/selector.go"
 
 type ReleaseResult struct {

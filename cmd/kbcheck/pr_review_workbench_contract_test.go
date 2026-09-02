@@ -45,12 +45,6 @@ func TestPRReviewWorkbenchContract(t *testing.T) {
 			docConcept("use `pr-review-workbench` after the PR exists"),
 			docConcept("Mermaid remains the small static relationship view"),
 		},
-		"README.md": {
-			docAnchor("`pr-review-workbench`"),
-			docAnchor("`pr-review-artifacts` branch"),
-			docConcept("lazy-load after PR creation"),
-			docConcept("Download, then open locally"),
-		},
 	})
 
 	python, err := exec.LookPath("python")

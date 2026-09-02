@@ -29,3 +29,22 @@ kbrouter-routes.local.json
 # Stray frontend build artifacts (hashed bundles) emitted to repo root
 /avatar-*.js
 /custom-avatars-*.js
+
+# Local KB maintenance state (never part of the public skill-bundle source)
+/todo.md
+/todo-done.md
+/docs/brainstorms/
+/docs/plans/
+/docs/handoffs/
+/docs/results/
+/docs/solutions/
+/docs/reports/
+/docs/learning-wiki/
+/docs/assets/
+/docs/context/PROJECT.md
+/docs/context/landmines.md
+/docs/context/memory-maintenance.md
+/docs/context/epics/
+/docs/context/goals/
+/docs/context/kb/
+/docs/context/decisions/

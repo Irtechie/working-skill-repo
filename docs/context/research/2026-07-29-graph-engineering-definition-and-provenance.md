@@ -119,6 +119,20 @@ KB had a dependency DAG in `kb-plan` on May 23, 2026, bounded parallel
 ready-set execution in `kb-work` on June 1, and review fan-out plus merge/dedup
 in May. Provider-neutral source-code graph routing arrived July 25.
 
+The detailed implementation chronology belongs here as provenance for that
+claim, not in the repository's product introduction:
+
+| Graph criterion | What went in | Date / commit |
+|---|---|---|
+| **Bounded nodes** | Independently executable vertical slices with acceptance criteria and expected files | **May 23, 2026** - `bb890f8` |
+| **Explicit edges** | `blockers` relationships between slices, plus missing-edge and cycle validation | **May 23, 2026** - `bb890f8` |
+| **Graph traversal** | `kb-work` selected runnable slices in dependency/topological order | **May 23, 2026** - `bb890f8` |
+| **Fan-out** | All safe, independent ready nodes could dispatch concurrently | **June 1, 2026** - `0be21ab` |
+| **Barriers/fan-in** | Dependent nodes waited for all blockers; serial, HITL, and shared-resource nodes formed barriers | **June 1, 2026** - `0be21ab` |
+| **Independent consolidation graph** | Parallel persona reviews merged and deduplicated into one result | Origin **May 23, 2026**; dedicated `kb-review` **May 28, 2026** - `e40166c` |
+| **Code-enforced scheduler** | Ready-set and cycle rules moved from skill prose into deterministic Go checks | **June 2, 2026** - `2fb60fd` |
+| **Outer loop over graphs** | Durable `kb-goal` repeatedly routed work units through planning and graph execution until terminal | **June 8, 2026** - `cbcda0f` |
+
 The existing execution graph already covers explicit dependencies, safe
 parallelism, barriers, leases, gate ledgers, and independent proof. The main
 gap is not an "org graph" or a new `kb-graph` lane. It is a unified immutable
