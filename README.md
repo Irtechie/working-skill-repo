@@ -69,8 +69,10 @@ skill-only install still succeeds.
 
 Everything else adds depth around that loop: brainstorming, research, durable
 goals, functional testing, review, repair, delivery, learning, and maintenance.
-The core path remains single-agent-first. Specialist review and multi-agent
-execution are loaded only when the task warrants them.
+The orchestrator keeps planning and proof ownership; when a plan has ready
+slices, `kb-work` uses delegation-first DDR to assign each slice to one
+qualified worker. Direct current-owner execution remains an evidence-bound
+exception, not the default.
 
 KB means **Kanban-Based**. Boards, manifests, vertical slices, and done archives
 carry durable state, while the short `kb-` prefix remains comfortable for voice

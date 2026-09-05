@@ -16,6 +16,10 @@ func TestProductionDDRContractSeparatesHostSurfaces(t *testing.T) {
 	noSecondLocalRoute := docConcept("second local route")
 
 	requireDocContract(t, root, "production DDR contract", map[string][]contractMatcher{
+		"README.md": {
+			docConcept("delegation-first DDR"),
+			docConcept("Direct current-owner execution remains an evidence-bound exception"),
+		},
 		".github/skills/kb-work/SKILL.md": {
 			docAnchor("### Step 2.6: Orchestrator Ownership Decision (DDR)"),
 			docAnchor("**Native host delegation:**"),

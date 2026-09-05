@@ -18,10 +18,11 @@ func TestReadmeIsFocusedProductFrontDoor(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(content)
-	normalized := strings.TrimSuffix(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	lineCount := len(strings.Split(normalized, "\n"))
-	if lineCount < 350 || lineCount > 500 {
-		t.Fatalf("README.md has %d lines; expected 350-500", lineCount)
+	if issues := validateReadmeSemantics(text, func(target string) bool {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(target)))
+		return err == nil && info.Mode().IsRegular()
+	}); len(issues) > 0 {
+		t.Fatalf("README.md semantic contract failed: %s", strings.Join(issues, "; "))
 	}
 
 	diagrams := []string{
@@ -121,6 +122,48 @@ func TestTrackedTextContainsNoMachinePrivatePaths(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestReadmeSemanticContractIgnoresEditorialLength(t *testing.T) {
+	t.Parallel()
+	base := strings.Join([]string{
+		"# KB", "npx github:Irtechie/working-skill-repo --target all --profile core",
+		"![workflow](docs/assets/kb-workflow-overview.png)",
+		"Delegation-first DDR assigns each ready slice to one qualified worker.",
+	}, "\n")
+	assets := func(target string) bool { return target == "docs/assets/kb-workflow-overview.png" }
+	for _, content := range []string{base, base + "\n\n" + strings.Repeat("Useful explanation. ", 500)} {
+		if issues := validateReadmeSemantics(content, assets); len(issues) > 0 {
+			t.Fatalf("semantically complete README was rejected: %v", issues)
+		}
+	}
+	for name, content := range map[string]string{
+		"missing install command": strings.Replace(base, "npx github:Irtechie/working-skill-repo --target all --profile core", "install this", 1),
+		"missing asset":           strings.Replace(base, "docs/assets/kb-workflow-overview.png", "docs/assets/missing.png", 1),
+		"single agent default":    strings.Replace(base, "Delegation-first DDR assigns each ready slice to one qualified worker.", "The core path remains single-agent-first.", 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if issues := validateReadmeSemantics(content, assets); len(issues) == 0 {
+				t.Fatal("material README defect unexpectedly passed")
+			}
+		})
+	}
+}
+
+func validateReadmeSemantics(content string, assetExists func(string) bool) []string {
+	var issues []string
+	if !strings.Contains(content, "npx github:Irtechie/working-skill-repo --target all --profile core") {
+		issues = append(issues, "missing core install command")
+	}
+	if !strings.Contains(strings.ToLower(content), "delegation-first ddr") || strings.Contains(strings.ToLower(content), "core path remains single-agent-first") {
+		issues = append(issues, "execution ownership contradicts delegation-first DDR")
+	}
+	for _, target := range regexp.MustCompile(`!\[[^\]]*\]\(([^)\s]+)\)`).FindAllStringSubmatch(content, -1) {
+		if !assetExists(target[1]) {
+			issues = append(issues, "unresolved image asset "+target[1])
+		}
+	}
+	return issues
 }
 
 func TestMachinePrivatePathPatternsIncludeEscapedWindowsPaths(t *testing.T) {
