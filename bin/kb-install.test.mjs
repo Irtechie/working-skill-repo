@@ -45,6 +45,21 @@ test("maps supported operating systems and architectures to release assets", () 
   assert.throws(() => routerArtifactName({ platform: "linux", arch: "ia32" }), /unsupported router architecture/i);
 });
 
+test("minimal experimental profile requires a disposable root and records its omissions", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "kb-minimal-profile-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const installer = path.join(testDir, "kb-install.mjs");
+  await assert.rejects(
+    execFile(process.execPath, [installer, "--target", "codex", "--profile", "minimal-experimental", "--router", "skip", "--reconciler", "skip", "--yes"]),
+    /requires an explicit --install-root/i,
+  );
+  await execFile(process.execPath, [installer, "--source", path.resolve(testDir, ".."), "--target", "codex", "--profile", "minimal-experimental", "--install-root", root, "--router", "skip", "--reconciler", "skip", "--yes"]);
+  const inventory = JSON.parse(await fs.readFile(path.join(root, "kb-minimal-experimental-inventory.json"), "utf8"));
+  assert.deepEqual(inventory.omissions, ["gh-copilot-cost-ops", "kb-simplify"]);
+  await assert.rejects(fs.stat(path.join(root, ".codex", "skills", "kb-simplify")), /ENOENT/);
+  await fs.stat(path.join(root, ".codex", "skills", "kb-work", "SKILL.md"));
+});
+
 test("maps reconciler assets and requires explicit provenance capability", () => {
   assert.equal(reconcilerArtifactName({ platform: "win32", arch: "x64" }), "kbreconcile-windows-amd64.exe");
   assert.equal(reconcilerArtifactName({ platform: "linux", arch: "arm64" }), "kbreconcile-linux-arm64");

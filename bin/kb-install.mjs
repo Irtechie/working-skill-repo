@@ -21,9 +21,10 @@ const CORE_AGENTS = [
 // Skills excluded from the core profile — only installed with --profile full.
 // Add domain-specific or optional skills here when needed.
 const FULL_ONLY_SKILLS = new Set([]);
+const MINIMAL_EXPERIMENTAL_OMISSIONS = new Set(["gh-copilot-cost-ops", "kb-simplify"]);
 
 const VALID_TARGETS = new Set(["codex", "copilot", "agents", "repo", "all"]);
-const VALID_PROFILES = new Set(["core", "full"]);
+const VALID_PROFILES = new Set(["core", "full", "minimal-experimental"]);
 const VALID_ROUTER_MODES = new Set(["auto", "required", "skip", "uninstall"]);
 const VALID_RECONCILER_MODES = new Set(["auto", "required", "skip", "uninstall"]);
 const ROUTER_STATE_SCHEMA = 1;
@@ -47,7 +48,7 @@ Usage:
 
 Options:
   --target <codex|copilot|agents|repo|all>  Install target. Default: all
-  --profile <core|full>                     Skill profile. Default: core
+  --profile <core|full|minimal-experimental> Skill profile. Default: core
   --repo <path>                             Repo-local install root for --target repo
   --install-root <path>                     Home/root override for global installs
   --source <path>                           Source repo override. Default: current package
@@ -75,6 +76,7 @@ function parseArgs(argv) {
     profile: "core",
     repo: "",
     installRoot: os.homedir(),
+    installRootExplicit: false,
     source: sourceRoot,
     routerMode: "auto",
     routerVersion: "",
@@ -110,8 +112,10 @@ function parseArgs(argv) {
       args.repo = arg.slice("--repo=".length);
     } else if (arg === "--install-root") {
       args.installRoot = requireValue(argv, ++i, arg);
+      args.installRootExplicit = true;
     } else if (arg.startsWith("--install-root=")) {
       args.installRoot = arg.slice("--install-root=".length);
+      args.installRootExplicit = true;
     } else if (arg === "--source") {
       args.source = requireValue(argv, ++i, arg);
     } else if (arg.startsWith("--source=")) {
@@ -157,7 +161,7 @@ function parseArgs(argv) {
     throw new Error(`Invalid --target '${args.target}'. Use one of: ${[...VALID_TARGETS].join(", ")}`);
   }
   if (!VALID_PROFILES.has(args.profile)) {
-    throw new Error(`Invalid --profile '${args.profile}'. Use core or full.`);
+    throw new Error(`Invalid --profile '${args.profile}'. Use core, full, or minimal-experimental.`);
   }
   if (!VALID_ROUTER_MODES.has(args.routerMode)) {
     throw new Error(`Invalid --router '${args.routerMode}'. Use auto, required, skip, or uninstall.`);
@@ -167,6 +171,9 @@ function parseArgs(argv) {
   }
   if (args.target === "repo" && !args.repo) {
     throw new Error("--target repo requires --repo <path>.");
+  }
+  if (args.profile === "minimal-experimental" && (!args.installRootExplicit || args.target === "repo")) {
+    throw new Error("--profile minimal-experimental requires an explicit --install-root and a global target.");
   }
   if (args.routerVersion && !STRICT_SEMVER.test(args.routerVersion)) {
     throw new Error("--router-version must be a strict semantic version.");
@@ -318,6 +325,9 @@ async function main() {
     }
 
     console.log(`Installed KB ${args.profile} profile to '${args.target}'. copied=${summary.copied} skipped=${summary.skipped} backups=${summary.backedUp}`);
+    if (args.profile === "minimal-experimental") {
+      await writeExperimentalInventory(args, plan);
+    }
   } finally {
     rl?.close();
   }
@@ -1006,6 +1016,8 @@ async function buildInstallPlan(args) {
   const allSkills = await listDirectories(path.join(args.source, ".github", "skills"));
   const skills = args.profile === "core"
     ? allSkills.filter(s => !FULL_ONLY_SKILLS.has(s))
+    : args.profile === "minimal-experimental"
+      ? allSkills.filter(s => !FULL_ONLY_SKILLS.has(s) && !MINIMAL_EXPERIMENTAL_OMISSIONS.has(s))
     : allSkills;
   const items = [];
 
@@ -1057,6 +1069,27 @@ async function buildInstallPlan(args) {
   }
 
   return items;
+}
+
+async function writeExperimentalInventory(args, plan) {
+  const entries = [];
+  for (const item of plan) {
+    entries.push({ kind: item.kind, source: path.relative(args.source, item.source).split(path.sep).join("/"), sha256: await treeDigest(item.source) });
+  }
+  const inventory = { profile: args.profile, omissions: [...MINIMAL_EXPERIMENTAL_OMISSIONS].sort(), entries };
+  await fs.writeFile(path.join(args.installRoot, "kb-minimal-experimental-inventory.json"), `${JSON.stringify(inventory, null, 2)}\n`);
+}
+
+async function treeDigest(target) {
+  const info = await fs.stat(target);
+  if (info.isFile()) return crypto.createHash("sha256").update(await fs.readFile(target)).digest("hex");
+  const entries = await fs.readdir(target, { recursive: true });
+  const hash = crypto.createHash("sha256");
+  for (const entry of entries.sort()) {
+    const full = path.join(target, entry);
+    if ((await fs.stat(full)).isFile()) hash.update(entry).update(await fs.readFile(full));
+  }
+  return hash.digest("hex");
 }
 
 function targetRoots(target, args) {
