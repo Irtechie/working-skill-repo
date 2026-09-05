@@ -318,6 +318,15 @@ func validateManifestContract(path string) (manifestContractResult, error) {
 		issues = append(issues, validateQualificationPlanContract(path)...)
 	}
 	for _, slice := range slices {
+		if slice.Status == "pending" || slice.Status == "in_progress" {
+			if _, err := normalizeLeaseClaims(nil, nil, slice.SharedResources); err != nil {
+				issues = append(issues, manifestContractIssue{
+					Code:    "invalid-shared-resource-claim",
+					SliceID: slice.ID,
+					Message:  "shared_resources must use kind:value without whitespace: " + err.Error(),
+				})
+			}
+		}
 		if slice.TestLevel != "" && !validManifestTestLevel(slice.TestLevel) {
 			issues = append(issues, manifestContractIssue{Code: "invalid-test-level", SliceID: slice.ID, Message: "test_level must be none, unit, integration, functional-api, functional-cli, functional-browser, functional-native-gui, or full"})
 		}
