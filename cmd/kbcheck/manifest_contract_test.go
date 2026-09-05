@@ -97,6 +97,46 @@ gate_ledger:
 	}
 }
 
+func TestManifestContractRejectsRuntimeInvalidSharedResources(t *testing.T) {
+	t.Parallel()
+	invalid := writeManifest(t, `
+---
+slices:
+  - id: claim-001
+    status: pending
+    shared_resources: [manifest-worktree, "resource:has whitespace"]
+gate_ledger: []
+---
+`)
+	result, err := validateManifestContract(invalid)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if result.OK || !hasManifestIssue(result.Issues, "invalid-shared-resource-claim") {
+		t.Fatalf("expected invalid shared-resource claim issue, got %#v", result)
+	}
+
+	valid := writeManifest(t, `
+---
+slices:
+  - id: claim-001
+    status: pending
+    shared_resources: [resource:manifest-worktree]
+gate_ledger: []
+---
+`)
+	result, err = validateManifestContract(valid)
+	if err != nil {
+		t.Fatalf("validateManifestContract returned error: %v", err)
+	}
+	if !result.OK {
+		t.Fatalf("expected valid shared-resource claim, got %#v", result)
+	}
+	if _, err := normalizePlanRunClaims(nil, nil, nil, []string{"resource:manifest-worktree"}); err != nil {
+		t.Fatalf("runtime lease rejected valid shared-resource claim: %v", err)
+	}
+}
+
 func TestPreSliceReviewContractAcceptsRequirementsWideReceipt(t *testing.T) {
 	t.Parallel()
 	path := writePreSliceReviewManifest(t, validPreSliceReviewReceipt())
