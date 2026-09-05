@@ -32,6 +32,10 @@ kb-start "what I want done"
 `kb-start` is an agent skill, not a standalone shell command. The installer
 uses Node once to copy the bundle; Node is not required afterward.
 
+Read-only questions stay read-only: KB uses existing project context when it is
+available and reports missing memory as a setup option. Setup, refresh, edits,
+tests, and cleanup still use their normal coordination and safety gates.
+
 For a repository-local install:
 
 ```shell
@@ -65,8 +69,10 @@ skill-only install still succeeds.
 
 Everything else adds depth around that loop: brainstorming, research, durable
 goals, functional testing, review, repair, delivery, learning, and maintenance.
-The core path remains single-agent-first. Specialist review and multi-agent
-execution are loaded only when the task warrants them.
+The orchestrator keeps planning and proof ownership; when a plan has ready
+slices, `kb-work` uses delegation-first DDR to assign each slice to one
+qualified worker. Direct current-owner execution remains an evidence-bound
+exception, not the default.
 
 KB means **Kanban-Based**. Boards, manifests, vertical slices, and done archives
 carry durable state, while the short `kb-` prefix remains comfortable for voice

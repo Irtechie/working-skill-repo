@@ -20,6 +20,13 @@ For real captured runs, write a result JSON and pass it explicitly:
 go run ./cmd/kbcheck skill-eval --result-path path\to\captured-result.json
 ```
 
+Adapter prompts contain only the fixture id, user prompt, and repository state.
+Expected routes, guards, scoring metadata, and other oracle fields stay with
+the local scorer. The model never declares pass/fail; the scorer computes it.
+Adapter manifests mark dry-runs as `synthetic` and actual captures as `live`.
+Synthetic records exercise plumbing only and are not runtime-qualification or
+task-improvement evidence.
+
 ## Result Shape
 
 ```json

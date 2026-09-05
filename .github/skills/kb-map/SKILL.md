@@ -43,7 +43,11 @@ Before lookup or refresh, check the standard layout.
   - `<repo>/docs/handoffs/active/`
   - `<repo>/docs/handoffs/parked/`
   - `<repo>/docs/handoffs/done/`
-- If `todo.md` or `docs/context/PROJECT.md` is missing, invoke `kb-map-bootstrap`.
+- If `todo.md` or `docs/context/PROJECT.md` is missing during explicit
+  `setup`, `refresh`, or mutating execution, invoke `kb-map-bootstrap`.
+- During a read-only lookup, do not bootstrap or create layout paths. Read any
+  available context, return a transient orientation, and report missing memory
+  as the setup prerequisite for later mutating work.
 - If only directories are missing, create them during `refresh`.
 - Never overwrite non-empty user docs without reading and merging.
 - After bootstrap or refresh, continue the original lookup so the caller receives route-ready context.
@@ -257,7 +261,14 @@ the specific signals and response path.
 
 ## Missing Memory and Setup
 
-If `todo.md` or `docs/context/PROJECT.md` is missing, invoke `kb-map-bootstrap`.
+For read-only lookup, missing `todo.md` or `docs/context/PROJECT.md` means
+"orientation is partial". Do not invoke `kb-map-bootstrap`, create directories,
+or update project memory. Offer explicit `kb-map setup` as the path to create it.
+
+For explicit setup, refresh, or mutating execution, missing `todo.md` or
+`docs/context/PROJECT.md` requires `kb-map-bootstrap` before the operation
+continues. This distinction keeps questions nonmutating without creating a
+bypass around setup for edits or maintenance.
 
 If handoff directories are missing but the project map exists, create or recommend the missing directories during `refresh`; do not deep-crawl the repo.
 
