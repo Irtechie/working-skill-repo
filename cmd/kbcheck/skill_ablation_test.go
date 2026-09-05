@@ -14,7 +14,9 @@ func TestSkillAblationExcludesSyntheticAndUnprovenRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeJSONFile(filepath.Join(records, "synthetic.json"), map[string]any{"evidence_kind": "synthetic", "condition": "full", "task_success": "pass"})
-	writeJSONFile(filepath.Join(records, "live.json"), map[string]any{"evidence_kind": "live", "condition": "reduced", "task_success": "pass", "independent_proof": map[string]any{"command": "go test ./...", "exit_code": 0}})
+	for _, condition := range []string{"full", "reduced", "none"} {
+		writeJSONFile(filepath.Join(records, condition+".json"), map[string]any{"evidence_kind": "live", "condition": condition, "task_success": "pass", "case": "case-1", "repetition": "1", "host": "host-a", "config_fingerprint": "config", "project_hash": "project", "task_prompt_hash": "prompt", "independent_proof": map[string]any{"command": "go test ./...", "exit_code": 0}})
+	}
 	var stdout, stderr strings.Builder
 	if code := runSkillAblationCommand(root, options{resultRoot: "records", output: "report.json", json: true}, &stdout, &stderr); code != 0 {
 		t.Fatalf("code=%d stderr=%s", code, stderr.String())
@@ -23,7 +25,7 @@ func TestSkillAblationExcludesSyntheticAndUnprovenRows(t *testing.T) {
 	if err := readJSONFile(filepath.Join(root, "report.json"), &report); err != nil {
 		t.Fatal(err)
 	}
-	if intValue(report["eligible"]) != 1 || intValue(report["excluded"]) != 1 {
+	if intValue(report["eligible"]) != 3 || intValue(report["excluded"]) != 1 || len(report["matched_groups"].([]any)) != 1 {
 		t.Fatalf("report=%#v", report)
 	}
 }

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "status": "protocol-only-no-live-runs-authorized",
+  "cases": ["small-fix", "ambiguous-debugging", "feature", "resumed-task"],
+  "hosts": 3,
+  "conditions": ["full", "reduced", "none"],
+  "pilot_repetitions": 1,
+  "maximum_task_runs": 36,
+  "treatment_isolation": "pin full core catalogue; use recorded reduced inventory; remove KB skills and KB ambient instructions for none; retain host safety instructions",
+  "admission": "require independent command receipt, hashes, matched initial project/prompt/config, and verified effective instruction discovery",
+  "prohibitions": ["automatic reruns", "automatic skill deletion", "fabricated pilot results", "credential capture"]
+}
