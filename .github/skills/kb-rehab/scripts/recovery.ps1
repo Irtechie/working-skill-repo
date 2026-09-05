@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [ValidateSet('survey')][string]$Action = 'survey',
+  [ValidateSet('survey','prepare')][string]$Action = 'survey',
   [Parameter(Mandatory=$true)][string]$Root,
   [switch]$Json
 )
@@ -15,6 +15,11 @@ function Invoke-Git([string[]]$Arguments) {
 
 $top = Invoke-Git @('rev-parse','--show-toplevel')
 if (-not $top.ok) { throw "survey root is not a Git repository: $rootPath" }
+if ($Action -eq 'prepare') {
+  $result = [ordered]@{ schema_version=1; action='prepare'; status='dependency-needed'; reason='prepare requires a separately verified baseline SHA and explicit relative artifact allowlist'; preserved_source=$top.output.Trim(); next_action='continue independent work or supply verified recovery receipt' }
+  if ($Json) { $result | ConvertTo-Json -Depth 5 } else { $result }
+  exit 0
+}
 $common = Invoke-Git @('rev-parse','--git-common-dir')
 $branch = Invoke-Git @('branch','--show-current')
 $head = Invoke-Git @('rev-parse','HEAD')
