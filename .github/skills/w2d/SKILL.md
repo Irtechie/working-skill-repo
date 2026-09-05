@@ -150,6 +150,12 @@ from publishing, so report the reviewed manifest and stop rather than pushing.
 `delivery.mode: direct` stays owned by `kb-complete` and `kb-land`; `w2d`
 always delivers through a PR.
 
+Authority precedence is: the current explicit W2D instruction for its named
+objective, then a persistent explicitly chosen project delivery policy, then
+historical plan metadata. A plans-only snapshot is historical context, not a
+permanent denial of a later W2D run. It never overrides an explicit durable
+local-only policy, and W2D never extends to unrelated cleanup or backlog work.
+
 ## Stop Rules
 
 - Do not author, edit, or backfill a manifest or gate ledger to satisfy a

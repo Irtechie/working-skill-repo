@@ -30,6 +30,11 @@ On every fresh session or ambiguous work request:
    result blocks mutating work until the required setup is complete, but never
    turns a read-only question into a write.
 
+When a read-only unfinished-work survey finds unrelated candidate backlog,
+offer one scoped cleanup/review choice. Silence or decline preserves that
+backlog and does not block independent ready work. Do not repeat an unchanged
+offer on every phase entry, and never treat it as authority to dispose of work.
+
 ## Shared Work Queue Gate
 
 Before any mutating route, successor session, plan-run worktree, test wave, or
