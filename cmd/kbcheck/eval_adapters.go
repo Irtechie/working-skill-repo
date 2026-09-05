@@ -106,7 +106,7 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 		}
 	}
 	writeJSONFile(resultPath, result)
-	writeJSONFile(manifestPath, newRunManifest(root, runID, runtime, fixture))
+	writeJSONFile(manifestPath, newRunManifest(root, runID, runtime, mode, fixture))
 	score, _ := computeSkillEval(root, "", resultPath, "", false, runID, manifestPath)
 	scoreBytes, _ := json.MarshalIndent(score, "", "  ")
 	_ = os.WriteFile(filepath.Join(runDir, "score.json"), scoreBytes, 0o644)
@@ -127,8 +127,9 @@ func dryRunResult(fixture map[string]any, runtime, runID string) map[string]any 
 	return map[string]any{
 		"id":              runID,
 		"fixture_id":      fixtureID,
-		"expected_result": "pass",
 		"eval_run_id":     runID,
+		"evidence_kind":   "synthetic",
+		"runtime":         runtime,
 		"actual": map[string]any{
 			"route":          stringValue(expected["route"]),
 			"user_questions": intValue(expected["max_user_questions"]),
@@ -180,7 +181,7 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 }
 
 func evalPrompt(fixture map[string]any, runtime, runID string) string {
-	content, _ := json.MarshalIndent(fixture, "", "  ")
+	content, _ := json.MarshalIndent(publicEvalPromptFixture(fixture), "", "  ")
 	fixtureID := stringValue(fixture["id"])
 	return fmt.Sprintf(`You are running a KB skill-routing evaluation for %s.
 
@@ -196,11 +197,22 @@ Rules:
 Route fixture:
 %s
 
-Return a result object with id "%s-live-%s", fixture_id "%s", expected_result "pass", eval_run_id "%s", actual.route, actual.user_questions, actual.artifacts, actual.proof, trace.files_read, trace.commands, trace.tools, and claim_checks.
+Return a result object with id "%s-live-%s", fixture_id "%s", eval_run_id "%s", actual.route, actual.user_questions, actual.artifacts, actual.proof, trace.files_read, trace.commands, trace.tools, and claim_checks. The scorer, not you, determines pass or fail.
 `, runtime, runID, string(content), runtime, fixtureID, fixtureID, runID)
 }
 
-func newRunManifest(root, runID, runtime string, fixture map[string]any) map[string]any {
+// publicEvalPromptFixture is deliberately allowlisted. Fixtures are scorer
+// inputs, not prompt templates: expected answers, guards, rubrics, and any
+// future fields remain private unless this projection is consciously extended.
+func publicEvalPromptFixture(fixture map[string]any) map[string]any {
+	return map[string]any{
+		"id":         stringValue(fixture["id"]),
+		"user_prompt": stringValue(fixture["user_prompt"]),
+		"repo_state":  fixture["repo_state"],
+	}
+}
+
+func newRunManifest(root, runID, runtime, mode string, fixture map[string]any) map[string]any {
 	fixtureID := stringValue(fixture["id"])
 	protected := []map[string]any{}
 	for _, entry := range []struct {
@@ -216,7 +228,17 @@ func newRunManifest(root, runID, runtime string, fixture map[string]any) map[str
 		full := resolveRepoPath(root, entry.path)
 		protected = append(protected, map[string]any{"role": entry.role, "path": entry.path, "sha256": fileHashOrEmpty(full)})
 	}
-	return map[string]any{"run_id": runID, "fixture_id": fixtureID, "runtime": runtime, "created_at": time.Now().Format(time.RFC3339Nano), "protected_files": protected}
+	publicFixture, _ := json.Marshal(publicEvalPromptFixture(fixture))
+	evidenceKind := "live"
+	if mode == "dry-run" {
+		evidenceKind = "synthetic"
+	}
+	return map[string]any{"run_id": runID, "fixture_id": fixtureID, "runtime": runtime, "mode": mode, "evidence_kind": evidenceKind, "created_at": time.Now().Format(time.RFC3339Nano), "raw_prompt_sha256": hashBytes(publicFixture), "protected_files": protected}
+}
+
+func hashBytes(content []byte) string {
+	digest := sha256.Sum256(content)
+	return hex.EncodeToString(digest[:])
 }
 
 func runEvalLiveCorpusCommand(root string, opts options, stdout, stderr io.Writer) int {
