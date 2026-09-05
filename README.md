@@ -32,6 +32,10 @@ kb-start "what I want done"
 `kb-start` is an agent skill, not a standalone shell command. The installer
 uses Node once to copy the bundle; Node is not required afterward.
 
+Read-only questions stay read-only: KB uses existing project context when it is
+available and reports missing memory as a setup option. Setup, refresh, edits,
+tests, and cleanup still use their normal coordination and safety gates.
+
 For a repository-local install:
 
 ```shell

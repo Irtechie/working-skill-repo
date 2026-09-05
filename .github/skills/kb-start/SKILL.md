@@ -14,51 +14,21 @@ Pick the right KB lane for the user's idea/request. The user should be able to a
 
 On every fresh session or ambiguous work request:
 
-1. Invoke `kb-map lookup <user request>`.
-2. Let `kb-map` decide whether lookup, refresh, or bootstrap is required.
-3. After the project root is resolved, reap eligible terminal work from a
-   different session. Prefer the globally installed `kbreconcile` when its
-   capability probe succeeds: run a cutoff-bound `plan`, then checked `apply`
-   and `verify`. This is also the scheduled/on-demand portfolio sweep path.
-   When it is absent, unavailable, or incompatible, use the repo-native guard
-   as a safe fallback:
-
-   ```powershell
-   go run ./cmd/kbcheck terminal-cleanup --action sweep `
-     --session-id <current-project-session-id> --root <project-root>
-   ```
-
-   The guard holds the shared lock across the final claim reread and refreshes
-   authoritative remote evidence immediately before each destructive removal;
-   direct delivery refreshes again before local-ref compare-and-swap. Repos with
-   no authoritative remote default fail closed. It must preserve the current executing session by both
-   session ID and worktree path, primary checkout, tracked/untracked/ignored
-   dirt, locked/moved/recreated worktrees, active queue claims, rewritten or
-   uncontained commits, and unresolved paths. A cleanup-only blocker does not
-   block unrelated startup work; report it when it overlaps the requested
-   branch/worktree or requires host-owned session-record deletion.
-   A reconciler outage is an agent-owned retry state and does not create a human
-   packet. Only unresolved irreversible authority ambiguity may do that.
-4. After `kb-map` returns project context, check or claim the shared work queue,
-   then classify the user request and route it.
-5. If `kb-map` reports stale work or missing memory, honor that before executing work.
-
-## Session-End Durability
-
-Stranded uncommitted work is the most common form of lost session output. When
-this session ends with a dirty tree, preserve it before exiting:
-
-```shell
-go run ./cmd/kbcheck session-preserve --action apply --session-id <session-id> --json
-```
-
-One WIP commit on the session's own branch. Never pushed, never merged, never a
-completion claim. Refuses on the default branch, detached HEAD, and in-progress
-merge/rebase. Excludes build artifacts and oversized files, reporting them in
-`excluded[]`.
-
-Preservation is durability, not delivery. It never substitutes for `kb-complete`
-and never satisfies a proof gate.
+1. Resolve the repository, classify the request as **read-only**, **mutating**,
+   or **explicit maintenance**, then invoke `kb-map lookup <user request>`.
+2. A read-only explanation, review, or orientation loads only the existing
+   context `kb-map` can read. If memory is missing, return a transient
+   orientation and say that setup is available; do not bootstrap, refresh,
+   claim work, sweep cleanup, or preserve a session. Load
+   [read-only startup](references/read-only-startup.md) for the boundary.
+3. Before any edit, test wave, setup/refresh, delegated work, or cleanup,
+   load [mutating startup](references/mutating-startup.md). It retains the
+   queue and reconciliation gates before side effects.
+4. Load [session hygiene](references/session-hygiene.md) only when an actual
+   session-end or restart trigger applies. It is not an ordinary startup step.
+5. After `kb-map` returns project context, route the request. A missing-memory
+   result blocks mutating work until the required setup is complete, but never
+   turns a read-only question into a write.
 
 ## Shared Work Queue Gate
 
