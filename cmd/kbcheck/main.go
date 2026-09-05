@@ -90,6 +90,7 @@ Usage:
   kbcheck skill-eval-claims [--root <path>] [--claim-root <path>] [--claim-path <path>] [--json]
   kbcheck skill-eval-quality [--root <path>] [--quality-root <path>] [--quality-path <path>] [--min-score <n>] [--json]
   kbcheck skill-eval-regression [--root <path>] [--run-root <path>] [--baseline <path>] [--output <path>] [--json]
+	  kbcheck skill-eval-ablation --result-root <directory> --output <json> [--root <path>] [--json]
   kbcheck skill-eval-manifest-selftest [--root <path>]
   kbcheck skill-eval-baseline-selftest [--root <path>]
   kbcheck eval-run-codex [--root <path>] [--fixture-id <id> | --all] [--dry-run] [--keep-run] [--json]
@@ -404,6 +405,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runSkillEvalQualityCommand(root, opts, stdout, stderr)
 	case "skill-eval-regression":
 		return runSkillEvalRegressionCommand(root, opts, stdout, stderr)
+	case "skill-eval-ablation":
+		return runSkillAblationCommand(root, opts, stdout, stderr)
 	case "skill-eval-manifest-selftest":
 		return runSkillEvalManifestSelftest(root, stdout, stderr)
 	case "skill-eval-baseline-selftest":
@@ -450,7 +453,7 @@ func parse(args []string) (options, error) {
 		"benchmark-validate": true, "route-eval": true, "dishonest-completion-selftest": true, "review-reference-guard": true, "release-selftest": true, "workflow-governor-selftest": true,
 		"surface-report": true, "minimality": true, "minimality-selftest": true, "architecture-drift": true,
 		"pipeline": true, "pipeline-selftest": true,
-		"skill-eval": true, "skill-eval-claims": true, "skill-eval-quality": true, "skill-eval-regression": true,
+		"skill-eval": true, "skill-eval-claims": true, "skill-eval-quality": true, "skill-eval-regression": true, "skill-eval-ablation": true,
 		"skill-eval-manifest-selftest": true, "skill-eval-baseline-selftest": true,
 		"eval-run-codex": true, "eval-run-ghcp": true, "eval-run-opencode": true, "eval-run-live-corpus": true, "skill-eval-wrap": true,
 	}
