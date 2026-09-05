@@ -10,7 +10,7 @@ func TestEvalPromptWithholdsPrivateFixtureFields(t *testing.T) {
 	fixture := map[string]any{
 		"id": "canary-case", "user_prompt": "route this request", "repo_state": map[string]any{"branch": "main"},
 		"expected": map[string]any{"route": "SECRET-EXPECTED-ROUTE"},
-		"guards": []any{"SECRET-GUARD"}, "scoring_metadata": map[string]any{"canary": "SECRET-SCORER"},
+		"guards":   []any{"SECRET-GUARD"}, "scoring_metadata": map[string]any{"canary": "SECRET-SCORER"},
 	}
 	prompt := evalPrompt(fixture, "codex", "run-1")
 	for _, private := range []string{"SECRET-EXPECTED-ROUTE", "SECRET-GUARD", "SECRET-SCORER", "expected_result \"pass\""} {
@@ -37,5 +37,16 @@ func TestEvalAdapterMarksSyntheticEvidence(t *testing.T) {
 	}
 	if got := stringValue(newRunManifest(".", "run", "codex", "live", fixture)["evidence_kind"]); got != "live" {
 		t.Fatalf("live manifest evidence kind=%q", got)
+	}
+}
+
+func TestOpenCodeEventStreamRequiresFinalResult(t *testing.T) {
+	t.Parallel()
+	result, err := parseOpenCodeEventStream("{\"type\":\"progress\"}\n{\"result\":{\"actual\":{\"route\":\"kb-fix\"}}}\n")
+	if err != nil || stringValue(result["actual"].(map[string]any)["route"]) != "kb-fix" {
+		t.Fatalf("valid OpenCode stream rejected: result=%#v err=%v", result, err)
+	}
+	if _, err := parseOpenCodeEventStream("{\"type\":\"progress\"}\n"); err == nil {
+		t.Fatal("stream without final result passed")
 	}
 }

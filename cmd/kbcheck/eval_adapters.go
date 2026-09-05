@@ -125,11 +125,11 @@ func dryRunResult(fixture map[string]any, runtime, runID string) map[string]any 
 	expected, _ := fixture["expected"].(map[string]any)
 	fixtureID := stringValue(fixture["id"])
 	return map[string]any{
-		"id":              runID,
-		"fixture_id":      fixtureID,
-		"eval_run_id":     runID,
-		"evidence_kind":   "synthetic",
-		"runtime":         runtime,
+		"id":            runID,
+		"fixture_id":    fixtureID,
+		"eval_run_id":   runID,
+		"evidence_kind": "synthetic",
+		"runtime":       runtime,
 		"actual": map[string]any{
 			"route":          stringValue(expected["route"]),
 			"user_questions": intValue(expected["max_user_questions"]),
@@ -160,6 +160,9 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 		return nil, 127, fmt.Errorf("%s command unavailable; use --dry-run or install/authenticate CLI", command)
 	}
 	prompt := evalPrompt(fixture, runtime, runID)
+	if runtime == "opencode" {
+		return invokeOpenCode(root, command, prompt)
+	}
 	cmd := exec.Command(command)
 	cmd.Dir = root
 	cmd.Stdin = strings.NewReader(prompt)
@@ -178,6 +181,38 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 		return nil, 1, err
 	}
 	return result, 0, nil
+}
+
+func invokeOpenCode(root, command, prompt string) (map[string]any, int, error) {
+	cmd := exec.Command(command, "run", "--format", "json", prompt)
+	cmd.Dir = root
+	var out, errOut bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errOut
+	if err := cmd.Run(); err != nil {
+		return nil, 1, fmt.Errorf("opencode event stream failed: %s\n%s", out.String(), errOut.String())
+	}
+	final, err := parseOpenCodeEventStream(out.String())
+	if err != nil {
+		return nil, 1, err
+	}
+	return final, 0, nil
+}
+
+func parseOpenCodeEventStream(stream string) (map[string]any, error) {
+	var final map[string]any
+	for _, line := range strings.Split(stream, "\n") {
+		var event map[string]any
+		if json.Unmarshal([]byte(line), &event) != nil {
+			continue
+		}
+		if result, ok := event["result"].(map[string]any); ok {
+			final = result
+		}
+	}
+	if final == nil {
+		return nil, fmt.Errorf("opencode stream contained no final result event")
+	}
+	return final, nil
 }
 
 func evalPrompt(fixture map[string]any, runtime, runID string) string {
@@ -206,7 +241,7 @@ Return a result object with id "%s-live-%s", fixture_id "%s", eval_run_id "%s", 
 // future fields remain private unless this projection is consciously extended.
 func publicEvalPromptFixture(fixture map[string]any) map[string]any {
 	return map[string]any{
-		"id":         stringValue(fixture["id"]),
+		"id":          stringValue(fixture["id"]),
 		"user_prompt": stringValue(fixture["user_prompt"]),
 		"repo_state":  fixture["repo_state"],
 	}
