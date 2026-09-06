@@ -41,10 +41,7 @@ func TestPortableRecoveryPrepareReservedBranch(t *testing.T) {
 	portableGit(t, repo, "commit", "-m", "baseline")
 	portableGit(t, repo, "remote", "add", "origin", remote)
 	portableGit(t, repo, "push", "-u", "origin", "trunk")
-	script := filepath.Join(temp, "installed/recovery.ps1")
-	for _, name := range []string{"recovery.ps1", "recovery_prepare.ps1"} {
-		portableWrite(t, filepath.Join(filepath.Dir(script), name), string(portableRead(t, filepath.Join("..", "..", ".github/skills/kb-rehab/scripts", name))))
-	}
+	script := installedRecoveryScript(t, "agents")
 	survey := portableRunSurvey(t, script, repo)
 	dest := filepath.Join(temp, ".kb-recovery-worktrees", "reserved")
 	request := map[string]any{"schema_version": 1, "run_id": "reserved", "objective": "new feature", "survey": survey, "branch": "codex/reserved", "destination": dest, "dependency_status": "independent", "authority": map[string]any{"source": "current-run", "prepare": true, "objective": "new feature"}, "artifacts": []any{}}
@@ -65,23 +62,9 @@ func TestPortableRecoveryPrepareReservedBranch(t *testing.T) {
 
 func runPreparation(t *testing.T, script, repo, request, action string) preparationResult {
 	t.Helper()
-	ps, e := exec.LookPath("powershell.exe")
-	if e != nil {
-		t.Fatal(e)
-	}
-	git, e := exec.LookPath("git")
-	if e != nil {
-		t.Fatal(e)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, ps, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Root", repo, "-Action", action, "-Request", request, "-Json")
-	for _, v := range os.Environ() {
-		if !strings.HasPrefix(strings.ToUpper(v), "PATH=") {
-			cmd.Env = append(cmd.Env, v)
-		}
-	}
-	cmd.Env = append(cmd.Env, "PATH="+filepath.Dir(git)+";"+filepath.Join(os.Getenv("SystemRoot"), "System32"))
+	cmd := portableConsumerCommand(t, ctx, script, repo, action, request, "")
 	b, e := cmd.CombinedOutput()
 	if e != nil {
 		t.Fatalf("prepare: %v\n%s", e, b)
@@ -135,10 +118,7 @@ func TestPortableRecoveryPreparePreserve(t *testing.T) {
 	portableWrite(t, filepath.Join(repo, "source.txt"), "unrelated dirty source\n")
 	portableWrite(t, filepath.Join(repo, "docs/plans/a plan.md"), "selected\r\n")
 	portableWrite(t, filepath.Join(repo, "docs/plans/empty.md"), "")
-	script := filepath.Join(temp, "installed/recovery.ps1")
-	for _, name := range []string{"recovery.ps1", "recovery_prepare.ps1"} {
-		portableWrite(t, filepath.Join(filepath.Dir(script), name), string(portableRead(t, filepath.Join("..", "..", ".github/skills/kb-rehab/scripts", name))))
-	}
+	script := installedRecoveryScript(t, "agents")
 	survey := portableRunSurvey(t, script, repo)
 	artifacts := []map[string]string{}
 	for _, p := range survey.Dirty {

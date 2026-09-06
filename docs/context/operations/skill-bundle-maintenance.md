@@ -54,6 +54,26 @@ Remaining `.ps1` files are narrow helper scripts, not the top-level gate.
 
 ## Optional Managed Binaries
 
+Portable recovery ships under `kb-rehab/scripts/` and uses Windows PowerShell
+5.1 and Git. Its survey, preparation, continuation, and accepted-disposition
+requests are documented in the skill's `references/recovery-requests.md`.
+Installed consumers do not need the source repository's Go harness. A present
+native owner still governs its actions; portable cleanup is not a fallback for
+a native refusal. Useful backlog delivery remains with `kb-complete`,
+`kb-ship`, and `kb-land`, with actual current forge observations.
+
+Regenerate the UniversalUI catalog when a skill's public metadata changes:
+
+```powershell
+npm run catalog:build --prefix packages/universal-ui-skills-contribution
+```
+
+Review all required installed-copy drift before propagation, run `local-release`,
+sync the reviewed source outward, verify hashes, and rerun any gate invalidated
+by resolved drift. A Codex home override can point to another active skill root;
+inspect that root separately before copying. Preserve useful install-only work
+and unrelated caches rather than treating every destination as a disposable mirror.
+
 `bin\kb-install.mjs` manages optional `kbrouter` and `kbreconcile` artifacts
 under `~/.kb/bin`. Automatic mode preserves a skill-only install when either
 asset is absent. Checksums, managed-state hashes, backups, reconciler downgrade

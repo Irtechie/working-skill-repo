@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,23 +43,9 @@ type continuationResult struct {
 
 func runContinuation(t *testing.T, script, repo, request string) continuationResult {
 	t.Helper()
-	ps, e := exec.LookPath("powershell.exe")
-	if e != nil {
-		t.Fatal(e)
-	}
-	git, e := exec.LookPath("git")
-	if e != nil {
-		t.Fatal(e)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, ps, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Root", repo, "-Action", "continue", "-Request", request, "-Json")
-	for _, v := range os.Environ() {
-		if !strings.HasPrefix(strings.ToUpper(v), "PATH=") {
-			cmd.Env = append(cmd.Env, v)
-		}
-	}
-	cmd.Env = append(cmd.Env, "PATH="+filepath.Dir(git)+";"+filepath.Join(os.Getenv("SystemRoot"), "System32"))
+	cmd := portableConsumerCommand(t, ctx, script, repo, "continue", request, "")
 	b, e := cmd.CombinedOutput()
 	if e != nil {
 		t.Fatalf("continue: %v\n%s", e, b)
@@ -97,10 +84,7 @@ func TestPortableRecoveryContinue(t *testing.T) {
 	}
 	portableGit(t, repo, "push", "-u", "origin", "codex/prior")
 	portableGit(t, repo, "checkout", "trunk")
-	script := filepath.Join(temp, "installed/recovery.ps1")
-	for _, name := range []string{"recovery.ps1", "recovery_prepare.ps1", "recovery_continue.ps1"} {
-		portableWrite(t, filepath.Join(filepath.Dir(script), name), string(portableRead(t, filepath.Join("..", "..", ".github/skills/kb-rehab/scripts", name))))
-	}
+	script := installedRecoveryScript(t, "agents")
 	// Clean default still inventories another unmerged branch, not just current HEAD.
 	clean := portableRunSurvey(t, script, repo)
 	if clean.Default.Ahead != 0 {
@@ -226,5 +210,101 @@ func TestUnfinishedWorkFlowContract(t *testing.T) {
 	}
 	if fixture.Expected.Route != "w2d" || fixture.Expected.MaxQuestions != 0 {
 		t.Fatal("fixture routes unfinished proof into another user confirmation")
+	}
+}
+
+// Scripted state-machine proof, not a conversational agent driver or real UI
+// validation. These fixture files model proof arriving through its owning lane.
+func TestUnfinishedWorkFlowHBProofPrecedesDependenciesAndDelivery(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "hb-manifest.md")
+	build := filepath.ToSlash(filepath.Join(root, "build.log"))
+	packaging := filepath.ToSlash(filepath.Join(root, "packaging.log"))
+	browser := filepath.ToSlash(filepath.Join(root, "browser.log"))
+	portableWrite(t, build, "fixture: WASM build passed")
+	writeHB := func(status, gateStatus, proof string) {
+		t.Helper()
+		portableWrite(t, path, fmt.Sprintf(`---
+gate_ledger:
+  - gate_id: slice-HB02-to-done
+    status: %s
+    required_evidence: [build, packaging, browser]
+    proof: [%s]
+    blockers: []
+    passed_at: "2026-09-06"
+    allowed_next_action: kb-work
+  - gate_id: complete-to-ship
+    status: pending
+    required_evidence: [HB03, HB04, HB05]
+    proof: []
+    blockers: [HB03, HB04, HB05]
+    allowed_next_action: kb-ship
+slices:
+  - id: HB01
+    status: done
+    blockers: []
+  - id: HB02
+    status: %s
+    blockers: [HB01]
+    next_agent_action: finish packaging and browser proof
+  - id: HB03
+    status: pending
+    blockers: [HB02]
+    hitl: false
+    can_continue_other_slices: true
+  - id: HB04
+    status: pending
+    blockers: [HB02]
+    hitl: false
+    can_continue_other_slices: true
+  - id: HB05
+    status: pending
+    blockers: [HB02]
+    hitl: false
+    can_continue_other_slices: true
+---
+`, gateStatus, proof, status))
+	}
+	gate := func(id, next string) int {
+		t.Helper()
+		var out, stderr strings.Builder
+		return run([]string{"gate-ledger", "--manifest", path, "--gate", id, "--allowed-next", next}, &out, &stderr)
+	}
+	writeHB("in_progress", "pending", build)
+	before := string(portableRead(t, path))
+	ready, err := computeReadySet(path)
+	readyState, ok := ready.(readySetResult)
+	if err != nil || !ok || len(readyState.Ready) != 0 {
+		t.Fatalf("HB03-05 started before HB02 proof: %+v %v", ready, err)
+	}
+	if gate("slice-HB02-to-done", "kb-work") == 0 || gate("complete-to-ship", "kb-ship") == 0 {
+		t.Fatal("in-progress update admitted completion or shipment")
+	}
+	if string(portableRead(t, path)) != before {
+		t.Fatal("read-only progress/gate probes changed unfinished work")
+	}
+	// A premature status declaration cannot replace missing packaging/browser proof.
+	writeHB("in_progress", "passed", build)
+	if gate("slice-HB02-to-done", "kb-work") == 0 {
+		t.Fatal("build-only result closed HB02")
+	}
+	writeHB("in_progress", "passed", strings.Join([]string{build, packaging, browser}, ", "))
+	if gate("slice-HB02-to-done", "kb-work") == 0 {
+		t.Fatal("nonexistent proof artifacts closed HB02")
+	}
+	portableWrite(t, packaging, "fixture: fresh assets packaged")
+	portableWrite(t, browser, "fixture: browser assertions passed")
+	if gate("slice-HB02-to-done", "kb-work") != 0 {
+		t.Fatal("complete fixture proof did not unlock HB02 gate")
+	}
+	// The existing owner closes the slice only after that gate accepts the proof.
+	writeHB("done", "passed", strings.Join([]string{build, packaging, browser}, ", "))
+	ready, err = computeReadySet(path)
+	readyState, ok = ready.(readySetResult)
+	if err != nil || !ok || strings.Join(readyState.Ready, ",") != "HB03,HB04,HB05" {
+		t.Fatalf("proven HB02 did not unlock dependents: %+v %v", ready, err)
+	}
+	if gate("complete-to-ship", "kb-ship") == 0 {
+		t.Fatal("unfinished dependent slices admitted a premature PR")
 	}
 }

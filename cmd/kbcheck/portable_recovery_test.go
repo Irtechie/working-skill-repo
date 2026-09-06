@@ -94,24 +94,9 @@ func portableRead(t *testing.T, path string) []byte {
 }
 func portableRunSurvey(t *testing.T, script, root string) portableSurvey {
 	t.Helper()
-	ps, err := exec.LookPath("powershell.exe")
-	if err != nil {
-		t.Fatal(err)
-	}
-	git, err := exec.LookPath("git")
-	if err != nil {
-		t.Fatal(err)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, ps, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Action", "survey", "-Root", root, "-Json")
-	// The consumer has Git and Windows utilities, but no Go/Node/reconciler on PATH.
-	for _, v := range os.Environ() {
-		if !strings.HasPrefix(strings.ToUpper(v), "PATH=") {
-			cmd.Env = append(cmd.Env, v)
-		}
-	}
-	cmd.Env = append(cmd.Env, "PATH="+filepath.Dir(git)+";"+filepath.Join(os.Getenv("SystemRoot"), "System32"))
+	cmd := portableConsumerCommand(t, ctx, script, root, "survey", "", "")
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("installed survey: %v\n%s", err, b)
@@ -158,9 +143,7 @@ func TestPortableRecoverySurvey(t *testing.T) {
 	portableWrite(t, filepath.Join(repo, "docs/plans/ignored empty.md"), "")
 	portableWrite(t, filepath.Join(repo, "docs/plans/a plan ü.md"), "new plan\n")
 	portableWrite(t, filepath.Join(repo, ".git/.copilot-kb/work-queue.json"), `[{"branch":"codex/unfinished","status":"active","updated_at":"2099-01-01T00:00:00Z"}]`)
-	// Run a copied payload outside the source repo and consumer .github tree.
-	script := filepath.Join(temp, "installed/kb-rehab/scripts/recovery.ps1")
-	portableWrite(t, script, string(portableRead(t, filepath.Join("..", "..", ".github", "skills", "kb-rehab", "scripts", "recovery.ps1"))))
+	script := installedRecoveryScript(t, "agents")
 	index := portableRead(t, filepath.Join(repo, ".git/index"))
 	refs := portableGit(t, repo, "show-ref")
 	status := portableGit(t, repo, "status", "--porcelain=v1", "--ignored")

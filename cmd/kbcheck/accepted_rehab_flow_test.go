@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -30,23 +29,9 @@ type dispositionResult struct {
 
 func runDisposition(t *testing.T, script, repo, request string) dispositionResult {
 	t.Helper()
-	ps, e := exec.LookPath("powershell.exe")
-	if e != nil {
-		t.Fatal(e)
-	}
-	git, e := exec.LookPath("git")
-	if e != nil {
-		t.Fatal(e)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, ps, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Root", repo, "-Action", "dispose", "-Request", request, "-Json")
-	for _, v := range os.Environ() {
-		if !strings.HasPrefix(strings.ToUpper(v), "PATH=") {
-			cmd.Env = append(cmd.Env, v)
-		}
-	}
-	cmd.Env = append(cmd.Env, "PATH="+filepath.Dir(git)+";"+filepath.Join(os.Getenv("SystemRoot"), "System32")+";"+os.Getenv("KB_TEST_NATIVE_PATH"))
+	cmd := portableConsumerCommand(t, ctx, script, repo, "dispose", request, os.Getenv("KB_TEST_NATIVE_PATH"))
 	b, e := cmd.CombinedOutput()
 	if e != nil {
 		t.Fatalf("dispose: %v\n%s", e, b)
@@ -94,10 +79,7 @@ func TestPortableRecoveryDisposition(t *testing.T) {
 	portableWrite(t, filepath.Join(repo, ".env"), "fixture credential must stay\n")
 	manifestText := "ref: refs/heads/codex/prior\ntip: " + tip + "\n"
 	portableWrite(t, filepath.Join(repo, "docs/plans/owner.md"), manifestText)
-	script := filepath.Join(temp, "installed/recovery.ps1")
-	for _, name := range []string{"recovery.ps1", "recovery_prepare.ps1", "recovery_dispose.ps1"} {
-		portableWrite(t, filepath.Join(filepath.Dir(script), name), string(portableRead(t, filepath.Join("..", "..", ".github/skills/kb-rehab/scripts", name))))
-	}
+	script := installedRecoveryScript(t, "agents")
 	survey := portableRunSurvey(t, script, repo)
 	notesHash := fmt.Sprintf("%x", sha256.Sum256(portableRead(t, filepath.Join(repo, "docs/plans/notes.md"))))
 	branch := map[string]any{"kind": "branch", "ref": "refs/heads/codex/prior", "tip": tip, "decision": "reject"}

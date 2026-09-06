@@ -2,6 +2,36 @@
 
 Checked: 2026-07-28
 
+Recovery and evidence adapters updated: 2026-09-06.
+
+## Recovery and evidence proof
+
+```powershell
+go test ./cmd/kbcheck -run 'PortableRecovery|UnfinishedWorkFlow|AcceptedRehabFlow|RunAuthority' -count=1 -timeout=10m
+go test ./cmd/kbcheck -run 'OpenCode|EvalAdapter|EvalPrompt|SkillAblation|SkillEvalRegression' -count=1 -timeout=5m
+node --test ./bin/kb-install.test.mjs
+```
+
+Recovery fixtures use disposable Git repositories and the actual packed skill
+payload installed to temporary Codex, Copilot, and shared-agent roots. The child
+runtime is Windows PowerShell 5.1 plus Git; absent optional tools are checked in
+that same environment. Assertions cover refs, index bytes, file hashes, scoped
+acceptance, restoration, retries, and delivery handoffs. HB progress tests use
+the production gate validator and dependency scheduler. They do not execute a
+live conversational W2D session or substitute for rendered application proof.
+
+OpenCode tests use a real native fake child process. Ablation fixtures exercise
+the reducer with synthetic external-capture files. Neither is live model or
+cross-host task-benefit evidence. See the owning eval documentation for limits.
+
+On Windows, do not nest the canonical core command inside `proof-run`'s generic
+process job. Core deliberately runs its process-owning Go test packages outside
+that wrapper; the registry currently has no native-core execution route. Use
+`proof-plan` to inspect coverage, run `go run ./cmd/kbcheck core --verbose`
+directly when required, and retain exact-tree output and exit evidence. Record
+this execution exception rather than fabricating a governor receipt. This is
+an inherited-containment risk, not a proven cause of an earlier timeout.
+
 ## Fast Contributor Commands
 
 ```powershell
