@@ -233,6 +233,53 @@ Dry-run artifacts are cleaned unless `--keep-run` is set.
 
 ## Live Corpus Runner
 
+### OpenCode adapter
+
+`eval-run-opencode` supports static, fixture, and synthetic dry-run checks.
+Live model behavior is **unverified**. The native-process tests use a fake CLI
+and the [OpenCode 1.18.23 event contract](https://github.com/anomalyco/opencode/blob/v1.18.23/packages/opencode/src/cli/cmd/run.ts);
+they do not establish agent routing quality or a successful authenticated run.
+
+```powershell
+go run ./cmd/kbcheck eval-run-opencode --fixture-id tiny-typo-fix --dry-run --keep-run --json
+```
+
+After explicit authorization for a model call, the optional live smoke command is:
+
+```powershell
+go run ./cmd/kbcheck eval-run-opencode --fixture-id tiny-typo-fix --keep-run --json
+```
+
+The adapter executes `opencode run --format json <prompt>` as native arguments
+in the selected repository. On Windows it resolves the native executable behind
+the supported npm shim layout (`node_modules/opencode-ai/bin/opencode.exe`);
+unsupported or missing native launchers fail without evaluating shell text.
+Execution uses the existing process-tree containment, output cap, and a five-minute
+timeout. No server, sharing, attachment, or automatic permission flag is added.
+
+Each run retains `stdout.txt`, `stderr.txt`, `result.json`, `manifest.json`, and
+`score.json` under `.kb/eval-runs/<run-id>/`. Raw process output survives parser
+and child failures. Text events must belong to one session, contain a JSON
+assistant result, and end with a normal `step_finish`; the returned fixture/run
+IDs must match the invocation. A missing child, error, malformed stream, timeout,
+or wrong identity fails the adapter, corpus, and wrapper. Failed live results
+contain diagnostics rather than synthetic expected answers.
+
+OpenCode is opt-in with `--runtime opencode` in the corpus or
+`--runner eval-run-opencode` in the wrapper. Before promoting live capability,
+retain the authorized run's CLI version, exact command and exit, raw events,
+result/manifest, and independent score. Help output and fixture tests alone
+are insufficient.
+
+The [OpenCode skills documentation](https://opencode.ai/docs/skills/) documents
+`.agents/skills` and `~/.agents/skills`, as well as its own `.opencode/skills`
+and `~/.config/opencode/skills` locations. Use the bundle's existing
+`--target agents` installation for the shared global skill surface.
+`.github/skills` is warning-only in the matrix because it is not a documented
+default discovery location. Project `AGENTS.md` is supported by the
+[OpenCode rules documentation](https://opencode.ai/docs/rules/); Copilot-specific
+instruction files are not assumed to load automatically.
+
 Run both adapters in dry-run mode:
 
 ```powershell

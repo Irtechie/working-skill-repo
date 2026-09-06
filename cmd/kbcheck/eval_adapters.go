@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"sort"
 	"strings"
 	"time"
@@ -73,6 +74,7 @@ func runEvalAdapter(root string, opts options, runtime string) (adapterOutput, e
 			return output, err
 		}
 		output.Runs = append(output.Runs, run)
+		output.OK = output.OK && run.Status == "pass" && run.ExitCode == 0
 		if mode == "dry-run" && !opts.keepRun {
 			_ = os.RemoveAll(run.RunDir)
 		}
@@ -92,33 +94,57 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 	manifestPath := filepath.Join(runDir, "manifest.json")
 	stdoutPath := filepath.Join(runDir, "stdout.txt")
 	stderrPath := filepath.Join(runDir, "stderr.txt")
-	result := dryRunResult(fixture, runtime, runID)
+	var result map[string]any
+	process := CheckResult{}
 	exitCode := 0
 	status := "pass"
 	if mode == "live" {
-		live, code, err := invokeLiveAgent(root, runtime, fixture, runID, opts)
-		exitCode = code
+		live, captured, err := invokeLiveAgent(root, runtime, fixture, runID, opts)
+		process = captured
+		exitCode = process.ExitCode
 		if err != nil {
 			status = "fail"
-			_ = os.WriteFile(stderrPath, []byte(err.Error()), 0o644)
+			if exitCode == 0 {
+				exitCode = 1
+			}
+			result = map[string]any{"id": runID, "fixture_id": fixtureID, "eval_run_id": runID, "runtime": runtime, "evidence_kind": "live", "adapter_error": err.Error()}
 		} else {
 			result = live
 		}
+	} else {
+		result = dryRunResult(fixture, runtime, runID)
 	}
-	writeJSONFile(resultPath, result)
-	writeJSONFile(manifestPath, newRunManifest(root, runID, runtime, mode, fixture))
-	score, _ := computeSkillEval(root, "", resultPath, "", false, runID, manifestPath)
+	for path, content := range map[string]string{stdoutPath: process.Stdout, stderrPath: process.Stderr} {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return adapterRun{}, err
+		}
+	}
+	if err := writeAdapterJSON(resultPath, result); err != nil {
+		return adapterRun{}, err
+	}
+	if err := writeAdapterJSON(manifestPath, newRunManifest(root, runID, runtime, mode, fixture)); err != nil {
+		return adapterRun{}, err
+	}
+	score, scoreErr := computeSkillEval(root, "", resultPath, "", false, runID, manifestPath)
 	scoreBytes, _ := json.MarshalIndent(score, "", "  ")
-	_ = os.WriteFile(filepath.Join(runDir, "score.json"), scoreBytes, 0o644)
-	if !score.OK {
-		status = "fail"
-		exitCode = 1
+	if err := os.WriteFile(filepath.Join(runDir, "score.json"), scoreBytes, 0o644); err != nil {
+		return adapterRun{}, err
 	}
-	_ = os.WriteFile(stdoutPath, []byte(""), 0o644)
-	if _, err := os.Stat(stderrPath); err != nil {
-		_ = os.WriteFile(stderrPath, []byte(""), 0o644)
+	if scoreErr != nil || !score.OK {
+		status = "fail"
+		if exitCode == 0 {
+			exitCode = 1
+		}
 	}
 	return adapterRun{FixtureID: fixtureID, RunID: runID, RunDir: runDir, ResultPath: resultPath, ManifestPath: manifestPath, Mode: mode, Status: status, ExitCode: exitCode}, nil
+}
+
+func writeAdapterJSON(path string, value any) error {
+	content, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, content, 0o644)
 }
 
 func dryRunResult(fixture map[string]any, runtime, runID string) map[string]any {
@@ -148,7 +174,7 @@ func dryRunResult(fixture map[string]any, runtime, runID string) map[string]any 
 	}
 }
 
-func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string, opts options) (map[string]any, int, error) {
+func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string, opts options) (map[string]any, CheckResult, error) {
 	command := opts.agentCommand
 	if command == "" {
 		command = runtime
@@ -157,11 +183,15 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 		}
 	}
 	if _, err := exec.LookPath(command); err != nil {
-		return nil, 127, fmt.Errorf("%s command unavailable; use --dry-run or install/authenticate CLI", command)
+		return nil, CheckResult{ExitCode: 127}, fmt.Errorf("%s command unavailable; use --dry-run or install/authenticate CLI", command)
 	}
 	prompt := evalPrompt(fixture, runtime, runID)
 	if runtime == "opencode" {
-		return invokeOpenCode(root, command, prompt)
+		result, process, err := invokeOpenCode(root, command, prompt, 5*time.Minute)
+		if err == nil {
+			err = validateAdapterIdentity(result, fixture, runID)
+		}
+		return result, process, err
 	}
 	cmd := exec.Command(command)
 	cmd.Dir = root
@@ -174,43 +204,117 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			code = exitErr.ExitCode()
 		}
-		return nil, code, fmt.Errorf("%s\n%s", out.String(), errOut.String())
+		return nil, CheckResult{ExitCode: code, Stdout: out.String(), Stderr: errOut.String()}, fmt.Errorf("%s exited with code %d", runtime, code)
 	}
+	process := CheckResult{Stdout: out.String(), Stderr: errOut.String()}
 	var result map[string]any
 	if err := json.Unmarshal([]byte(extractLastJSONObject(out.String())), &result); err != nil {
-		return nil, 1, err
+		return nil, process, err
 	}
-	return result, 0, nil
+	return result, process, validateAdapterIdentity(result, fixture, runID)
 }
 
-func invokeOpenCode(root, command, prompt string) (map[string]any, int, error) {
-	cmd := exec.Command(command, "run", "--format", "json", prompt)
-	cmd.Dir = root
-	var out, errOut bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errOut
-	if err := cmd.Run(); err != nil {
-		return nil, 1, fmt.Errorf("opencode event stream failed: %s\n%s", out.String(), errOut.String())
+func validateAdapterIdentity(result, fixture map[string]any, runID string) error {
+	if stringValue(result["fixture_id"]) != stringValue(fixture["id"]) || stringValue(result["eval_run_id"]) != runID {
+		return fmt.Errorf("agent result fixture_id/eval_run_id does not match this invocation")
 	}
-	final, err := parseOpenCodeEventStream(out.String())
+	result["evidence_kind"] = "live"
+	return nil
+}
+
+// Resolve only a native executable. Windows npm shims are never evaluated with
+// the prompt as shell text; the observed opencode-ai package bundles this binary.
+func resolveOpenCodeExecutable(command string) (string, error) {
+	path, err := exec.LookPath(command)
 	if err != nil {
-		return nil, 1, err
+		return "", err
 	}
-	return final, 0, nil
+	if goruntime.GOOS == "windows" {
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".cmd", ".ps1", ".bat":
+			path = filepath.Join(filepath.Dir(path), "node_modules", "opencode-ai", "bin", "opencode.exe")
+		case ".exe":
+		default:
+			return "", fmt.Errorf("unsupported OpenCode launcher: native executable required")
+		}
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return "", fmt.Errorf("OpenCode native executable unavailable: %s", path)
+	}
+	return path, nil
+}
+
+func invokeOpenCode(root, command, prompt string, timeout time.Duration) (map[string]any, CheckResult, error) {
+	path, err := resolveOpenCodeExecutable(command)
+	if err != nil {
+		return nil, CheckResult{ExitCode: 127}, err
+	}
+	process := runProcessCheck(root, Check{Args: []string{path, "run", "--format", "json", prompt}, Timeout: timeout})
+	if process.ExitCode != 0 {
+		return nil, process, fmt.Errorf("opencode process failed with exit code %d", process.ExitCode)
+	}
+	final, err := parseOpenCodeEventStream(process.Stdout)
+	return final, process, err
 }
 
 func parseOpenCodeEventStream(stream string) (map[string]any, error) {
-	var final map[string]any
+	var text strings.Builder
+	session := ""
+	finished := false
 	for _, line := range strings.Split(stream, "\n") {
-		var event map[string]any
-		if json.Unmarshal([]byte(line), &event) != nil {
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		if result, ok := event["result"].(map[string]any); ok {
-			final = result
+		var event map[string]any
+		if json.Unmarshal([]byte(line), &event) != nil || event == nil {
+			return nil, fmt.Errorf("malformed OpenCode JSON event")
+		}
+		id := stringValue(event["sessionID"])
+		if id == "" || (session != "" && session != id) {
+			return nil, fmt.Errorf("missing or inconsistent OpenCode sessionID")
+		}
+		session = id
+		if finished {
+			return nil, fmt.Errorf("OpenCode event after final step_finish")
+		}
+		part, _ := event["part"].(map[string]any)
+		switch stringValue(event["type"]) {
+		case "error":
+			return nil, fmt.Errorf("OpenCode error event")
+		case "step_start", "tool_use":
+			if part == nil {
+				return nil, fmt.Errorf("OpenCode event missing part")
+			}
+			if stringValue(event["type"]) == "step_start" {
+				text.Reset()
+			}
+		case "text":
+			value, ok := part["text"].(string)
+			if !ok || stringValue(part["type"]) != "text" {
+				return nil, fmt.Errorf("invalid OpenCode text part")
+			}
+			text.WriteString(value)
+		case "step_finish":
+			if stringValue(part["type"]) != "step-finish" {
+				return nil, fmt.Errorf("invalid OpenCode step_finish part")
+			}
+			reason := stringValue(part["reason"])
+			if reason == "stop" {
+				finished = true
+			} else if reason != "tool-calls" {
+				return nil, fmt.Errorf("OpenCode did not finish normally: %s", reason)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported OpenCode event type")
 		}
 	}
-	if final == nil {
-		return nil, fmt.Errorf("opencode stream contained no final result event")
+	if !finished {
+		return nil, fmt.Errorf("OpenCode stream missing final step_finish")
+	}
+	var final map[string]any
+	if err := json.Unmarshal([]byte(text.String()), &final); err != nil || final == nil {
+		return nil, fmt.Errorf("OpenCode assistant text is not one JSON result")
 	}
 	return final, nil
 }
@@ -240,9 +344,13 @@ Return a result object with id "%s-live-%s", fixture_id "%s", eval_run_id "%s", 
 // inputs, not prompt templates: expected answers, guards, rubrics, and any
 // future fields remain private unless this projection is consciously extended.
 func publicEvalPromptFixture(fixture map[string]any) map[string]any {
+	prompt := stringValue(fixture["user_prompt"])
+	if prompt == "" {
+		prompt = stringValue(fixture["prompt"])
+	}
 	return map[string]any{
 		"id":          stringValue(fixture["id"]),
-		"user_prompt": stringValue(fixture["user_prompt"]),
+		"user_prompt": prompt,
 		"repo_state":  fixture["repo_state"],
 	}
 }
@@ -282,6 +390,7 @@ func runEvalLiveCorpusCommand(root string, opts options, stdout, stderr io.Write
 		runtimes = "codex,ghcp"
 	}
 	allRuns := []adapterRun{}
+	allOK := true
 	for _, runtime := range strings.Split(runtimes, ",") {
 		runtime = strings.TrimSpace(runtime)
 		if runtime == "" {
@@ -295,8 +404,9 @@ func runEvalLiveCorpusCommand(root string, opts options, stdout, stderr io.Write
 			return 1
 		}
 		allRuns = append(allRuns, result.Runs...)
+		allOK = allOK && result.OK
 	}
-	output := adapterOutput{OK: true, Runtime: runtimes, Mode: "live", Runs: allRuns}
+	output := adapterOutput{OK: allOK, Runtime: runtimes, Mode: "live", Runs: allRuns}
 	if opts.dryRun {
 		output.Mode = "dry-run"
 	}
@@ -304,6 +414,9 @@ func runEvalLiveCorpusCommand(root string, opts options, stdout, stderr io.Write
 		writeJSON(stdout, output)
 	} else {
 		fmt.Fprintf(stdout, "Skill eval live corpus: %d run(s), runtime=%s mode=%s\n", len(output.Runs), runtimes, output.Mode)
+	}
+	if !output.OK {
+		return 1
 	}
 	return 0
 }
@@ -314,6 +427,8 @@ func runSkillEvalWrapCommand(root string, opts options, stdout, stderr io.Writer
 	runtime := "ghcp"
 	if strings.Contains(strings.ToLower(wrapped), "codex") {
 		runtime = "codex"
+	} else if strings.Contains(strings.ToLower(wrapped), "opencode") {
+		runtime = "opencode"
 	}
 	if wrapped == "" {
 		wrapped = "eval-run-ghcp"
@@ -324,6 +439,13 @@ func runSkillEvalWrapCommand(root string, opts options, stdout, stderr io.Writer
 	result, err := runEvalAdapter(root, adapterOpts, runtime)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	if !result.OK {
+		fmt.Fprintln(stderr, "Adapter failed; raw run artifacts retained")
+		if opts.json {
+			writeJSON(stdout, result)
+		}
 		return 1
 	}
 	after := gitStatusMap(root)
@@ -341,7 +463,10 @@ func runSkillEvalWrapCommand(root string, opts options, stdout, stderr io.Writer
 		}
 		observed := map[string]any{"captured": true, "method": "path-shim+git-diff", "commands": commands, "writes": writes, "deletes": deletes}
 		resultJSON["observed_trace"] = observed
-		writeJSONFile(run.ResultPath, resultJSON)
+		if err := writeAdapterJSON(run.ResultPath, resultJSON); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
 		score, _ := computeSkillEval(root, "", run.ResultPath, "", false, run.RunID, run.ManifestPath)
 		if !score.OK {
 			fmt.Fprintf(stderr, "Observed-trace scoring failed for %s\n", run.ResultPath)
