@@ -51,6 +51,10 @@ bypass an unsatisfied protection rule.
 3. Resolve a validated manifest with `plan-to-work: passed` from durable state.
 4. With no durable manifest, take the unplanned entry route below. `w2d` never
    executes unplanned work and never authors a manifest itself.
+5. Apply `kb-start`'s installed unfinished-work continuation contract. An
+   unanswered or declined cleanup offer still prepares independent work and
+   returns `kb-work` with its actual workspace/manifest receipt. Current explicit
+   execution intent supplies authority; a passed planning gate alone does not.
 
 ## Manifest Resolution
 
@@ -104,6 +108,7 @@ memory, chooses the next action.
 |---|---|
 | no durable manifest resolved | size, then `kb-plan <input>` per Unplanned Entry |
 | runnable slices remain | `kb-work <manifest>` |
+| portable continuation returns `ready` | revalidate the copied manifest's existing gates and dispatch `kb-work` in the receipt workspace |
 | `work-to-complete: passed` | `kb-finalize <manifest>` |
 | `complete-to-ship: passed\|quarantined` | `kb-ship <manifest>` |
 | open PR, merge conditions met | `kb-land <manifest>` |
@@ -118,6 +123,13 @@ Treat a passing exact-tree proof receipt as durable phase evidence. Do not
 rerun proof merely because orchestration advanced a phase. Rerun only checks
 invalidated by changed files, dependencies, test configuration, environment
 identity, or delivery tree.
+
+An incomplete proof batch remains agent-owned work: for example, code/WASM
+build success with packaging and browser proof pending means continue that
+proof, then its ready dependent slices. The absence of a PR in this progress
+state is expected. Do not close the slice, manufacture a gate, or end the run
+waiting for “continue” while an executable action remains. Cleanup failure or
+an unrelated pending PR affects only that scope, never every ready slice.
 
 ## Scope Rules
 

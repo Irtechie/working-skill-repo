@@ -16,6 +16,33 @@ The manifest group is the only worktree unit. Every slice for that workstream
 runs and commits on its one plan-run branch. Never create a worktree or branch
 per slice.
 
+## Portable consumer handoff
+
+When the consumer lacks `cmd/kbcheck`, accept the installed recovery helper's
+concrete preparation receipt instead of requiring the maintainer's native
+plan-worktree/lease commands. Before the first implementation mutation, run
+`recovery.ps1 -Action verify -Root <original-source> -Request
+<preparation-request.json> -Json` from the loaded `kb-rehab` script directory.
+Require `status: prepared`, matching objective/workspace/manifest, a current
+work-queue claim, and current execution authority. The preparation is workspace
+evidence; independently validate the existing manifest DAG, context packets,
+and proof gates against their actual artifacts. Never turn preparation into a
+passed gate or manufacture native lease/receipt entries.
+
+Use one shared-serial executor inside that verified workspace, keeping the
+Git-common-directory queue claim current. No extra nested worktree and no
+per-slice branches. After implementation starts, ordinary exact-head slice
+proof and the work queue own progress; the baseline-only preparation verifier
+does not pretend that intentional implementation edits are unchanged. Record
+actual project test/build/browser commands and results under `kb-check`'s
+conditional-harness contract, preserving protected oracles and scope.
+
+This fallback applies only to missing native tooling. If the consumer has the
+native commands, use their actual gates and lease owners. Never retry a native
+authority, ownership, containment, or protection refusal through this portable
+path. Unknown dependencies block their affected writes while other ready work
+continues. Read-only surveys alone never authorize execution.
+
 ## Choose Adopt or Prepare
 
 Resolve the workspace before mutation. A coding harness that gives each session

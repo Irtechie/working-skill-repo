@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('survey','prepare','verify')][string]$Action='survey', [Parameter(Mandatory=$true)][string]$Root, [string]$Request, [switch]$Json)
+param([ValidateSet('survey','prepare','verify','continue')][string]$Action='survey', [Parameter(Mandatory=$true)][string]$Root, [string]$Request, [switch]$Json)
 $ErrorActionPreference='Stop'
 $rootPath=[IO.Path]::GetFullPath($Root)
 $gitPath=(Get-Command git -CommandType Application -ErrorAction Stop).Source
@@ -147,6 +147,20 @@ foreach ($path in $declarationPaths) {
   $links=@([regex]::Matches($content,'docs/(?:plans|results)/[A-Za-z0-9_./-]+\.(?:md|json)') | ForEach-Object { $_.Value } | Sort-Object -Unique)
   $candidates+=@{path=$path;status='candidate-unproven';declared_refs_or_hashes=$refs;artifact_links=$links;evidence='not-validated'}
 }
+$localBranches=@()
+$branchRefs=Invoke-Git @('for-each-ref','--format=%(refname)%09%(objectname)','refs/heads/')
+$branchesComplete=$branchRefs.ok
+foreach ($line in ($branchRefs.output -split '\r?\n')) {
+  if (-not $line) { continue }
+  if ($localBranches.Count -ge 256) { $branchesComplete=$false; break }
+  $parts=$line.Split([char]9)
+  if ($parts.Length -ne 2) { $branchesComplete=$false; continue }
+  $div=@{status='unavailable';ahead=$null;behind=$null}
+  if ($authority.status -eq 'verified') { $div=Get-Divergence $authority.baseline_sha $parts[1] }
+  $live=@($protections | Where-Object { $_.branch -eq $parts[0] -or ('refs/heads/'+$_.branch) -eq $parts[0] }).Count -gt 0
+  $localBranches+=[ordered]@{ref=$parts[0];tip=$parts[1];divergence=$div;protected=$live;containment='not-disposal-proof'}
+}
+if (-not $branchesComplete) { $limitations.Add('Local branch inventory incomplete; unenumerated branches remain preserved.') }
 $surveyIndex=(Invoke-Git @('rev-parse','--git-path','index')).output.Trim()
 if (-not [IO.Path]::IsPathRooted($surveyIndex)) { $surveyIndex=Join-Path $rootPath $surveyIndex }
 $surveyIndexHash=$null
@@ -157,6 +171,7 @@ $result=[ordered]@{
   default_divergence=$defaultDivergence;upstream_divergence=$upstreamDivergence
   dirty_paths=@($inventory);dirty_fingerprint=$dirtyFingerprint;inventory_complete=$complete;index_sha256=$surveyIndexHash
   protections=@($protections);candidates=@($candidates);pairing_status='candidates-unproven';policy=$policy
+  local_branches=@($localBranches);branches_complete=$branchesComplete
   capabilities=@{git=$true;native_kbcheck=(Test-Path -LiteralPath (Join-Path $rootPath 'cmd/kbcheck'));native_required=$false}
   eligibility=@{merge=$false;delete=$false};limitations=@($limitations)
   next_actions=@('continue-independent-work','offer-scoped-cleanup-once')
@@ -164,6 +179,9 @@ $result=[ordered]@{
 if ($Action -ne 'survey') {
   $entrypoint=$PSCommandPath
   . (Join-Path $PSScriptRoot 'recovery_prepare.ps1')
-  $result=Invoke-Preparation $result
+  if ($Action -eq 'continue') {
+    . (Join-Path $PSScriptRoot 'recovery_continue.ps1')
+    $result=Invoke-Continuation $result
+  } else { $result=Invoke-Preparation $result }
 }
 if ($Json) { $result | ConvertTo-Json -Depth 10 } else { $result }
