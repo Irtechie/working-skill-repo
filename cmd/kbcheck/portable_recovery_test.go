@@ -20,6 +20,7 @@ type portableSurvey struct {
 	RepositoryID      string `json:"repository_id"`
 	Branch            string `json:"branch"`
 	Head              string `json:"head"`
+	IndexHash         string `json:"index_sha256"`
 	DirtyFingerprint  string `json:"dirty_fingerprint"`
 	InventoryComplete bool   `json:"inventory_complete"`
 	Authority         struct {

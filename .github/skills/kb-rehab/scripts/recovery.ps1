@@ -1,8 +1,9 @@
 [CmdletBinding()]
-param([ValidateSet('survey','prepare')][string]$Action='survey', [Parameter(Mandatory=$true)][string]$Root, [switch]$Json)
+param([ValidateSet('survey','prepare','verify')][string]$Action='survey', [Parameter(Mandatory=$true)][string]$Root, [string]$Request, [switch]$Json)
 $ErrorActionPreference='Stop'
 $rootPath=[IO.Path]::GetFullPath($Root)
 $gitPath=(Get-Command git -CommandType Application -ErrorAction Stop).Source
+$gitSafeConfig=@()
 function Quote-Argument([string]$Value) {
   return '"' + [regex]::Replace([regex]::Replace($Value, '(\\*)"', '$1$1\"'), '(\\+)$', '$1$1') + '"'
 }
@@ -10,10 +11,12 @@ function Invoke-Git([string[]]$Arguments) {
   # Bounded native argv; no shell interpolation, credential prompt or stderr leakage.
   $s=New-Object Diagnostics.ProcessStartInfo
   $s.FileName=$gitPath
-  $s.Arguments=((@('-C',$rootPath,'-c','core.quotePath=false')+$Arguments | ForEach-Object { Quote-Argument $_ }) -join ' ')
+  $s.Arguments=((@('-C',$rootPath,'-c','core.quotePath=false','-c','core.fsmonitor=false','-c','core.hooksPath=NUL')+$gitSafeConfig+$Arguments | ForEach-Object { Quote-Argument $_ }) -join ' ')
   $s.UseShellExecute=$false; $s.CreateNoWindow=$true
   $s.RedirectStandardOutput=$true; $s.RedirectStandardError=$true
   $s.StandardOutputEncoding=New-Object Text.UTF8Encoding($false)
+  foreach ($name in @('GIT_DIR','GIT_WORK_TREE','GIT_INDEX_FILE','GIT_COMMON_DIR','GIT_OBJECT_DIRECTORY','GIT_ALTERNATE_OBJECT_DIRECTORIES','GIT_CONFIG_COUNT','GIT_CONFIG_PARAMETERS')) { $s.EnvironmentVariables.Remove($name) }
+  foreach ($name in @($s.EnvironmentVariables.Keys)) { if ($name -match '^GIT_CONFIG_(KEY|VALUE)_') { $s.EnvironmentVariables.Remove($name) } }
   $s.EnvironmentVariables['GIT_OPTIONAL_LOCKS']='0'
   $s.EnvironmentVariables['GIT_TERMINAL_PROMPT']='0'
   $s.EnvironmentVariables['GCM_INTERACTIVE']='Never'
@@ -39,13 +42,13 @@ function Get-Divergence([string]$Base,[string]$Tip) {
   if ($v.ok -and $v.output.Trim() -match '^(\d+)\s+(\d+)$') { return @{status='verified';behind=[int]$Matches[1];ahead=[int]$Matches[2];base=$Base} }
   return @{status='unavailable';behind=$null;ahead=$null;base=$Base}
 }
+$filterKeys=Invoke-Git @('config','--name-only','--get-regexp','^filter\..*\.(process|smudge|clean|required)$')
+foreach ($key in ($filterKeys.output -split '\r?\n')) {
+  if ($key) { $value=''; if ($key.EndsWith('.required')) { $value='false' }; $gitSafeConfig+=@('-c',($key+'='+$value)) }
+}
 $top=Invoke-Git @('rev-parse','--show-toplevel')
 if (-not $top.ok) { throw 'survey root is not a Git repository' }
 $rootPath=[IO.Path]::GetFullPath($top.output.Trim())
-if ($Action -eq 'prepare') {
-  $result=@{schema_version=1;action='prepare';status='dependency-needed';reason='prepare requires a separately verified baseline SHA and explicit relative artifact allowlist';preserved_source=$rootPath;next_action='continue independent work or supply verified recovery receipt'}
-  if ($Json) { $result | ConvertTo-Json -Depth 5 } else { $result }; exit 0
-}
 $common=(Invoke-Git @('rev-parse','--git-common-dir')).output.Trim()
 if (-not [IO.Path]::IsPathRooted($common)) { $common=Join-Path $rootPath $common }
 $common=[IO.Path]::GetFullPath($common)
@@ -144,14 +147,23 @@ foreach ($path in $declarationPaths) {
   $links=@([regex]::Matches($content,'docs/(?:plans|results)/[A-Za-z0-9_./-]+\.(?:md|json)') | ForEach-Object { $_.Value } | Sort-Object -Unique)
   $candidates+=@{path=$path;status='candidate-unproven';declared_refs_or_hashes=$refs;artifact_links=$links;evidence='not-validated'}
 }
+$surveyIndex=(Invoke-Git @('rev-parse','--git-path','index')).output.Trim()
+if (-not [IO.Path]::IsPathRooted($surveyIndex)) { $surveyIndex=Join-Path $rootPath $surveyIndex }
+$surveyIndexHash=$null
+if (Test-Path -LiteralPath $surveyIndex -PathType Leaf) { $surveyIndexHash=Get-FileDigest $surveyIndex }
 $result=[ordered]@{
   schema_version=1;action='survey';status='surveyed';repository=$rootPath;common_dir=$common
   repository_id=(Get-Hash $common.ToLowerInvariant());branch=$branch;head=$head;authority=$authority
   default_divergence=$defaultDivergence;upstream_divergence=$upstreamDivergence
-  dirty_paths=@($inventory);dirty_fingerprint=$dirtyFingerprint;inventory_complete=$complete
+  dirty_paths=@($inventory);dirty_fingerprint=$dirtyFingerprint;inventory_complete=$complete;index_sha256=$surveyIndexHash
   protections=@($protections);candidates=@($candidates);pairing_status='candidates-unproven';policy=$policy
   capabilities=@{git=$true;native_kbcheck=(Test-Path -LiteralPath (Join-Path $rootPath 'cmd/kbcheck'));native_required=$false}
   eligibility=@{merge=$false;delete=$false};limitations=@($limitations)
   next_actions=@('continue-independent-work','offer-scoped-cleanup-once')
+}
+if ($Action -ne 'survey') {
+  $entrypoint=$PSCommandPath
+  . (Join-Path $PSScriptRoot 'recovery_prepare.ps1')
+  $result=Invoke-Preparation $result
 }
 if ($Json) { $result | ConvertTo-Json -Depth 10 } else { $result }
