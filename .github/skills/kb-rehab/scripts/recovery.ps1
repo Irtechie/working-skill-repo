@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('survey','prepare','verify','continue')][string]$Action='survey', [Parameter(Mandatory=$true)][string]$Root, [string]$Request, [switch]$Json)
+param([ValidateSet('survey','prepare','verify','continue','dispose')][string]$Action='survey', [Parameter(Mandatory=$true)][string]$Root, [string]$Request, [switch]$Json)
 $ErrorActionPreference='Stop'
 $rootPath=[IO.Path]::GetFullPath($Root)
 $gitPath=(Get-Command git -CommandType Application -ErrorAction Stop).Source
@@ -11,7 +11,7 @@ function Invoke-Git([string[]]$Arguments) {
   # Bounded native argv; no shell interpolation, credential prompt or stderr leakage.
   $s=New-Object Diagnostics.ProcessStartInfo
   $s.FileName=$gitPath
-  $s.Arguments=((@('-C',$rootPath,'-c','core.quotePath=false','-c','core.fsmonitor=false','-c','core.hooksPath=NUL')+$gitSafeConfig+$Arguments | ForEach-Object { Quote-Argument $_ }) -join ' ')
+  $s.Arguments=((@('-C',$rootPath,'-c','core.quotePath=false','-c','core.longpaths=true','-c','core.fsmonitor=false','-c','core.hooksPath=NUL')+$gitSafeConfig+$Arguments | ForEach-Object { Quote-Argument $_ }) -join ' ')
   $s.UseShellExecute=$false; $s.CreateNoWindow=$true
   $s.RedirectStandardOutput=$true; $s.RedirectStandardError=$true
   $s.StandardOutputEncoding=New-Object Text.UTF8Encoding($false)
@@ -182,6 +182,9 @@ if ($Action -ne 'survey') {
   if ($Action -eq 'continue') {
     . (Join-Path $PSScriptRoot 'recovery_continue.ps1')
     $result=Invoke-Continuation $result
+  } elseif ($Action -eq 'dispose') {
+    . (Join-Path $PSScriptRoot 'recovery_dispose.ps1')
+    $result=Invoke-Disposition $result
   } else { $result=Invoke-Preparation $result }
 }
 if ($Json) { $result | ConvertTo-Json -Depth 10 } else { $result }

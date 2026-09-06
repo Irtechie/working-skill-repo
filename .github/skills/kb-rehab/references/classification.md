@@ -1,51 +1,35 @@
-# Classification Reference
+# Classification and preservation
 
-## Lifecycle States
+| Result | Evidence and next action |
+|---|---|
+| preserve-live | Current/default/occupied worktree, active or uncertain claim, or credential path. Preserve; resolve the owning scope without taking it over. |
+| review-needed | Unknown ownership, failed/missing proof, or missing exact manifest/ref/tip binding. Review without deletion. |
+| salvage | Exact accepted artifact still matches its hash. Keep the source; its owner may copy/commit the selected work separately. |
+| discard-confirmed-junk | Explicitly rejected local branch with a restoration-proven bundle, or explicitly rejected generated output with matching provenance and a restored recovery copy. Report the archive and observed action. |
+| deliver-pr | Exact contained manifest/hash/ref/tip pairing; delegate fresh proof/review and PR work to kb-complete in its own workspace. This is pending delivery. |
+| merge-eligible | Current explicit merge intent or configured auto-after-checks permits a pending owner attempt. Actual forge checks remain required; completed stays false. |
+| retained-blocked | Current authority, ownership, policy, hash, restore, native capability or forge evidence does not permit the specific operation. Preserve and name the next owner. |
 
-| State | Meaning | Evidence required |
-|---|---|---|
-| `live` | Another session holds a claim on this work | An unexpired queue claim whose status is not terminal |
-| `unshipped` | The ref holds commits the authoritative default does not contain | `git cherry` reports at least one `+` commit |
-| `dead` | The ref's work is fully contained and no declaration keeps it open | Containment proof against the freshly fetched default SHA |
-| `superseded` | A named replacement already exists on the default branch | The replacement path resolves in the default tree **and** the ref is contained |
-| `orphan-work` | A declared item names no reachable ref or artifact | The named manifest or branch does not resolve |
-| `orphan-branch` | A ref exists with no declared work item | No declared item names this ref |
-| `human-required` | Evidence is missing or contradictory | Recorded per pairing in `reason` |
+Ancestry counts and patch equivalence are review signals, not deletion proof.
+Squash/rebase equivalence alone cannot authorize retirement. Already-landed
+claims require actual forge merge evidence plus content preservation checked
+by the owning delivery/reconciliation mechanism. The portable helper instead
+supports the narrower explicit-rejection/restoration route.
 
-## Evidence Rules
+No policy file is required for portable survey/preservation. Unknown remote
+or malformed policy removes destructive eligibility, not unrelated task
+progress. No command from an unverified manifest is executed by the helper.
 
-Containment is `git cherry` patch equivalence, not ancestry. Ancestry
-misclassifies a squash-merged branch as unshipped, and re-merging already-landed
-work is the expensive failure this lane exists to prevent.
+Age, ignore status, zero bytes and failed tests never classify junk. Expired
+claims are review signals; the portable helper conservatively preserves every
+nonterminal claim and every occupied worktree. The current/source worktree is
+never removed. Exact generated-file deletion is restricted to `.kb/generated/`
+or `.kb/tmp/`, with explicit rejection and independently readable hash-bound
+provenance; a producer label alone grants no authority.
 
-Remote authority is resolved through a fresh `git ls-remote --symref` plus a
-fetch-equality check. A remote-tracking ref is a cache, not an authority.
-
-Supersession is never self-proving. The replacement path must already exist in
-the authoritative default tree, so a branch can never author its own
-replacement into existence.
-
-A missing file is missing evidence, not proof of death. An unparsed row stays in
-the report as `orphan-work` rather than being dropped.
-
-## Fail-Closed Triggers
-
-Each of these sets `status: fail-closed` and yields zero `dead` and zero
-`superseded` pairings:
-
-- no remote is configured;
-- the remote is unreachable;
-- the advertised default branch does not resolve;
-- the advertised SHA and the fetched SHA disagree;
-- two remotes disagree about the default branch; or
-- `config/rehab-policy.json` is absent or unparseable.
-
-A fail-closed report also refuses every `--action mark` and `--action remove`
-write.
-
-## Protected Paths
-
-`config/rehab-policy.json` names the protected roots. In this bundle a merge
-touching `.github/skills` propagates to `~/.agents/skills`, `~/.codex/skills`,
-and `~/.copilot/skills`, so it is a write into every future agent session on the
-host. The packet states that consequence verbatim; it is never summarized away.
+Archives live under `<git-common-dir>/.copilot-kb/recovery/dispositions/`.
+Branch recovery includes `branch.bundle`, a restored bare repository, selected
+artifact copies and restored copies, and a receipt listing hashes and excluded
+credential paths. Originals stay in place. No credentials are copied or
+removed; an excluded credential does not become junk. A restore mismatch or
+changed ref blocks retirement. Ref deletion compares the expected old tip.

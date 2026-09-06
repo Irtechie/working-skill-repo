@@ -290,10 +290,11 @@ into execution solely because the plan gate passes.
 3. Run `manifest-contract` when available.
 4. Write `plan-to-work: passed` only with objective evidence and
    `allowed_next_action: kb-work <manifest>`.
-5. Once `plan-to-work` passes, invoke `w2d <manifest>` directly. Passing the
-   gate is the authorization; do not ask the user to confirm execution. Stop and
-   return the exact command only when the gate fails or a hard question blocks
-   the plan.
+5. Once `plan-to-work` passes, invoke `w2d <manifest>` directly when current
+   execution intent already authorizes it; do not re-ask for that authority.
+   The gate proves readiness, not permission. For an explicitly plans-only
+   request, return the validated plans and exact execution command. A failed
+   gate or hard question blocks only its actual dependent work.
    - `w2d` carries the manifest through work, finalization, and PR delivery.
    - When the caller was `kb-complete`, return control to it instead so stored
      delivery policy still owns the endpoint.

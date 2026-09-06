@@ -107,9 +107,9 @@ function Invoke-Preparation($Survey) {
         $destinationIndex=(Invoke-Git @('rev-parse','--git-path','index')).output.Trim()
         if (-not [IO.Path]::IsPathRooted($destinationIndex)) { $destinationIndex=Join-Path $dest $destinationIndex }
         if (Test-Path -LiteralPath $destinationIndex) {
-          if (-not (Invoke-Git @('diff','--cached','--quiet','HEAD','--')).ok) { throw 'destination-staged-work-preserved' }
+          if (-not (Invoke-Git @('diff','--no-ext-diff','--no-textconv','--cached','--quiet','HEAD','--')).ok) { throw 'destination-staged-work-preserved' }
         } elseif (-not (Invoke-Git @('read-tree',$baseline)).ok) { throw 'baseline-index-failed' }
-        if (-not (Invoke-Git @('diff','--quiet','--diff-filter=ACMRTUXB','HEAD','--')).ok) { throw 'partial-baseline-checkout-modified' }
+        if (-not (Invoke-Git @('diff','--no-ext-diff','--no-textconv','--quiet','--diff-filter=ACMRTUXB','HEAD','--')).ok) { throw 'partial-baseline-checkout-modified' }
         # Materialize missing baseline files only; never force over resumed edits.
         $missing=Invoke-Git @('ls-files','--deleted','-z')
         foreach ($path in $missing.output.Split([char]0)) {
@@ -121,7 +121,7 @@ function Invoke-Preparation($Survey) {
         }
         $receipt.state='baseline-ready'; Write-RecoveryReceipt $receiptPath $receipt
       }
-      $tracked=Invoke-Git @('diff','--quiet','HEAD','--')
+      $tracked=Invoke-Git @('diff','--no-ext-diff','--no-textconv','--quiet','HEAD','--')
       if (-not $tracked.ok) { throw 'destination-source-changed' }
     } finally { $rootPath=$savedRoot }
     foreach ($a in $artifacts) {
