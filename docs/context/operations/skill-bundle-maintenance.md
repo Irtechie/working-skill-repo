@@ -66,7 +66,11 @@ Regenerate the UniversalUI catalog when a skill's public metadata changes:
 
 ```powershell
 npm run catalog:build --prefix packages/universal-ui-skills-contribution
+npm run pack:release --prefix packages/universal-ui-skills-contribution
 ```
+
+Commit the generated catalog, packaged artifact, and release lock together;
+the package test verifies their byte equality.
 
 Review all required installed-copy drift before propagation, run `local-release`,
 sync the reviewed source outward, verify hashes, and rerun any gate invalidated
