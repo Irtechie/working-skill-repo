@@ -101,8 +101,12 @@ func TestDeliveryOwnerSkillContracts(t *testing.T) {
 	}
 	requireDocContract(t, root, "delivery boundary", map[string][]contractMatcher{
 		".github/skills/kb-start/SKILL.md": {
+			docAnchor("[mutating startup](references/mutating-startup.md)"),
+			docConcept("Before any edit", "load"),
+		},
+		".github/skills/kb-start/references/mutating-startup.md": {
 			docAnchor("terminal-cleanup --action sweep"),
-			docConcept("current executing session"),
+			docConcept("Cleanup preserves the current session/worktree"),
 		},
 		".github/skills/kb-work/SKILL.md": {
 			docConcept("never merges or pushes a resolved default branch"),
