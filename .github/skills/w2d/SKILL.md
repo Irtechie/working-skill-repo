@@ -145,8 +145,10 @@ Use `kb-complete` when stored project policy should decide the endpoint. Use
 has an idea and no plan yet. `w2d` plans only to recover from a missing
 manifest.
 
-`w2d` still honors a stored `delivery.mode: local`. That is an explicit opt-out
-from publishing, so report the reviewed manifest and stop rather than pushing.
+`w2d` honors a persistent explicitly chosen project `delivery.mode: local`.
+Unknown provenance of a local-only restriction withholds publishing while
+safe local work continues. Historical plans-only snapshots do not create a
+persistent opt-out from a later explicit run.
 `delivery.mode: direct` stays owned by `kb-complete` and `kb-land`; `w2d`
 always delivers through a PR.
 

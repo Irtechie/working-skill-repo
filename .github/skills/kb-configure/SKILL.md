@@ -1,7 +1,7 @@
 ---
 name: kb-configure
 description: "Configure portable per-project delivery and plan-worktree concurrency policy."
-argument-hint: "[show|delivery-local|delivery-pr|delivery-direct|reset]"
+argument-hint: "[show|delivery-local|delivery-pr|delivery-pr-auto|delivery-direct|reset]"
 ---
 
 # KB Configure
@@ -32,6 +32,11 @@ there. `kbrouter` continues to own host and user-local model configuration.
      scratch or private projects.
    - `delivery-pr` commits, pushes a topic/fork branch, and opens/updates a PR.
      This is the default when no policy file exists.
+   - `delivery-pr-auto` explicitly chooses `mode: pr` and
+     `merge: auto-after-checks`. Use for a private solo project when the user
+     wants reviewed work merged after required checks and approvals. Preserve
+     `post_merge_sync` separately. Never infer this choice from write access,
+     repository visibility, or contributor count.
    - `delivery-direct` permits verified direct-default integration; protection
      or policy rejection falls back to PR or blocks.
    - `show` reports PR/manual delivery and the plan-worktree limit without
