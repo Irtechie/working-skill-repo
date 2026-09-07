@@ -6,6 +6,13 @@ These requests record current user intent; a prior plan's passed gate is not
 execution or cleanup authorization. Values marked `<...>` must come from the
 actual source, current run, or user decision.
 
+## Contents
+
+- [Survey and prepare](#survey-and-prepare)
+- [Continue without awaiting cleanup](#continue-without-awaiting-cleanup)
+- [Accepted disposition](#accepted-disposition)
+- [Exact generated output](#exact-generated-output)
+
 ## Survey and prepare
 
 ```powershell

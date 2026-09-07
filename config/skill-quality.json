@@ -99,6 +99,7 @@
     "allowed_platforms": [
       "codex",
       "ghcp",
+      "opencode",
       "both"
     ],
     "allowed_routes": [
