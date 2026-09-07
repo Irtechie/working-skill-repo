@@ -22,6 +22,30 @@
         "live_model": "supported-explicit"
       }
     },
+    "opencode": {
+      "label": "OpenCode",
+      "instruction_surfaces": {
+        "AGENTS.md": "supported",
+        ".github/copilot-instructions.md": "warning-only",
+        ".github/instructions/*.instructions.md": "warning-only",
+        ".github/skills/**/SKILL.md": "warning-only"
+      },
+      "skill_directories": {
+        ".agents/skills": "supported",
+        "~/.agents/skills": "supported",
+        ".opencode/skills": "supported",
+        "~/.config/opencode/skills": "supported",
+        ".github/skills": "warning-only"
+      },
+      "agents": "unverified",
+      "scripts": "supported",
+      "eval_modes": {
+        "static": "supported",
+        "fixture": "supported",
+        "dry_run": "supported",
+        "live_model": "unverified"
+      }
+    },
     "ghcp": {
       "label": "GitHub Copilot",
       "instruction_surfaces": {
@@ -75,6 +99,7 @@
     "allowed_platforms": [
       "codex",
       "ghcp",
+      "opencode",
       "both"
     ],
     "allowed_routes": [
@@ -83,6 +108,7 @@
       "kb-brainstorm",
       "kb-plan",
       "kb-work",
+      "w2d",
       "kb-goal",
       "kb-epic",
       "kb-architecture-deepening",

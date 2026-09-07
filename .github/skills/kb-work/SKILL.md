@@ -43,6 +43,14 @@ are plausible.
    mutation. Expand claims before touching discovered paths.
 8. Read relevant active landmines and proof receipts.
 
+Installed consumers without `cmd/kbcheck` use the **Portable consumer handoff**
+in `references/worktree-isolation.md` for steps 5–7 and native lease/receipt
+operations below. Verify the installed recovery preparation, retain the shared
+work queue, and execute shared-serial in that concrete workspace. Missing
+maintainer commands do not block execution; existing native refusals still do.
+Never invent native lease records or proof gates, and never create a second
+worktree around a valid portable receipt.
+
 Manifest worktrees and leases coordinate sibling worktrees in one local Git
 common directory. Separate clones or machines are outside that guarantee:
 local leases are not team locks.

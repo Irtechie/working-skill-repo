@@ -1,0 +1,24 @@
+{
+  "id": "unfinished-branch-advisory",
+  "platforms": ["codex", "ghcp", "opencode"],
+  "prompt": "w2d the validated current manifest. Keep independent work moving while offering a scoped review of the old branch.",
+  "repo_state": "Current default checkout has a valid uncommitted plan. A separate pushed branch is 14 commits ahead of default and 0 ahead of its upstream. No native kbcheck or kbreconcile exists. Cleanup is unanswered. HB02 code/build passed but packaging and browser proof remain; HB03-HB05 depend on that proof.",
+  "expected": {
+    "route": "w2d",
+    "complexity_tier": "medium",
+    "max_user_questions": 0,
+    "artifacts": ["scoped advisory inventory", "isolated preparation receipt", "existing manifest gate revalidation"],
+    "proof": ["packaging and browser proof before closing HB02", "ready dependent slices", "current policy-owned PR and eligible merge"]
+  },
+  "complexity_signals": {
+    "subsystem_count": 1,
+    "uncertainty": 1,
+    "user_visible": false,
+    "data_auth_security_risk": 1,
+    "external_dependency": false,
+    "verification_surface": "integration",
+    "rollback_difficulty": 1,
+    "expected_duration_hours": 1
+  },
+  "guards": ["silence-is-not-cleanup-authority", "no-premature-proof-completion", "no-global-stop-for-unrelated-backlog"]
+}

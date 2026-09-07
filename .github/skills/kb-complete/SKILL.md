@@ -54,6 +54,11 @@ can enforce narrow gates and resume safely.
    `kb-brainstorm` before planning.
 7. If input is blank, resume the single active manifest from `todo.md`. Ask only
    when multiple active manifests are genuinely plausible.
+8. Apply `kb-start`'s installed unfinished-work continuation contract when
+   backlog or unrelated lineage is found. Silence/decline preserves backlog;
+   independent preparation returns the concrete workspace and manifest to this
+   loop. A scoped accepted review/cleanup routes separately to `kb-rehab` and
+   never creates publishing authority for unrelated work.
 
 ## State-Driven Loop
 
@@ -85,6 +90,7 @@ Before repeating any blocker, rerun its recorded recheck sensor.
 |---|---|
 | no valid manifest | `kb-plan <source>` |
 | active with runnable slices | `kb-work <manifest>` |
+| portable continuation returns `ready` | revalidate existing manifest gates and invoke `kb-work` in the returned workspace |
 | completed with `work-to-complete: passed` | `kb-finalize <manifest>` |
 | reviewed with `complete-to-ship: passed|quarantined` | apply delivery policy |
 | paused | stop without changing technical gate status; resume only on explicit user instruction |

@@ -82,11 +82,42 @@ func TestGoTestPackagePartitionIsolatesOnlyChildProcessOwners(t *testing.T) {
 
 func TestIsolatedGoTestArgsBoundThePackageTestBinary(t *testing.T) {
 	args := isolatedGoTestArgs("example.test/fixture/cmd/kbcheck")
-	if len(args) != 5 || args[0] != "test" || args[1] != "-buildvcs=false" ||
-		args[2] != "-timeout="+(defaultProcessCheckTimeout-processCheckTerminationWait).String() ||
-		args[3] != goTestParallelFlag() ||
-		args[4] != "example.test/fixture/cmd/kbcheck" {
+	if len(args) != 6 || args[0] != "test" || args[1] != "-buildvcs=false" || args[2] != "-count=1" ||
+		args[3] != "-timeout="+(defaultProcessCheckTimeout-processCheckTerminationWait).String() ||
+		args[4] != goTestParallelFlag() ||
+		args[5] != "example.test/fixture/cmd/kbcheck" {
 		t.Fatalf("isolated args=%v", args)
+	}
+}
+
+func TestIsolatedGoTestsDisableResultCacheAndExecuteEveryTime(t *testing.T) {
+	root := t.TempDir()
+	counter := filepath.Join(t.TempDir(), "executions.txt")
+	t.Setenv("GODEBUG", "gocachetest=1")
+	t.Setenv("KBCHECK_CACHE_EXECUTIONS", counter)
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.test/cachefixture\n\ngo 1.23\n")
+	writeFile(t, filepath.Join(root, "cmd", "kbcheck", "cache_test.go"), `package kbcheck
+import ("os"; "testing")
+func TestExecuted(t *testing.T) {
+ f,err:=os.OpenFile(os.Getenv("KBCHECK_CACHE_EXECUTIONS"),os.O_CREATE|os.O_APPEND|os.O_WRONLY,0600)
+ if err!=nil {t.Fatal(err)}
+ if _,err=f.WriteString("executed\n");err!=nil {t.Fatal(err)}
+ if err=f.Close();err!=nil {t.Fatal(err)}
+}
+`)
+	args := isolatedGoTestArgs("example.test/cachefixture/cmd/kbcheck")
+	for attempt := 1; attempt <= 2; attempt++ {
+		result := runCommandWithoutOuterContainment(root, time.Minute, 5*time.Second, "go", args...)
+		if result.ExitCode != 0 {
+			t.Fatalf("tiny isolated package attempt %d: %+v", attempt, result)
+		}
+		if !strings.Contains(result.Stderr, "caching disabled for test argument: -test.count=1") {
+			t.Fatalf("Go did not confirm the result-cache opt-out: %s", result.Stderr)
+		}
+		content, err := os.ReadFile(counter)
+		if err != nil || string(content) != strings.Repeat("executed\n", attempt) {
+			t.Fatalf("attempt %d was not executed: %q %v", attempt, content, err)
+		}
 	}
 }
 

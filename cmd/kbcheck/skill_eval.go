@@ -17,16 +17,17 @@ type evalIssue struct {
 }
 
 type evalRow struct {
-	File            string `json:"file"`
-	FixtureID       string `json:"fixture_id,omitempty"`
-	CaseID          string `json:"case_id,omitempty"`
-	ExpectedResult  string `json:"expected_result"`
-	ActualResult    string `json:"actual_result"`
-	IssueCount      int    `json:"issue_count"`
-	WarningCount    int    `json:"warning_count,omitempty"`
-	TraceConfidence string `json:"trace_confidence,omitempty"`
-	Computed        bool   `json:"computed,omitempty"`
-	AmbiguousCount  int    `json:"ambiguous_count,omitempty"`
+	File                 string `json:"file"`
+	FixtureID            string `json:"fixture_id,omitempty"`
+	CaseID               string `json:"case_id,omitempty"`
+	ExpectedResult       string `json:"expected_result"`
+	ActualResult         string `json:"actual_result"`
+	IssueCount           int    `json:"issue_count"`
+	WarningCount         int    `json:"warning_count,omitempty"`
+	TraceConfidence      string `json:"trace_confidence,omitempty"`
+	PhaseTraceConfidence string `json:"phase_trace_confidence,omitempty"`
+	Computed             bool   `json:"computed,omitempty"`
+	AmbiguousCount       int    `json:"ambiguous_count,omitempty"`
 }
 
 func runSkillEvalCommand(root string, opts options, stdout, stderr io.Writer) int {
@@ -105,7 +106,11 @@ func computeSkillEval(root, resultRoot, resultPath, baselinePath string, updateB
 			out.Issues = append(out.Issues, issues...)
 		}
 		out.Warnings = append(out.Warnings, warnings...)
-		out.Results = append(out.Results, evalRow{File: filepath.Base(file), FixtureID: stringValue(result["fixture_id"]), ExpectedResult: expectedOutcome, ActualResult: passFail(actualPass), IssueCount: len(issues), WarningCount: len(warnings), TraceConfidence: confidence})
+		phaseConfidence := ""
+		if _, declared := fixtures[stringValue(result["fixture_id"])]["phase_trace_contract"]; declared {
+			phaseConfidence = "supplied-trace-consistency-only"
+		}
+		out.Results = append(out.Results, evalRow{File: filepath.Base(file), FixtureID: stringValue(result["fixture_id"]), ExpectedResult: expectedOutcome, ActualResult: passFail(actualPass), IssueCount: len(issues), WarningCount: len(warnings), TraceConfidence: confidence, PhaseTraceConfidence: phaseConfidence})
 	}
 	if baselinePath != "" {
 		baseFull := resolveRepoPath(root, baselinePath)
@@ -191,6 +196,7 @@ func scoreSkillEvalResult(root string, result map[string]any, fixtures map[strin
 		}
 	}
 	ruleIssues, ruleWarnings := traceRuleIssues(id, result, trace)
+	issues = append(issues, phaseTraceIssues(id, result, fixture)...)
 	issues = append(issues, ruleIssues...)
 	warnings = append(warnings, ruleWarnings...)
 	for _, artifact := range stringArray(result["claim_artifacts"]) {
@@ -204,6 +210,108 @@ func scoreSkillEvalResult(root string, result map[string]any, fixtures map[strin
 		confidence = "observed"
 	}
 	return issues, warnings, confidence
+}
+
+// Optional fixture-owned phase contracts check supplied action traces. They do
+// not attest that a host, browser, or forge actually performed those actions.
+func phaseTraceIssues(id string, result, fixture map[string]any) []evalIssue {
+	raw, declared := fixture["phase_trace_contract"]
+	if !declared {
+		return nil
+	}
+	fail := func(message string) []evalIssue { return []evalIssue{{Result: id, Message: "Phase trace: " + message}} }
+	contract, ok := raw.(map[string]any)
+	if !ok {
+		return fail("malformed fixture contract")
+	}
+	initial, initialOK := contract["initial_state"].(string)
+	states, statesOK := contract["states"].(map[string]any)
+	terminalRaw, terminalOK := contract["terminal_states"].([]any)
+	if !initialOK || initial == "" || !statesOK || len(states) == 0 || !terminalOK || len(terminalRaw) == 0 {
+		return fail("malformed fixture contract")
+	}
+	terminals := map[string]bool{}
+	for _, raw := range terminalRaw {
+		state, ok := raw.(string)
+		if !ok || state == "" {
+			return fail("malformed terminal state")
+		}
+		if _, ok := states[state]; !ok {
+			return fail("unknown terminal state")
+		}
+		terminals[state] = true
+	}
+	if _, ok := states[initial]; !ok {
+		return fail("unknown initial state")
+	}
+	for state, rawEdges := range states {
+		edges, ok := rawEdges.(map[string]any)
+		if !ok || state == "" {
+			return fail("malformed fixture state")
+		}
+		if terminals[state] && len(edges) != 0 {
+			return fail("terminal state has outgoing actions")
+		}
+		if !terminals[state] && len(edges) == 0 {
+			return fail("nonterminal state has no next action")
+		}
+		for action, rawEdge := range edges {
+			edge, ok := rawEdge.(map[string]any)
+			if !ok || action == "" {
+				return fail("malformed fixture transition")
+			}
+			next, nextOK := edge["next_state"].(string)
+			owner, ownerOK := edge["owner"].(string)
+			if !nextOK || next == "" || !ownerOK || owner == "" {
+				return fail("transition requires next state and owner")
+			}
+			if _, ok := states[next]; !ok {
+				return fail("transition references unknown state")
+			}
+			if reason, exists := edge["requires_reason"]; exists {
+				if _, ok := reason.(bool); !ok {
+					return fail("malformed transition reason requirement")
+				}
+			}
+		}
+	}
+	actions, ok := result["phase_trace"].([]any)
+	if !ok || len(actions) == 0 {
+		return fail("declared fixture requires nonempty phase_trace")
+	}
+	state := initial
+	for index, rawEvent := range actions {
+		event, ok := rawEvent.(map[string]any)
+		if !ok {
+			return fail(fmt.Sprintf("malformed action %d", index))
+		}
+		action, actionOK := event["action"].(string)
+		owner, ownerOK := event["owner"].(string)
+		if !actionOK || !ownerOK {
+			return fail(fmt.Sprintf("action %d requires action and owner", index))
+		}
+		edge, ok := states[state].(map[string]any)[action].(map[string]any)
+		if !ok {
+			return fail(fmt.Sprintf("action %q not allowed from %q", action, state))
+		}
+		if owner != edge["owner"] {
+			return fail(fmt.Sprintf("action %q has wrong owner", action))
+		}
+		if edge["requires_reason"] == true {
+			reason, ok := event["reason"].(string)
+			if !ok || strings.TrimSpace(reason) == "" {
+				return fail(fmt.Sprintf("action %q requires refusal/failure evidence", action))
+			}
+		}
+		state = edge["next_state"].(string)
+	}
+	if !terminals[state] {
+		return fail(fmt.Sprintf("premature terminal answer from %q; agent-owned action remains", state))
+	}
+	if final, ok := result["final_state"].(string); !ok || final != state {
+		return fail("final_state differs from evaluated actions")
+	}
+	return nil
 }
 
 func runSkillEvalClaimsCommand(root string, opts options, stdout, stderr io.Writer) int {

@@ -276,15 +276,25 @@ Load `references/manifest-template.md` only while writing the manifest and
 
 ## Validate and Gate
 
+For a plans-only request, record that session's restriction as historical
+`planning_record` and keep execution `not-started`. Do not encode it as a
+persistent `delivery.mode: local`, a permanent `commit_authorized: false`, or
+a permanent no-publish list. A later explicit `w2d`/`p2d` supplies current-run
+authority for the named objective; it does not change historical proof gates.
+An explicitly chosen project local-only policy remains effective until the
+user changes it. A plans-only caller returns after planning and does not chain
+into execution solely because the plan gate passes.
+
 1. Validate source traceability and every requirement-to-slice mapping.
 2. Validate the DAG and context packets.
 3. Run `manifest-contract` when available.
 4. Write `plan-to-work: passed` only with objective evidence and
    `allowed_next_action: kb-work <manifest>`.
-5. Once `plan-to-work` passes, invoke `w2d <manifest>` directly. Passing the
-   gate is the authorization; do not ask the user to confirm execution. Stop and
-   return the exact command only when the gate fails or a hard question blocks
-   the plan.
+5. Once `plan-to-work` passes, invoke `w2d <manifest>` directly when current
+   execution intent already authorizes it; do not re-ask for that authority.
+   The gate proves readiness, not permission. For an explicitly plans-only
+   request, return the validated plans and exact execution command. A failed
+   gate or hard question blocks only its actual dependent work.
    - `w2d` carries the manifest through work, finalization, and PR delivery.
    - When the caller was `kb-complete`, return control to it instead so stored
      delivery policy still owns the endpoint.

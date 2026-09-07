@@ -19,7 +19,12 @@ func TestMain(m *testing.M) {
 	lock, err := modelrouting.AcquirePrivateStateLock(root, "probe.lock", 100*time.Millisecond)
 	if err == nil {
 		_ = lock.Close()
-		os.Exit(m.Run())
+		code := m.Run()
+		if err := cleanupPortableRecoveryInstall(); err != nil {
+			fmt.Fprintf(os.Stderr, "packed recovery fixture cleanup: %v\n", err)
+			code = 1
+		}
+		os.Exit(code)
 	}
 	if errors.Is(err, modelrouting.ErrUnsafePath) || strings.Contains(err.Error(), "Access is denied") {
 		fmt.Fprintf(os.Stderr, "skipping cmd/kbcheck Windows tests: private ACL setup unavailable: %v\n", err)

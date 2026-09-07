@@ -715,10 +715,10 @@ func parse(args []string) (options, error) {
 		return options{}, fmt.Errorf("worktree is deprecated and requires --legacy-slice-worktree; plan runs use plan-worktree")
 	}
 	if opts.command == "plan-worktree" {
-		if (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") && opts.sliceLeaseAction != "prepare" {
-			return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree prepare")
+		if (opts.commitAuthorized || opts.commitAuthorizedBy != "" || opts.commitApprovalRef != "") && opts.sliceLeaseAction != "prepare" && opts.sliceLeaseAction != "adopt" {
+			return options{}, fmt.Errorf("commit authorization flags are only supported for plan-worktree prepare or adopt")
 		}
-		if opts.sliceLeaseAction == "prepare" && opts.commitAuthorized &&
+		if (opts.sliceLeaseAction == "prepare" || opts.sliceLeaseAction == "adopt") && opts.commitAuthorized &&
 			(opts.commitAuthorizedBy == "" || opts.commitApprovalRef == "") {
 			return options{}, fmt.Errorf("plan-worktree prepare with --commit-authorized requires --commit-authorized-by and --commit-approval-ref")
 		}

@@ -34,6 +34,11 @@ When a read-only unfinished-work survey finds unrelated candidate backlog,
 offer one scoped cleanup/review choice. Silence or decline preserves that
 backlog and does not block independent ready work. Do not repeat an unchanged
 offer on every phase entry, and never treat it as authority to dispose of work.
+For a mutating objective, use the installed
+[unfinished-work continuation](references/unfinished-work.md) contract before
+executing from a dirty or unrelated lineage. It also inventories unfinished
+local branches when the current default checkout is clean. Read-only questions
+retain transient session-only notices and never write continuation state.
 
 ## Shared Work Queue Gate
 

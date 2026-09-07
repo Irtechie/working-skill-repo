@@ -1,7 +1,7 @@
 # KB Workflow Skills
 
 Portable workflow skills that make coding agents easier to route, resume, and
-verify across GitHub Copilot and Codex.
+verify across GitHub Copilot, Codex, and OpenCode.
 
 **Status:** actively used, pre-1.0. Expect interface changes while the workflow,
 release tooling, and optional model-routing surfaces settle.
@@ -31,6 +31,10 @@ kb-start "what I want done"
 
 `kb-start` is an agent skill, not a standalone shell command. The installer
 uses Node once to copy the bundle; Node is not required afterward.
+
+For OpenCode, use `--target agents`. OpenCode discovers the shared
+`~/.agents/skills` directory; a repository install under `.github/skills` alone
+is not an OpenCode discovery route. See its [skill discovery documentation](https://opencode.ai/docs/skills/).
 
 Read-only questions stay read-only: KB uses existing project context when it is
 available and reports missing memory as a setup option. Setup, refresh, edits,
@@ -146,6 +150,11 @@ p2d "Add CSV export to the invoice list"
 `p2d` plans first, then invokes `w2d`. That invocation supplies merge intent,
 but never bypasses permissions, branch protection, required checks, or required
 reviews.
+
+With an existing manifest, use `w2d <manifest>`. Current explicit execution
+intent supersedes an old plan's “planning only” history. A persistent local-only
+project policy still withholds publishing until explicitly changed. Private or
+solo ownership alone is not a merge grant.
 
 ## Task Routing
 
@@ -278,6 +287,13 @@ replace assertions.
 Security, auth, destructive data, public contracts, and live/deploy boundaries
 still receive immediate targeted checks.
 
+Routing evals measure routing, not task completion. The offline
+[ablation reducer](evals/skill-eval/ablation/README.md) compares trusted external
+captures with matching transcript, effective instruction inventory, command
+results, and unchanged checks. It retains failures and unknown metrics. Hashes
+establish integrity, not the capture author's identity; synthetic tests do not
+establish that KB improves real tasks.
+
 ## Review, Delivery, and Recovery
 
 Integrated work receives zero or one semantic review profile:
@@ -298,6 +314,23 @@ Delivery ownership is explicit:
 - `kb-land` is the only lane that integrates the remote default branch.
 - neither uses force push, admin bypass, hook bypass, or protection bypass.
 - local completion remains available when a project should not publish.
+
+Unfinished branches trigger one scoped cleanup offer while independent work
+continues in an isolated workspace based on the fetched default branch. Silence
+or decline preserves the backlog. `kb-rehab` reviews accepted items, preserves
+selected plans and notes, delegates useful work to the existing delivery owners,
+and retires explicitly rejected local work only after archive restoration proof.
+Unknown work, credentials, and active worktrees remain protected.
+
+The installed recovery helper requires Windows PowerShell 5.1 and Git. It ships
+with `kb-rehab`; a consuming repository does not need `cmd/kbcheck`, Go, Node,
+or `kbreconcile`. Native tools remain optional owners when present, and their
+refusals cannot be bypassed through portable cleanup. Request examples live in
+[the installed recovery contract](.github/skills/kb-rehab/references/recovery-requests.md).
+
+An intermediate update is not a completed delivery claim. If a slice has built
+but still needs asset packaging or browser proof, the agent continues that work;
+dependent slices and final PR delivery wait for the required evidence.
 
 Blockers are responsibility-first. Test, code, controller, browser, and
 reproducibility failures stay agent-owned while safe repair remains.
@@ -397,6 +430,10 @@ maintainer gate is Go-native.
 - Live model evals are explicit and may call authenticated local CLIs only when
   deliberately invoked.
 - The npx installer does not require Go.
+- OpenCode discovery is documented, and its bounded process adapter has native
+  child-process regression tests. Paid live OpenCode runs and a matched
+  cross-host task-benefit pilot remain unperformed; do not infer them from
+  fixture success. See [adapter evidence boundaries](evals/skill-eval/README.md).
 
 The private marketplace is an approval boundary, not a global install source.
 Imported skills enter quarantine first. Promotion requires evidence, review,

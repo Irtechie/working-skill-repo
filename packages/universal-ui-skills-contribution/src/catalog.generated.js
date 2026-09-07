@@ -94,7 +94,7 @@ export const skillCatalog = Object.freeze([
     "id": "kb-configure",
     "name": "kb-configure",
     "description": "Configure portable per-project delivery and plan-worktree concurrency policy.",
-    "argumentHint": "[show|delivery-local|delivery-pr|delivery-direct|reset]",
+    "argumentHint": "[show|delivery-local|delivery-pr|delivery-pr-auto|delivery-direct|reset]",
     "category": "Learning and maintenance",
     "sourcePath": ".github/skills/kb-configure/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-configure/SKILL.md"
@@ -264,8 +264,8 @@ export const skillCatalog = Object.freeze([
   {
     "id": "kb-rehab",
     "name": "kb-rehab",
-    "description": "Clean house across a repository and check everything in. Invoking this lane is the authorization to commit salvageable uncommitted work, discard provable junk, settle or correct what is provably done, drive every stale branch and worktree to a terminal state, and open, merge, and clean up the pull request that carries it, ending on the default branch with a clean tree. Use when the user asks to clean house, check in, reconcile outstanding work, mark dead or superseded plans, close out branches and worktrees, or get the repository back to a clean starting point. Not for ordinary code cleanup, code review, or delivering one known feature.",
-    "argumentHint": "[optional scope hint, or blank for the whole repository]",
+    "description": "Review and reconcile explicitly accepted unfinished repository work. Survey portable Git lineage, preserve selected artifacts, classify every accepted item, deliver useful work through existing KB owners, and retire explicitly rejected local work only after restoration proof. Ordinary startup offers scoped cleanup without stopping independent work.",
+    "argumentHint": "[accepted scope, or blank for explicit repository-wide review]",
     "category": "Learning and maintenance",
     "sourcePath": ".github/skills/kb-rehab/SKILL.md",
     "sourceUrl": "https://github.com/Irtechie/working-skill-repo/blob/main/.github/skills/kb-rehab/SKILL.md"
