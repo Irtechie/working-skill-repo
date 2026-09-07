@@ -17,8 +17,11 @@ payload installed to temporary Codex, Copilot, and shared-agent roots. The child
 runtime is Windows PowerShell 5.1 plus Git; absent optional tools are checked in
 that same environment. Assertions cover refs, index bytes, file hashes, scoped
 acceptance, restoration, retries, and delivery handoffs. HB progress tests use
-the production gate validator and dependency scheduler. They do not execute a
-live conversational W2D session or substitute for rendered application proof.
+the production gate validator and dependency scheduler. An optional fixture-owned
+`phase_trace_contract` also makes `skill-eval` require ordered `phase_trace` actions
+and a matching `final_state`, including repair and refused-merge paths. This checks
+supplied trace consistency; it does not execute a live conversational W2D session
+or substitute for rendered application proof.
 
 OpenCode tests use a real native fake child process. Ablation fixtures exercise
 the reducer with synthetic external-capture files. Neither is live model or

@@ -5,7 +5,9 @@ function Get-RecoveryDeliveryPolicy {
   if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $value }
   $text=[IO.File]::ReadAllText($path)
   if (@([regex]::Matches($text,'(?m)^\s*delivery\s*:')).Count -gt 1 -or $text -match '(?m)^[ \t]+delivery\s*:') { $value.known=$false;return $value }
-  if ($text -match '(?ms)^delivery:\s*\r?\n((?:[ \t]+[^\r\n]*(?:\r?\n|$))*)') {
+  # Blank/comment-only lines remain inside the mapping; a substantive column-one
+  # key ends it. Do not let a separator hide a later local mode or duplicate.
+  if ($text -match '(?m)^delivery:[ \t]*\r?\n((?:(?:[ \t]+[^\r\n]*|#[^\r\n]*|)(?:\r?\n|$))*)') {
     $section=$Matches[1]
     if ($section -match '(&|\*|<<\s*:)' ) { $value.known=$false;return $value }
     foreach ($key in @('mode','merge')) {

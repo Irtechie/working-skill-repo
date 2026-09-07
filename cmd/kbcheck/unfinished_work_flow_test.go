@@ -308,3 +308,98 @@ slices:
 		t.Fatal("unfinished dependent slices admitted a premature PR")
 	}
 }
+
+func TestUnfinishedWorkFlowOrderedPhaseTraceEvaluator(t *testing.T) {
+	root := t.TempDir()
+	edge := func(next, owner string) map[string]any { return map[string]any{"next_state": next, "owner": owner} }
+	states := map[string]any{
+		"HB02-built":     map[string]any{"progress": edge("HB02-built", "agent"), "package": edge("packaged", "kb-work")},
+		"packaged":       map[string]any{"browser-pass": edge("browser-proven", "kb-qa"), "browser-fail": map[string]any{"next_state": "needs-repair", "owner": "kb-qa", "requires_reason": true}},
+		"needs-repair":   map[string]any{"repair": edge("packaged", "kb-repair")},
+		"browser-proven": map[string]any{"close-HB02": edge("HB02-done", "kb-work")},
+		"HB02-done":      map[string]any{"complete-HB03": edge("HB03-done", "kb-work")},
+		"HB03-done":      map[string]any{"complete-HB04": edge("HB04-done", "kb-work")},
+		"HB04-done":      map[string]any{"complete-HB05": edge("implemented", "kb-work")},
+		"implemented":    map[string]any{"integrated-proof": edge("proven", "kb-finalize")},
+		"proven":         map[string]any{"review": edge("reviewed", "kb-review")},
+		"reviewed":       map[string]any{"topic-push": edge("pushed", "kb-ship")},
+		"pushed":         map[string]any{"create-pr": edge("awaiting-merge", "kb-ship")},
+		"awaiting-merge": map[string]any{"merge": edge("delivered", "kb-land"), "merge-refused": map[string]any{"next_state": "awaiting-review", "owner": "kb-land", "requires_reason": true}},
+		"delivered":      map[string]any{}, "awaiting-review": map[string]any{},
+	}
+	fixture := map[string]any{"id": "hb-phases", "expected": map[string]any{"route": "w2d", "max_user_questions": 0}, "phase_trace_contract": map[string]any{"initial_state": "HB02-built", "terminal_states": []string{"delivered", "awaiting-review"}, "states": states}}
+	fixturePath := filepath.Join(root, "evals/route-complexity/hb-phases.json")
+	writePreparationJSON(t, fixturePath, fixture)
+	// Fake phase/forge boundaries emit records independently of the fixture graph.
+	// The production public evaluator, not this recorder, decides admissibility.
+	record := func(action, owner string) any { return map[string]any{"action": action, "owner": owner} }
+	trace := []any{record("progress", "agent"), record("package", "kb-work"), record("browser-pass", "kb-qa"), record("close-HB02", "kb-work"), record("complete-HB03", "kb-work"), record("complete-HB04", "kb-work"), record("complete-HB05", "kb-work"), record("integrated-proof", "kb-finalize"), record("review", "kb-review"), record("topic-push", "kb-ship"), record("create-pr", "kb-ship"), record("merge", "kb-land")}
+	base := map[string]any{"id": "hb-run", "fixture_id": "hb-phases", "actual": map[string]any{"route": "w2d", "user_questions": 0}, "trace": map[string]any{"files_read": []string{}, "commands": []string{}}, "phase_trace": trace, "final_state": "delivered"}
+	clone := func() map[string]any {
+		b, _ := json.Marshal(base)
+		var c map[string]any
+		if err := json.Unmarshal(b, &c); err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	evaluate := func(result map[string]any, wantPass bool, issue string) {
+		t.Helper()
+		resultPath := filepath.Join(root, "result.json")
+		writePreparationJSON(t, resultPath, result)
+		var out, stderr strings.Builder
+		code := run([]string{"skill-eval", "--root", root, "--result-path", resultPath, "--json"}, &out, &stderr)
+		if (code == 0) != wantPass {
+			t.Fatalf("public evaluator code=%d wantPass=%v output=%s stderr=%s", code, wantPass, out.String(), stderr.String())
+		}
+		if issue != "" && !strings.Contains(out.String(), issue) {
+			t.Fatalf("missing rejection %q: %s", issue, out.String())
+		}
+		if !strings.Contains(out.String(), "supplied-trace-consistency-only") {
+			t.Fatal("phase evidence presented without its confidence limit")
+		}
+	}
+	t.Run("normal", func(t *testing.T) { evaluate(clone(), true, "") })
+	t.Run("repair-retry", func(t *testing.T) {
+		r := clone()
+		a := r["phase_trace"].([]any)
+		events := append([]any{}, a[:2]...)
+		events = append(events, map[string]any{"action": "browser-fail", "owner": "kb-qa", "reason": "fake browser boundary: assertion failed"}, record("repair", "kb-repair"))
+		events = append(events, a[2:]...)
+		r["phase_trace"] = events
+		evaluate(r, true, "")
+	})
+	t.Run("merge-refusal", func(t *testing.T) {
+		r := clone()
+		a := r["phase_trace"].([]any)
+		a[len(a)-1] = map[string]any{"action": "merge-refused", "owner": "kb-land", "reason": "fake forge boundary: required review outstanding"}
+		r["final_state"] = "awaiting-review"
+		evaluate(r, true, "")
+	})
+	for _, spec := range []struct {
+		name, issue string
+		modify      func(map[string]any)
+	}{
+		{"premature-terminal", "premature terminal", func(r map[string]any) { r["phase_trace"] = r["phase_trace"].([]any)[:1] }},
+		{"ask-continue", "not allowed", func(r map[string]any) { r["phase_trace"].([]any)[1] = record("ask-continue", "agent") }},
+		{"out-of-order-proof", "not allowed", func(r map[string]any) { r["phase_trace"].([]any)[2] = record("close-HB02", "kb-work") }},
+		{"browser-failure-no-repair", "not allowed", func(r map[string]any) {
+			r["phase_trace"].([]any)[2] = map[string]any{"action": "browser-fail", "owner": "kb-qa", "reason": "assertion failed"}
+		}},
+		{"wrong-owner", "wrong owner", func(r map[string]any) { r["phase_trace"].([]any)[2] = record("browser-pass", "kb-work") }},
+		{"missing-trace", "requires nonempty", func(r map[string]any) { delete(r, "phase_trace") }},
+		{"invented-refusal", "requires refusal", func(r map[string]any) {
+			a := r["phase_trace"].([]any)
+			a[len(a)-1] = record("merge-refused", "kb-land")
+			r["final_state"] = "awaiting-review"
+		}},
+		{"false-final-state", "final_state differs", func(r map[string]any) { r["final_state"] = "awaiting-review" }},
+	} {
+		t.Run(spec.name, func(t *testing.T) { r := clone(); spec.modify(r); evaluate(r, false, spec.issue) })
+	}
+	t.Run("malformed-contract", func(t *testing.T) {
+		fixture["phase_trace_contract"] = "bad"
+		writePreparationJSON(t, fixturePath, fixture)
+		evaluate(clone(), false, "malformed fixture contract")
+	})
+}

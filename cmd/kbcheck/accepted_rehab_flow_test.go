@@ -240,3 +240,56 @@ func TestPortableRecoveryDisposition(t *testing.T) {
 		}
 	})
 }
+
+func TestPortableRecoveryDispositionPolicySections(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows PowerShell installed runtime")
+	}
+	root := t.TempDir()
+	repo := filepath.Join(root, "consumer")
+	remote := filepath.Join(root, "remote.git")
+	if err := os.MkdirAll(repo, 0755); err != nil {
+		t.Fatal(err)
+	}
+	portableGit(t, root, "init", "--bare", "--initial-branch=trunk", remote)
+	portableGit(t, repo, "init", "--initial-branch=trunk")
+	portableGit(t, repo, "config", "user.name", "Fixture")
+	portableGit(t, repo, "config", "user.email", "fixture@example.invalid")
+	portableWrite(t, filepath.Join(repo, "source.txt"), "baseline\n")
+	portableGit(t, repo, "add", ".")
+	portableGit(t, repo, "commit", "-m", "baseline")
+	portableGit(t, repo, "remote", "add", "origin", remote)
+	portableGit(t, repo, "push", "-u", "origin", "trunk")
+	portableGit(t, repo, "checkout", "-b", "codex/backlog")
+	portableWrite(t, filepath.Join(repo, "change.txt"), "backlog\n")
+	portableGit(t, repo, "add", ".")
+	portableGit(t, repo, "commit", "-m", "backlog")
+	tip := portableGit(t, repo, "rev-parse", "HEAD")
+	portableGit(t, repo, "checkout", "trunk")
+	manifest := "ref: refs/heads/codex/backlog\ntip: " + tip + "\n"
+	portableWrite(t, filepath.Join(repo, "docs/plans/owner.md"), manifest)
+	script := installedRecoveryScript(t, "agents")
+	survey := portableRunSurvey(t, script, repo)
+	branch := map[string]any{"kind": "branch", "ref": "refs/heads/codex/backlog", "tip": tip, "decision": "deliver", "manifest": "docs/plans/owner.md", "manifest_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(manifest)))}
+	request := map[string]any{"schema_version": 1, "run_id": "policy-section", "objective": "deliver accepted backlog", "repository_id": survey.RepositoryID, "acceptance": map[string]any{"source": "current-user-reply", "accepted": true, "items": []any{map[string]any{"kind": "branch", "ref": "refs/heads/codex/backlog", "tip": tip}}}, "items": []any{branch}}
+	path := filepath.Join(root, "request.json")
+	writePreparationJSON(t, path, request)
+	cases := []struct{ name, policy, want string }{
+		{"blank", "delivery:\n  merge: manual\n\n  mode: local\n", "retained-blocked"},
+		{"comment", "delivery:\n  merge: manual\n# delivery note\n  mode: local\n", "retained-blocked"},
+		{"next-key", "delivery:\n  merge: manual\n\n# next section\nother:\n  mode: local\n", "deliver-pr"},
+		{"duplicate-after-blank", "delivery:\n  mode: pr\n\n  mode: local\n", "retained-blocked"},
+		{"canonical-local", "delivery:\n  mode: local\n  merge: manual\n", "retained-blocked"},
+		{"flow-local", "delivery: {mode: local}\n", "retained-blocked"},
+		{"indented-local", "  delivery:\n    mode: local\n", "retained-blocked"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			portableWrite(t, filepath.Join(repo, "docs/context/operations/kb-routing.yaml"), tc.policy)
+			r := runDisposition(t, script, repo, path)
+			if len(r.Items) != 1 || r.Items[0].Disposition != tc.want || r.Items[0].Completed {
+				t.Fatalf("policy %q: want %s, got %+v", tc.policy, tc.want, r)
+			}
+		})
+	}
+}
