@@ -198,9 +198,19 @@ Run one live Codex eval:
 go run ./cmd/kbcheck eval-run-codex --fixture-id tiny-typo-fix --keep-run
 ```
 
-The live adapter creates a disposable git worktree under `.atv/eval-runs/`, runs
-`codex exec` in read-only mode with a JSON output schema, writes `result.json`,
-then calls `skill-eval --result-path <result.json>`.
+The live adapter creates a separate Git workspace under `.kb/eval-runs/`, copies
+only the skill payload, and runs `codex exec --sandbox read-only`. The prompt
+defines the response contract; no output-schema flag is currently supplied.
+The adapter writes `result.json`, then scores it outside the agent workspace.
+Evaluator source, fixtures, and previous results are not copied. This limits
+accidental answer leakage; it is not an OS-level read barrier against a
+deliberately escaping agent.
+
+Windows npm launchers resolve to known native package entrypoints without
+passing prompts through a command shell. Use `--command <native-cli-path>` to
+select an already installed CLI when the PATH version is incompatible with the
+configured model. Codex and Copilot runs are bounded to five minutes and retain
+raw stdout/stderr on process or parsing failure.
 
 Dry-run mode is part of `core`; live mode is explicit because it calls a
 model. Dry-run artifacts are cleaned unless `--keep-run` is set.
@@ -219,10 +229,12 @@ Run one live GHCP eval:
 go run ./cmd/kbcheck eval-run-ghcp --fixture-id tiny-typo-fix --keep-run
 ```
 
-The GHCP adapter creates a disposable git worktree under `.atv/eval-runs/`, runs
-GitHub Copilot CLI non-interactively, captures stdout/stderr plus a transcript
-artifact when available, parses strict JSON from the final response, writes
-`result.json`, then calls `skill-eval --result-path <result.json>`.
+The GHCP adapter uses the same separate workspace and invokes Copilot with
+`--prompt`, `--output-format json`, and only `view`, `grep`, and `glob` tools
+available. Shell and write permissions are denied. It captures stdout/stderr,
+extracts the final `assistant.message` from the JSONL event stream, requires a
+successful terminal `result`, writes `result.json`, then scores it independently.
+Using JSONL avoids the text renderer wrapping JSON strings at terminal width.
 
 GHCP does not expose a Codex-style `--output-schema` flag in the currently
 observed local CLI help, so this adapter uses prompt-level JSON constraints and

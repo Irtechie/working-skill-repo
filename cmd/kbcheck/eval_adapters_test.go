@@ -12,6 +12,117 @@ import (
 	"time"
 )
 
+func TestRoutingAgentArgsAreNoninteractiveAndLiteral(t *testing.T) {
+	// The test binary is a native executable on every supported host.
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	prompt := "quotes \" ' & | > $() ` newline\nUnicode café"
+	for _, host := range []string{"codex", "ghcp"} {
+		args, err := routingAgentArgs(binary, host, prompt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		count := 0
+		for _, arg := range args {
+			if arg == prompt {
+				count++
+			}
+		}
+		if count != 1 || args[0] != binary {
+			t.Fatalf("prompt or executable changed: %q", args)
+		}
+		joined := strings.Join(args, " ")
+		if host == "codex" && (args[1] != "exec" || !strings.Contains(joined, "--sandbox read-only")) {
+			t.Fatal(args)
+		}
+		if host == "ghcp" && (args[1] != "--prompt" || !strings.Contains(joined, "--deny-tool=write") || !strings.Contains(joined, "--deny-tool=shell")) {
+			t.Fatal(args)
+		}
+		if strings.Contains(joined, "--allow-all") {
+			t.Fatal("unbounded tool permissions")
+		}
+	}
+	if _, err := routingAgentArgs(binary, "unknown", prompt); err == nil {
+		t.Fatal("unknown runtime accepted")
+	}
+}
+
+func TestRoutingWorkspaceDoesNotExposeEvaluator(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, ".github/skills/kb-fix/SKILL.md"), "public skill")
+	writeFile(t, filepath.Join(root, "evals/route-complexity/case.json"), "SECRET-ORACLE")
+	writeFile(t, filepath.Join(root, "cmd/kbcheck/scorer.go"), "SECRET-SCORER")
+	workspace, err := prepareRoutingWorkspace(root, filepath.Join(root, ".kb/run"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(workspace, ".github/skills/kb-fix/SKILL.md")); err != nil || string(data) != "public skill" {
+		t.Fatal("skill payload missing", err)
+	}
+	for _, path := range []string{"evals", "cmd"} {
+		if _, err := os.Stat(filepath.Join(workspace, path)); !os.IsNotExist(err) {
+			t.Fatal("exposed evaluator", path)
+		}
+	}
+	out, err := exec.Command("git", "-C", workspace, "rev-parse", "--show-toplevel").CombinedOutput()
+	if err != nil || filepath.Clean(strings.TrimSpace(string(out))) != filepath.Clean(workspace) {
+		t.Fatalf("not isolated: %s %v", out, err)
+	}
+}
+
+func TestRoutingNativeInvocationRetainsEvidence(t *testing.T) {
+	root := t.TempDir()
+	source := `package main
+import("fmt";"os";"encoding/json")
+func main(){
+ if len(os.Args)<3 || (os.Args[1]!="exec" && os.Args[1]!="--prompt") {os.Exit(19)}
+ fmt.Fprint(os.Stderr,"captured diagnostic")
+ if os.Getenv("KB_ROUTING_FAIL")=="1" {fmt.Print("raw failure");os.Exit(23)}
+ response:="{\"fixture_id\":\"case\",\"eval_run_id\":\"run\"}"
+ if os.Args[1]=="--prompt" {
+  json.NewEncoder(os.Stdout).Encode(map[string]any{"type":"assistant.message","data":map[string]any{"content":response}})
+  fmt.Println("{\"type\":\"result\",\"sessionId\":\"s\",\"exitCode\":0}")
+ } else {fmt.Print(response)}
+}`
+	file := filepath.Join(root, "main.go")
+	writeFile(t, file, source)
+	binary := filepath.Join(root, "fake-agent")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
+	if out, err := exec.Command("go", "build", "-o", binary, file).CombinedOutput(); err != nil {
+		t.Fatalf("build: %s %v", out, err)
+	}
+	for _, host := range []string{"codex", "ghcp"} {
+		t.Run(host, func(t *testing.T) {
+			_, process, err := invokeLiveAgent(root, host, map[string]any{"id": "case"}, "run", options{agentCommand: binary})
+			if err != nil || process.ExitCode != 0 || process.Stderr != "captured diagnostic" {
+				t.Fatalf("launch: %+v %v", process, err)
+			}
+			t.Setenv("KB_ROUTING_FAIL", "1")
+			_, process, err = invokeLiveAgent(root, host, map[string]any{"id": "case"}, "run", options{agentCommand: binary})
+			if err == nil || process.ExitCode != 23 || process.Stdout != "raw failure" || process.Stderr != "captured diagnostic" {
+				t.Fatalf("failure lost: %+v %v", process, err)
+			}
+		})
+	}
+}
+
+func TestCopilotStructuredCompletion(t *testing.T) {
+	message := `{"type":"assistant.message","data":{"content":"{\"fixture_id\":\"case\",\"eval_run_id\":\"run\"}"}}` + "\n"
+	terminal := `{"type":"result","sessionId":"s","exitCode":0}`
+	if result, err := parseCopilotEventStream(message + terminal); err != nil || result["fixture_id"] != "case" {
+		t.Fatal(result, err)
+	}
+	for _, bad := range []string{message, terminal, message + `{"type":"result","sessionId":"s","exitCode":1}`, message + `{"type":"result","sessionId":"s"}`, message + `{"type":"session.error"}` + "\n" + terminal, message + terminal + "\n{}", "not json\n" + message + terminal} {
+		if _, err := parseCopilotEventStream(bad); err == nil {
+			t.Fatalf("accepted invalid stream: %s", bad)
+		}
+	}
+}
+
 func TestEvalPromptWithholdsPrivateFixtureFields(t *testing.T) {
 	t.Parallel()
 	fixture := map[string]any{

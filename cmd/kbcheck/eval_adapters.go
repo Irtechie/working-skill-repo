@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -99,7 +98,11 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 	exitCode := 0
 	status := "pass"
 	if mode == "live" {
-		live, captured, err := invokeLiveAgent(root, runtime, fixture, runID, opts)
+		workspace, prepareErr := prepareRoutingWorkspace(root, runDir)
+		if prepareErr != nil {
+			return adapterRun{}, prepareErr
+		}
+		live, captured, err := invokeLiveAgent(workspace, runtime, fixture, runID, opts)
 		process = captured
 		exitCode = process.ExitCode
 		if err != nil {
@@ -137,6 +140,50 @@ func runOneAdapterFixture(root, runRoot, runtime, mode string, fixture map[strin
 		}
 	}
 	return adapterRun{FixtureID: fixtureID, RunID: runID, RunDir: runDir, ResultPath: resultPath, ManifestPath: manifestPath, Mode: mode, Status: status, ExitCode: exitCode}, nil
+}
+
+// A prompt projection alone is insufficient: a live agent can read fixtures
+// from its working directory. Expose skill payloads, never the source corpus.
+func prepareRoutingWorkspace(root, runDir string) (string, error) {
+	workspace := filepath.Join(runDir, "workspace")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		return "", err
+	}
+	source := filepath.Join(root, ".github", "skills")
+	if info, err := os.Stat(source); err == nil && info.IsDir() {
+		err = filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.Type()&os.ModeSymlink != 0 {
+				return fmt.Errorf("skill payload symlink refused: %s", path)
+			}
+			rel, err := filepath.Rel(source, path)
+			if err != nil {
+				return err
+			}
+			target := filepath.Join(workspace, ".github", "skills", rel)
+			if entry.IsDir() {
+				return os.MkdirAll(target, 0o755)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(target, data, 0o644)
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "AGENTS.md"), []byte("This is a read-only KB routing evaluation. Consult .github/skills or installed KB skills. Do not execute the requested work, bootstrap memory, or inspect parent directories, evaluator source, fixtures, expected answers, or previous eval results.\n"), 0o644); err != nil {
+		return "", err
+	}
+	// A nested repository prevents parent-project instruction discovery.
+	if out, err := exec.Command("git", "-C", workspace, "init", "--quiet").CombinedOutput(); err != nil {
+		return "", fmt.Errorf("initialize routing workspace: %w: %s", err, out)
+	}
+	return workspace, nil
 }
 
 func writeAdapterJSON(path string, value any) error {
@@ -193,25 +240,98 @@ func invokeLiveAgent(root, runtime string, fixture map[string]any, runID string,
 		}
 		return result, process, err
 	}
-	cmd := exec.Command(command)
-	cmd.Dir = root
-	cmd.Stdin = strings.NewReader(prompt)
-	var out, errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	if err := cmd.Run(); err != nil {
-		code := 1
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			code = exitErr.ExitCode()
-		}
-		return nil, CheckResult{ExitCode: code, Stdout: out.String(), Stderr: errOut.String()}, fmt.Errorf("%s exited with code %d", runtime, code)
+	args, err := routingAgentArgs(command, runtime, prompt)
+	if err != nil {
+		return nil, CheckResult{ExitCode: 127}, err
 	}
-	process := CheckResult{Stdout: out.String(), Stderr: errOut.String()}
+	process := runProcessCheck(root, Check{Args: args, Timeout: 5 * time.Minute})
+	if process.ExitCode != 0 {
+		return nil, process, fmt.Errorf("%s failed: exit=%d", runtime, process.ExitCode)
+	}
 	var result map[string]any
-	if err := json.Unmarshal([]byte(extractLastJSONObject(out.String())), &result); err != nil {
+	if runtime == "ghcp" {
+		result, err = parseCopilotEventStream(process.Stdout)
+	} else {
+		err = json.Unmarshal([]byte(extractLastJSONObject(process.Stdout)), &result)
+	}
+	if err != nil {
 		return nil, process, err
 	}
 	return result, process, validateAdapterIdentity(result, fixture, runID)
+}
+
+// Copilot's text renderer wraps JSON strings at the terminal width. Consume
+// structured events instead and require the CLI's successful terminal result.
+func parseCopilotEventStream(stream string) (map[string]any, error) {
+	var content string
+	finished := false
+	for _, line := range strings.Split(stream, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var event map[string]any
+		if json.Unmarshal([]byte(line), &event) != nil || event == nil || finished {
+			return nil, fmt.Errorf("malformed or trailing Copilot event")
+		}
+		data, _ := event["data"].(map[string]any)
+		switch stringValue(event["type"]) {
+		case "session.error":
+			return nil, fmt.Errorf("Copilot session error")
+		case "assistant.message":
+			content = stringValue(data["content"])
+		case "result":
+			exit, ok := event["exitCode"].(float64)
+			if !ok || exit != 0 || stringValue(event["sessionId"]) == "" {
+				return nil, fmt.Errorf("Copilot unsuccessful terminal result")
+			}
+			finished = true
+		case "":
+			return nil, fmt.Errorf("Copilot event missing type")
+		}
+	}
+	var result map[string]any
+	if !finished || json.Unmarshal([]byte(content), &result) != nil || result == nil {
+		return nil, fmt.Errorf("Copilot stream missing successful JSON response")
+	}
+	return result, nil
+}
+
+// Never send model prompts through Windows command-shell shims. Resolve only
+// known package entrypoints, then pass the prompt as one native argv element.
+func routingAgentArgs(command, runtime, prompt string) ([]string, error) {
+	path, err := exec.LookPath(command)
+	if err != nil {
+		return nil, err
+	}
+	args := []string{path}
+	if goruntime.GOOS == "windows" && strings.ToLower(filepath.Ext(path)) != ".exe" {
+		base := filepath.Join(filepath.Dir(path), "node_modules")
+		switch runtime {
+		case "codex":
+			path = filepath.Join(base, "@openai", "codex", "vendor", "x86_64-pc-windows-msvc", "bin", "codex.exe")
+			args = []string{path}
+		case "ghcp":
+			path = filepath.Join(base, "@github", "copilot", "npm-loader.js")
+			node, nodeErr := exec.LookPath("node.exe")
+			if nodeErr != nil {
+				return nil, nodeErr
+			}
+			args = []string{node, path}
+		default:
+			return nil, fmt.Errorf("unsupported routing runtime: %s", runtime)
+		}
+		if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("native %s entrypoint unavailable: %s", runtime, path)
+		}
+	}
+	switch runtime {
+	case "codex":
+		return append(args, "exec", "--sandbox", "read-only", "--color", "never", prompt), nil
+	case "ghcp":
+		return append(args, "--prompt", prompt, "--silent", "--output-format", "json", "--stream", "off", "--no-ask-user", "--available-tools=view,grep,glob", "--deny-tool=shell", "--deny-tool=write"), nil
+	default:
+		return nil, fmt.Errorf("unsupported routing runtime: %s", runtime)
+	}
 }
 
 func validateAdapterIdentity(result, fixture map[string]any, runID string) error {
@@ -332,6 +452,10 @@ Rules:
 - Return exactly one JSON object and no markdown, prose, or code fences.
 - Set eval_run_id exactly to "%s".
 - Fill trace.files_read and trace.commands only with files/commands you actually used.
+- actual.user_questions is an integer count, not an array.
+- actual.artifacts and actual.proof are arrays of proposed deliverables and verification commands for the selected route; they are not claims that you executed work.
+- claim_checks is an empty array unless you have a supported deterministic check (file_exists, command_ran, or file_read); do not invent claim types or status fields.
+- Do not inspect evaluator source, route fixtures, expected answers, or previous eval results. Use only the supplied public scenario and skill instructions.
 
 Route fixture:
 %s
