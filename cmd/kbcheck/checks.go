@@ -118,7 +118,10 @@ func partitionGoTestPackages(packages []string) (regular, isolated []string) {
 
 func isolatedGoTestArgs(pkg string) []string {
 	timeout := defaultProcessCheckTimeout - processCheckTerminationWait
-	return []string{"test", "-buildvcs=false", "-timeout=" + timeout.String(), goTestParallelFlag(), pkg}
+	// These filesystem-heavy suites can record millions of cache inputs. Go's
+	// post-test cache replay then outlives the test binary and its own timeout.
+	// Execute every test once without result caching; compilation remains cached.
+	return []string{"test", "-buildvcs=false", "-count=1", "-timeout=" + timeout.String(), goTestParallelFlag(), pkg}
 }
 
 // goTestParallelism derives concurrency from memory headroom rather than CPU
