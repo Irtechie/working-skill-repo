@@ -8,6 +8,7 @@ Each fixture describes:
 - `prompt` - user request shape.
 - `repo_state` - assumed local context.
 - `expected.route` - the smallest correct KB lane.
+- `expected.accepted_routes` - optional alternatives explicitly permitted by the governing skill; they retain every artifact and proof requirement. The typo case accepts `bounded direct edit` because `kb-start` rank 17 permits it alongside `kb-fix`.
 - `expected.complexity_tier` - `small`, `medium`, or `large`.
 - `expected.max_user_questions` - maximum acceptable avoidable questions before action.
 - `expected.artifacts` - durable artifacts expected from the route.

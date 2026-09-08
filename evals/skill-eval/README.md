@@ -248,9 +248,22 @@ Dry-run artifacts are cleaned unless `--keep-run` is set.
 ### OpenCode adapter
 
 `eval-run-opencode` supports static, fixture, and synthetic dry-run checks.
-Live model behavior is **unverified**. The native-process tests use a fake CLI
+On 2026-09-08, one isolated `tiny-typo-fix` live routing probe passed on each
+of OpenCode 1.18.23, Codex CLI 0.153.3, and Copilot CLI 1.0.84-1. OpenCode used
+the existing configured model after the LiteLLM plugin diagnostics were moved
+to stderr; see the [reconciliation guide](../../docs/opencode-litellm-reconciliation.md).
+This is a bounded smoke result, not a cross-host quality benchmark or proof of
+end-to-end delivery. The native-process tests use a fake CLI
 and the [OpenCode 1.18.23 event contract](https://github.com/anomalyco/opencode/blob/v1.18.23/packages/opencode/src/cli/cmd/run.ts);
 they do not establish agent routing quality or a successful authenticated run.
+
+Live prompts publish a fixed vocabulary for common proposed artifacts/checks,
+an explicit JSON field shape, and an empty claim-check list for routing-only
+assessment. Vocabulary is independent of the selected fixture; expected routes
+and required subsets remain private. This measures selection using a public
+response contract, not the model's ability to guess hidden prose labels.
+Existing failures remain archived; only fresh runs use the revised contract.
+Do not compare old and new scores as if their prompts were identical.
 
 ```powershell
 go run ./cmd/kbcheck eval-run-opencode --fixture-id tiny-typo-fix --dry-run --keep-run --json

@@ -158,7 +158,14 @@ func scoreSkillEvalResult(root string, result map[string]any, fixtures map[strin
 	if actual == nil {
 		actual = map[string]any{}
 	}
-	if stringValue(actual["route"]) != stringValue(expected["route"]) {
+	acceptedRoutes := append([]string{stringValue(expected["route"])}, stringArray(expected["accepted_routes"])...)
+	routeAccepted := false
+	for _, route := range acceptedRoutes {
+		if route != "" && stringValue(actual["route"]) == route {
+			routeAccepted = true
+		}
+	}
+	if !routeAccepted {
 		issues = append(issues, evalIssue{Result: id, Message: fmt.Sprintf("Expected route '%s' but got '%s'.", stringValue(expected["route"]), stringValue(actual["route"]))})
 	}
 	if intValue(actual["user_questions"]) > intValue(expected["max_user_questions"]) {
