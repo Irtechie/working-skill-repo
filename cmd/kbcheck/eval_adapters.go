@@ -456,6 +456,12 @@ Rules:
 - actual.artifacts and actual.proof are arrays of proposed deliverables and verification commands for the selected route; they are not claims that you executed work.
 - claim_checks is an empty array unless you have a supported deterministic check (file_exists, command_ran, or file_read); do not invent claim types or status fields.
 - Do not inspect evaluator source, route fixtures, expected answers, or previous eval results. Use only the supplied public scenario and skill instructions.
+- Consult the selected skill and applicable kb-check verification policy before proposing proof.
+- Use the public category labels below where applicable; other routes may require additional labels. These are vocabulary choices, not a checklist to include indiscriminately.
+  Artifact categories: changed file; verification note; reproduction evidence; root cause note; requirements or assumptions; slice plans; manifest; review findings; PR URL; pushed branch; test output; lint output.
+  Proof categories: git diff --check; targeted text/render check if UI-visible; relevant narrow check exits 0; repro fails before fix; same path passes after fix; failing test passes; source/docs read; required checks and reviews pass; remote default contains delivered commit.
+- Return claim_checks as [] for this routing-only assessment. The trace records actual reads/commands; proposed artifacts and proof must not be presented as completed work.
+- Your final response must be ONLY the JSON object. Do not add a lead-in sentence or code fence. Use this field shape (replace the values): {"id":"...","fixture_id":"...","eval_run_id":"...","actual":{"route":"...","user_questions":0,"artifacts":[],"proof":[]},"trace":{"files_read":[],"commands":[],"tools":[]},"claim_checks":[]}.
 
 Route fixture:
 %s

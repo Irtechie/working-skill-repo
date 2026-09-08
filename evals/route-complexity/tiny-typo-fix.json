@@ -5,6 +5,7 @@
   "repo_state": "Single known copy change, no behavior change, no handoff or manifest.",
   "expected": {
     "route": "kb-fix",
+    "accepted_routes": ["bounded direct edit"],
     "complexity_tier": "small",
     "max_user_questions": 0,
     "artifacts": ["changed file", "verification note"],

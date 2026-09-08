@@ -36,6 +36,9 @@ For OpenCode, use `--target agents`. OpenCode discovers the shared
 `~/.agents/skills` directory; a repository install under `.github/skills` alone
 is not an OpenCode discovery route. See its [skill discovery documentation](https://opencode.ai/docs/skills/).
 
+If a LiteLLM plugin mixes log messages into OpenCode JSON output, follow the
+[reconciliation and rollback instructions](docs/opencode-litellm-reconciliation.md).
+
 Read-only questions stay read-only: KB uses existing project context when it is
 available and reports missing memory as a setup option. Setup, refresh, edits,
 tests, and cleanup still use their normal coordination and safety gates.
@@ -431,9 +434,10 @@ maintainer gate is Go-native.
   deliberately invoked.
 - The npx installer does not require Go.
 - OpenCode discovery is documented, and its bounded process adapter has native
-  child-process regression tests. Paid live OpenCode runs and a matched
-  cross-host task-benefit pilot remain unperformed; do not infer them from
-  fixture success. See [adapter evidence boundaries](evals/skill-eval/README.md).
+  child-process regression tests. One isolated live routing smoke passed on
+  OpenCode, Codex, and Copilot on 2026-09-08. A matched cross-host task-benefit
+  pilot remains unperformed; do not infer broader quality from this smoke.
+  See [adapter evidence boundaries](evals/skill-eval/README.md).
 
 The private marketplace is an approval boundary, not a global install source.
 Imported skills enter quarantine first. Promotion requires evidence, review,
