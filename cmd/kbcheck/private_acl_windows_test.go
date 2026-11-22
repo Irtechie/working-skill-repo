@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 	lock, err := modelrouting.AcquirePrivateStateLock(root, "probe.lock", 100*time.Millisecond)
 	if err == nil {
 		_ = lock.Close()
-		code := m.Run()
+		code := runIsolatedTests(m)
 		if err := cleanupPortableRecoveryInstall(); err != nil {
 			fmt.Fprintf(os.Stderr, "packed recovery fixture cleanup: %v\n", err)
 			code = 1
