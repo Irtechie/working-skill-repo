@@ -119,6 +119,16 @@ fingerprints Cargo config, serializes receipt updates, and returns the exact
 `CARGO_TARGET_DIR` to apply. Its receipt under the Git common directory is the
 only build-storage handoff between checks, workers, sessions, and phases.
 
+`CARGO_TARGET_DIR` names a cache root or this project's keyed target, never a
+Cargo profile folder. Given a written `debug` or `release` folder, or another
+project's keyed folder, the resolver climbs to the real cache root instead of
+nesting a second build tree inside it. Every `resolve` also sweeps for strays
+and lists them under `stray_targets`: a profile-in-profile tree inside the
+stable target is removed once it has been quiet for two hours; Cargo output
+written straight into the cache root, and a foreign keyed folder inside the
+stable target, are only reported. Relay each reported path and its size to the
+user; deleting one is the user's decision.
+
 If the capability probe fails because `cmd/kbcheck` is absent or predates
 `cargo-storage`, use the portable fail-closed fallback: require an existing
 absolute external
@@ -126,7 +136,9 @@ absolute external
 characters of SHA-256 over the canonical absolute Git common-directory path,
 create that project-keyed child, and apply it unchanged to every Cargo command.
 If the configured path already ends with that exact project key, reuse it
-instead of appending the key again.
+instead of appending the key again. If it ends with a `debug` or `release`
+folder that already holds a `.fingerprint` folder, use its parent as the cache
+root.
 Use the host's built-in SHA-256 utility; if canonicalization or hashing is
 unavailable, block Cargo rather than inventing a target. Record
 `portable-fallback`, the canonical identity, and the exact applied path in the

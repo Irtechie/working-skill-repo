@@ -72,6 +72,7 @@ type cargoStorageResult struct {
 	Action  string               `json:"action"`
 	Issue   string               `json:"issue,omitempty"`
 	Receipt *cargoStorageReceipt `json:"receipt,omitempty"`
+	Strays  []cargoStrayTarget   `json:"stray_targets,omitempty"`
 }
 
 type cargoStorageMarker struct {
@@ -97,6 +98,10 @@ func runCargoStorageCommand(root string, opts options, stdout, stderr io.Writer)
 	} else if result.OK && result.Receipt != nil {
 		fmt.Fprintf(stdout, "cargo-storage: %s run=%s target=%s receipt=%s\n",
 			result.Action, result.Receipt.RunID, result.Receipt.StableTarget, result.Receipt.ReceiptPath)
+		for _, stray := range result.Strays {
+			fmt.Fprintf(stdout, "cargo-storage: stray %s %s bytes=%d path=%s\n",
+				stray.Kind, stray.Action, stray.Bytes, stray.Path)
+		}
 	} else {
 		fmt.Fprintf(stdout, "cargo-storage: %s blocked: %s\n", result.Action, result.Issue)
 	}
@@ -142,7 +147,11 @@ func executeCargoStorageLocked(opts cargoStorageOptions, action, receiptPath str
 		if err != nil {
 			return cargoStorageResult{}, err
 		}
-		return cargoStorageResult{OK: true, Action: action, Receipt: &receipt}, nil
+		var strays []cargoStrayTarget
+		if receipt.StableTarget != "" {
+			strays = sweepCargoStrays(receipt.StableTarget, opts.Now)
+		}
+		return cargoStorageResult{OK: true, Action: action, Receipt: &receipt, Strays: strays}, nil
 	}
 	if action == "not-applicable" {
 		receipt, err := recordCargoStorageNotApplicable(opts, receiptPath)
@@ -354,6 +363,7 @@ func selectStableCargoTarget(opts cargoStorageOptions, identity string) (string,
 			return "", "", err
 		}
 		if !cargoTargetInWorktree(opts.RepoRoot, root) {
+			root = cargoCacheRootFor(root, key)
 			if filepath.Base(root) == key {
 				return root, "environment-project-target", nil
 			}

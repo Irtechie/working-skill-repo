@@ -161,6 +161,11 @@ an isolation mechanism.
 - The native resolver treats an external absolute `CARGO_TARGET_DIR` as a cache
   root and appends a collision-resistant repository key. Relative or
   worktree-local values map to the same project-keyed cache.
+- A value that names a written Cargo profile folder (`debug`, `release`) or
+  another project's keyed folder is not a cache root; the resolver climbs out
+  of it. Each `resolve` removes a quiet profile-in-profile tree inside the
+  stable target and reports, without deleting, Cargo output written directly
+  into the cache root (`stray_targets` in the result).
 - The receipt lives under the Git common directory, has a collision-resistant
   run filename, serializes mutations, and includes the applied environment plus
   Cargo config fingerprint.
