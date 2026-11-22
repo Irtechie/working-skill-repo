@@ -52,7 +52,9 @@ Each slice must:
 1. Deliver one narrow observable outcome across every relevant layer.
 2. Be independently executable after its blockers.
 3. Name acceptance criteria and test scenarios.
-4. Forecast `expected_files` without pretending it is a write allowlist.
+4. Forecast `expected_files` without pretending it is a write allowlist, and
+   state its work boundaries: `touch`, `do_not_touch`, `shared_edits`, `tests`
+   and, when they apply, `evidence` and `preserved_behavior`.
 5. Declare `test_level`, `functional_risk`, and `execution_class`.
 6. Declare `model_tier` as minimum capability, never a provider/model name.
 7. Carry `model_requirements`, `escalation_triggers`, and `token_budget` at the
@@ -166,6 +168,42 @@ step it was never shown is not a measurement; it measures the plan.
 Enabling slices are allowed only when they are the smallest prerequisite for a
 named downstream slice. Prefer behavior-first slices over schema/service/UI
 phases.
+
+### Work Boundaries
+
+The executor sees its slice and nothing else, and may be one of several running
+at once. Every slice therefore states its boundaries, in the slice itself:
+
+- `touch` - the files or folders this slice is expected to change. Still a
+  forecast, not a write allowlist: the executor may need a file the planner did
+  not foresee.
+- `do_not_touch` - paths the executor must not edit, each with a short reason:
+  another slice's work, a safety-critical or owner-controlled file, generated
+  output, or anything outside the slice's `owning_component`. This one is a
+  hard boundary. If the work cannot be finished without crossing it, the
+  executor stops and escalates; it does not edit and explain afterwards.
+- `shared_edits` - files that more than one ready slice must change (a route
+  table, a stylesheet, a module list), with the rule that keeps the merge
+  small: additive only, one named block, or a stated order.
+- `tests` - the existing test files this slice is expected to update, the new
+  ones it adds, and the exact command for each proof, including any filter.
+  State what is deliberately not run and why, so a short run is a decision and
+  not an omission.
+- `evidence` - where screenshots, logs or other proof go when the slice
+  produces any. Use a location that outlives the executor's workspace.
+- `preserved_behavior` - for a slice that moves, restyles or regroups something
+  that carries a safety, confirmation or permission rule: the rules that must
+  still hold afterwards, named one by one, each with the test that proves it.
+  Omit only when the slice touches none.
+
+Two slices may share a ready set only when no path in one slice's `touch` is in
+another's `touch` or `do_not_touch`, except paths both list under
+`shared_edits`. A slice with an empty `do_not_touch` in a ready set of more
+than one is a planning defect, not a convenience.
+
+Boundaries scale with tier the same way the rest of the contract does: `large`
+needs the hard boundary and the proof commands; `medium` and `small` need every
+field, and `small` needs `touch` down to the edit sites.
 
 ### Qualification Evidence Plans (Opt-In)
 
